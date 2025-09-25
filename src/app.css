@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design System CSS Variables */
+:root {
+  /* Light mode colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --bg-card: #ffffff;
+  --bg-sidebar: #fafafa;
+  
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+  
+  --brand-navy: #00007f;
+  --brand-purple: #8b3cff;
+  --brand-purple-hover: #7a2de6;
+  --brand-gray1: #aaaaaa;
+  --brand-gray2: #bbbbbb;
+  --brand-gray3: #cccccc;
+  
+  --grey-soft: #e5e7eb;
+  --grey-neutral: #6b7280;
+  
+  /* New design system variables */
+  --design-page-bg: #f8f9fa;
+  --design-card-bg: #f0f4ff;
+  --design-input-bg: #ffffff;
+  --design-border-light: #e0e0e0;
+  --design-border-input: #aaaaaa;
+  --design-text-primary: #000000;
+  --design-text-secondary: #404040;
+  --design-text-muted: #808080;
+  --design-text-placeholder: #6b7280;
+}
+
+.dark {
+  /* Dark mode colors */
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #111111;
+  --bg-card: #0a0a0a;
+  --bg-sidebar: #1a0f08;
+  
+  --text-primary: #ffffff;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  
+  --border-primary: #333333;
+  --border-secondary: #4b5563;
+  
+  --brand-navy: #00007f;
+  --brand-purple: #8b3cff;
+  --brand-gray1: #aaaaaa;
+  --brand-gray2: #bbbbbb;
+  --brand-gray3: #cccccc;
+  
+  --grey-soft: #333333;
+  --grey-neutral: #999999;
+}
+
+/* Utility classes for common backgrounds that automatically work with dark mode */
+.bg-card {
+  background-color: var(--bg-card);
+}
+
+.bg-primary {
+  background-color: var(--bg-primary);
+}
+
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.border-primary {
+  border-color: var(--border-primary);
+}
+
+/* Hide scrollbar while keeping scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}
+
+/* Ensure drag and drop works properly with grid layouts */
+.grid > * {
+  pointer-events: auto;
+}
