@@ -14,7 +14,9 @@ export default function ProtectedRoute({ children, requireAdmin = false }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // Redirect to signin with the current path as a redirect parameter
+    const redirectPath = location.pathname + location.search;
+    return <Navigate to={`/signin?redirect=${encodeURIComponent(redirectPath)}`} replace />;
   }
 
   if (requireAdmin && !isAdmin) {

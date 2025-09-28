@@ -105,23 +105,30 @@ class PlanAPI {
     }
   }
 
-  async createSubscription(planId, billingCycle = 'monthly') {
+  async createSubscription(planId, billingCycle = 'monthly', paymentMethodId = null) {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) {
       throw new Error('Authentication required');
     }
 
     try {
+      const body = {
+        plan_id: planId,
+        billing_cycle: billingCycle,
+      };
+
+      // Add payment method ID if provided
+      if (paymentMethodId) {
+        body.payment_method_id = paymentMethodId;
+      }
+
       const response = await fetch(`${API_BASE_URL}/subscriptions/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({
-          plan_id: planId,
-          billing_cycle: billingCycle,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -229,6 +236,64 @@ class PlanAPI {
     }
   }
 
+  async reactivateSubscription() {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/subscriptions/reactivate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to reactivate subscription:', error);
+      throw error;
+    }
+  }
+
+  async updatePaymentMethod(paymentMethodId, setAsDefault = true) {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/subscriptions/update-payment-method`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          payment_method_id: paymentMethodId,
+          set_as_default: setAsDefault,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to update payment method:', error);
+      throw error;
+    }
+  }
+
   async getUserFeatures() {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) return null;
@@ -329,6 +394,162 @@ class PlanAPI {
     } catch (error) {
       console.error('Failed to fetch display features:', error);
       return { features: [] };
+    }
+  }
+
+  // Payment History endpoints
+  async getPayments(params = {}) {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.page) queryParams.append('page', params.page);
+      if (params.per_page) queryParams.append('per_page', params.per_page);
+      if (params.status) queryParams.append('status', params.status);
+      if (params.type) queryParams.append('type', params.type);
+      if (params.start_date) queryParams.append('start_date', params.start_date);
+      if (params.end_date) queryParams.append('end_date', params.end_date);
+
+      const response = await fetch(`${API_BASE_URL}/payments/?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to fetch payments:', error);
+      throw error;
+    }
+  }
+
+  async getSubscriptionPayments(subscriptionId, params = {}) {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.page) queryParams.append('page', params.page);
+      if (params.per_page) queryParams.append('per_page', params.per_page);
+
+      const response = await fetch(`${API_BASE_URL}/subscriptions/${subscriptionId}/payments?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to fetch subscription payments:', error);
+      throw error;
+    }
+  }
+
+  async getPaymentHistory(params = {}) {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.start_date) queryParams.append('start_date', params.start_date);
+      if (params.end_date) queryParams.append('end_date', params.end_date);
+
+      const response = await fetch(`${API_BASE_URL}/payments/history?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to fetch payment history:', error);
+      throw error;
+    }
+  }
+
+  async getPaymentDetails(paymentId) {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/payments/${paymentId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to fetch payment details:', error);
+      throw error;
+    }
+  }
+
+  async getInvoices(params = {}) {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.page) queryParams.append('page', params.page);
+      if (params.per_page) queryParams.append('per_page', params.per_page);
+
+      const response = await fetch(`${API_BASE_URL}/payments/invoices?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to fetch invoices:', error);
+      throw error;
     }
   }
 }

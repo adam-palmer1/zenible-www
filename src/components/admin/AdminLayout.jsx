@@ -10,7 +10,7 @@ export default function AdminLayout() {
   return (
     <AdminRoute>
       <div className={`flex h-screen font-inter ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
-        <AdminSidebar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+        <AdminSidebar />
 
         <div className="flex-1 flex flex-col overflow-hidden">
           <Outlet context={{ darkMode }} />

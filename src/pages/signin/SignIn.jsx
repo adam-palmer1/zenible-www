@@ -192,15 +192,35 @@ export default function SignIn() {
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
 
-  const { login, googleLogin, isAuthenticated } = useAuth();
+  const { login, googleLogin, isAuthenticated, loading: authLoading, checkAuth } = useAuth();
   const navigate = useNavigate();
 
+  // Force re-check authentication when component mounts
   useEffect(() => {
-    // Redirect if already authenticated
-    if (isAuthenticated) {
-      navigate('/zenible-dashboard');
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    // Get URL search parameters
+    const searchParams = new URLSearchParams(window.location.search);
+    const urlError = searchParams.get('error');
+    const redirectPath = searchParams.get('redirect');
+
+    // Don't redirect while auth is still loading
+    if (!authLoading && isAuthenticated) {
+      const targetPath = redirectPath || '/dashboard';
+      navigate(targetPath);
     }
-  }, [isAuthenticated, navigate]);
+
+    // Set error from URL parameters if present
+    if (urlError) {
+      setApiError(urlError);
+      // Clean up the URL by removing the error parameter
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.delete('error');
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [isAuthenticated, navigate, authLoading]);
 
 
   useEffect(() => {
@@ -261,7 +281,11 @@ export default function SignIn() {
       const result = await login(email, password);
 
       if (result.success) {
-        // Navigation will be handled by the useEffect watching isAuthenticated
+        // Get redirect path from URL params
+        const searchParams = new URLSearchParams(window.location.search);
+        const redirectPath = searchParams.get('redirect');
+        const targetPath = redirectPath || '/dashboard';
+        navigate(targetPath);
       } else {
         setApiError(result.error || 'Login failed. Please try again.');
       }
@@ -277,7 +301,10 @@ export default function SignIn() {
     setIsLoading(true);
 
     try {
-      const result = await googleLogin();
+      // Get redirect path from URL params
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectPath = searchParams.get('redirect');
+      const result = await googleLogin(redirectPath);
 
       if (!result.success && result.error) {
         setApiError(result.error);
@@ -296,6 +323,20 @@ export default function SignIn() {
       handleSignIn(e);
     }
   };
+
+  // Show loading spinner while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-neutral-50 dark:bg-[#0c111d] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#8e51ff] dark:border-[#a684ff] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-lg font-inter font-medium text-zinc-950 dark:text-[#ededf0]">
+            Loading...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-neutral-50 dark:bg-[#0c111d] content-stretch flex items-start relative size-full min-h-screen"

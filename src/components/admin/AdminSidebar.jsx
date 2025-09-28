@@ -106,7 +106,7 @@ const navItems = [
   },
 ];
 
-export default function AdminSidebar({ darkMode, toggleDarkMode }) {
+export default function AdminSidebar() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -134,258 +134,158 @@ export default function AdminSidebar({ darkMode, toggleDarkMode }) {
   }, []);
 
   return (
-    <div
-      className={`relative h-full w-[280px] flex flex-col border-r ${
-        darkMode
-          ? 'bg-zenible-dark-sidebar border-zenible-dark-border'
-          : 'bg-white border-neutral-200'
-      }`}
-    >
-      {/* Brand Logo Section */}
-      <div
-        className={`relative shrink-0 w-full border-b ${
-          darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'
-        }`}
-      >
-        <div className="flex items-center justify-between p-4">
-          <div className="flex gap-3 items-center">
-            <div className="bg-zenible-primary flex items-center justify-center p-[6px] rounded-lg size-8">
-              <img src={brandIcon} alt="" className="w-[19.2px] h-[19.2px]" />
-            </div>
-            <div className="flex flex-col">
-              <p
-                className={`font-inter font-semibold text-sm leading-[22px] ${
-                  darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'
-                }`}
-              >
-                Zenible Admin
-              </p>
-              <p
-                className={`font-inter font-normal text-[10px] leading-[14px] ${
-                  darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'
-                }`}
-              >
-                Administration Panel
-              </p>
-            </div>
+    <div className="w-[280px] h-full bg-[#FAFBFC] border-r border-[#E5E7EB] flex flex-col">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-[#E5E7EB]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#8B5CF6] rounded-lg flex items-center justify-center">
+            <img src={brandIcon} alt="" className="w-[19.2px] h-[19.2px]" />
           </div>
-          <button
-            onClick={toggleDarkMode}
-            className={`p-2 rounded-lg transition-colors ${
-              darkMode ? 'hover:bg-zenible-dark-card' : 'hover:bg-gray-100'
-            }`}
-            title="Toggle theme"
-          >
-            {darkMode ? (
-              <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-              </svg>
-            )}
-          </button>
+          <div className="flex flex-col">
+            <span className="text-[#111827] text-sm font-semibold leading-5">
+              Zenible
+            </span>
+            <span className="text-[#6B7280] text-xs leading-4">
+              Admin Panel
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Navigation Section */}
-      <div className="flex-1">
-        <div className="p-4">
-          <p
-            className={`font-inter font-medium text-xs leading-5 mb-2 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'
-            }`}
-          >
-            Admin Menu
-          </p>
-          <div className="flex flex-col">
+      {/* Main Navigation */}
+      <nav className="flex-1 flex flex-col">
+        <div className="flex-1">
+          <div className="space-y-1">
             {navItems.map((item) => (
-              <Link
-                key={item.id}
-                to={item.path}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors ${
-                  isActive(item.path)
-                    ? darkMode
-                      ? 'bg-zenible-dark-tab-bg border border-zenible-primary'
-                      : 'bg-zenible-tab-bg border border-zenible-primary'
-                    : darkMode
-                    ? 'hover:bg-zenible-dark-card'
-                    : 'hover:bg-gray-50'
-                }`}
-              >
-                <span
-                  className={`${
-                    isActive(item.path)
-                      ? 'text-zenible-primary'
-                      : darkMode
-                      ? 'text-zenible-dark-text-secondary'
-                      : 'text-zinc-500'
-                  }`}
+              <div key={item.id} className="px-4">
+                <Link
+                  to={item.path}
+                  className={`
+                    w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors duration-150 text-left group
+                    ${isActive(item.path)
+                      ? 'bg-[#F3F0FF] text-[#8B5CF6]'
+                      : 'text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#374151]'
+                    }
+                  `}
                 >
-                  {item.icon}
-                </span>
-                <span
-                  className={`font-inter font-medium text-base ${
-                    isActive(item.path)
-                      ? darkMode
-                        ? 'text-zenible-dark-text'
-                        : 'text-zinc-950'
-                      : darkMode
-                      ? 'text-zenible-dark-text-secondary'
-                      : 'text-zinc-500'
-                  }`}
-                >
-                  {item.label}
-                </span>
-              </Link>
+                  <div className="flex items-center gap-3">
+                    <span className="w-5 h-5 flex-shrink-0">
+                      {React.cloneElement(item.icon, {
+                        className: 'w-5 h-5 flex-shrink-0',
+                        color: isActive(item.path) ? '#8B5CF6' : 'currentColor'
+                      })}
+                    </span>
+                    <span className={`text-sm font-medium ${isActive(item.path) ? 'font-semibold' : ''}`}>
+                      {item.label}
+                    </span>
+                  </div>
+                </Link>
+              </div>
             ))}
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className={`mx-4 h-px ${darkMode ? 'bg-zenible-dark-border' : 'bg-zenible-stroke'}`} />
-        <div className="p-4">
-          <p
-            className={`font-inter font-medium text-xs leading-5 mb-2 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'
-            }`}
-          >
-            Quick Actions
-          </p>
-          <div className="flex flex-col">
-            <Link
-              to="/"
-              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors ${
-                darkMode ? 'hover:bg-zenible-dark-card' : 'hover:bg-gray-50'
-              }`}
-            >
-              <svg
-                className={`w-6 h-6 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+        {/* Bottom Navigation */}
+        <div className="pb-4">
+          <div className="space-y-1">
+            <div className="px-4">
+              <Link
+                to="/dashboard"
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors duration-150 text-left group text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#374151]"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                />
-              </svg>
-              <span
-                className={`font-inter font-medium text-base ${
-                  darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'
-                }`}
-              >
-                Back to App
-              </span>
-            </Link>
+                <div className="flex items-center gap-3">
+                  <svg
+                    className="w-5 h-5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                    />
+                  </svg>
+                  <span className="text-sm font-medium">
+                    Back to App
+                  </span>
+                </div>
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Profile Section */}
-      <div
-        className={`border-t p-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}
-      >
-        <div className="relative" ref={dropdownRef}>
-          <button
-            onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-            className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
-              darkMode ? 'hover:bg-zenible-dark-card' : 'hover:bg-gray-100'
+      {/* User Profile Section */}
+      <div className="px-4 pb-6 relative" ref={dropdownRef}>
+        <button
+          onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+          className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-[#F9FAFB] transition-colors duration-150 group"
+        >
+          <div className="flex items-center gap-3">
+            {/* Avatar */}
+            <div className="relative">
+              {user?.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt={user?.full_name || 'Admin User'}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-[#8B5CF6] flex items-center justify-center">
+                  <span className="text-white text-xs font-semibold">
+                    {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'A'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* User Info */}
+            <div className="flex flex-col text-left">
+              <span className="text-[#111827] text-sm font-semibold leading-5 truncate max-w-[140px]">
+                {user?.full_name || 'Admin User'}
+              </span>
+              <span className="text-[#6B7280] text-xs leading-4 truncate max-w-[140px]">
+                Admin
+              </span>
+            </div>
+          </div>
+
+          <svg
+            className={`w-4 h-4 flex-shrink-0 text-[#6B7280] transition-transform duration-200 ${
+              showProfileDropdown ? 'rotate-90' : ''
             }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-semibold">
-                {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'A'}
-              </div>
-              <div className="flex flex-col text-left">
-                <p
-                  className={`font-inter font-medium text-base leading-6 ${
-                    darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'
-                  }`}
-                >
-                  {user?.full_name || 'Admin User'}
-                </p>
-              </div>
-            </div>
-          </button>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
 
-          {/* Profile Dropdown Menu */}
-          {showProfileDropdown && (
-            <div
-              className={`absolute bottom-full left-0 right-0 mb-2 rounded-lg shadow-lg border ${
-                darkMode
-                  ? 'bg-zenible-dark-card border-zenible-dark-border'
-                  : 'bg-white border-neutral-200'
-              }`}
+        {/* Dropdown Menu */}
+        {showProfileDropdown && (
+          <div className="absolute bottom-full left-4 right-4 mb-2 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-2 z-50 min-w-max">
+            <Link
+              to="/settings"
+              onClick={() => setShowProfileDropdown(false)}
+              className="w-full text-left px-4 py-2 text-sm text-[#374151] hover:bg-[#F9FAFB] transition-colors block"
             >
-              <div className="py-1">
-                <Link
-                  to="/admin/settings"
-                  onClick={() => setShowProfileDropdown(false)}
-                  className={`flex items-center gap-2 px-4 py-2.5 transition-colors ${
-                    darkMode
-                      ? 'text-zenible-dark-text hover:bg-zenible-dark-bg'
-                      : 'text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                  <span className="font-medium">Settings</span>
-                </Link>
-                <button
-                  onClick={() => {
-                    setShowProfileDropdown(false);
-                    logout();
-                  }}
-                  className={`w-full flex items-center gap-2 px-4 py-2.5 transition-colors ${
-                    darkMode
-                      ? 'text-zenible-dark-text hover:bg-zenible-dark-bg'
-                      : 'text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    />
-                  </svg>
-                  <span className="font-medium">Logout</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+              Settings
+            </Link>
+            <div className="border-t border-[#E5E7EB] my-1"></div>
+            <button
+              onClick={() => {
+                setShowProfileDropdown(false);
+                logout();
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-[#DC2626] hover:bg-[#FEF2F2] transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,11 +3,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import planAPI from '../../services/planAPI';
+import StripePaymentModal from '../StripePaymentModal';
+import SubscriptionSuccessModal from '../SubscriptionSuccessModal';
 import tickSquare from '../../assets/icons/tick-square-purple.svg';
 import crossSquare from '../../assets/icons/cross-square-gray.svg';
 
 export default function PricingNew() {
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
   const { darkMode } = usePreferences();
   const navigate = useNavigate();
 
@@ -18,6 +20,19 @@ export default function PricingNew() {
   const [error, setError] = useState(null);
   const [processingAction, setProcessingAction] = useState(false);
   const [hasAnnualPricing, setHasAnnualPricing] = useState(false);
+  const [paymentModal, setPaymentModal] = useState({
+    isOpen: false,
+    planId: null,
+    planName: '',
+    price: '',
+    billingCycle: 'monthly'
+  });
+  const [successModal, setSuccessModal] = useState({
+    isOpen: false,
+    planName: '',
+    price: '',
+    billingCycle: 'monthly'
+  });
 
   useEffect(() => {
     fetchData();
@@ -89,16 +104,61 @@ export default function PricingNew() {
       return;
     }
 
-    setProcessingAction(true);
+    // Find the plan to get details for the payment modal
+    const plan = plans.find(p => p.id === planId);
+    if (!plan) return;
+
+    const price = billingCycle === 'monthly'
+      ? parseFloat(plan.monthly_price).toFixed(2).replace(/\.00$/, '')
+      : parseFloat(plan.annual_price || plan.monthly_price * 12).toFixed(2).replace(/\.00$/, '');
+
+    setPaymentModal({
+      isOpen: true,
+      planId,
+      planName: plan.name,
+      price,
+      billingCycle
+    });
+  };
+
+  const handlePaymentSuccess = async (paymentMethodId) => {
     try {
-      await planAPI.createSubscription(planId, billingCycle);
-      alert('Subscription created successfully!');
-      await fetchData();
+      await planAPI.createSubscription(paymentModal.planId, paymentModal.billingCycle, paymentMethodId);
+
+      // Close payment modal and show success modal
+      setPaymentModal({ isOpen: false, planId: null, planName: '', price: '', billingCycle: 'monthly' });
+      setSuccessModal({
+        isOpen: true,
+        planName: paymentModal.planName,
+        price: paymentModal.price,
+        billingCycle: paymentModal.billingCycle
+      });
+
+      // Refresh subscription data and user context
+      await Promise.all([
+        fetchData(), // Refresh subscription and plan data
+        checkAuth()  // Refresh user data to get updated subscription status
+      ]);
     } catch (err) {
-      alert(`Failed to create subscription: ${err.message}`);
-    } finally {
-      setProcessingAction(false);
+      throw new Error(err.message || 'Failed to create subscription');
     }
+  };
+
+  const handlePaymentError = (error) => {
+    alert(`Payment failed: ${error.message || error}`);
+  };
+
+  const closePaymentModal = () => {
+    setPaymentModal({ isOpen: false, planId: null, planName: '', price: '', billingCycle: 'monthly' });
+  };
+
+  const handleContinueToDashboard = () => {
+    setSuccessModal({ isOpen: false, planName: '', price: '', billingCycle: 'monthly' });
+    navigate('/dashboard');
+  };
+
+  const closeSuccessModal = () => {
+    setSuccessModal({ isOpen: false, planName: '', price: '', billingCycle: 'monthly' });
   };
 
   const handleUpgrade = async (planId) => {
@@ -484,6 +544,28 @@ export default function PricingNew() {
           );
         })}
       </div>
+
+      {/* Payment Modal */}
+      <StripePaymentModal
+        isOpen={paymentModal.isOpen}
+        onClose={closePaymentModal}
+        planName={paymentModal.planName}
+        planId={paymentModal.planId}
+        price={paymentModal.price}
+        billingCycle={paymentModal.billingCycle}
+        onSuccess={handlePaymentSuccess}
+        onError={handlePaymentError}
+      />
+
+      {/* Success Modal */}
+      <SubscriptionSuccessModal
+        isOpen={successModal.isOpen}
+        onClose={closeSuccessModal}
+        planName={successModal.planName}
+        price={successModal.price}
+        billingCycle={successModal.billingCycle}
+        onContinue={handleContinueToDashboard}
+      />
     </div>
   );
 }

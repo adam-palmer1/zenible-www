@@ -1,5 +1,5 @@
 import React from 'react';
-import ZenibleSidebar from './ZenibleSidebar';
+import NewSidebar from '../sidebar/NewSidebar';
 import ZenibleTopBar from './ZenibleTopBar';
 import PageHeader from './PageHeader';
 import MetricCards from './MetricCards';
@@ -13,7 +13,7 @@ export default function ZenibleDashboard() {
   return (
     <div className={`flex h-screen font-inter ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
       {/* Sidebar */}
-      <ZenibleSidebar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+      <NewSidebar />
       
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col">

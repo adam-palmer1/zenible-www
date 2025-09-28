@@ -1,13 +1,17 @@
-import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
+import { WebSocketProvider } from './contexts/WebSocketContext';
 
 // Auth pages
 import SignIn from './pages/signin/SignIn';
+import GoogleCallback from './components/GoogleCallback';
+import UserSettings from './components/UserSettings';
 
 // Dashboard pages
 import AdminPanel from './components/AdminPanel';
-import ZenibleDashboard from './components/zenible-dashboard/ZenibleDashboard';
+import ProtectedDashboard from './components/ProtectedDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
 import ProposalWizard from './components/proposal-wizard/ProposalWizard';
 import Plans from './components/Plans';
 import Pricing from './components/pricing/PricingNew';
@@ -26,84 +30,119 @@ import FeatureManagement from './components/admin/FeatureManagement';
 import AdminSettings from './components/admin/AdminSettings';
 import AIModelsManagement from './components/admin/AIModelsManagement';
 
+// Root layout component with WebSocket provider
+function RootLayout() {
+  return (
+    <WebSocketProvider>
+      <Outlet />
+    </WebSocketProvider>
+  );
+}
+
 const router = createBrowserRouter([
   {
-    path: '/signin',
-    element: <SignIn />
-  },
-  {
-    path: '/login',
-    element: <Navigate to="/signin" replace />
-  },
-  {
-    path: '/zenible-dashboard',
-    element: <ZenibleDashboard />
-  },
-  {
-    path: '/proposal-wizard',
-    element: <ProposalWizard />
-  },
-  {
-    path: '/plans',
-    element: <Plans />
-  },
-  {
-    path: '/pricing',
-    element: <Pricing />
-  },
-  {
-    path: '/admin',
-    element: <AdminLayout />,
+    path: '/',
+    element: <RootLayout />,
     children: [
       {
-        index: true,
-        element: <AdminDashboard />
+        path: 'signin',
+        element: <SignIn />
       },
       {
-        path: 'users',
-        element: <UserManagement />
+        path: 'auth/google/callback',
+        element: <GoogleCallback />
+      },
+      {
+        path: 'login',
+        element: <Navigate to="/signin" replace />
+      },
+      {
+        path: 'dashboard',
+        element: <ProtectedDashboard />
+      },
+      {
+        path: 'zenible-dashboard',
+        element: <Navigate to="/dashboard" replace />
+      },
+      {
+        path: 'proposal-wizard',
+        element: (
+          <ProtectedRoute>
+            <ProposalWizard />
+          </ProtectedRoute>
+        )
       },
       {
         path: 'plans',
-        element: <PlanManagement />
+        element: <Plans />
       },
       {
-        path: 'subscriptions',
-        element: <SubscriptionManagement />
-      },
-      {
-        path: 'payments',
-        element: <PaymentTracking />
-      },
-      {
-        path: 'audit-logs',
-        element: <AuditLogs />
-      },
-      {
-        path: 'ai-characters',
-        element: <AICharacterManagement />
-      },
-      {
-        path: 'ai-models',
-        element: <AIModelsManagement />
-      },
-      {
-        path: 'threads',
-        element: <ThreadManagement />
-      },
-      {
-        path: 'features',
-        element: <FeatureManagement />
+        path: 'pricing',
+        element: <Pricing />
       },
       {
         path: 'settings',
-        element: <AdminSettings />
+        element: (
+          <ProtectedRoute>
+            <UserSettings />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'admin',
+        element: <AdminLayout />,
+        children: [
+          {
+            index: true,
+            element: <AdminDashboard />
+          },
+          {
+            path: 'users',
+            element: <UserManagement />
+          },
+          {
+            path: 'plans',
+            element: <PlanManagement />
+          },
+          {
+            path: 'subscriptions',
+            element: <SubscriptionManagement />
+          },
+          {
+            path: 'payments',
+            element: <PaymentTracking />
+          },
+          {
+            path: 'audit-logs',
+            element: <AuditLogs />
+          },
+          {
+            path: 'ai-characters',
+            element: <AICharacterManagement />
+          },
+          {
+            path: 'ai-models',
+            element: <AIModelsManagement />
+          },
+          {
+            path: 'threads',
+            element: <ThreadManagement />
+          },
+          {
+            path: 'features',
+            element: <FeatureManagement />
+          },
+          {
+            path: 'settings',
+            element: <AdminSettings />
+          }
+        ]
+      },
+      {
+        index: true,
+        element: <Navigate to="/dashboard" replace />
       }
     ]
-  },
-  {
-    path: '/',
-    element: <Navigate to="/zenible-dashboard" replace />
   }
 ]);
 

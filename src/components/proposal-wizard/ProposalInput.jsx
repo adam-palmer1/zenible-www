@@ -27,13 +27,13 @@ export default function ProposalInput({ darkMode, proposal, setProposal, onAnaly
   }, []);
 
   return (
-    <div className={`rounded-xl border border-dashed shadow-sm flex flex-col min-h-[400px] xl:min-h-[500px] ${
+    <div className={`rounded-xl border border-dashed shadow-sm flex flex-col h-full ${
       darkMode
         ? 'bg-[#4c3d7a] border-[#6b5b95]'
         : 'bg-violet-50 border-[#c4b4ff]'
     }`}>
       {/* Header */}
-      <div className="p-3 sm:p-4">
+      <div className="p-3 sm:p-4 flex-shrink-0">
         <h3 className={`font-inter font-semibold text-base sm:text-lg ${
           darkMode ? 'text-white' : 'text-zinc-950'
         }`}>Your Proposal</h3>
@@ -45,8 +45,8 @@ export default function ProposalInput({ darkMode, proposal, setProposal, onAnaly
       </div>
 
       {/* Textarea */}
-      <div className="flex-1 px-3 sm:px-4">
-        <div className={`h-full rounded-[10px] border p-3 sm:p-4 min-h-[250px] xl:min-h-[350px] ${
+      <div className="flex-1 px-3 sm:px-4 min-h-0">
+        <div className={`h-full rounded-[10px] border p-3 sm:p-4 min-h-[200px] ${
           darkMode
             ? 'bg-[#2d2d2d] border-[#4a4a4a]'
             : 'bg-white border-[#ddd6ff]'
@@ -64,7 +64,7 @@ export default function ProposalInput({ darkMode, proposal, setProposal, onAnaly
       </div>
 
       {/* Analyze Button */}
-      <div className="p-3 sm:p-4 flex justify-end">
+      <div className="p-3 sm:p-4 flex justify-end flex-shrink-0">
         <button
           onClick={onAnalyze}
           disabled={!proposal || analyzing}

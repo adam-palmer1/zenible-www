@@ -189,7 +189,7 @@ class AdminAPI {
   // Subscription management endpoints
   async getSubscriptions(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const endpoint = queryString ? `/subscriptions/?${queryString}` : '/subscriptions/';
+    const endpoint = queryString ? `/subscriptions/admin/all?${queryString}` : '/subscriptions/admin/all';
     return this.request(endpoint, { method: 'GET' });
   }
 
@@ -218,12 +218,28 @@ class AdminAPI {
     });
   }
 
-  async cancelSubscription() {
-    return this.request('/subscriptions/cancel', { method: 'POST' });
+  async cancelSubscription(subscriptionId, options = {}) {
+    const { cancelAtPeriodEnd = true, reason = '', feedback = '' } = options;
+    return this.request(`/subscriptions/admin/cancel/${subscriptionId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        cancel_at_period_end: cancelAtPeriodEnd,
+        reason,
+        feedback
+      })
+    });
   }
 
-  async reactivateSubscription() {
-    return this.request('/subscriptions/reactivate', { method: 'POST' });
+  async reactivateSubscription(subscriptionId, options = {}) {
+    const { paymentMethodId = null, billingCycle = null } = options;
+    const body = {};
+    if (paymentMethodId) body.payment_method_id = paymentMethodId;
+    if (billingCycle) body.billing_cycle = billingCycle;
+
+    return this.request(`/subscriptions/admin/reactivate/${subscriptionId}`, {
+      method: 'POST',
+      body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined
+    });
   }
 
   async getSubscriptionUsage(params = {}) {
@@ -235,7 +251,13 @@ class AdminAPI {
   // Payment management endpoints
   async getAllPayments(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const endpoint = queryString ? `/admin/payments/all?${queryString}` : '/admin/payments/all';
+    const endpoint = queryString ? `/payments/admin/all?${queryString}` : '/payments/admin/all';
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  async getPaymentStats(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/payments/admin/stats?${queryString}` : '/payments/admin/stats';
     return this.request(endpoint, { method: 'GET' });
   }
 
@@ -368,6 +390,51 @@ class AdminAPI {
 
   async deleteAICharacter(characterId) {
     return this.request(`/ai/characters/${characterId}`, { method: 'DELETE' });
+  }
+
+  // Upload avatar for AI character
+  async uploadAICharacterAvatar(characterId, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const url = `${API_BASE_URL}/ai/characters/${characterId}/avatar`;
+    const token = localStorage.getItem('access_token');
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // Don't set Content-Type for FormData, browser will set it with boundary
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Avatar upload failed' }));
+      throw new Error(error.detail || `Avatar upload failed with status ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  // Delete avatar for AI character
+  async deleteAICharacterAvatar(characterId) {
+    const url = `${API_BASE_URL}/ai/characters/${characterId}/avatar`;
+    const token = localStorage.getItem('access_token');
+
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok && response.status !== 204) {
+      const error = await response.json().catch(() => ({ detail: 'Avatar deletion failed' }));
+      throw new Error(error.detail || `Avatar deletion failed with status ${response.status}`);
+    }
+
+    return response.status === 204 ? { success: true } : await response.json();
   }
 
   // AI Character Category endpoints

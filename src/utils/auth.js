@@ -69,8 +69,10 @@ export async function makeAuthenticatedRequest(url, options = {}) {
     if (newToken) {
       response = await makeRequest(newToken);
     } else {
-      // Redirect to signin if refresh fails
-      window.location.href = '/signin';
+      // Redirect to signin if refresh fails, preserve current path as redirect
+      const currentPath = window.location.pathname + window.location.search;
+      const redirectParam = currentPath !== '/signin' ? `?redirect=${encodeURIComponent(currentPath)}` : '';
+      window.location.href = `/signin${redirectParam}`;
       throw new Error('Authentication failed');
     }
   }
@@ -181,19 +183,24 @@ export const authAPI = {
     return response.json();
   },
 
-  async getGoogleAuthUrl() {
-    const response = await fetch(`${API_BASE_URL}/auth/google/url`);
-    
+  async getGoogleAuthUrl(redirectPath) {
+    const url = new URL(`${API_BASE_URL}/auth/google/url`);
+    if (redirectPath) {
+      url.searchParams.set('redirect_path', redirectPath);
+    }
+
+    const response = await fetch(url);
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Failed to get Google auth URL');
     }
-    
+
     return response.json();
   },
 
   async googleAuth(code) {
-    const response = await fetch(`${API_BASE_URL}/auth/google`, {
+    const response = await fetch(`${API_BASE_URL}/auth/google/callback`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code })

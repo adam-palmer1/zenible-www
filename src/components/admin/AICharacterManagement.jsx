@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
 
@@ -26,6 +26,7 @@ export default function AICharacterManagement() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [syncingCharacter, setSyncingCharacter] = useState(null);
   const [modalError, setModalError] = useState(null);
+  const [isCloning, setIsCloning] = useState(false);
 
   // Filter and search states
   const [search, setSearch] = useState('');
@@ -65,7 +66,6 @@ export default function AICharacterManagement() {
       response_format: 'auto',
       json_schema: null,
       max_tokens: 2000,
-      tools: [],
       // Assistant-specific
       enable_code_interpreter: false,
       enable_file_search: false,
@@ -77,8 +77,17 @@ export default function AICharacterManagement() {
       vector_store_id: null
     },
     category_id: '',
-    is_active: true
+    is_active: true,
+    avatar_url: ''
   });
+
+  // Avatar upload states
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [currentAvatar, setCurrentAvatar] = useState(null);
+  const [avatarError, setAvatarError] = useState(null);
+  const fileInputRef = useRef(null);
 
   // Form states for category
   const [categoryForm, setCategoryForm] = useState({
@@ -89,8 +98,6 @@ export default function AICharacterManagement() {
 
   // Custom functions state
   const [customFunctions, setCustomFunctions] = useState([]);
-  // Function mappings for OpenAI-backend name linking
-  const [functionMappings, setFunctionMappings] = useState([]);
 
   // Available options
   const backendProviders = [
@@ -401,8 +408,14 @@ export default function AICharacterManagement() {
 
   const handleCreateCharacter = () => {
     setEditingCharacter(null);
+    setIsCloning(false);
     setCustomFunctions([]);
-    setFunctionMappings([]);
+
+    // Reset avatar states
+    setCurrentAvatar(null);
+    setAvatarPreview(null);
+    setAvatarFile(null);
+    setAvatarError(null);
     setCharacterForm({
       name: '',
       internal_name: '',
@@ -416,7 +429,6 @@ export default function AICharacterManagement() {
         response_format: 'auto',
         json_schema: null,
         max_tokens: 2000,
-        tools: [],
         enable_code_interpreter: false,
         enable_file_search: false,
         custom_functions: [],
@@ -438,8 +450,14 @@ export default function AICharacterManagement() {
     console.log('Current availableTools state:', availableTools);
 
     setEditingCharacter(character);
+    setIsCloning(false);
     setCustomFunctions(character.metadata?.custom_functions || []);
-    setFunctionMappings(character.metadata?.function_mappings || []);
+
+    // Set current avatar if exists
+    setCurrentAvatar(character.avatar_url || null);
+    setAvatarPreview(null);
+    setAvatarFile(null);
+    setAvatarError(null);
     setCharacterForm({
       name: character.name || '',
       internal_name: character.internal_name || '',
@@ -452,7 +470,6 @@ export default function AICharacterManagement() {
         top_p: character.metadata?.top_p ?? 1.0,
         response_format: character.metadata?.response_format || 'auto',
         max_tokens: character.metadata?.max_tokens || 2000,
-        tools: character.metadata?.tools || [],
         enable_code_interpreter: character.metadata?.enable_code_interpreter || false,
         enable_file_search: character.metadata?.enable_file_search || false,
         custom_functions: character.metadata?.custom_functions || [],
@@ -471,6 +488,54 @@ export default function AICharacterManagement() {
     setShowCharacterModal(true);
   };
 
+  const handleCloneCharacter = (character) => {
+    console.log('=== handleCloneCharacter called ===');
+    console.log('Cloning character:', character);
+
+    // Set to null to indicate this is a new character (not an edit)
+    setEditingCharacter(null);
+    setIsCloning(true); // Mark that we're cloning
+
+    // Clone all the custom functions
+    setCustomFunctions(character.metadata?.custom_functions || []);
+
+    // Don't clone the avatar - let user upload new one for the clone
+    setCurrentAvatar(null);
+    setAvatarPreview(null);
+    setAvatarFile(null);
+    setAvatarError(null);
+
+    // Set form with all data from the character being cloned
+    // But with a modified name to indicate it's a copy
+    setCharacterForm({
+      name: `${character.name} (Copy)`,
+      internal_name: `${character.internal_name}_copy_${Date.now()}`, // Add timestamp to ensure uniqueness
+      description: character.description || '',
+      backend_provider: character.backend_provider || 'openai_chat',
+      metadata: {
+        model: character.metadata?.model || 'gpt-4-turbo-preview',
+        system_instructions: character.metadata?.system_instructions || '',
+        temperature: character.metadata?.temperature ?? 0.7,
+        top_p: character.metadata?.top_p ?? 1.0,
+        response_format: character.metadata?.response_format || 'auto',
+        max_tokens: character.metadata?.max_tokens || 2000,
+        enable_code_interpreter: character.metadata?.enable_code_interpreter || false,
+        enable_file_search: character.metadata?.enable_file_search || false,
+        custom_functions: character.metadata?.custom_functions || [],
+        embedding_model: character.metadata?.embedding_model || 'text-embedding-3-large',
+        chunk_size: character.metadata?.chunk_size || 1024,
+        chunk_overlap: character.metadata?.chunk_overlap || 100,
+        vector_store_id: character.metadata?.vector_store_id || null,
+        json_schema: character.metadata?.json_schema || null
+      },
+      category_id: character.category_id || '',
+      is_active: true // Default to active for new cloned character
+    });
+
+    console.log('Character form set for clone');
+    setShowCharacterModal(true);
+  };
+
   const handleSaveCharacter = async () => {
     setModalError(null);
     try {
@@ -481,62 +546,32 @@ export default function AICharacterManagement() {
         return;
       }
 
-      // Build custom functions based on backend provider
-      let customFunctionsForSave = [];
-
-      if (characterForm.backend_provider === 'openai_assistant') {
-        // Include user-defined custom functions
-        customFunctionsForSave = [...customFunctions];
-
-        // Add selected backend tools as custom_functions
-        if (characterForm.metadata.tools && characterForm.metadata.tools.length > 0) {
-          characterForm.metadata.tools.forEach(toolSelection => {
-            // Handle both string and object formats
-            const toolName = typeof toolSelection === 'object' ? toolSelection.name : toolSelection;
-
-            // Get the full tool definition from our stored definitions
-            const toolDef = toolDefinitions[toolName];
-            if (toolDef) {
-              // Format according to backend requirements
-              customFunctionsForSave.push({
-                name: toolDef.function.name,
-                description: toolDef.function.description,
-                parameters: {
-                  name: toolDef.function.name,
-                  description: toolDef.function.description,
-                  strict: false,
-                  parameters: toolDef.function.parameters
-                }
-              });
-            }
-          });
-        }
-      } else {
-        // For non-assistant providers, just use custom functions as-is
-        customFunctionsForSave = customFunctions;
-      }
-
-      // Prepare the data
+      // Prepare the data - custom functions now include both user-defined and backend tools
       const data = {
         ...characterForm,
         metadata: {
           ...characterForm.metadata,
-          custom_functions: customFunctionsForSave,
-          // Keep tools for reference but the backend will use custom_functions
-          tools: characterForm.metadata.tools,
-          // Include function mappings if any
-          function_mappings: functionMappings.length > 0 ? functionMappings : undefined
+          custom_functions: customFunctions
         },
         category_id: characterForm.category_id || null
       };
 
+      let characterId;
       if (editingCharacter) {
         await adminAPI.updateAICharacter(editingCharacter.id, data);
+        characterId = editingCharacter.id;
       } else {
-        await adminAPI.createAICharacter(data);
+        const response = await adminAPI.createAICharacter(data);
+        characterId = response.id;
+      }
+
+      // Upload avatar if a new file was selected
+      if (avatarFile && characterId) {
+        await handleAvatarUpload(characterId);
       }
 
       setShowCharacterModal(false);
+      setIsCloning(false);
       fetchCharacters();
       setModalError(null);
     } catch (err) {
@@ -557,6 +592,86 @@ export default function AICharacterManagement() {
         }
       } else {
         setModalError(err.message || 'An error occurred while saving the character');
+      }
+    }
+  };
+
+  // Avatar upload handlers
+  const handleAvatarFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Clear previous errors
+    setAvatarError(null);
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setAvatarError('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+      e.target.value = '';
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('Image size must be less than 5MB');
+      e.target.value = '';
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+
+    setAvatarFile(file);
+  };
+
+  const handleAvatarUpload = async (characterId) => {
+    if (!avatarFile) return;
+
+    try {
+      setUploadingAvatar(true);
+      await adminAPI.uploadAICharacterAvatar(characterId, avatarFile);
+      // Avatar uploaded successfully
+      setAvatarFile(null);
+      setAvatarPreview(null);
+    } catch (err) {
+      console.error('Failed to upload avatar:', err);
+      throw new Error('Failed to upload avatar: ' + err.message);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleDeleteAvatar = async () => {
+    // If we have a preview (new file selected), just clear it
+    if (avatarPreview) {
+      setAvatarPreview(null);
+      setAvatarFile(null);
+      setAvatarError(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    // If we have an existing avatar on an edited character, delete from server
+    if (currentAvatar && editingCharacter) {
+      if (!confirm('Are you sure you want to delete this avatar?')) {
+        return;
+      }
+
+      try {
+        await adminAPI.deleteAICharacterAvatar(editingCharacter.id);
+        setCurrentAvatar(null);
+        setCharacterForm({ ...characterForm, avatar_url: '' });
+        fetchCharacters(); // Refresh the list to update avatar display
+      } catch (err) {
+        console.error('Failed to delete avatar:', err);
+        setAvatarError('Failed to delete avatar: ' + err.message);
       }
     }
   };
@@ -652,36 +767,6 @@ export default function AICharacterManagement() {
     return category ? category.name : 'Uncategorized';
   };
 
-  const handleToolToggle = (toolName) => {
-    const tools = characterForm.metadata.tools || [];
-
-    // Check if tools contains objects or strings
-    const isObjectFormat = tools.length > 0 && typeof tools[0] === 'object';
-
-    let updatedTools;
-    if (isObjectFormat) {
-      // Handle object format {name: 'tool_name', arguments: {...}}
-      const hasTools = tools.some(t => (typeof t === 'object' ? t.name : t) === toolName);
-      if (hasTools) {
-        updatedTools = tools.filter(t => (typeof t === 'object' ? t.name : t) !== toolName);
-      } else {
-        updatedTools = [...tools, { name: toolName, arguments: {} }];
-      }
-    } else {
-      // Handle simple string array format
-      updatedTools = tools.includes(toolName)
-        ? tools.filter(t => t !== toolName)
-        : [...tools, toolName];
-    }
-
-    setCharacterForm({
-      ...characterForm,
-      metadata: {
-        ...characterForm.metadata,
-        tools: updatedTools
-      }
-    });
-  };
 
   const addCustomFunction = () => {
     const newFunction = {
@@ -1098,17 +1183,38 @@ export default function AICharacterManagement() {
                   } transition-colors`}>
                     {visibleColumns.name && (
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className={`text-sm font-medium ${
-                            darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
-                          }`}>
-                            {character.name} <span className="font-normal text-gray-500">({character.internal_name})</span>
+                        <div className="flex items-center gap-3">
+                          {/* Avatar */}
+                          <div className="flex-shrink-0">
+                            {character.avatar_url ? (
+                              <img
+                                src={character.avatar_url}
+                                alt={`${character.name} avatar`}
+                                className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                              />
+                            ) : (
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                darkMode ? 'bg-zenible-dark-bg border-2 border-zenible-dark-border' : 'bg-gray-100 border-2 border-gray-200'
+                              }`}>
+                                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                              </div>
+                            )}
                           </div>
-                          <div className={`text-sm ${
-                            darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
-                          }`}>
-                            {character.description?.substring(0, 50)}
-                            {character.description?.length > 50 && '...'}
+                          {/* Name and description */}
+                          <div>
+                            <div className={`text-sm font-medium ${
+                              darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
+                            }`}>
+                              {character.name} <span className="font-normal text-gray-500">({character.internal_name})</span>
+                            </div>
+                            <div className={`text-sm ${
+                              darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
+                            }`}>
+                              {character.description?.substring(0, 50)}
+                              {character.description?.length > 50 && '...'}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1199,6 +1305,19 @@ export default function AICharacterManagement() {
                                 >
                                   Edit
                                 </button>
+                                <button
+                                  onClick={() => {
+                                    handleCloneCharacter(character);
+                                    setActionDropdown(null);
+                                  }}
+                                  className={`block px-4 py-2 text-sm w-full text-left ${
+                                    darkMode
+                                      ? 'text-zenible-dark-text hover:bg-zenible-dark-bg'
+                                      : 'text-gray-700 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  Clone
+                                </button>
                                 {character.backend_provider === 'openai_assistant' && (
                                   <button
                                     onClick={() => {
@@ -1262,7 +1381,7 @@ export default function AICharacterManagement() {
               <h2 className={`text-xl font-semibold ${
                 darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
               }`}>
-                {editingCharacter ? 'Edit Character' : 'Create New Character'}
+                {editingCharacter ? 'Edit Character' : (isCloning ? 'Clone Character' : 'Create New Character')}
               </h2>
               <button
                 onClick={() => {
@@ -1282,6 +1401,82 @@ export default function AICharacterManagement() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Avatar Upload Section */}
+              <div className="md:col-span-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
+                }`}>
+                  Character Avatar
+                </label>
+                <div className="flex items-start gap-4">
+                  {/* Avatar Preview */}
+                  <div className="flex-shrink-0">
+                    {(avatarPreview || currentAvatar) ? (
+                      <div className="relative">
+                        <img
+                          src={avatarPreview || currentAvatar}
+                          alt="Avatar preview"
+                          className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200"
+                        />
+                        {(avatarPreview || currentAvatar) && (
+                          <button
+                            type="button"
+                            onClick={handleDeleteAvatar}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+                            title="Remove avatar"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className={`w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center ${
+                        darkMode ? 'border-zenible-dark-border bg-zenible-dark-bg' : 'border-gray-300 bg-gray-50'
+                      }`}>
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Upload Controls */}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleAvatarFileChange}
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        darkMode
+                          ? 'bg-zenible-dark-bg border border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-hover'
+                          : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                      disabled={uploadingAvatar}
+                    >
+                      {uploadingAvatar ? 'Uploading...' : 'Choose Image'}
+                    </button>
+                    <p className={`mt-2 text-xs ${
+                      darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
+                    }`}>
+                      Accepts JPEG, PNG, GIF, WebP. Max 5MB.
+                    </p>
+                    {avatarError && (
+                      <p className="mt-2 text-xs text-red-500">
+                        {avatarError}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className={`block text-sm font-medium mb-1 ${
                   darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
@@ -1699,15 +1894,53 @@ export default function AICharacterManagement() {
                         <label className={`text-sm font-medium ${
                           darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
                         }`}>
-                          Custom Functions
+                          Functions & Tools
                         </label>
-                        <button
-                          type="button"
-                          onClick={addCustomFunction}
-                          className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          Add Function
-                        </button>
+                        <div className="flex gap-2">
+                          {/* Add available tool dropdown */}
+                          {availableTools.length > 0 && availableTools.some(tool => !customFunctions.some(f => f.name === tool.value)) && (
+                            <select
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  const toolName = e.target.value;
+                                  const toolDef = toolDefinitions[toolName];
+
+                                  if (toolDef) {
+                                    // Add the tool as a custom function
+                                    const newFunction = {
+                                      name: toolDef.function.name,
+                                      description: toolDef.function.description,
+                                      parameters: toolDef.function.parameters
+                                    };
+                                    setCustomFunctions([...customFunctions, newFunction]);
+                                  }
+                                  e.target.value = '';
+                                }
+                              }}
+                              className={`px-3 py-1 text-sm rounded ${
+                                darkMode
+                                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                                  : 'bg-white border-gray-300 text-gray-700'
+                              }`}
+                            >
+                              <option value="">Add Available Tool...</option>
+                              {availableTools
+                                .filter(tool => !customFunctions.some(f => f.name === tool.value))
+                                .map(tool => (
+                                  <option key={tool.value} value={tool.value}>
+                                    {tool.label}
+                                  </option>
+                                ))}
+                            </select>
+                          )}
+                          <button
+                            type="button"
+                            onClick={addCustomFunction}
+                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                          >
+                            Add Custom Function
+                          </button>
+                        </div>
                       </div>
 
                       {customFunctions.map((func, index) => (
@@ -1715,11 +1948,21 @@ export default function AICharacterManagement() {
                           darkMode ? 'border-zenible-dark-border' : 'border-gray-300'
                         }`}>
                           <div className="flex justify-between items-start mb-2">
-                            <h4 className={`font-medium ${
-                              darkMode ? 'text-zenible-dark-text' : 'text-gray-800'
-                            }`}>
-                              Function {index + 1}
-                            </h4>
+                            <div className="flex items-center gap-2">
+                              <h4 className={`font-medium ${
+                                darkMode ? 'text-zenible-dark-text' : 'text-gray-800'
+                              }`}>
+                                {func.name || `Function ${index + 1}`}
+                              </h4>
+                              {/* Show badge if this is a backend tool */}
+                              {availableTools.some(tool => tool.value === func.name) && (
+                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                  darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  Backend Tool
+                                </span>
+                              )}
+                            </div>
                             <button
                               type="button"
                               onClick={() => removeCustomFunction(index)}
@@ -1730,46 +1973,86 @@ export default function AICharacterManagement() {
                           </div>
 
                           <div className="space-y-2">
-                            <input
-                              type="text"
-                              placeholder="Function Name (e.g., get_weather)"
-                              value={func.name}
-                              onChange={(e) => updateCustomFunction(index, {...func, name: e.target.value})}
-                              className={`w-full px-2 py-1 border rounded ${
-                                darkMode
-                                  ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                                  : 'bg-white border-gray-300 text-gray-900'
-                              }`}
-                            />
-                            <textarea
-                              placeholder="Function Description"
-                              value={func.description}
-                              onChange={(e) => updateCustomFunction(index, {...func, description: e.target.value})}
-                              className={`w-full px-2 py-1 border rounded ${
-                                darkMode
-                                  ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                                  : 'bg-white border-gray-300 text-gray-900'
-                              }`}
-                              rows="2"
-                            />
-                            <textarea
-                              placeholder='Parameters JSON (e.g., {"type": "object", "properties": {...}})'
-                              value={JSON.stringify(func.parameters, null, 2)}
-                              onChange={(e) => {
-                                try {
-                                  const params = JSON.parse(e.target.value);
-                                  updateCustomFunction(index, {...func, parameters: params});
-                                } catch (err) {
-                                  // Invalid JSON, just update the string for now
-                                }
-                              }}
-                              className={`w-full px-2 py-1 border rounded font-mono text-xs ${
-                                darkMode
-                                  ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                                  : 'bg-white border-gray-300 text-gray-900'
-                              }`}
-                              rows="4"
-                            />
+                            {/* Check if this is a backend tool */}
+                            {availableTools.some(tool => tool.value === func.name) ? (
+                              <>
+                                {/* Read-only display for backend tools */}
+                                <input
+                                  type="text"
+                                  value={func.name}
+                                  disabled
+                                  className={`w-full px-2 py-1 border rounded opacity-75 ${
+                                    darkMode
+                                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
+                                      : 'bg-gray-100 border-gray-300 text-gray-600'
+                                  }`}
+                                />
+                                <textarea
+                                  value={func.description}
+                                  disabled
+                                  className={`w-full px-2 py-1 border rounded opacity-75 ${
+                                    darkMode
+                                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
+                                      : 'bg-gray-100 border-gray-300 text-gray-600'
+                                  }`}
+                                  rows="2"
+                                />
+                                <textarea
+                                  value={JSON.stringify(func.parameters, null, 2)}
+                                  disabled
+                                  className={`w-full px-2 py-1 border rounded font-mono text-xs opacity-75 ${
+                                    darkMode
+                                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
+                                      : 'bg-gray-100 border-gray-300 text-gray-600'
+                                  }`}
+                                  rows="4"
+                                />
+                              </>
+                            ) : (
+                              <>
+                                {/* Editable fields for custom functions */}
+                                <input
+                                  type="text"
+                                  placeholder="Function Name (e.g., get_weather)"
+                                  value={func.name}
+                                  onChange={(e) => updateCustomFunction(index, {...func, name: e.target.value})}
+                                  className={`w-full px-2 py-1 border rounded ${
+                                    darkMode
+                                      ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
+                                      : 'bg-white border-gray-300 text-gray-900'
+                                  }`}
+                                />
+                                <textarea
+                                  placeholder="Function Description"
+                                  value={func.description}
+                                  onChange={(e) => updateCustomFunction(index, {...func, description: e.target.value})}
+                                  className={`w-full px-2 py-1 border rounded ${
+                                    darkMode
+                                      ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
+                                      : 'bg-white border-gray-300 text-gray-900'
+                                  }`}
+                                  rows="2"
+                                />
+                                <textarea
+                                  placeholder='Parameters JSON (e.g., {"type": "object", "properties": {...}})'
+                                  value={JSON.stringify(func.parameters, null, 2)}
+                                  onChange={(e) => {
+                                    try {
+                                      const params = JSON.parse(e.target.value);
+                                      updateCustomFunction(index, {...func, parameters: params});
+                                    } catch (err) {
+                                      // Invalid JSON, just update the string for now
+                                    }
+                                  }}
+                                  className={`w-full px-2 py-1 border rounded font-mono text-xs ${
+                                    darkMode
+                                      ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
+                                      : 'bg-white border-gray-300 text-gray-900'
+                                  }`}
+                                  rows="4"
+                                />
+                              </>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -1898,89 +2181,6 @@ export default function AICharacterManagement() {
                 </div>
               )}
 
-              {/* Tools for openai_chat and openai_assistant */}
-              {(() => {
-                console.log('Tools section check - backend_provider:', characterForm.backend_provider, 'availableTools:', availableTools.length, 'toolsLoading:', toolsLoading);
-                return null;
-              })()}
-              {(characterForm.backend_provider === 'openai_chat' || characterForm.backend_provider === 'openai_assistant') && (
-                <div className="md:col-span-2">
-                  <label className={`block text-sm font-medium mb-1 ${
-                    darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-                  }`}>
-                    Available Tools
-                  </label>
-                  {toolsLoading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-zenible-primary mr-2"></div>
-                      <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                        Loading tools...
-                      </span>
-                    </div>
-                  ) : availableTools.length > 0 ? (
-                    <div className="space-y-2">
-                      {availableTools.map(tool => (
-                        <div key={tool.value} className={`p-3 rounded-lg border ${
-                          darkMode ? 'border-zenible-dark-border bg-zenible-dark-bg' : 'border-gray-200 bg-gray-50'
-                        }`}>
-                          <label className="flex items-start cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={(characterForm.metadata.tools || []).some(t =>
-                                typeof t === 'object' ? t.name === tool.value : t === tool.value
-                              )}
-                              onChange={() => handleToolToggle(tool.value)}
-                              className="mt-1 mr-3"
-                              disabled={!tool.enabled}
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className={`font-medium ${
-                                  darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
-                                }`}>
-                                  {tool.label}
-                                </span>
-                                {!tool.enabled && (
-                                  <span className={`text-xs px-2 py-0.5 rounded ${
-                                    darkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-300 text-gray-600'
-                                  }`}>
-                                    Disabled
-                                  </span>
-                                )}
-                                {tool.category && (
-                                  <span className={`text-xs px-2 py-0.5 rounded ${
-                                    darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700'
-                                  }`}>
-                                    {tool.category}
-                                  </span>
-                                )}
-                              </div>
-                              {tool.description && (
-                                <p className={`text-sm mt-1 ${
-                                  darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'
-                                }`}>
-                                  {tool.description}
-                                </p>
-                              )}
-                              {tool.example && (
-                                <p className={`text-xs mt-1 font-mono ${
-                                  darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
-                                }`}>
-                                  Example: {typeof tool.example === 'object' ? JSON.stringify(tool.example) : tool.example}
-                                </p>
-                              )}
-                            </div>
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                      No tools available
-                    </p>
-                  )}
-                </div>
-              )}
 
               <div className="md:col-span-2">
                 <label className="flex items-center">

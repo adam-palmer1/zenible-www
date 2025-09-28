@@ -22,9 +22,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   const checkAuth = async () => {
+    setLoading(true);
     const accessToken = tokenStorage.getAccessToken();
     if (!accessToken) {
       setLoading(false);
+      setUser(null);
       return;
     }
 
@@ -34,6 +36,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error('Auth check failed:', error);
       tokenStorage.clearTokens();
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -130,11 +133,12 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const googleLogin = async () => {
+  const googleLogin = async (redirectPath) => {
     setError(null);
     try {
-      const { url } = await authAPI.getGoogleAuthUrl();
+      const { url } = await authAPI.getGoogleAuthUrl(redirectPath);
       window.location.href = url;
+      return { success: true };
     } catch (error) {
       setError(error.message);
       return { success: false, error: error.message };

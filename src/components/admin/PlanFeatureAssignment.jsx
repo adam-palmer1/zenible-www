@@ -13,6 +13,7 @@ export default function PlanFeatureAssignment({ darkMode }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('display');
+  const [successModal, setSuccessModal] = useState({ isOpen: false, message: '' });
 
   // Local state for editing
   const [displayFeatureAssignments, setDisplayFeatureAssignments] = useState([]);
@@ -78,23 +79,29 @@ export default function PlanFeatureAssignment({ darkMode }) {
       // Initialize system feature assignments
       const systemAssignments = allSystemFeatures.map(feature => {
         const existing = response.system_features?.find(sf => sf.feature.id === feature.id);
+        // Normalize feature type to uppercase for consistency
+        const normalizedType = feature.feature_type?.toUpperCase() || 'BOOLEAN';
+
+        console.log('Feature:', feature.name, 'Type:', feature.feature_type, 'Normalized:', normalizedType);
+
         const assignment = {
           feature_id: feature.id,
           feature_name: feature.name,
-          feature_type: feature.feature_type,
+          feature_type: normalizedType,
           feature_code: feature.code,
         };
 
-        if (feature.feature_type === 'BOOLEAN') {
+        if (normalizedType === 'BOOLEAN') {
           assignment.is_enabled = existing ? existing.is_enabled : false;
-        } else if (feature.feature_type === 'LIMIT') {
+        } else if (normalizedType === 'LIMIT') {
           assignment.limit_value = existing ? existing.limit_value : 0;
-        } else if (feature.feature_type === 'LIST') {
+        } else if (normalizedType === 'LIST') {
           assignment.allowed_values = existing ? existing.allowed_values : [];
         }
 
         return assignment;
       });
+      console.log('System assignments:', systemAssignments);
       setSystemFeatureAssignments(systemAssignments);
 
       // Initialize character access assignments
@@ -130,7 +137,7 @@ export default function PlanFeatureAssignment({ darkMode }) {
           custom_value: custom_value || null,
         }));
       await adminAPI.updatePlanDisplayFeatures(selectedPlanId, features);
-      alert('Display features updated successfully!');
+      setSuccessModal({ isOpen: true, message: 'Display features updated successfully!' });
       fetchPlanFeatures(selectedPlanId);
     } catch (err) {
       alert(`Error saving display features: ${err.message}`);
@@ -144,12 +151,14 @@ export default function PlanFeatureAssignment({ darkMode }) {
     try {
       const features = systemFeatureAssignments.map((assignment) => {
         const feature = { feature_id: assignment.feature_id };
+        // Use normalized uppercase type for consistency
+        const normalizedType = assignment.feature_type?.toUpperCase() || 'BOOLEAN';
 
-        if (assignment.feature_type === 'BOOLEAN') {
+        if (normalizedType === 'BOOLEAN') {
           feature.is_enabled = assignment.is_enabled;
-        } else if (assignment.feature_type === 'LIMIT') {
+        } else if (normalizedType === 'LIMIT') {
           feature.limit_value = assignment.limit_value;
-        } else if (assignment.feature_type === 'LIST') {
+        } else if (normalizedType === 'LIST') {
           feature.allowed_values = assignment.allowed_values;
         }
 
@@ -157,7 +166,7 @@ export default function PlanFeatureAssignment({ darkMode }) {
       });
 
       await adminAPI.updatePlanSystemFeatures(selectedPlanId, features);
-      alert('System features updated successfully!');
+      setSuccessModal({ isOpen: true, message: 'System features updated successfully!' });
       fetchPlanFeatures(selectedPlanId);
     } catch (err) {
       alert(`Error saving system features: ${err.message}`);
@@ -179,7 +188,7 @@ export default function PlanFeatureAssignment({ darkMode }) {
       }));
 
       await adminAPI.updatePlanCharacterAccess(selectedPlanId, characters);
-      alert('Character access updated successfully!');
+      setSuccessModal({ isOpen: true, message: 'Character access updated successfully!' });
       fetchPlanFeatures(selectedPlanId);
     } catch (err) {
       alert(`Error saving character access: ${err.message}`);
@@ -423,69 +432,189 @@ export default function PlanFeatureAssignment({ darkMode }) {
               {/* System Features Tab */}
               {activeTab === 'system' && (
                 <div className={`rounded-xl p-6 border ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-card' : 'border-neutral-200 bg-white'}`}>
-                  <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-                    System Features
+                  <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                    System Features Configuration
                   </h3>
-                  <div className="space-y-3">
-                    {systemFeatureAssignments.map((assignment) => (
-                      <div
-                        key={assignment.feature_id}
-                        className={`p-4 rounded-lg ${darkMode ? 'bg-zenible-dark-sidebar' : 'bg-gray-50'}`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className={`font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-                              {assignment.feature_name}
-                            </h4>
-                            <code className={`text-sm ${darkMode ? 'text-zenible-primary' : 'text-zenible-primary'}`}>
-                              {assignment.feature_code}
-                            </code>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {assignment.feature_type === 'BOOLEAN' && (
-                              <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={assignment.is_enabled}
-                                  onChange={(e) => updateSystemFeature(assignment.feature_id, { is_enabled: e.target.checked })}
-                                  className="sr-only peer"
-                                />
-                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-zenible-primary rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zenible-primary"></div>
-                              </label>
-                            )}
-                            {assignment.feature_type === 'LIMIT' && (
-                              <input
-                                type="number"
-                                value={assignment.limit_value}
-                                onChange={(e) => updateSystemFeature(assignment.feature_id, { limit_value: parseInt(e.target.value) || 0 })}
-                                min="-1"
-                                className={`w-32 px-3 py-1 rounded border ${
-                                  darkMode
-                                    ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                                    : 'bg-white border-neutral-300 text-zinc-950'
-                                } focus:outline-none focus:ring-1 focus:ring-zenible-primary`}
-                                placeholder="-1 for unlimited"
-                              />
-                            )}
-                            {assignment.feature_type === 'LIST' && (
-                              <input
-                                type="text"
-                                value={assignment.allowed_values?.join(', ') || ''}
-                                onChange={(e) => updateSystemFeature(assignment.feature_id, {
-                                  allowed_values: e.target.value.split(',').map(v => v.trim()).filter(v => v)
-                                })}
-                                className={`w-64 px-3 py-1 rounded border ${
-                                  darkMode
-                                    ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                                    : 'bg-white border-neutral-300 text-zinc-950'
-                                } focus:outline-none focus:ring-1 focus:ring-zenible-primary`}
-                                placeholder="Comma-separated values"
-                              />
-                            )}
+                  <p className={`text-sm mb-6 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
+                    Assign system features to this plan with their appropriate values based on feature type.
+                  </p>
+
+                  {/* Info Box */}
+                  <div className={`mb-6 p-4 rounded-lg ${darkMode ? 'bg-purple-500/10 border border-purple-500/30' : 'bg-purple-50 border border-purple-200'}`}>
+                    <div className={`text-sm ${darkMode ? 'text-purple-200' : 'text-purple-900'}`}>
+                      <p className="font-semibold mb-2">Feature Types:</p>
+                      <ul className="space-y-1 list-disc list-inside">
+                        <li><strong>Boolean:</strong> Toggle features on/off</li>
+                        <li><strong>Limit:</strong> Set numeric limits (-1 for unlimited)</li>
+                        <li><strong>List:</strong> Define allowed values for the feature</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {systemFeatureAssignments.length === 0 ? (
+                      <div className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
+                        No system features available. Please configure system features first.
+                      </div>
+                    ) : (
+                      systemFeatureAssignments.map((assignment) => (
+                        <div
+                          key={assignment.feature_id}
+                          className={`p-5 rounded-lg border ${darkMode ? 'bg-zenible-dark-sidebar border-zenible-dark-border' : 'bg-gray-50 border-neutral-200'}`}
+                        >
+                          <div className="space-y-3">
+                            {/* Feature Header */}
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  <h4 className={`font-medium text-base ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                                    {assignment.feature_name}
+                                  </h4>
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                    assignment.feature_type === 'BOOLEAN'
+                                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                                      : assignment.feature_type === 'LIMIT'
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                      : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
+                                  }`}>
+                                    {assignment.feature_type}
+                                  </span>
+                                </div>
+                                <code className={`text-xs mt-1 inline-block ${darkMode ? 'text-zenible-primary' : 'text-zenible-primary'}`}>
+                                  {assignment.feature_code}
+                                </code>
+                              </div>
+                            </div>
+
+                            {/* Feature Value Controls */}
+                            <div className="ml-0">
+                              {assignment.feature_type === 'BOOLEAN' && (
+                                <div className="flex items-center gap-3">
+                                  <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={assignment.is_enabled}
+                                      onChange={(e) => updateSystemFeature(assignment.feature_id, { is_enabled: e.target.checked })}
+                                      className="sr-only peer"
+                                    />
+                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-zenible-primary rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zenible-primary"></div>
+                                  </label>
+                                  <span className={`text-sm ${assignment.is_enabled
+                                    ? darkMode ? 'text-green-400' : 'text-green-600'
+                                    : darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'
+                                  }`}>
+                                    {assignment.is_enabled ? 'Enabled' : 'Disabled'}
+                                  </span>
+                                </div>
+                              )}
+
+                              {assignment.feature_type === 'LIMIT' && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                      type="number"
+                                      value={assignment.limit_value}
+                                      onChange={(e) => updateSystemFeature(assignment.feature_id, { limit_value: parseInt(e.target.value) || 0 })}
+                                      min="-1"
+                                      className={`w-40 px-3 py-2 rounded-lg border ${
+                                        darkMode
+                                          ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                                          : 'bg-white border-neutral-300 text-zinc-950'
+                                      } focus:outline-none focus:ring-2 focus:ring-zenible-primary`}
+                                    />
+                                    <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
+                                      {assignment.limit_value === -1 ? 'Unlimited' : `Limit: ${assignment.limit_value}`}
+                                    </span>
+                                  </div>
+                                  <p className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
+                                    Enter -1 for unlimited, 0 to disable, or a positive number for the limit
+                                  </p>
+                                </div>
+                              )}
+
+                              {assignment.feature_type === 'LIST' && (
+                                <div className="space-y-3">
+                                  <div className="flex flex-wrap gap-2">
+                                    {assignment.allowed_values && assignment.allowed_values.length > 0 ? (
+                                      assignment.allowed_values.map((value, index) => (
+                                        <span
+                                          key={index}
+                                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${
+                                            darkMode
+                                              ? 'bg-zenible-dark-bg border border-zenible-dark-border text-zenible-dark-text'
+                                              : 'bg-white border border-neutral-300 text-zinc-950'
+                                          }`}
+                                        >
+                                          {value}
+                                          <button
+                                            onClick={() => {
+                                              const newValues = assignment.allowed_values.filter((_, i) => i !== index);
+                                              updateSystemFeature(assignment.feature_id, { allowed_values: newValues });
+                                            }}
+                                            className={`ml-1 hover:text-red-500 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}
+                                          >
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                          </button>
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <span className={`text-sm italic ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
+                                        No values defined
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Add value and press Enter"
+                                      onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          const value = e.target.value.trim();
+                                          if (value && !assignment.allowed_values?.includes(value)) {
+                                            const newValues = [...(assignment.allowed_values || []), value];
+                                            updateSystemFeature(assignment.feature_id, { allowed_values: newValues });
+                                            e.target.value = '';
+                                          }
+                                        }
+                                      }}
+                                      className={`flex-1 px-3 py-2 rounded-lg border ${
+                                        darkMode
+                                          ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                                          : 'bg-white border-neutral-300 text-zinc-950'
+                                      } focus:outline-none focus:ring-2 focus:ring-zenible-primary`}
+                                    />
+                                    <button
+                                      onClick={(e) => {
+                                        const input = e.target.parentElement.querySelector('input');
+                                        const value = input.value.trim();
+                                        if (value && !assignment.allowed_values?.includes(value)) {
+                                          const newValues = [...(assignment.allowed_values || []), value];
+                                          updateSystemFeature(assignment.feature_id, { allowed_values: newValues });
+                                          input.value = '';
+                                        }
+                                      }}
+                                      className={`px-3 py-2 rounded-lg border ${
+                                        darkMode
+                                          ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-sidebar'
+                                          : 'bg-gray-100 border-neutral-300 text-zinc-700 hover:bg-gray-200'
+                                      }`}
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                  <p className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
+                                    Add values that will be allowed for this feature in this plan
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                   <button
                     onClick={handleSaveSystemFeatures}
@@ -612,7 +741,7 @@ export default function PlanFeatureAssignment({ darkMode }) {
 
                               <div>
                                 <label className={`block text-xs font-medium mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
-                                  Rate Limit
+                                  Rate Limit (min)
                                 </label>
                                 <div className="relative">
                                   <input
@@ -650,13 +779,6 @@ export default function PlanFeatureAssignment({ darkMode }) {
                                         : 'bg-white border-neutral-300 text-zinc-950'
                                     } focus:outline-none focus:ring-1 focus:ring-zenible-primary`}
                                   />
-                                  <div className={`absolute right-2 top-2.5 ${
-                                    assignment.priority >= 70 ? 'text-green-500' :
-                                    assignment.priority >= 30 ? 'text-yellow-500' :
-                                    'text-red-500'
-                                  }`}>
-                                    {assignment.priority >= 70 ? '⚡' : assignment.priority >= 30 ? '⏱' : '🐌'}
-                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -683,6 +805,35 @@ export default function PlanFeatureAssignment({ darkMode }) {
             </>
           )}
         </>
+      )}
+
+      {/* Success Modal */}
+      {successModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`max-w-md mx-4 rounded-xl shadow-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
+            <div className="p-6">
+              <div className="flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+              <h3 className={`text-lg font-semibold text-center mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                Success!
+              </h3>
+              <p className={`text-center mb-6 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
+                {successModal.message}
+              </p>
+              <button
+                onClick={() => setSuccessModal({ isOpen: false, message: '' })}
+                className="w-full px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-zenible-primary-dark transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
