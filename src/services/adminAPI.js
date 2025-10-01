@@ -552,6 +552,56 @@ class AdminAPI {
     return this.request('/admin/openai/tools', { method: 'GET' });
   }
 
+  async getAICharacterShortcodes() {
+    return this.request('/ai/characters/shortcodes', { method: 'GET' });
+  }
+
+  // Conversation Management endpoints
+  async getConversations(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/ai/conversations/admin/all?${queryString}` : '/ai/conversations/admin/all';
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  async getConversation(conversationId) {
+    return this.request(`/ai/conversations/admin/${conversationId}`, { method: 'GET' });
+  }
+
+  async getConversationStats(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/ai/conversations/admin/stats?${queryString}` : '/ai/conversations/admin/stats';
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  async exportConversation(conversationId, format = 'json') {
+    const response = await this.request(`/ai/conversations/admin/${conversationId}/export`, {
+      method: 'POST',
+      body: JSON.stringify({ format }),
+    });
+
+    // Handle different export formats
+    if (format === 'json') {
+      return response;
+    } else if (format === 'csv' || format === 'txt') {
+      // For CSV and TXT, the response might be text/plain
+      // Convert to downloadable format
+      const blob = new Blob([response], {
+        type: format === 'csv' ? 'text/csv' : 'text/plain'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `conversation_${conversationId}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      return { success: true, format };
+    }
+
+    return response;
+  }
+
   // Feature Management endpoints
 
   // Display Features
@@ -631,6 +681,107 @@ class AdminAPI {
     return this.request(`/admin/features/plans/${planId}/character-access`, {
       method: 'PUT',
       body: JSON.stringify({ characters }),
+    });
+  }
+
+  // Customization Questions Management
+  async getAllCustomizationQuestions(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/admin/customization/?${queryString}` : '/admin/customization/';
+    return this.request(endpoint);
+  }
+
+  async getCustomizationQuestion(questionId) {
+    return this.request(`/admin/customization/${questionId}`);
+  }
+
+  async createCustomizationQuestion(data) {
+    return this.request('/admin/customization/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCustomizationQuestion(questionId, data) {
+    return this.request(`/admin/customization/${questionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCustomizationQuestion(questionId) {
+    return this.request(`/admin/customization/${questionId}`, { method: 'DELETE' });
+  }
+
+  async getQuestionAnswers(questionId) {
+    return this.request(`/admin/customization/${questionId}/answers`);
+  }
+
+  async getAnswersByQuestion(questionId, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/admin/customization/${questionId}/answers?${queryString}` : `/admin/customization/${questionId}/answers`;
+    return this.request(endpoint);
+  }
+
+  async getCustomizationQuestionsStats() {
+    return this.request('/admin/customization/stats/overview');
+  }
+
+  async getCustomizationCategories() {
+    return this.request('/admin/customization/categories');
+  }
+
+  // Platform management endpoints
+  async getAllPlatforms(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/platforms/?${queryString}` : '/platforms/';
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  async createPlatform(data) {
+    return this.request('/platforms/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePlatform(platformId, data) {
+    return this.request(`/platforms/${platformId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePlatform(platformId) {
+    return this.request(`/platforms/${platformId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Character-Platform configuration endpoints
+  async getCharacterPlatforms(characterId) {
+    return this.request(`/ai/characters/${characterId}/platforms`, {
+      method: 'GET',
+    });
+  }
+
+  async addCharacterPlatform(characterId, data) {
+    return this.request(`/ai/characters/${characterId}/platforms`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCharacterPlatform(characterId, platformId, data) {
+    return this.request(`/ai/characters/${characterId}/platforms/${platformId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCharacterPlatform(characterId, platformId) {
+    return this.request(`/ai/characters/${characterId}/platforms/${platformId}`, {
+      method: 'DELETE',
     });
   }
 }

@@ -24,7 +24,9 @@ export function useProposalAnalysis({
   const [metrics, setMetrics] = useState(null);
   const [usage, setUsage] = useState(null);
   const [messageId, setMessageId] = useState(null); // Track the message ID for rating
+  const [trackingId, setTrackingId] = useState(null); // Track the session ID for cancellation
   const eomBuffer = useRef(''); // Buffer to detect [SYSTEM: EOM] across chunks
+  const eomFoundRef = useRef(false); // Track if EOM has been found
 
   const { streamingManager, joinPanel, leavePanel, isConnected } = useWebSocketConnection();
   const unsubscribersRef = useRef([]);
@@ -77,7 +79,18 @@ export function useProposalAnalysis({
             setIsAnalyzing(true);
             setError(null);
             currentAnalysisRef.current = data.analysisId;
+
+            // Store tracking ID for cancellation - prioritize backend-provided IDs
+            const backendTrackingId = data.tracking_id || data.trackingId || data.messageId || data.message_id;
+            if (backendTrackingId) {
+              console.log('[useProposalAnalysis] 🎯 Storing backend tracking ID for cancellation:', backendTrackingId);
+              setTrackingId(backendTrackingId);
+            } else {
+              console.warn('[useProposalAnalysis] ⚠️ No tracking ID received from backend in analysis_started event');
+            }
+
             eomBuffer.current = ''; // Reset EOM buffer
+            eomFoundRef.current = false; // Reset EOM found flag
 
             if (callbacksRef.current.onAnalysisStarted) {
               callbacksRef.current.onAnalysisStarted(data);
@@ -90,7 +103,16 @@ export function useProposalAnalysis({
             setStreamingContent('');
             setDisplayContent('');
             streamingContentRef.current = '';
+
+            // Update tracking ID if provided (backend might send updated ID)
+            const backendTrackingId = data.tracking_id || data.trackingId || data.messageId || data.message_id;
+            if (backendTrackingId) {
+              console.log('[useProposalAnalysis] 🎯 Updating tracking ID from streaming_started:', backendTrackingId);
+              setTrackingId(backendTrackingId);
+            }
+
             eomBuffer.current = ''; // Reset EOM buffer
+            eomFoundRef.current = false; // Reset EOM found flag
 
             if (callbacksRef.current.onStreamingStarted) {
               callbacksRef.current.onStreamingStarted(data);
@@ -100,6 +122,9 @@ export function useProposalAnalysis({
           // Streaming chunk received
           streamingManager.onPanelEvent(effectivePanelId, 'proposal_analysis_chunk', (data) => {
             const chunkText = data.chunk || data.text || data.message || data.content || '';
+
+            // Ensure streaming is marked as active when chunks arrive
+            setIsStreaming(true);
 
             // Update full streaming content
             setStreamingContent(prev => {
@@ -114,14 +139,21 @@ export function useProposalAnalysis({
                 eomBuffer.current = eomBuffer.current.slice(-100);
               }
 
-              // Check if we've received the EOM marker
-              const eomIndex = newContent.indexOf('[SYSTEM: EOM]');
-              if (eomIndex !== -1) {
-                // Display only content before EOM
-                setDisplayContent(newContent.substring(0, eomIndex).trim());
+              // Only update display content if EOM hasn't been found yet
+              if (!eomFoundRef.current) {
+                // Check if we've received the EOM marker
+                const eomIndex = newContent.indexOf('[SYSTEM: EOM]');
+                if (eomIndex !== -1) {
+                  // Found EOM - display only content before it and stop updating display
+                  const displayPart = newContent.substring(0, eomIndex).trim();
+                  console.log('[useProposalAnalysis] Found EOM at index', eomIndex, ', display content length:', displayPart.length);
+                  setDisplayContent(displayPart);
+                  eomFoundRef.current = true; // Mark that we've found EOM
+                } else {
+                  // No EOM yet, display all content
+                  setDisplayContent(newContent);
+                }
               } else {
-                // No EOM yet, display all content
-                setDisplayContent(newContent);
               }
 
               return newContent;
@@ -228,9 +260,35 @@ export function useProposalAnalysis({
             setIsAnalyzing(false);
             setError(data.error || 'Analysis failed');
             currentAnalysisRef.current = null;
+            setTrackingId(null);
 
             if (callbacksRef.current.onError) {
               callbacksRef.current.onError(data);
+            }
+          }),
+
+          // Handle cancellation confirmation
+          streamingManager.onPanelEvent(effectivePanelId, 'proposal_analysis_cancelled', (data) => {
+            setIsAnalyzing(false);
+            setIsStreaming(false);
+            currentAnalysisRef.current = null;
+            setTrackingId(null);
+
+            // Keep partial response if available
+            if (data.partial_response) {
+              const partialContent = data.partial_response;
+              setDisplayContent(partialContent);
+              setStreamingContent(partialContent);
+              streamingContentRef.current = partialContent;
+            }
+
+            // Optionally call error handler with cancellation info
+            if (callbacksRef.current.onError) {
+              callbacksRef.current.onError({
+                ...data,
+                error: 'Analysis cancelled by user',
+                cancelled: true
+              });
             }
           })
         ];
@@ -241,7 +299,11 @@ export function useProposalAnalysis({
       }
     };
 
-    setupHandlers();
+    // Call the async function
+    setupHandlers().catch(error => {
+      console.error('[useProposalAnalysis] Failed to setup handlers:', error);
+      setError('Failed to connect to analysis service');
+    });
 
     // Cleanup
     return () => {
@@ -267,6 +329,11 @@ export function useProposalAnalysis({
       return null;
     }
 
+    if (!panelJoinedRef.current) {
+      setError('Panel not ready. Please wait a moment and try again.');
+      return null;
+    }
+
     if (isAnalyzing) {
       return null;
     }
@@ -277,15 +344,17 @@ export function useProposalAnalysis({
     setMetrics(null);
     setUsage(null);
     setMessageId(null);
+    setTrackingId(null);
     setIsStreaming(false);
     setStreamingContent('');
     setDisplayContent('');
     streamingContentRef.current = '';
     eomBuffer.current = '';
+    eomFoundRef.current = false;
 
     // Send the analysis request
     try {
-      const trackingId = streamingManager.sendMessageToPanel(
+      const newTrackingId = streamingManager.sendMessageToPanel(
         effectivePanelId,
         jobPost, // Job post is the main content
         {
@@ -298,12 +367,14 @@ export function useProposalAnalysis({
         }
       );
 
-      if (!trackingId) {
+      if (!newTrackingId) {
         setError('Failed to start analysis');
         return null;
       }
 
-      return trackingId;
+      // Store the tracking ID for potential cancellation
+      setTrackingId(newTrackingId);
+      return newTrackingId;
     } catch (error) {
       setError(error.message || 'Failed to send analysis');
       return null;
@@ -321,9 +392,47 @@ export function useProposalAnalysis({
     setMetrics(null);
     setUsage(null);
     setMessageId(null);
+    setTrackingId(null);
     currentAnalysisRef.current = null;
     eomBuffer.current = '';
+    eomFoundRef.current = false;
   }, []);
+
+  const cancelAnalysis = useCallback(() => {
+    if (!trackingId) {
+      console.warn('[useProposalAnalysis] ⚠️ No tracking ID available for cancellation');
+      return false;
+    }
+
+    if (!streamingManager) {
+      console.warn('[useProposalAnalysis] ⚠️ Streaming manager not available for cancellation');
+      return false;
+    }
+
+    if (trackingId === 'pending_backend_tracking_id') {
+      console.warn('[useProposalAnalysis] ⚠️ Backend tracking ID not yet received, cannot cancel');
+      return false;
+    }
+
+    try {
+      console.log('[useProposalAnalysis] 🛑 Attempting to cancel with tracking ID:', trackingId);
+
+      // Send cancellation request via streaming manager
+      const success = streamingManager.cancelResponse(trackingId);
+
+      if (success) {
+        // Optimistically update UI state
+        setIsStreaming(false);
+        setIsAnalyzing(false);
+        console.log('[useProposalAnalysis] 🛑 Cancellation request sent successfully');
+      }
+
+      return success;
+    } catch (error) {
+      console.error('[useProposalAnalysis] ❌ Failed to cancel stream:', error);
+      return false;
+    }
+  }, [trackingId, streamingManager]);
 
   const getStructuredAnalysis = useCallback(() => {
     if (!analysis?.structured) return null;
@@ -357,6 +466,7 @@ export function useProposalAnalysis({
 
     // Actions
     analyzeProposal,
-    reset
+    reset,
+    cancelAnalysis
   };
 }

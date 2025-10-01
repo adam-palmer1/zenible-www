@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import PlatformManagement from './PlatformManagement';
+import CharacterPlatformConfig from './CharacterPlatformConfig';
 
 export default function AICharacterManagement() {
   const { darkMode } = useOutletContext();
@@ -22,6 +24,9 @@ export default function AICharacterManagement() {
   const [showCharacterModal, setShowCharacterModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showPlatformModal, setShowPlatformModal] = useState(false);
+  const [showPlatformConfigModal, setShowPlatformConfigModal] = useState(false);
+  const [selectedCharacterForPlatform, setSelectedCharacterForPlatform] = useState(null);
   const [editingCharacter, setEditingCharacter] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [syncingCharacter, setSyncingCharacter] = useState(null);
@@ -98,6 +103,10 @@ export default function AICharacterManagement() {
 
   // Custom functions state
   const [customFunctions, setCustomFunctions] = useState([]);
+
+  // Shortcodes state
+  const [shortcodes, setShortcodes] = useState([]);
+  const [shortcodesLoading, setShortcodesLoading] = useState(false);
 
   // Available options
   const backendProviders = [
@@ -236,6 +245,13 @@ export default function AICharacterManagement() {
     }
   }, [showCharacterModal]);
 
+  // Fetch shortcodes when modal opens with OpenAI Chat provider
+  useEffect(() => {
+    if (showCharacterModal && characterForm.backend_provider === 'openai_chat' && shortcodes.length === 0) {
+      fetchShortcodes();
+    }
+  }, [showCharacterModal, characterForm.backend_provider]);
+
   const fetchOpenAIModels = async () => {
     setModelsLoading(true);
     try {
@@ -339,6 +355,23 @@ export default function AICharacterManagement() {
     } finally {
       setToolsLoading(false);
       console.log('=== fetchOpenAITools completed ===');
+    }
+  };
+
+  const fetchShortcodes = async () => {
+    setShortcodesLoading(true);
+    try {
+      const response = await adminAPI.getAICharacterShortcodes();
+      if (response && Array.isArray(response.shortcodes)) {
+        setShortcodes(response.shortcodes);
+      } else {
+        setShortcodes([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch shortcodes:', err);
+      setShortcodes([]);
+    } finally {
+      setShortcodesLoading(false);
     }
   };
 
@@ -1108,6 +1141,16 @@ export default function AICharacterManagement() {
             Manage Categories
           </button>
 
+          <button
+            onClick={() => setShowPlatformModal(true)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              darkMode
+                ? 'bg-zenible-dark-card hover:bg-zenible-dark-tab-bg text-zenible-dark-text border border-zenible-dark-border'
+                : 'bg-white hover:bg-gray-100 text-gray-700 border border-neutral-300'
+            }`}
+          >
+            Manage Platforms
+          </button>
 
           <button
             onClick={handleCreateCharacter}
@@ -1317,6 +1360,20 @@ export default function AICharacterManagement() {
                                   }`}
                                 >
                                   Clone
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedCharacterForPlatform(character);
+                                    setShowPlatformConfigModal(true);
+                                    setActionDropdown(null);
+                                  }}
+                                  className={`block px-4 py-2 text-sm w-full text-left ${
+                                    darkMode
+                                      ? 'text-zenible-dark-text hover:bg-zenible-dark-bg'
+                                      : 'text-gray-700 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  Platform Config
                                 </button>
                                 {character.backend_provider === 'openai_assistant' && (
                                   <button
@@ -1840,6 +1897,85 @@ export default function AICharacterManagement() {
                   rows="6"
                   placeholder="You are a helpful assistant..."
                 />
+
+                {/* Shortcodes section - only show for OpenAI Chat */}
+                {characterForm.backend_provider === 'openai_chat' && (
+                  <div className={`mt-3 p-3 rounded-lg border ${
+                    darkMode
+                      ? 'bg-zenible-dark-bg border-zenible-dark-border'
+                      : 'bg-blue-50 border-blue-200'
+                  }`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className={`text-sm font-semibold ${
+                        darkMode ? 'text-zenible-dark-text' : 'text-gray-800'
+                      }`}>
+                        Available Placeholder Variables
+                      </h4>
+                      {shortcodesLoading && (
+                        <span className={`text-xs ${
+                          darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
+                        }`}>
+                          Loading...
+                        </span>
+                      )}
+                    </div>
+
+                    {shortcodes.length > 0 ? (
+                      <div className="space-y-2">
+                        {shortcodes.map((sc) => (
+                          <div
+                            key={sc.shortcode}
+                            className={`text-xs p-2 rounded ${
+                              darkMode
+                                ? 'bg-zenible-dark-surface'
+                                : 'bg-white'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <code className={`font-mono font-semibold ${
+                                darkMode ? 'text-blue-400' : 'text-blue-600'
+                              }`}>
+                                {sc.shortcode}
+                              </code>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(sc.shortcode);
+                                }}
+                                className={`px-2 py-0.5 rounded text-xs ${
+                                  darkMode
+                                    ? 'bg-zenible-dark-bg hover:bg-zenible-dark-border text-zenible-dark-text'
+                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                }`}
+                                title="Copy to clipboard"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                            <p className={`mt-1 ${
+                              darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'
+                            }`}>
+                              {sc.description}
+                            </p>
+                            {sc.example && (
+                              <p className={`mt-1 font-mono text-xs ${
+                                darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
+                              }`}>
+                                Example: {sc.example}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : !shortcodesLoading && (
+                      <p className={`text-xs ${
+                        darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
+                      }`}>
+                        No placeholder variables available.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Assistant-specific configuration */}
@@ -2437,6 +2573,26 @@ export default function AICharacterManagement() {
         </div>
       )}
 
+      {/* Platform Management Modal */}
+      <PlatformManagement
+        isOpen={showPlatformModal}
+        onClose={() => setShowPlatformModal(false)}
+        darkMode={darkMode}
+      />
+
+      {/* Character Platform Configuration Modal */}
+      {selectedCharacterForPlatform && (
+        <CharacterPlatformConfig
+          characterId={selectedCharacterForPlatform.id}
+          characterName={selectedCharacterForPlatform.name}
+          isOpen={showPlatformConfigModal}
+          onClose={() => {
+            setShowPlatformConfigModal(false);
+            setSelectedCharacterForPlatform(null);
+          }}
+          darkMode={darkMode}
+        />
+      )}
 
     </div>
   );

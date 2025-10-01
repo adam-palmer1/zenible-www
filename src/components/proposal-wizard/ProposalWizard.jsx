@@ -12,7 +12,7 @@ import userAPI from '../../services/userAPI';
 
 export default function ProposalWizard() {
   const { darkMode } = usePreferences();
-  const [selectedPlatform, setSelectedPlatform] = useState('upwork');
+  const [selectedPlatform, setSelectedPlatform] = useState(''); // Will be set by PlatformSelector
   const [proposal, setProposal] = useState('');
   const [jobPost, setJobPost] = useState('');
   const [feedback, setFeedback] = useState(null);
@@ -20,6 +20,7 @@ export default function ProposalWizard() {
   const [selectedCharacterId, setSelectedCharacterId] = useState(null);
   const [selectedCharacterName, setSelectedCharacterName] = useState('');
   const [selectedCharacterAvatar, setSelectedCharacterAvatar] = useState(null);
+  const [selectedCharacterDescription, setSelectedCharacterDescription] = useState('');
   const [loadingCharacters, setLoadingCharacters] = useState(true);
   const [userFeatures, setUserFeatures] = useState(null);
   const [featureEnabled, setFeatureEnabled] = useState(true);
@@ -41,7 +42,8 @@ export default function ProposalWizard() {
     usage,
     messageId,
     analyzeProposal: sendAnalysis,
-    reset: resetAnalysis
+    reset: resetAnalysis,
+    cancelAnalysis
   } = useProposalAnalysis({
     conversationId: conversationIdRef.current,
     characterId: selectedCharacterId,
@@ -158,11 +160,9 @@ export default function ProposalWizard() {
         setAvailableCharacters(characters);
         // Select the first character by default
         const defaultChar = characters[0];
-        console.log('[ProposalWizard] Selecting default character:', defaultChar);
-        console.log('[ProposalWizard] Default character ID:', defaultChar.id);
-
         setSelectedCharacterId(defaultChar.id);
         setSelectedCharacterName(defaultChar.name || 'AI Assistant');
+        setSelectedCharacterDescription(defaultChar.description || '');
 
         // Use passed features or fall back to state
         const currentFeatures = features || userFeatures;
@@ -192,6 +192,7 @@ export default function ProposalWizard() {
     const character = availableCharacters.find(c => c.id === characterId);
     if (character) {
       setSelectedCharacterName(character.name || 'AI Assistant');
+      setSelectedCharacterDescription(character.description || '');
       setSelectedCharacterAvatar(getCharacterAvatarUrl(characterId));
     }
   };
@@ -202,6 +203,10 @@ export default function ProposalWizard() {
       return;
     }
 
+    if (!selectedPlatform) {
+      setFeedback({ error: 'Please select a platform' });
+      return;
+    }
 
     if (!isConnected) {
       setFeedback({ error: 'Connecting to AI service... Please try again in a moment.' });
@@ -258,9 +263,8 @@ export default function ProposalWizard() {
               darkMode ? 'text-white' : 'text-zinc-950'
             }`}>Proposal Wizard</h1>
 
-            {/* Connection Status and Character Selector */}
+            {/* Character Selector */}
             <div className="flex items-center gap-4">
-              {/* Character Selector */}
               {!loadingCharacters && availableCharacters.length > 0 && (
                 <select
                   value={selectedCharacterId || ''}
@@ -280,18 +284,6 @@ export default function ProposalWizard() {
                   ))}
                 </select>
               )}
-
-              {/* Connection Status */}
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  isConnected ? 'bg-green-500' : 'bg-red-500'
-                } animate-pulse`} />
-                <span className={`text-xs font-medium ${
-                  darkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
-                  {isConnected ? 'Connected' : 'Disconnected'}
-                </span>
-              </div>
             </div>
           </div>
         </div>
@@ -301,6 +293,7 @@ export default function ProposalWizard() {
           darkMode={darkMode}
           selectedPlatform={selectedPlatform}
           setSelectedPlatform={setSelectedPlatform}
+          characterId={selectedCharacterId}
         />
 
         {/* Content Section - Responsive grid */}
@@ -350,9 +343,10 @@ export default function ProposalWizard() {
                   usage={usage}
                   conversationId={conversationIdRef.current}
                   messageId={messageId}
-                  onCancel={resetAnalysis}
+                  onCancel={isStreaming ? cancelAnalysis : resetAnalysis}
                   characterName={selectedCharacterName}
                   characterAvatarUrl={selectedCharacterAvatar}
+                  characterDescription={selectedCharacterDescription}
                 />
               </div>
             </div>

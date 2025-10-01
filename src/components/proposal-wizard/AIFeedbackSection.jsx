@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import infoIcon from '../../assets/icons/info.svg';
-import thumbsUpIcon from '../../assets/icons/thumbs-up.svg';
-import thumbsDownIcon from '../../assets/icons/thumbs-down.svg';
+// Removed SVG imports - will use inline SVG components instead
 import sendIcon from '../../assets/icons/send.svg';
 import brandIcon from '../../assets/icons/brand-icon.svg';
 import aiAssistantIcon from '../../assets/icons/ai-assistant.svg';
@@ -33,7 +32,8 @@ export default function AIFeedbackSection({
   messageId,
   onCancel,
   characterName = 'AI Assistant',
-  characterAvatarUrl = null
+  characterAvatarUrl = null,
+  characterDescription = ''
 }) {
   const [question, setQuestion] = useState('');
   const [displayContent, setDisplayContent] = useState('');
@@ -44,15 +44,28 @@ export default function AIFeedbackSection({
 
   // Update display content when analysis or streaming is available
   useEffect(() => {
+    console.log('[AIFeedbackSection] Display content update triggered:', {
+      isStreaming,
+      hasStreamingContent: !!streamingContent,
+      streamingContentLength: streamingContent?.length,
+      hasRawAnalysis: !!rawAnalysis,
+      hasFeedback: !!feedback
+    });
+
     if (isStreaming && streamingContent) {
+      console.log('[AIFeedbackSection] Setting display from streaming content, length:', streamingContent.length);
       setDisplayContent(streamingContent);
     } else if (streamingContent && !isStreaming) {
+      console.log('[AIFeedbackSection] Setting display from completed streaming content, length:', streamingContent.length);
       setDisplayContent(streamingContent);
     } else if (rawAnalysis) {
+      console.log('[AIFeedbackSection] Setting display from rawAnalysis');
       setDisplayContent(rawAnalysis);
     } else if (feedback?.raw) {
+      console.log('[AIFeedbackSection] Setting display from feedback.raw');
       setDisplayContent(feedback.raw);
     } else if (feedback?.analysis?.raw) {
+      console.log('[AIFeedbackSection] Setting display from feedback.analysis.raw');
       setDisplayContent(feedback.analysis.raw);
     }
   }, [isStreaming, streamingContent, rawAnalysis, feedback]);
@@ -305,20 +318,54 @@ export default function AIFeedbackSection({
         {!feedback && !analyzing && !isProcessing && !rawAnalysis && (
           <div className="flex flex-col items-center justify-center h-full gap-1.5">
             {/* AI Avatar */}
-            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-violet-50 rounded-full border-[1.167px] border-[#ddd6ff] flex items-center justify-center overflow-hidden">
-              {characterAvatarUrl ? (
-                <img
-                  src={characterAvatarUrl}
-                  alt={characterName}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <img src={aiAssistantIcon} alt="" className="w-5 h-5 sm:w-6 sm:h-6" />
-              )}
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-violet-50 rounded-full border-[1.167px] border-[#ddd6ff] flex items-center justify-center overflow-hidden">
+                {characterAvatarUrl ? (
+                  <img
+                    src={characterAvatarUrl}
+                    alt={characterName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <img src={aiAssistantIcon} alt="" className="w-5 h-5 sm:w-6 sm:h-6" />
+                )}
+              </div>
+              {/* Character Name with Info Icon */}
+              <div className="flex items-center gap-1">
+                <div className="relative group">
+                  <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                    darkMode ? 'bg-gray-700' : 'bg-gray-200'
+                  } cursor-help`}>
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8 7.5V11M8 5H8.005M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={darkMode ? 'text-gray-400' : 'text-gray-600'}
+                      />
+                    </svg>
+                  </div>
+                  {/* Tooltip */}
+                  <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none w-48 ${
+                    darkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-900 text-white'
+                  }`}>
+                    {characterDescription || 'AI assistant for analyzing and improving your proposals'}
+                    <div className={`absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 w-0 h-0 border-4 border-transparent ${
+                      darkMode ? 'border-t-gray-800' : 'border-t-gray-900'
+                    }`}></div>
+                  </div>
+                </div>
+                <span className={`text-xs font-medium ${
+                  darkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  {characterName}
+                </span>
+              </div>
             </div>
 
             {/* Title and Description */}
-            <div className="flex flex-col items-center gap-0.5 mt-4 px-4">
+            <div className="flex flex-col items-center gap-0.5 mt-2 px-4">
               <h4 className={`font-inter font-semibold text-base sm:text-lg text-center ${
                 darkMode ? 'text-white' : 'text-zinc-950'
               }`}>
@@ -350,15 +397,44 @@ export default function AIFeedbackSection({
                   <img src={brandIcon} alt="" className="w-4 h-4 sm:w-6 sm:h-6" />
                 )}
               </div>
-              <div className="bg-violet-50 border border-[#ddd6ff] rounded-md px-1.5 sm:px-2 py-0.5">
-                <span className="font-inter font-medium text-[8px] sm:text-[10px] text-zenible-primary">{characterName}</span>
+              {/* Character Name with Info Icon */}
+              <div className="flex items-center gap-1">
+                <div className="relative group">
+                  <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                    darkMode ? 'bg-gray-700' : 'bg-gray-200'
+                  } cursor-help`}>
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8 7.5V11M8 5H8.005M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={darkMode ? 'text-gray-400' : 'text-gray-600'}
+                      />
+                    </svg>
+                  </div>
+                  {/* Tooltip */}
+                  <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none w-48 z-50 ${
+                    darkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-900 text-white'
+                  }`}>
+                    {characterDescription || 'AI assistant for analyzing and improving your proposals'}
+                    <div className={`absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 w-0 h-0 border-4 border-transparent ${
+                      darkMode ? 'border-t-gray-800' : 'border-t-gray-900'
+                    }`}></div>
+                  </div>
+                </div>
+                <span className={`text-xs font-medium ${
+                  darkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  {characterName}
+                </span>
               </div>
             </div>
 
             {/* Feedback Content */}
             <div className="flex-1 flex flex-col gap-2 sm:gap-3 min-w-0">
-              {/* Typing Indicator - only show when processing without streaming */}
-              {(isProcessing || (analyzing && !rawAnalysis && !isStreaming)) && (
+              {/* Typing Indicator - only show when processing/analyzing but not yet streaming */}
+              {(isProcessing || (analyzing && !isStreaming)) && (
                 <AICharacterTypingIndicator
                   isProcessing={isProcessing}
                   isStreaming={false}
@@ -379,12 +455,11 @@ export default function AIFeedbackSection({
                         darkMode
                           ? 'prose-invert prose-pre:bg-gray-800 prose-pre:text-gray-200'
                           : 'prose-pre:bg-gray-100 prose-pre:text-gray-800'
+                      } font-inter font-normal text-xs sm:text-sm leading-[20px] sm:leading-[22px] ${
+                        darkMode ? 'text-white' : 'text-zinc-950'
                       }`}>
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
-                          className={`font-inter font-normal text-xs sm:text-sm leading-[20px] sm:leading-[22px] ${
-                            darkMode ? 'text-white' : 'text-zinc-950'
-                          }`}
                           components={{
                             // Custom component overrides for better styling
                             h1: ({children}) => <h1 className={`text-lg sm:text-xl font-semibold mt-4 mb-2 ${darkMode ? 'text-white' : 'text-zinc-950'}`}>{children}</h1>,
@@ -542,24 +617,60 @@ export default function AIFeedbackSection({
               {(displayContent || structuredAnalysis) && !analyzing && !isProcessing && !isStreaming && messageId && (
                 <div className="flex gap-2 sm:gap-3">
                   <button
-                    onClick={() => handleRating('good')}
+                    onClick={() => handleRating('positive')}
                     disabled={ratingLoading}
                     className={`hover:opacity-70 transition-all ${
-                      messageRating === 'good' ? 'scale-110 opacity-100' : 'opacity-60'
+                      messageRating === 'positive' ? 'scale-110 opacity-100' : 'opacity-60'
                     } ${ratingLoading ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     title="Good response"
                   >
-                    <img src={thumbsUpIcon} alt="Good" className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill={messageRating === 'positive' ? 'currentColor' : 'none'}
+                      className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                        messageRating === 'positive'
+                          ? darkMode ? 'text-green-400' : 'text-green-600'
+                          : darkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}
+                    >
+                      <path
+                        d="M6.25 18.75H3.75C3.05964 18.75 2.5 18.1904 2.5 17.5V10C2.5 9.30964 3.05964 8.75 3.75 8.75H6.25M11.25 7.5V3.75C11.25 2.36929 10.1307 1.25 8.75 1.25L6.25 8.75V18.75H14.65C15.2688 18.7563 15.7926 18.2926 15.85 17.675L16.85 9.175C16.9269 8.35894 16.3106 7.64687 15.495 7.57C15.4467 7.56566 15.3983 7.56332 15.35 7.5625H11.25Z"
+                        stroke="currentColor"
+                        strokeWidth={messageRating === 'positive' ? "2" : "1.5"}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   </button>
                   <button
-                    onClick={() => handleRating('bad')}
+                    onClick={() => handleRating('negative')}
                     disabled={ratingLoading}
                     className={`hover:opacity-70 transition-all ${
-                      messageRating === 'bad' ? 'scale-110 opacity-100' : 'opacity-60'
+                      messageRating === 'negative' ? 'scale-110 opacity-100' : 'opacity-60'
                     } ${ratingLoading ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     title="Bad response"
                   >
-                    <img src={thumbsDownIcon} alt="Bad" className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill={messageRating === 'negative' ? 'currentColor' : 'none'}
+                      className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                        messageRating === 'negative'
+                          ? darkMode ? 'text-red-400' : 'text-red-600'
+                          : darkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}
+                    >
+                      <path
+                        d="M13.75 1.25H16.25C16.9404 1.25 17.5 1.80964 17.5 2.5V10C17.5 10.6904 16.9404 11.25 16.25 11.25H13.75M8.75 12.5V16.25C8.75 17.6307 9.86929 18.75 11.25 18.75L13.75 11.25V1.25H5.35C4.73117 1.24375 4.20738 1.70738 4.15 2.325L3.15 10.825C3.07312 11.6411 3.68944 12.3531 4.505 12.43C4.55334 12.4343 4.60168 12.4367 4.65 12.4375H8.75Z"
+                        stroke="currentColor"
+                        strokeWidth={messageRating === 'negative' ? "2" : "1.5"}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   </button>
                 </div>
               )}

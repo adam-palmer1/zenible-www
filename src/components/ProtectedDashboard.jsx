@@ -1,11 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { usePreferences } from '../contexts/PreferencesContext';
 import { useNavigate } from 'react-router-dom';
 import ZenibleDashboard from './zenible-dashboard/ZenibleDashboard';
+import OnboardingModal from './OnboardingModal';
 
 export default function ProtectedDashboard() {
   const { user, loading } = useAuth();
+  const { getPreference, loading: prefsLoading } = usePreferences();
   const navigate = useNavigate();
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -13,6 +17,41 @@ export default function ProtectedDashboard() {
       navigate('/signin?redirect=/dashboard');
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    // Check if onboarding should be shown
+    if (!loading && !prefsLoading && user) {
+      const onboardingStatus = getPreference('onboarding_status');
+      const reminderDate = getPreference('onboarding_reminder_date');
+
+      console.log('Onboarding check:', {
+        status: onboardingStatus,
+        reminderDate: reminderDate,
+        currentTime: new Date().toISOString()
+      });
+
+      if (!onboardingStatus || onboardingStatus === null) {
+        // Never seen onboarding before
+        console.log('Showing onboarding: No status found');
+        setShowOnboarding(true);
+      } else if (onboardingStatus === 'deferred' && reminderDate) {
+        // Check if it's time to show the reminder
+        const now = new Date();
+        const reminder = new Date(reminderDate);
+        if (now >= reminder) {
+          console.log('Showing onboarding: Reminder time reached');
+          setShowOnboarding(true);
+        } else {
+          console.log('Not showing: Still within deferral period');
+          setShowOnboarding(false);
+        }
+      } else {
+        // If status is 'complete' or 'ignored', don't show modal
+        console.log('Not showing: Status is', onboardingStatus);
+        setShowOnboarding(false);
+      }
+    }
+  }, [user, loading, prefsLoading, getPreference]);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -34,5 +73,13 @@ export default function ProtectedDashboard() {
   }
 
   // User is authenticated, show the dashboard
-  return <ZenibleDashboard />;
+  return (
+    <>
+      <ZenibleDashboard />
+      <OnboardingModal
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+      />
+    </>
+  );
 }

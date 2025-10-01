@@ -50,8 +50,11 @@ export default function ThreadManagement() {
       };
 
       const response = await adminAPI.getThreads(params);
-      setThreads(response.items || []);
-      setTotalPages(response.total_pages || 1);
+      setThreads(response.threads || response.items || []);
+      // Calculate total pages from total and per_page
+      const totalCount = response.total || 0;
+      const calculatedPages = Math.ceil(totalCount / perPage);
+      setTotalPages(response.total_pages || calculatedPages || 1);
     } catch (err) {
       setError(err.message);
       console.error('Error fetching threads:', err);
@@ -275,9 +278,6 @@ export default function ThreadManagement() {
                         Status
                       </th>
                       <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                        Messages
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                         Last Run
                       </th>
                       <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
@@ -292,26 +292,23 @@ export default function ThreadManagement() {
                     {threads.map((thread) => (
                       <tr key={thread.id}>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-mono ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                          {thread.openai_thread_id ? thread.openai_thread_id.substring(0, 12) : thread.id.substring(0, 8)}...
+                          {thread.thread_id ? thread.thread_id.substring(0, 12) : thread.id.substring(0, 8)}...
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                           {thread.user_id ? thread.user_id.substring(0, 8) : 'System'}...
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                          {thread.character_name || thread.ai_character_id?.substring(0, 8) || 'Unknown'}
+                          {thread.assistant_id || thread.character_name || thread.ai_character_id?.substring(0, 8) || 'Unknown'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadge(thread.status)}`}>
                             {thread.status}
                           </span>
                         </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                          {thread.message_count || 0}
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {thread.last_run_status && (
-                            <span className={`px-2 py-1 text-xs rounded-full ${getRunStatusBadge(thread.last_run_status)}`}>
-                              {thread.last_run_status}
+                          {(thread.last_run_status || thread.metadata?.analysis_type) && (
+                            <span className={`px-2 py-1 text-xs rounded-full ${getRunStatusBadge(thread.last_run_status || thread.metadata?.analysis_type)}`}>
+                              {thread.last_run_status || thread.metadata?.analysis_type}
                             </span>
                           )}
                         </td>

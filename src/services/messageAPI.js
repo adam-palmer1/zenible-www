@@ -11,7 +11,7 @@ export const messageAPI = {
    * @returns {Promise<Object>} Updated message
    */
   async updateMessage(conversationId, messageId, data) {
-    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/conversations/${conversationId}/messages/${messageId}`, {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/ai/conversations/${conversationId}/messages/${messageId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -34,7 +34,7 @@ export const messageAPI = {
    * @returns {Promise<Object>} Updated message
    */
   async rateMessage(conversationId, messageId, rating) {
-    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/conversations/${conversationId}/messages/${messageId}`, {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/ai/conversations/${conversationId}/messages/${messageId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -57,7 +57,7 @@ export const messageAPI = {
    * @returns {Promise<Object>} Updated message
    */
   async updateMessageMetadata(conversationId, messageId, metadata) {
-    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/conversations/${conversationId}/messages/${messageId}`, {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/ai/conversations/${conversationId}/messages/${messageId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

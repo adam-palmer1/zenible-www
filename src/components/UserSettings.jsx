@@ -5,6 +5,7 @@ import { authAPI } from '../utils/auth';
 import planAPI from '../services/planAPI';
 import UpdatePaymentModal from './UpdatePaymentModal';
 import PaymentHistory from './PaymentHistory';
+import CustomizationQuestions from './CustomizationQuestions';
 
 export default function UserSettings() {
   const { user, updateUser } = useAuth();
@@ -184,6 +185,20 @@ export default function UserSettings() {
             }`}
           >
             Payments
+          </button>
+          <button
+            onClick={() => setActiveTab('customization')}
+            className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
+              activeTab === 'customization'
+                ? darkMode
+                  ? 'bg-zenible-dark-bg text-zenible-primary'
+                  : 'bg-white text-zenible-primary shadow-sm'
+                : darkMode
+                  ? 'text-zenible-dark-text-secondary hover:text-zenible-dark-text'
+                  : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Customization
           </button>
         </div>
 
@@ -548,6 +563,32 @@ export default function UserSettings() {
           </div>
         ) : activeTab === 'payments' ? (
           <PaymentHistory />
+        ) : activeTab === 'customization' ? (
+          <div className="space-y-6">
+            <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+              <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+                <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                  Customization Preferences
+                </h2>
+                <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                  Help Zenible to personalize all content that it creates for you, ensuring that
+                  feedback and guidance are always relevant to your experience and background.
+                </p>
+                <p className={`text-sm mt-2 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                  Answer questions with as much detail as possible, leaving them empty if not relevant to
+                  your situation.
+                </p>
+              </div>
+
+              <div className="p-6">
+                <CustomizationQuestions
+                  mode="settings"
+                  showProgress={false}
+                  autoSave={false}
+                />
+              </div>
+            </div>
+          </div>
         ) : null}
       </div>
 

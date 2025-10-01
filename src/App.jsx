@@ -29,6 +29,8 @@ import ThreadManagement from './components/admin/ThreadManagement';
 import FeatureManagement from './components/admin/FeatureManagement';
 import AdminSettings from './components/admin/AdminSettings';
 import AIModelsManagement from './components/admin/AIModelsManagement';
+import ConversationManagement from './components/admin/ConversationManagement';
+import OnboardingQuestions from './components/admin/OnboardingQuestions';
 
 // Root layout component with WebSocket provider
 function RootLayout() {
@@ -129,8 +131,16 @@ const router = createBrowserRouter([
             element: <ThreadManagement />
           },
           {
+            path: 'conversations',
+            element: <ConversationManagement />
+          },
+          {
             path: 'features',
             element: <FeatureManagement />
+          },
+          {
+            path: 'onboarding-questions',
+            element: <OnboardingQuestions />
           },
           {
             path: 'settings',
