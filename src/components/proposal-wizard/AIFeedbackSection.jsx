@@ -31,41 +31,38 @@ export default function AIFeedbackSection({
   conversationId,
   messageId,
   onCancel,
+  onSendMessage,
+  characterId,
   characterName = 'AI Assistant',
   characterAvatarUrl = null,
-  characterDescription = ''
+  characterDescription = '',
+  followUpMessages = [],
+  isFollowUpStreaming = false,
+  followUpStreamingContent = ''
 }) {
   const [question, setQuestion] = useState('');
   const [displayContent, setDisplayContent] = useState('');
   const [messageRating, setMessageRating] = useState(null);
   const [ratingLoading, setRatingLoading] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
   const contentEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
 
 
   // Update display content when analysis or streaming is available
   useEffect(() => {
-    console.log('[AIFeedbackSection] Display content update triggered:', {
-      isStreaming,
-      hasStreamingContent: !!streamingContent,
-      streamingContentLength: streamingContent?.length,
-      hasRawAnalysis: !!rawAnalysis,
-      hasFeedback: !!feedback
-    });
-
     if (isStreaming && streamingContent) {
-      console.log('[AIFeedbackSection] Setting display from streaming content, length:', streamingContent.length);
       setDisplayContent(streamingContent);
     } else if (streamingContent && !isStreaming) {
-      console.log('[AIFeedbackSection] Setting display from completed streaming content, length:', streamingContent.length);
       setDisplayContent(streamingContent);
     } else if (rawAnalysis) {
-      console.log('[AIFeedbackSection] Setting display from rawAnalysis');
       setDisplayContent(rawAnalysis);
     } else if (feedback?.raw) {
-      console.log('[AIFeedbackSection] Setting display from feedback.raw');
       setDisplayContent(feedback.raw);
     } else if (feedback?.analysis?.raw) {
-      console.log('[AIFeedbackSection] Setting display from feedback.analysis.raw');
       setDisplayContent(feedback.analysis.raw);
     }
   }, [isStreaming, streamingContent, rawAnalysis, feedback]);
@@ -75,12 +72,62 @@ export default function AIFeedbackSection({
     setMessageRating(null);
   }, [messageId]);
 
-  // Auto-scroll to bottom when content updates
-  useEffect(() => {
-    if (contentEndRef.current) {
-      contentEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  // Check if user is scrolled to bottom (within threshold)
+  const isScrolledToBottom = useCallback(() => {
+    if (!scrollContainerRef.current) return true;
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const threshold = 100; // pixels from bottom
+    return scrollHeight - scrollTop - clientHeight < threshold;
+  }, []);
+
+  // Handle scroll events to detect manual scrolling
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return;
+
+    // Clear existing timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
     }
-  }, [displayContent]);
+
+    // Check if user scrolled away from bottom
+    const atBottom = isScrolledToBottom();
+
+    if (!atBottom) {
+      setIsUserScrolling(true);
+    }
+
+    // Reset user scrolling flag after user stops scrolling and is at bottom
+    scrollTimeoutRef.current = setTimeout(() => {
+      if (isScrolledToBottom()) {
+        setIsUserScrolling(false);
+      }
+    }, 150);
+  }, [isScrolledToBottom]);
+
+  // Auto-scroll to bottom when content updates (only if user hasn't scrolled up)
+  useEffect(() => {
+    if (!scrollContainerRef.current) return;
+
+    // Only auto-scroll if:
+    // 1. User hasn't manually scrolled up, OR
+    // 2. User is already at the bottom
+    if (!isUserScrolling || isScrolledToBottom()) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [displayContent, followUpStreamingContent, followUpMessages, isUserScrolling, isScrolledToBottom]);
+
+  // Cleanup scroll timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCancelAnalysis = () => {
     if (onCancel) {
@@ -88,17 +135,75 @@ export default function AIFeedbackSection({
     }
   };
 
+  const handleSendQuestion = async () => {
+    console.log('[AIFeedbackSection] handleSendQuestion called', {
+      hasQuestion: !!question.trim(),
+      hasOnSendMessage: !!onSendMessage,
+      isSendingMessage
+    });
+
+    if (!question.trim() || !onSendMessage || isSendingMessage) {
+      console.log('[AIFeedbackSection] Not sending - validation failed');
+      return;
+    }
+
+    const userMessage = question.trim();
+    setQuestion('');
+    setIsSendingMessage(true);
+
+    console.log('[AIFeedbackSection] Sending message:', userMessage);
+
+    // Add user message to conversation history
+    setConversationHistory(prev => [...prev, {
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date().toISOString()
+    }]);
+
+    try {
+      // Send message through parent component
+      await onSendMessage(userMessage);
+      console.log('[AIFeedbackSection] Message sent successfully');
+    } catch (error) {
+      console.error('[AIFeedbackSection] Error sending message:', error);
+      // Error handling - could add error message to conversation
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendQuestion();
+    }
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    setQuestion(suggestion);
+  };
+
   const handleRating = async (rating) => {
-    if (!conversationId || !messageId || ratingLoading || messageRating === rating) {
+    if (!conversationId || !messageId || ratingLoading) {
       return;
     }
 
     setRatingLoading(true);
     try {
-      await messageAPI.rateMessage(conversationId, messageId, rating);
-      setMessageRating(rating);
+      let newRating;
+
+      // If clicking the same rating, unset it (toggle off)
+      if (messageRating === rating) {
+        newRating = null;
+      } else {
+        // Set the new rating
+        newRating = rating;
+      }
+
+      await messageAPI.rateMessage(conversationId, messageId, newRating);
+      setMessageRating(newRating);
     } catch (error) {
-      console.error('Failed to rate message:', error);
+      // Silent failure - rating not critical
     } finally {
       setRatingLoading(false);
     }
@@ -117,6 +222,217 @@ export default function AIFeedbackSection({
         {metricsData.messages_used && <span className="ml-3">Messages: {metricsData.messages_used}/{metricsData.messages_limit}</span>}
         {metricsData.durationMs && <span className="ml-3">Time: {(metricsData.durationMs / 1000).toFixed(1)}s</span>}
         {metricsData.costCents && <span className="ml-3">Cost: ${(metricsData.costCents / 100).toFixed(3)}</span>}
+      </div>
+    );
+  };
+
+  const renderConversationHistory = () => {
+    if (conversationHistory.length === 0 && followUpMessages.length === 0 && !isFollowUpStreaming) {
+      return null;
+    }
+
+    // Combine and sort all messages
+    const allMessages = [
+      ...conversationHistory.map(msg => ({ ...msg, type: 'user' })),
+      ...followUpMessages.map(msg => ({ ...msg, type: 'assistant' }))
+    ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    return (
+      <div className="mt-6 space-y-3">
+        <div className={`border-t pt-4 ${darkMode ? 'border-[#444444]' : 'border-gray-200'}`}>
+          <h4 className={`text-sm font-semibold mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            Conversation
+          </h4>
+
+          {allMessages.map((msg, idx) => (
+            <div key={idx} className={`flex gap-2 mb-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {msg.role === 'assistant' && (
+                <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {characterAvatarUrl ? (
+                    <img src={characterAvatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <img src={brandIcon} alt="" className="w-3 h-3" />
+                  )}
+                </div>
+              )}
+
+              <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                msg.role === 'user'
+                  ? darkMode
+                    ? 'bg-zenible-primary text-white'
+                    : 'bg-zenible-primary text-white'
+                  : darkMode
+                    ? 'bg-[#2d2d2d] text-gray-200'
+                    : 'bg-gray-100 text-gray-800'
+              }`}>
+                {msg.role === 'assistant' ? (
+                  <div className={`prose prose-sm max-w-none ${
+                    darkMode
+                      ? 'prose-invert prose-pre:bg-gray-800 prose-pre:text-gray-200'
+                      : 'prose-pre:bg-gray-100 prose-pre:text-gray-800'
+                  }`}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({children}) => <h1 className={`text-base font-semibold mt-2 mb-1 ${darkMode ? 'text-white' : 'text-zinc-950'}`}>{children}</h1>,
+                        h2: ({children}) => <h2 className={`text-sm font-semibold mt-2 mb-1 ${darkMode ? 'text-white' : 'text-zinc-950'}`}>{children}</h2>,
+                        h3: ({children}) => <h3 className={`text-sm font-semibold mt-1 mb-1 ${darkMode ? 'text-white' : 'text-zinc-950'}`}>{children}</h3>,
+                        h4: ({children}) => <h4 className={`text-xs font-semibold mt-1 mb-1 ${darkMode ? 'text-white' : 'text-zinc-950'}`}>{children}</h4>,
+                        p: ({children}) => <p className={`mb-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</p>,
+                        ul: ({children}) => <ul className={`list-disc ml-4 mb-2 space-y-0.5 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ul>,
+                        ol: ({children}) => <ol className={`list-decimal ml-4 mb-2 space-y-0.5 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ol>,
+                        li: ({children}) => <li className={`${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</li>,
+                        blockquote: ({children}) => (
+                          <blockquote className={`border-l-2 pl-2 my-2 ${
+                            darkMode ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'
+                          }`}>
+                            {children}
+                          </blockquote>
+                        ),
+                        code: ({inline, children}) => {
+                          if (inline) {
+                            return (
+                              <code className={`px-1 py-0.5 rounded text-xs ${
+                                darkMode ? 'bg-gray-800 text-purple-300' : 'bg-gray-100 text-purple-700'
+                              }`}>
+                                {children}
+                              </code>
+                            );
+                          }
+                          return (
+                            <code className={`block p-2 rounded-lg overflow-x-auto text-xs ${
+                              darkMode ? 'bg-gray-900 text-gray-200' : 'bg-gray-50 text-gray-800'
+                            }`}>
+                              {children}
+                            </code>
+                          );
+                        },
+                        pre: ({children}) => (
+                          <pre className={`rounded-lg overflow-x-auto my-2 ${
+                            darkMode ? 'bg-gray-900' : 'bg-gray-50'
+                          }`}>
+                            {children}
+                          </pre>
+                        ),
+                        strong: ({children}) => <strong className={`font-semibold ${darkMode ? 'text-white' : 'text-zinc-950'}`}>{children}</strong>,
+                        em: ({children}) => <em className={`italic ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</em>,
+                        hr: () => <hr className={`my-2 ${darkMode ? 'border-gray-700' : 'border-gray-300'}`} />,
+                        a: ({href, children}) => (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`underline hover:no-underline ${
+                              darkMode ? 'text-purple-400 hover:text-purple-300' : 'text-purple-600 hover:text-purple-700'
+                            }`}
+                          >
+                            {children}
+                          </a>
+                        ),
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  msg.content
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Show streaming message */}
+          {isFollowUpStreaming && (
+            <div className="flex gap-2 mb-3 justify-start">
+              <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {characterAvatarUrl ? (
+                  <img src={characterAvatarUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <img src={brandIcon} alt="" className="w-3 h-3" />
+                )}
+              </div>
+
+              <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                darkMode ? 'bg-[#2d2d2d] text-gray-200' : 'bg-gray-100 text-gray-800'
+              }`}>
+                {followUpStreamingContent ? (
+                  <div className={`prose prose-sm max-w-none ${
+                    darkMode
+                      ? 'prose-invert prose-pre:bg-gray-800 prose-pre:text-gray-200'
+                      : 'prose-pre:bg-gray-100 prose-pre:text-gray-800'
+                  }`}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({children}) => <h1 className={`text-base font-semibold mt-2 mb-1 ${darkMode ? 'text-white' : 'text-zinc-950'}`}>{children}</h1>,
+                        h2: ({children}) => <h2 className={`text-sm font-semibold mt-2 mb-1 ${darkMode ? 'text-white' : 'text-zinc-950'}`}>{children}</h2>,
+                        h3: ({children}) => <h3 className={`text-sm font-semibold mt-1 mb-1 ${darkMode ? 'text-white' : 'text-zinc-950'}`}>{children}</h3>,
+                        h4: ({children}) => <h4 className={`text-xs font-semibold mt-1 mb-1 ${darkMode ? 'text-white' : 'text-zinc-950'}`}>{children}</h4>,
+                        p: ({children}) => <p className={`mb-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</p>,
+                        ul: ({children}) => <ul className={`list-disc ml-4 mb-2 space-y-0.5 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ul>,
+                        ol: ({children}) => <ol className={`list-decimal ml-4 mb-2 space-y-0.5 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ol>,
+                        li: ({children}) => <li className={`${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</li>,
+                        blockquote: ({children}) => (
+                          <blockquote className={`border-l-2 pl-2 my-2 ${
+                            darkMode ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'
+                          }`}>
+                            {children}
+                          </blockquote>
+                        ),
+                        code: ({inline, children}) => {
+                          if (inline) {
+                            return (
+                              <code className={`px-1 py-0.5 rounded text-xs ${
+                                darkMode ? 'bg-gray-800 text-purple-300' : 'bg-gray-100 text-purple-700'
+                              }`}>
+                                {children}
+                              </code>
+                            );
+                          }
+                          return (
+                            <code className={`block p-2 rounded-lg overflow-x-auto text-xs ${
+                              darkMode ? 'bg-gray-900 text-gray-200' : 'bg-gray-50 text-gray-800'
+                            }`}>
+                              {children}
+                            </code>
+                          );
+                        },
+                        pre: ({children}) => (
+                          <pre className={`rounded-lg overflow-x-auto my-2 ${
+                            darkMode ? 'bg-gray-900' : 'bg-gray-50'
+                          }`}>
+                            {children}
+                          </pre>
+                        ),
+                        strong: ({children}) => <strong className={`font-semibold ${darkMode ? 'text-white' : 'text-zinc-950'}`}>{children}</strong>,
+                        em: ({children}) => <em className={`italic ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</em>,
+                        hr: () => <hr className={`my-2 ${darkMode ? 'border-gray-700' : 'border-gray-300'}`} />,
+                        a: ({href, children}) => (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`underline hover:no-underline ${
+                              darkMode ? 'text-purple-400 hover:text-purple-300' : 'text-purple-600 hover:text-purple-700'
+                            }`}
+                          >
+                            {children}
+                          </a>
+                        ),
+                      }}
+                    >
+                      {followUpStreamingContent}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <span className="inline-flex">
+                    <TypingDots darkMode={darkMode} size="sm" />
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -314,54 +630,44 @@ export default function AIFeedbackSection({
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-3 sm:p-4 overflow-auto">
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 p-3 sm:p-4 overflow-auto overflow-y-auto overflow-x-visible"
+      >
         {!feedback && !analyzing && !isProcessing && !rawAnalysis && (
           <div className="flex flex-col items-center justify-center h-full gap-1.5">
-            {/* AI Avatar */}
-            <div className="flex flex-col items-center gap-1">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-violet-50 rounded-full border-[1.167px] border-[#ddd6ff] flex items-center justify-center overflow-hidden">
-                {characterAvatarUrl ? (
-                  <img
-                    src={characterAvatarUrl}
-                    alt={characterName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <img src={aiAssistantIcon} alt="" className="w-5 h-5 sm:w-6 sm:h-6" />
-                )}
-              </div>
-              {/* Character Name with Info Icon */}
-              <div className="flex items-center gap-1">
-                <div className="relative group">
-                  <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                    darkMode ? 'bg-gray-700' : 'bg-gray-200'
-                  } cursor-help`}>
-                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 7.5V11M8 5H8.005M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={darkMode ? 'text-gray-400' : 'text-gray-600'}
-                      />
-                    </svg>
-                  </div>
-                  {/* Tooltip */}
-                  <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none w-48 ${
-                    darkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-900 text-white'
-                  }`}>
-                    {characterDescription || 'AI assistant for analyzing and improving your proposals'}
-                    <div className={`absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 w-0 h-0 border-4 border-transparent ${
-                      darkMode ? 'border-t-gray-800' : 'border-t-gray-900'
-                    }`}></div>
-                  </div>
+            {/* AI Avatar and Info */}
+            <div className="flex items-center gap-3">
+              {/* Avatar */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-violet-50 rounded-full border-[1.167px] border-[#ddd6ff] flex items-center justify-center overflow-hidden">
+                  {characterAvatarUrl ? (
+                    <img
+                      src={characterAvatarUrl}
+                      alt={characterName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img src={aiAssistantIcon} alt="" className="w-5 h-5 sm:w-6 sm:h-6" />
+                  )}
                 </div>
+                {/* Character Name */}
                 <span className={`text-xs font-medium ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
                   {characterName}
                 </span>
               </div>
+
+              {/* Character Description Box */}
+              {characterDescription && (
+                <div className={`px-4 py-3 rounded-lg text-xs max-w-[280px] min-h-[60px] flex items-center ${
+                  darkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {characterDescription}
+                </div>
+              )}
             </div>
 
             {/* Title and Description */}
@@ -380,7 +686,7 @@ export default function AIFeedbackSection({
           </div>
         )}
 
-        {(feedback || analyzing || isProcessing || rawAnalysis || structuredAnalysis || isStreaming) && (
+        {(feedback || analyzing || isProcessing || rawAnalysis || structuredAnalysis || isStreaming || followUpMessages.length > 0 || isFollowUpStreaming) && (
           <div className="flex gap-1.5 sm:gap-2">
             {/* AI Avatar */}
             <div className="flex flex-col items-center gap-2 flex-shrink-0">
@@ -390,45 +696,17 @@ export default function AIFeedbackSection({
                     src={characterAvatarUrl}
                     alt={characterName}
                     className="w-full h-full object-cover"
-                    onLoad={() => console.log('[AIFeedbackSection] Active avatar image loaded successfully:', characterAvatarUrl)}
-                    onError={(e) => console.error('[AIFeedbackSection] Active avatar image failed to load:', characterAvatarUrl, e)}
                   />
                 ) : (
                   <img src={brandIcon} alt="" className="w-4 h-4 sm:w-6 sm:h-6" />
                 )}
               </div>
-              {/* Character Name with Info Icon */}
-              <div className="flex items-center gap-1">
-                <div className="relative group">
-                  <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                    darkMode ? 'bg-gray-700' : 'bg-gray-200'
-                  } cursor-help`}>
-                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 7.5V11M8 5H8.005M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={darkMode ? 'text-gray-400' : 'text-gray-600'}
-                      />
-                    </svg>
-                  </div>
-                  {/* Tooltip */}
-                  <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none w-48 z-50 ${
-                    darkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-900 text-white'
-                  }`}>
-                    {characterDescription || 'AI assistant for analyzing and improving your proposals'}
-                    <div className={`absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 w-0 h-0 border-4 border-transparent ${
-                      darkMode ? 'border-t-gray-800' : 'border-t-gray-900'
-                    }`}></div>
-                  </div>
-                </div>
-                <span className={`text-xs font-medium ${
-                  darkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                  {characterName}
-                </span>
-              </div>
+              {/* Character Name */}
+              <span className={`text-xs font-medium ${
+                darkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
+                {characterName}
+              </span>
             </div>
 
             {/* Feedback Content */}
@@ -580,6 +858,9 @@ export default function AIFeedbackSection({
                   {/* Metrics display */}
                   {!analyzing && !isProcessing && !isStreaming && formatMetrics()}
 
+                  {/* Conversation history */}
+                  {renderConversationHistory()}
+
                   <div ref={contentEndRef} />
 
                   {/* Error display */}
@@ -599,11 +880,13 @@ export default function AIFeedbackSection({
                       {suggestionButtons.map((suggestion) => (
                         <button
                           key={suggestion}
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          disabled={isSendingMessage}
                           className={`w-full h-8 sm:h-9 px-2 sm:px-3 py-1.5 sm:py-2 rounded-[10px] border font-inter font-medium text-xs sm:text-sm transition-colors text-left ${
                             darkMode
                               ? 'bg-[#3a3a3a] border-[#4a4a4a] text-white hover:bg-[#444444]'
                               : 'bg-white border-zinc-100 text-zinc-950 hover:bg-gray-50'
-                          }`}
+                          } ${isSendingMessage ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           {suggestion}
                         </button>
@@ -690,8 +973,9 @@ export default function AIFeedbackSection({
             type="text"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Ask me about proposal writing..."
-            disabled={analyzing || isProcessing}
+            disabled={analyzing || isProcessing || isSendingMessage}
             className={`flex-1 bg-transparent font-inter font-normal text-xs sm:text-sm outline-none min-w-0 ${
               darkMode
                 ? 'text-white placeholder:text-[#888888] disabled:opacity-50'
@@ -699,7 +983,8 @@ export default function AIFeedbackSection({
             }`}
           />
           <button
-            disabled={analyzing || isProcessing || !question.trim()}
+            onClick={handleSendQuestion}
+            disabled={analyzing || isProcessing || isSendingMessage || !question.trim()}
             className="w-8 h-8 sm:w-9 sm:h-9 bg-zenible-primary rounded-[10px] flex items-center justify-center hover:bg-purple-600 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <img src={sendIcon} alt="" className="w-3 h-3 sm:w-4 sm:h-4" />

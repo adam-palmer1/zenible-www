@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { createContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import WebSocketService from '../services/WebSocketService';
 import MultiPanelStreamingManager from '../services/MultiPanelStreamingManager';
@@ -28,15 +28,21 @@ export const WebSocketProvider = ({ children }) => {
   const initializationRef = useRef(false);
 
   const initWebSocket = useCallback(async () => {
+    console.log('[WebSocketContext] initWebSocket CALLED:', {
+      isAlreadyInitialized: initializationRef.current,
+      hasToken: !!localStorage.getItem('access_token'),
+      timestamp: new Date().toISOString()
+    });
+
     if (initializationRef.current) {
-      console.log('WebSocket already initialized');
+      console.log('[WebSocketContext] Already initialized, skipping');
       return;
     }
 
     // Check if we have an access token
     const token = localStorage.getItem('access_token');
     if (!token) {
-      console.log('No access token found, skipping WebSocket connection');
+      console.log('[WebSocketContext] No access token found');
       setConnectionError('Not authenticated');
       return;
     }
@@ -47,6 +53,8 @@ export const WebSocketProvider = ({ children }) => {
     try {
       const wsUrl = import.meta.env.VITE_WS_URL || 'https://demo-api.zenible.com';
 
+      console.log('[WebSocketContext] Creating WebSocketService:', { wsUrl });
+
       const wsService = new WebSocketService({
         baseUrl: wsUrl,
         getAccessToken: () => localStorage.getItem('access_token'),
@@ -56,7 +64,10 @@ export const WebSocketProvider = ({ children }) => {
 
       await wsService.connect();
 
+      console.log('[WebSocketContext] Creating MultiPanelStreamingManager');
       const streamingManager = new MultiPanelStreamingManager(wsService);
+
+      console.log('[WebSocketContext] Creating support services');
       const stableConnection = new StableWebSocketConnection(wsService);
       const messageQueue = new MessageQueueManager(wsService, streamingManager);
       const errorRecovery = new ErrorRecoveryManager(wsService, stableConnection);
@@ -64,24 +75,20 @@ export const WebSocketProvider = ({ children }) => {
       // Set callbacks
       stableConnection.setCallbacks({
         onConnectionDegraded: (health) => {
-          console.warn('Connection degraded:', health);
           setConnectionHealth(health);
         },
         onReconnectionFailure: () => {
-          console.error('WebSocket reconnection failed');
           setConnectionError('Connection lost. Please refresh the page.');
         }
       });
 
       messageQueue.setCallbacks({
         onMessageFailed: (message) => {
-          console.error('Message failed to send:', message);
         }
       });
 
       errorRecovery.setCallbacks({
         onAuthFailure: () => {
-          console.error('Authentication failed');
           navigate('/signin');
         }
       });
@@ -92,15 +99,20 @@ export const WebSocketProvider = ({ children }) => {
       messageQueueRef.current = messageQueue;
       errorRecoveryRef.current = errorRecovery;
 
+      console.log('[WebSocketContext] All services initialized and stored in refs:', {
+        streamingManagerId: streamingManager.instanceId,
+        hasWsService: !!wsServiceRef.current,
+        hasStreamingManager: !!streamingManagerRef.current
+      });
+
       // Monitor connection health
       healthIntervalRef.current = setInterval(() => {
         const health = stableConnection.getConnectionHealth();
         setConnectionHealth(health);
       }, 5000);
 
-      console.log('WebSocket initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize WebSocket:', error);
+      console.error('[WebSocketContext] Initialization error:', error);
       setConnectionError('Failed to connect to server');
       errorRecoveryRef.current?.handleError('connection_error', error);
       initializationRef.current = false; // Allow retry
@@ -108,17 +120,25 @@ export const WebSocketProvider = ({ children }) => {
   }, [navigate]);
 
   useEffect(() => {
+    console.log('[WebSocketContext] Main effect running');
+
     // Only initialize if we have an access token
     const accessToken = localStorage.getItem('access_token');
-    console.log('WebSocketContext effect - token present:', !!accessToken);
     if (accessToken) {
+      console.log('[WebSocketContext] Access token found, initializing WebSocket');
       initWebSocket();
     } else {
-      console.log('No access token, deferring WebSocket connection');
+      console.log('[WebSocketContext] No access token, skipping WebSocket initialization');
     }
 
     // Cleanup on unmount
     return () => {
+      console.log('[WebSocketContext] CLEANUP RUNNING - DESTROYING ALL SERVICES:', {
+        hasStreamingManager: !!streamingManagerRef.current,
+        streamingManagerId: streamingManagerRef.current?.instanceId,
+        stackTrace: new Error().stack
+      });
+
       if (healthIntervalRef.current) {
         clearInterval(healthIntervalRef.current);
       }
@@ -131,14 +151,12 @@ export const WebSocketProvider = ({ children }) => {
 
   const sendMessage = useCallback((panelId, content, metadata) => {
     if (!streamingManagerRef.current) {
-      console.error('WebSocket not initialized');
       return null;
     }
 
     try {
       return streamingManagerRef.current.sendMessageToPanel(panelId, content, metadata);
     } catch (error) {
-      console.error('Failed to send message:', error);
       // Queue message for retry
       messageQueueRef.current?.enqueue({
         panelId,
@@ -154,6 +172,7 @@ export const WebSocketProvider = ({ children }) => {
     if (!streamingManagerRef.current) {
       throw new Error('WebSocket not initialized');
     }
+
     await streamingManagerRef.current.createPanel(panelId, conversationId);
   }, []);
 
@@ -174,7 +193,7 @@ export const WebSocketProvider = ({ children }) => {
     return messageQueueRef.current?.getQueueSize() || 0;
   }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     isConnected,
     connectionHealth,
     connectionError,
@@ -185,7 +204,7 @@ export const WebSocketProvider = ({ children }) => {
     reconnect,
     getQueueSize,
     streamingManager: streamingManagerRef.current
-  };
+  }), [isConnected, connectionHealth, connectionError, sendMessage, joinPanel, leavePanel, getPanelState, reconnect, getQueueSize]);
 
   return (
     <WebSocketContext.Provider value={value}>

@@ -57,6 +57,45 @@ class UserAPI {
   async getSubscription() {
     return this.request('/users/me/subscription', { method: 'GET' });
   }
+
+  // Get user's conversations with pagination and filtering
+  async getUserConversations(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/ai/conversations/?${queryString}` : '/ai/conversations/';
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  // Get detailed conversation with messages
+  async getUserConversation(conversationId) {
+    return this.request(`/ai/conversations/${conversationId}`, { method: 'GET' });
+  }
+
+  // Export user conversation in specified format
+  async exportUserConversation(conversationId, format = 'json') {
+    const response = await this.request(`/ai/conversations/${conversationId}/export`, {
+      method: 'GET',
+      headers: {
+        'Accept': format === 'csv' ? 'text/csv' : format === 'txt' ? 'text/plain' : 'application/json'
+      }
+    });
+
+    // Handle file download
+    if (response) {
+      const blob = new Blob([JSON.stringify(response, null, 2)], {
+        type: format === 'csv' ? 'text/csv' : format === 'txt' ? 'text/plain' : 'application/json'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `conversation_${conversationId}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }
+
+    return response;
+  }
 }
 
 export default new UserAPI();

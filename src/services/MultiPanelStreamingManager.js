@@ -3,20 +3,77 @@ class MultiPanelStreamingManager {
     this.wsService = wsService;
     this.panels = new Map();
     this.globalHandlers = new Map();
+    this.instanceId = `manager_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('[StreamingManager] NEW INSTANCE CREATED:', {
+      instanceId: this.instanceId,
+      timestamp: new Date().toISOString()
+    });
     this.setupGlobalHandlers();
   }
 
   setupGlobalHandlers() {
     const socket = this.wsService.getSocket();
     if (!socket) {
-      console.error('[MultiPanelStreamingManager] No socket available for setting up handlers');
       return;
     }
 
+    // Generic event logger for all AI events
+    socket.onAny((eventName, ...args) => {
+      if (eventName.includes('ai_') || eventName.includes('proposal_')) {
+        console.log(`[StreamingManager] WebSocket event received: ${eventName}`, {
+          eventName,
+          data: args[0],
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     // Handle AI processing phase
     socket.on('ai_processing', (data) => {
-      const panel = this.findPanelByConversationId(data.conversation_id);
-      if (!panel) return;
+      console.log('[StreamingManager] ai_processing event received:', {
+        conversation_id: data.conversation_id,
+        tracking_id: data.tracking_id,
+        panel_id: data.panel_id,
+        character_id: data.character_id,
+        message_id: data.message_id
+      });
+
+      // Route by tracking_id first, fallback to panel_id
+      let panel = this.findPanelByTrackingId(data.tracking_id);
+      if (!panel && data.panel_id) {
+        panel = this.panels.get(data.panel_id);
+      }
+
+      if (!panel) {
+        console.error('[StreamingManager] Panel NOT found for ai_processing:', {
+          searching_for_tracking_id: data.tracking_id,
+          searching_for_panel_id: data.panel_id,
+          conversation_id_in_event: data.conversation_id,
+          available_panels: Array.from(this.panels.entries()).map(([id, p]) => ({
+            panelId: id,
+            conversationId: p.conversationId,
+            trackingIds: Array.from(p.trackingIds)
+          }))
+        });
+        return;
+      }
+
+      console.log('[StreamingManager] Panel found for ai_processing, updating state:', {
+        panelId: panel.panelId,
+        existingConversationId: panel.conversationId,
+        backendConversationId: data.conversation_id,
+        trackingId: data.tracking_id,
+        existingTrackingIds: Array.from(panel.trackingIds)
+      });
+
+      // Update conversation ID if backend provides a different one
+      if (data.conversation_id && panel.conversationId !== data.conversation_id) {
+        console.log('[StreamingManager] Backend created new conversation_id, updating panel:', {
+          oldConversationId: panel.conversationId,
+          newConversationId: data.conversation_id
+        });
+        panel.conversationId = data.conversation_id;
+      }
 
       panel.trackingIds.add(data.tracking_id);
       panel.isStreaming = true;
@@ -35,8 +92,33 @@ class MultiPanelStreamingManager {
 
     // Handle AI streaming start
     socket.on('ai_streaming_start', (data) => {
+      console.log('[StreamingManager] ai_streaming_start event received:', {
+        tracking_id: data.tracking_id,
+        conversation_id: data.conversation_id,
+        panel_id: data.panel_id,
+        message_id: data.message_id,
+        character_id: data.character_id
+      });
+
       const panel = this.findPanelByTrackingId(data.tracking_id);
-      if (!panel) return;
+      if (!panel) {
+        console.error('[StreamingManager] Panel NOT found for ai_streaming_start:', {
+          searching_by_tracking_id: data.tracking_id,
+          conversation_id_in_event: data.conversation_id,
+          panel_id_in_event: data.panel_id,
+          available_panels: Array.from(this.panels.entries()).map(([id, p]) => ({
+            panelId: id,
+            conversationId: p.conversationId,
+            trackingIds: Array.from(p.trackingIds)
+          }))
+        });
+        return;
+      }
+
+      console.log('[StreamingManager] Panel found for ai_streaming_start:', {
+        panelId: panel.panelId,
+        conversationId: panel.conversationId
+      });
 
       panel.isStreaming = true;
       panel.currentStreamContent = '';
@@ -52,8 +134,37 @@ class MultiPanelStreamingManager {
 
     // Handle streaming chunks for all panels (AI character specific)
     socket.on('ai_response_chunk', (data) => {
+      console.log('[StreamingManager] ai_response_chunk received:', {
+        chunk_index: data.chunk_index,
+        tracking_id: data.tracking_id,
+        conversation_id: data.conversation_id,
+        panel_id: data.panel_id,
+        chunk_preview: data.chunk?.substring(0, 20) + '...',
+        chunk_length: data.chunk?.length
+      });
+
       const panel = this.findPanelByTrackingId(data.tracking_id);
-      if (!panel) return;
+      if (!panel) {
+        console.error('[StreamingManager] Panel NOT found for ai_response_chunk:', {
+          searching_by_tracking_id: data.tracking_id,
+          conversation_id_in_event: data.conversation_id,
+          panel_id_in_event: data.panel_id,
+          chunk_index: data.chunk_index,
+          available_panels: Array.from(this.panels.entries()).map(([id, p]) => ({
+            panelId: id,
+            conversationId: p.conversationId,
+            trackingIds: Array.from(p.trackingIds),
+            isStreaming: p.isStreaming
+          }))
+        });
+        return;
+      }
+
+      console.log('[StreamingManager] Chunk delivered to panel:', {
+        panelId: panel.panelId,
+        chunk_index: data.chunk_index,
+        total_content_length: panel.currentStreamContent.length + data.chunk?.length
+      });
 
       panel.currentStreamContent += data.chunk;
       panel.isStreaming = true;
@@ -190,36 +301,47 @@ class MultiPanelStreamingManager {
 
     // Handle proposal analysis events
     socket.on('proposal_analysis_started', (data) => {
-      console.log('[MultiPanelStreamingManager] ⚠️ BACKEND SENT proposal_analysis_started with:', {
-        backend_conversation_id: data.conversation_id,
-        backend_analysis_id: data.analysis_id,
-        backend_tracking_id: data.tracking_id,
-        all_data_keys: Object.keys(data)
+      console.log('[StreamingManager] proposal_analysis_started event received:', {
+        conversation_id: data.conversation_id,
+        tracking_id: data.tracking_id,
+        panel_id: data.panel_id,
+        message_id: data.message_id
       });
 
-      // Log all registered panels
-      console.log('[MultiPanelStreamingManager] 📋 Registered panels:',
-        Array.from(this.panels.values()).map(p => ({
-          panelId: p.panelId,
-          conversationId: p.conversationId
-        }))
-      );
+      // Route by tracking_id first, fallback to panel_id
+      let panel = this.findPanelByTrackingId(data.tracking_id);
+      if (!panel && data.panel_id) {
+        panel = this.panels.get(data.panel_id);
+      }
 
-      // First try to find by conversation ID
-      let panel = this.findPanelByConversationId(data.conversation_id);
-
-      // If not found and backend sent a different conversation ID, find the proposal_wizard panel
-      // and update its conversation ID to match what the backend is using
       if (!panel) {
-        // For proposal wizard, we know the panel ID
-        panel = this.panels.get('proposal_wizard');
-        if (panel) {
-          console.log('[MultiPanelStreamingManager] 🔄 Updating panel conversation ID from', panel.conversationId, 'to backend ID:', data.conversation_id);
-          panel.conversationId = data.conversation_id;
-        } else {
-          console.error('[MultiPanelStreamingManager] ❌ NO PANEL FOUND AT ALL for backend conversation:', data.conversation_id);
-          return;
-        }
+        console.error('[StreamingManager] Panel NOT found for proposal_analysis_started:', {
+          searching_for_tracking_id: data.tracking_id,
+          searching_for_panel_id: data.panel_id,
+          conversation_id_in_event: data.conversation_id,
+          available_panels: Array.from(this.panels.entries()).map(([id, p]) => ({
+            panelId: id,
+            conversationId: p.conversationId,
+            trackingIds: Array.from(p.trackingIds)
+          }))
+        });
+        return;
+      }
+
+      console.log('[StreamingManager] Panel found for proposal_analysis_started, updating state:', {
+        panelId: panel.panelId,
+        existingConversationId: panel.conversationId,
+        backendConversationId: data.conversation_id,
+        trackingId: data.tracking_id
+      });
+
+      // Update conversation ID if backend provides a different one
+      if (data.conversation_id && panel.conversationId !== data.conversation_id) {
+        console.log('[StreamingManager] Backend created new conversation_id, updating panel:', {
+          oldConversationId: panel.conversationId,
+          newConversationId: data.conversation_id
+        });
+        panel.conversationId = data.conversation_id;
       }
 
       // Ensure messageHandlers exists
@@ -229,24 +351,8 @@ class MultiPanelStreamingManager {
 
       panel.isStreaming = true;
       panel.currentStreamContent = '';
-
-      // Store the backend-provided tracking ID (this is the real session ID for cancellation)
-      if (data.tracking_id) {
-        console.log('[MultiPanelStreamingManager] 🎯 Storing backend tracking ID:', data.tracking_id);
-        panel.trackingIds.add(data.tracking_id);
-        // Set this as the active tracking ID for this panel
-        panel.activeTrackingId = data.tracking_id;
-      }
-
-      // Also check for message_id as backup
-      if (data.message_id) {
-        console.log('[MultiPanelStreamingManager] 🎯 Also storing backend message_id:', data.message_id);
-        panel.trackingIds.add(data.message_id);
-        // Use message_id as active tracking ID if no tracking_id
-        if (!data.tracking_id) {
-          panel.activeTrackingId = data.message_id;
-        }
-      }
+      panel.trackingIds.add(data.tracking_id);
+      panel.activeTrackingId = data.tracking_id;
 
       this.notifyPanelHandlers(panel.panelId, 'proposal_analysis_started', {
         analysisId: data.analysis_id,
@@ -260,7 +366,7 @@ class MultiPanelStreamingManager {
 
     // Handle proposal analysis streaming started
     socket.on('proposal_analysis_streaming_started', (data) => {
-      const panel = this.findPanelByConversationId(data.conversation_id);
+      const panel = this.findPanelByTrackingId(data.tracking_id);
       if (!panel) return;
 
       // Ensure messageHandlers exists
@@ -276,38 +382,25 @@ class MultiPanelStreamingManager {
         conversationId: data.conversation_id,
         messageId: data.message_id,
         characterId: data.character_id,
+        trackingId: data.tracking_id,
         timestamp: data.timestamp
       });
     });
 
     // Handle proposal analysis streaming chunks
     socket.on('proposal_analysis_chunk', (data) => {
-      console.log('[MultiPanelStreamingManager] 🔄 CHUNK received from backend:', {
-        backend_conversation_id: data.conversation_id,
-        chunkLength: data.chunk?.length,
-        chunkPreview: data.chunk?.substring(0, 50)
-      });
-
-      const panel = this.findPanelByConversationId(data.conversation_id);
+      const panel = this.findPanelByTrackingId(data.tracking_id);
       if (!panel) {
-        console.error('[MultiPanelStreamingManager] ❌ CHUNK DROPPED - No panel for backend conversation:', data.conversation_id);
-        console.error('[MultiPanelStreamingManager] Looking for panels with these conversation IDs:',
-          Array.from(this.panels.values()).map(p => p.conversationId)
-        );
         return;
       }
 
-      console.log('[MultiPanelStreamingManager] Panel found:', panel.panelId);
-
       // Ensure messageHandlers exists
       if (!panel.messageHandlers) {
-        console.log('[MultiPanelStreamingManager] Creating messageHandlers for panel');
         panel.messageHandlers = new Map();
       }
 
       panel.currentStreamContent += data.chunk || '';
       panel.isStreaming = true;
-      console.log('[MultiPanelStreamingManager] Panel content updated, total length:', panel.currentStreamContent.length);
 
       this.notifyPanelHandlers(panel.panelId, 'proposal_analysis_chunk', {
         analysisId: data.analysis_id,
@@ -316,12 +409,13 @@ class MultiPanelStreamingManager {
         chunk: data.chunk,
         content: panel.currentStreamContent,
         chunkIndex: data.chunk_index,
+        trackingId: data.tracking_id,
         timestamp: data.timestamp
       });
     });
 
     socket.on('proposal_analysis_complete', (data) => {
-      const panel = this.findPanelByConversationId(data.conversation_id);
+      const panel = this.findPanelByTrackingId(data.tracking_id);
       if (!panel) return;
 
       // Ensure messageHandlers exists
@@ -339,6 +433,7 @@ class MultiPanelStreamingManager {
         tokensUsed: data.tokens_used,
         analysis: data.analysis,
         usage: data.usage,
+        trackingId: data.tracking_id,
         timestamp: data.timestamp
       });
 
@@ -351,7 +446,7 @@ class MultiPanelStreamingManager {
     });
 
     socket.on('proposal_analysis_error', (data) => {
-      const panel = this.findPanelByConversationId(data.conversation_id);
+      const panel = this.findPanelByTrackingId(data.tracking_id);
       if (!panel) return;
 
       // Ensure messageHandlers exists
@@ -365,6 +460,7 @@ class MultiPanelStreamingManager {
       this.notifyPanelHandlers(panel.panelId, 'proposal_analysis_error', {
         conversationId: data.conversation_id,
         error: data.error,
+        trackingId: data.tracking_id,
         timestamp: data.timestamp
       });
 
@@ -434,16 +530,28 @@ class MultiPanelStreamingManager {
 
 
   async createPanel(panelId, conversationId) {
-    console.log(`[MultiPanelStreamingManager] Creating panel ${panelId} with conversation ${conversationId}`);
+    console.log('[StreamingManager] createPanel called:', {
+      panelId,
+      conversationId,
+      existingPanels: Array.from(this.panels.keys())
+    });
 
     // Check if panel already exists
     let panel = this.panels.get(panelId);
     if (panel) {
-      console.log(`[MultiPanelStreamingManager] Panel ${panelId} already exists, updating conversation ID`);
-      // Update the existing panel with the conversation ID
+      console.log('[StreamingManager] Panel already exists, updating conversation ID:', {
+        panelId,
+        oldConversationId: panel.conversationId,
+        newConversationId: conversationId,
+        existingTrackingIds: Array.from(panel.trackingIds)
+      });
+      // Update the existing panel with the conversation ID but PRESERVE existing handlers
       panel.conversationId = conversationId;
     } else {
-      console.log(`[MultiPanelStreamingManager] Creating new panel ${panelId}`);
+      console.log('[StreamingManager] Creating new panel:', {
+        panelId,
+        conversationId
+      });
       // Create panel tracking
       panel = {
         panelId,
@@ -454,10 +562,14 @@ class MultiPanelStreamingManager {
         messageHandlers: new Map()
       };
       this.panels.set(panelId, panel);
+      console.log('[StreamingManager] Panel created successfully:', {
+        panelId,
+        conversationId,
+        totalPanels: this.panels.size,
+        allPanels: Array.from(this.panels.keys())
+      });
     }
 
-    console.log(`[MultiPanelStreamingManager] Panel ${panelId} created/updated successfully`);
-    console.log(`[MultiPanelStreamingManager] Total panels:`, this.panels.size);
 
 
     // Attach any pending handlers for this panel
@@ -475,7 +587,23 @@ class MultiPanelStreamingManager {
 
   async removePanel(panelId) {
     const panel = this.panels.get(panelId);
-    if (!panel) return;
+    if (!panel) {
+      console.log('[StreamingManager] REMOVE PANEL - panel not found:', {
+        instanceId: this.instanceId,
+        panelId,
+        availablePanels: Array.from(this.panels.keys())
+      });
+      return;
+    }
+
+    console.log('[StreamingManager] REMOVING PANEL:', {
+      instanceId: this.instanceId,
+      panelId,
+      conversationId: panel.conversationId,
+      trackingIds: Array.from(panel.trackingIds),
+      remainingPanels: this.panels.size - 1,
+      stackTrace: new Error().stack
+    });
 
     // Leave the panel on the server
     await this.wsService.leavePanel(panelId);
@@ -486,21 +614,51 @@ class MultiPanelStreamingManager {
 
     // Remove panel
     this.panels.delete(panelId);
+
+    console.log('[StreamingManager] PANEL REMOVED:', {
+      instanceId: this.instanceId,
+      panelId,
+      remainingPanels: this.panels.size,
+      allPanels: Array.from(this.panels.keys())
+    });
   }
 
   sendMessageToPanel(panelId, content, metadata) {
+    console.log('[StreamingManager] sendMessageToPanel called:', {
+      instanceId: this.instanceId,
+      panelId,
+      panelsMapSize: this.panels.size,
+      contentPreview: typeof content === 'string' ? content.substring(0, 50) + '...' : content,
+      metadata: {
+        characterId: metadata?.characterId,
+        conversationId: metadata?.conversationId,
+        analysisType: metadata?.analysisType,
+        messageType: metadata?.messageType
+      }
+    });
+
     const panel = this.panels.get(panelId);
     if (!panel) {
-      console.error(`[MultiPanelStreamingManager] Panel ${panelId} not found`);
-      console.error(`[MultiPanelStreamingManager] Available panels:`, Array.from(this.panels.keys()));
+      console.error('[StreamingManager] Panel not found in sendMessageToPanel:', {
+        instanceId: this.instanceId,
+        requestedPanelId: panelId,
+        panelsMapSize: this.panels.size,
+        panelsMapKeys: Array.from(this.panels.keys()),
+        availablePanels: Array.from(this.panels.entries()).map(([id, p]) => ({
+          panelId: id,
+          conversationId: p.conversationId,
+          isStreaming: p.isStreaming,
+          trackingIds: Array.from(p.trackingIds)
+        })),
+        stackTrace: new Error().stack
+      });
       return null;
     }
 
-    console.log('[MultiPanelStreamingManager] sendMessageToPanel - Panel state:', {
+    console.log('[StreamingManager] Panel found, sending message:', {
       panelId: panel.panelId,
       conversationId: panel.conversationId,
-      hasConversationId: !!panel.conversationId,
-      metadata
+      existingTrackingIds: Array.from(panel.trackingIds)
     });
 
     // For proposal analysis, use the analyze_proposal event
@@ -510,28 +668,34 @@ class MultiPanelStreamingManager {
         throw new Error('WebSocket not connected');
       }
 
+      // Generate a tracking ID for frontend routing
+      const trackingId = this.wsService.generateTrackingId();
+
       const eventData = {
+        tracking_id: trackingId,
         job_posting: metadata.jobPost || content,
         character_id: metadata.characterId,
         proposal: metadata.proposal,
         platform: metadata.platform,
-        conversation_id: panel.conversationId,
+        feature: 'proposal_wizard',
+        panel_id: panelId,
         metadata: metadata.extra
       };
 
-      console.log('[MultiPanelStreamingManager] 📤 SENDING TO BACKEND - analyze_proposal event with:');
-      console.log('  → Frontend conversation_id:', panel.conversationId);
-      console.log('  → Panel ID:', panel.panelId);
-      console.log('  → Character ID:', metadata.characterId);
-      console.log('[MultiPanelStreamingManager] Full event data:', eventData);
+      console.log('[StreamingManager] Sending analyze_proposal with tracking_id:', {
+        tracking_id: trackingId,
+        panel_id: panelId,
+        character_id: metadata.characterId
+      });
 
       socket.emit('analyze_proposal', eventData);
 
+      // Add tracking ID to panel for routing incoming events
+      panel.trackingIds.add(trackingId);
       panel.isStreaming = true;
       panel.currentStreamContent = '';
 
-      // Return a placeholder - the real tracking ID will come from the backend
-      return 'pending_backend_tracking_id';
+      return trackingId;
     }
     // For AI character conversations, use the start_ai_conversation event
     else if (metadata?.characterId) {
@@ -540,18 +704,32 @@ class MultiPanelStreamingManager {
         throw new Error('WebSocket not connected');
       }
 
-      // Generate a tracking ID locally (server will also generate one)
+      // Generate a tracking ID for frontend routing
       const trackingId = this.wsService.generateTrackingId();
 
-      socket.emit('start_ai_conversation', {
-        conversation_id: panel.conversationId,
+      const eventData = {
+        tracking_id: trackingId,
         character_id: metadata.characterId,
         message: content,
         panel_id: panelId,
         parent_message_id: metadata.parentMessageId,
         attachments: metadata.attachments,
         metadata: metadata.extra
+      };
+
+      // Add feature field if this is from proposal wizard
+      if (metadata?.analysisType === 'proposal_wizard' || panelId === 'proposal_wizard') {
+        eventData.feature = 'proposal_wizard';
+      }
+
+      console.log('[StreamingManager] Sending start_ai_conversation with tracking_id:', {
+        tracking_id: trackingId,
+        panel_id: panelId,
+        character_id: metadata.characterId,
+        feature: eventData.feature
       });
+
+      socket.emit('start_ai_conversation', eventData);
 
       panel.trackingIds.add(trackingId);
       panel.isStreaming = true;
@@ -578,17 +756,14 @@ class MultiPanelStreamingManager {
   // Cancel an active AI response stream
   cancelResponse(trackingId) {
     if (!trackingId) {
-      console.warn('[MultiPanelStreamingManager] No tracking ID provided for cancellation');
       return false;
     }
 
     const socket = this.wsService.getSocket();
     if (!socket?.connected) {
-      console.error('[MultiPanelStreamingManager] Socket not connected, cannot cancel');
       return false;
     }
 
-    console.log('[MultiPanelStreamingManager] 🛑 Cancelling response with tracking ID:', trackingId);
 
     // Emit the cancel event to the backend
     socket.emit('cancel_ai_response', {
@@ -598,7 +773,6 @@ class MultiPanelStreamingManager {
     // Find and update the panel state optimistically
     for (const panel of this.panels.values()) {
       if (panel.trackingIds.has(trackingId) || panel.activeTrackingId === trackingId) {
-        console.log('[MultiPanelStreamingManager] 🛑 Found panel for cancellation, updating state');
         panel.isStreaming = false;
         // Don't delete the tracking ID immediately - let the backend confirm cancellation
         break;
@@ -659,17 +833,13 @@ class MultiPanelStreamingManager {
   notifyPanelHandlers(panelId, event, data) {
     const panel = this.panels.get(panelId);
     if (!panel) {
-      console.warn('[MultiPanelStreamingManager] notifyPanelHandlers: No panel found for:', panelId);
       return;
     }
 
     const handler = panel.messageHandlers.get(event);
     if (handler) {
-      console.log('[MultiPanelStreamingManager] Calling handler for event:', event, 'on panel:', panelId);
       handler(data);
     } else {
-      console.warn('[MultiPanelStreamingManager] No handler found for event:', event, 'on panel:', panelId);
-      console.log('[MultiPanelStreamingManager] Available handlers:', Array.from(panel.messageHandlers.keys()));
     }
   }
 

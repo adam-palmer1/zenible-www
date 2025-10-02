@@ -19,7 +19,7 @@ Looking forward to discussing this opportunity!
 Best regards,
 [Your Name]`;
 
-export default function ProposalInput({ darkMode, proposal, setProposal, onAnalyze, analyzing }) {
+export default function ProposalInput({ darkMode, proposal, setProposal, onAnalyze, analyzing, isPanelReady, isConnected }) {
   React.useEffect(() => {
     if (!proposal) {
       setProposal(defaultProposal);
@@ -66,13 +66,33 @@ export default function ProposalInput({ darkMode, proposal, setProposal, onAnaly
       {/* Analyze Button */}
       <div className="p-3 sm:p-4 flex justify-end flex-shrink-0">
         <button
-          onClick={onAnalyze}
-          disabled={!proposal || analyzing}
+          onClick={() => {
+            console.log('[ProposalInput] Analyze button clicked:', {
+              hasProposal: !!proposal,
+              analyzing,
+              isPanelReady,
+              isConnected,
+              disabled: !proposal || analyzing || !isPanelReady || !isConnected,
+              disabledReasons: {
+                noProposal: !proposal,
+                analyzing,
+                panelNotReady: !isPanelReady,
+                notConnected: !isConnected
+              }
+            });
+            if (onAnalyze) {
+              onAnalyze();
+            } else {
+              console.error('[ProposalInput] onAnalyze callback is not defined!');
+            }
+          }}
+          disabled={!proposal || analyzing || !isPanelReady || !isConnected}
           className={`px-4 sm:px-6 py-2.5 sm:py-3 bg-zenible-primary text-white rounded-xl font-inter font-medium text-sm sm:text-base transition-all ${
-            (!proposal || analyzing) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-600'
+            (!proposal || analyzing || !isPanelReady || !isConnected) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-600'
           }`}
+          title={!isConnected ? 'Connecting...' : !isPanelReady ? 'Initializing...' : ''}
         >
-          {analyzing ? 'Analyzing...' : 'Analyze Proposal'}
+          {analyzing ? 'Analyzing...' : !isConnected ? 'Connecting...' : !isPanelReady ? 'Initializing...' : 'Analyze Proposal'}
         </button>
       </div>
     </div>
