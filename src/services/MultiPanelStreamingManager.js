@@ -68,11 +68,22 @@ class MultiPanelStreamingManager {
 
       // Update conversation ID if backend provides a different one
       if (data.conversation_id && panel.conversationId !== data.conversation_id) {
-        console.log('[StreamingManager] Backend created new conversation_id, updating panel:', {
+        console.log('[StreamingManager] 🔄 CONVERSATION ID UPDATE - Backend created/returned conversation_id:', {
           oldConversationId: panel.conversationId,
-          newConversationId: data.conversation_id
+          newConversationId: data.conversation_id,
+          panelId: panel.panelId,
+          trackingId: data.tracking_id,
+          messageType: 'ai_processing',
+          timestamp: new Date().toISOString()
         });
         panel.conversationId = data.conversation_id;
+      } else if (data.conversation_id) {
+        console.log('[StreamingManager] ✅ CONVERSATION ID MATCHED - Using existing conversation:', {
+          conversationId: data.conversation_id,
+          panelId: panel.panelId,
+          trackingId: data.tracking_id,
+          timestamp: new Date().toISOString()
+        });
       }
 
       panel.trackingIds.add(data.tracking_id);
@@ -337,11 +348,23 @@ class MultiPanelStreamingManager {
 
       // Update conversation ID if backend provides a different one
       if (data.conversation_id && panel.conversationId !== data.conversation_id) {
-        console.log('[StreamingManager] Backend created new conversation_id, updating panel:', {
+        console.log('[StreamingManager] 🔄 CONVERSATION ID UPDATE - Backend created/returned conversation_id:', {
           oldConversationId: panel.conversationId,
-          newConversationId: data.conversation_id
+          newConversationId: data.conversation_id,
+          panelId: panel.panelId,
+          trackingId: data.tracking_id,
+          messageType: 'proposal_analysis_started',
+          timestamp: new Date().toISOString()
         });
         panel.conversationId = data.conversation_id;
+      } else if (data.conversation_id) {
+        console.log('[StreamingManager] ✅ CONVERSATION ID MATCHED - Using existing conversation:', {
+          conversationId: data.conversation_id,
+          panelId: panel.panelId,
+          trackingId: data.tracking_id,
+          messageType: 'proposal_analysis_started',
+          timestamp: new Date().toISOString()
+        });
       }
 
       // Ensure messageHandlers exists
@@ -712,6 +735,7 @@ class MultiPanelStreamingManager {
         character_id: metadata.characterId,
         message: content,
         panel_id: panelId,
+        conversation_id: metadata.conversationId,
         parent_message_id: metadata.parentMessageId,
         attachments: metadata.attachments,
         metadata: metadata.extra
@@ -722,12 +746,21 @@ class MultiPanelStreamingManager {
         eventData.feature = 'proposal_wizard';
       }
 
-      console.log('[StreamingManager] Sending start_ai_conversation with tracking_id:', {
+      console.log('[StreamingManager] 📤 SENDING start_ai_conversation:', {
         tracking_id: trackingId,
         panel_id: panelId,
         character_id: metadata.characterId,
-        feature: eventData.feature
+        conversation_id: metadata.conversationId,
+        feature: eventData.feature,
+        hasConversationId: !!metadata.conversationId,
+        timestamp: new Date().toISOString()
       });
+
+      if (!metadata.conversationId) {
+        console.warn('[StreamingManager] ⚠️ SENDING MESSAGE WITHOUT CONVERSATION_ID - Backend will create new conversation!');
+      } else {
+        console.log('[StreamingManager] ✅ SENDING MESSAGE WITH CONVERSATION_ID - Should continue existing conversation');
+      }
 
       socket.emit('start_ai_conversation', eventData);
 
@@ -852,13 +885,27 @@ class MultiPanelStreamingManager {
 
   getPanelState(panelId) {
     const panel = this.panels.get(panelId);
-    if (!panel) return null;
+    if (!panel) {
+      console.log('[StreamingManager] getPanelState - Panel not found:', panelId);
+      return null;
+    }
 
-    return {
+    const state = {
       isStreaming: panel.isStreaming,
       currentContent: panel.currentStreamContent,
-      activeMessages: panel.trackingIds.size
+      activeMessages: panel.trackingIds.size,
+      conversationId: panel.conversationId
     };
+
+    console.log('[StreamingManager] 📋 getPanelState returning:', {
+      panelId,
+      conversationId: state.conversationId,
+      hasConversationId: !!state.conversationId,
+      isStreaming: state.isStreaming,
+      activeMessages: state.activeMessages
+    });
+
+    return state;
   }
 
   getAllPanels() {

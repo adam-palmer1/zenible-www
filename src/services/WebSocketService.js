@@ -1,12 +1,9 @@
 import { io } from 'socket.io-client';
-import { v4 as uuidv4 } from 'uuid';
 
 class WebSocketService {
   constructor(config) {
     this.socket = null;
     this.config = config;
-    this.messageTracking = new Map();
-    this.panelConnections = new Map(); // panelId -> conversationId
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10;
     this.reconnectDelay = 1000;
@@ -71,7 +68,6 @@ class WebSocketService {
     // Connection events
     this.socket.on('connect', () => {
       this.config.onConnectionChange?.(true);
-      this.rejoinPanels(); // Rejoin panels after reconnection
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -87,13 +83,6 @@ class WebSocketService {
       this.handleAuthError();
     });
 
-    // Message tracking events
-    this.socket.on('message_received', (data) => {
-      const tracking = this.messageTracking.get(data.chat_id);
-      if (tracking) {
-        tracking.metadata = { ...tracking.metadata, serverReceived: true };
-      }
-    });
   }
 
   async handleAuthError() {
@@ -105,94 +94,11 @@ class WebSocketService {
     }
   }
 
-  async rejoinPanels() {
-    // Rejoin all panels after reconnection
-    for (const [panelId, conversationId] of this.panelConnections) {
-      await this.joinPanel(panelId, conversationId);
-    }
-  }
-
-  // Generate tracking ID for message correlation
-  generateTrackingId() {
-    return `msg_${Date.now()}_${uuidv4()}`;
-  }
-
-  // Join a panel for multi-panel support
-  async joinPanel(panelId, conversationId) {
-    if (!this.socket?.connected) {
-      throw new Error('WebSocket not connected');
-    }
-
-    return new Promise((resolve, reject) => {
-      this.socket.emit('join_panel', {
-        panel_id: panelId,
-        conversation_id: conversationId
-      });
-
-      const timeout = setTimeout(() => {
-        reject(new Error('Panel join timeout'));
-      }, 5000);
-
-      this.socket.once('panel_joined', (data) => {
-        clearTimeout(timeout);
-        if (data.panel_id === panelId) {
-          this.panelConnections.set(panelId, conversationId);
-          resolve();
-        }
-      });
-    });
-  }
-
-  // Leave a panel
-  async leavePanel(panelId) {
-    if (!this.socket?.connected) return;
-
-    this.socket.emit('leave_panel', { panel_id: panelId });
-    this.panelConnections.delete(panelId);
-  }
-
-  // Send message with tracking
-  sendMessage(params) {
-    if (!this.socket?.connected) {
-      throw new Error('WebSocket not connected');
-    }
-
-    const trackingId = this.generateTrackingId();
-
-    const message = {
-      trackingId,
-      conversationId: params.conversationId,
-      panelId: params.panelId,
-      content: params.content,
-      metadata: params.metadata,
-      timestamp: Date.now()
-    };
-
-    this.messageTracking.set(trackingId, message);
-
-    this.socket.emit('send_message', {
-      message: params.content,
-      conversation_id: params.conversationId,
-      panel_id: params.panelId,
-      tracking_id: trackingId,
-      metadata: params.metadata
-    });
-
-    return trackingId;
-  }
-
-  // Clean up tracking after message completion
-  cleanupTracking(trackingId) {
-    this.messageTracking.delete(trackingId);
-  }
-
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
-    this.messageTracking.clear();
-    this.panelConnections.clear();
   }
 
   getSocket() {

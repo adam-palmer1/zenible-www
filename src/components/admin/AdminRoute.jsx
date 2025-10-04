@@ -17,7 +17,7 @@ export default function AdminRoute({ children }) {
     return <Navigate to="/signin" replace />;
   }
 
-  if (user?.role !== 'admin') {
+  if (user?.role !== 'ADMIN') {
     return <Navigate to="/" replace />;
   }
 

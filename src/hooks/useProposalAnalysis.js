@@ -1,44 +1,47 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useWebSocketConnection } from './useWebSocketConnection';
+import { useState, useEffect, useCallback, useRef, useContext } from 'react';
+import { WebSocketContext } from '../contexts/WebSocketContext';
 
 /**
- * Hook for proposal analysis via WebSocket
- * Handles the proposal analysis flow with structured feedback
+ * Hook for proposal analysis using the new AI tools system
+ * Handles the two-step flow: create conversation, then invoke tool
  */
 export function useProposalAnalysis({
-  conversationId,
   characterId,
-  panelId,
+  panelId = 'proposal_wizard',
   onAnalysisStarted,
   onAnalysisComplete,
   onStreamingStarted,
   onStreamingChunk,
   onError
 }) {
+  // State
+  const [conversationId, setConversationId] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-
-  // Refs to track current streaming/analyzing state for cleanup
-  const isStreamingRef = useRef(false);
-  const isAnalyzingRef = useRef(false);
   const [streamingContent, setStreamingContent] = useState('');
-  const [displayContent, setDisplayContent] = useState(''); // Content to display (excludes [SYSTEM: EOM] and after)
   const [analysis, setAnalysis] = useState(null);
+  const [structuredAnalysis, setStructuredAnalysis] = useState(null);
   const [error, setError] = useState(null);
   const [metrics, setMetrics] = useState(null);
-  const [usage, setUsage] = useState(null);
-  const [messageId, setMessageId] = useState(null); // Track the message ID for rating
-  const [trackingId, setTrackingId] = useState(null); // Track the session ID for cancellation
-  const [isPanelReady, setIsPanelReady] = useState(false); // Track if panel is ready for use
-  const eomBuffer = useRef(''); // Buffer to detect [SYSTEM: EOM] across chunks
-  const eomFoundRef = useRef(false); // Track if EOM has been found
+  const [messageId, setMessageId] = useState(null);
 
-  const { streamingManager, joinPanel, leavePanel, isConnected } = useWebSocketConnection();
-  const unsubscribersRef = useRef([]);
-  const effectivePanelId = panelId || `proposal_${conversationId}`;
-  const currentAnalysisRef = useRef(null);
-  const panelJoinedRef = useRef(false);
+  // Refs
+  const isAnalyzingRef = useRef(false);
+  const isStreamingRef = useRef(false);
   const streamingContentRef = useRef('');
+  const unsubscribersRef = useRef([]);
+
+  // Context
+  const {
+    isConnected,
+    createConversation,
+    invokeTool,
+    sendMessage,
+    cancelRequest,
+    mapPanelToConversation,
+    onConversationEvent,
+    conversationManager
+  } = useContext(WebSocketContext);
 
   // Store callbacks in refs to avoid effect re-runs
   const callbacksRef = useRef({
@@ -60,501 +63,321 @@ export function useProposalAnalysis({
     };
   }, [onAnalysisStarted, onAnalysisComplete, onStreamingStarted, onStreamingChunk, onError]);
 
+  // Setup event handlers for conversation
   useEffect(() => {
-    console.log('[useProposalAnalysis] Main effect running:', {
-      conversationId,
-      isConnected,
-      hasStreamingManager: !!streamingManager,
-      panelJoined: panelJoinedRef.current
-    });
+    if (!conversationId || !conversationManager) return;
 
-    if (!conversationId || !isConnected || !streamingManager) {
-      console.log('[useProposalAnalysis] Skipping setup - not ready');
-      setIsPanelReady(false);
-      return;
-    }
+    console.log('[useProposalAnalysis] Setting up event handlers for conversation:', conversationId);
 
-    // Prevent duplicate panel joins
-    if (panelJoinedRef.current) {
-      console.log('[useProposalAnalysis] Panel already joined, skipping setup');
-      return;
-    }
+    // Clear previous handlers
+    unsubscribersRef.current.forEach(unsub => unsub());
+    unsubscribersRef.current = [];
 
-    const setupHandlers = async () => {
-      try {
-        // Join the panel
-        await joinPanel(effectivePanelId, conversationId);
-        panelJoinedRef.current = true;
-        setIsPanelReady(true);
+    // Register event handlers
+    const handlers = [
+      // Handle streaming chunks
+      onConversationEvent(conversationId, 'chunk', (data) => {
+        console.log('[useProposalAnalysis] Received chunk:', {
+          toolName: data.toolName,
+          chunkLength: data.chunk?.length,
+          chunkIndex: data.chunkIndex
+        });
 
-        // Setup event handlers
-        const handlers = [
-          // Analysis started
-          streamingManager.onPanelEvent(effectivePanelId, 'proposal_analysis_started', (data) => {
-            setIsAnalyzing(true);
-            isAnalyzingRef.current = true;
-            setError(null);
-            currentAnalysisRef.current = data.analysisId;
+        // Only handle proposal analysis chunks
+        if (data.toolName === 'analyze_proposal' || !data.toolName) {
+          setIsStreaming(true);
+          isStreamingRef.current = true;
 
-            // Store tracking ID for cancellation - prioritize backend-provided IDs
-            const backendTrackingId = data.tracking_id || data.trackingId || data.messageId || data.message_id;
-            if (backendTrackingId) {
-              setTrackingId(backendTrackingId);
-            }
+          const newContent = data.fullContent || '';
+          setStreamingContent(newContent);
+          streamingContentRef.current = newContent;
 
-            eomBuffer.current = ''; // Reset EOM buffer
-            eomFoundRef.current = false; // Reset EOM found flag
-
-            if (callbacksRef.current.onAnalysisStarted) {
-              callbacksRef.current.onAnalysisStarted(data);
-            }
-          }),
-
-          // Streaming started
-          streamingManager.onPanelEvent(effectivePanelId, 'proposal_analysis_streaming_started', (data) => {
-            setIsStreaming(true);
-            isStreamingRef.current = true;
-            setStreamingContent('');
-            setDisplayContent('');
-            streamingContentRef.current = '';
-
-            // Update tracking ID if provided (backend might send updated ID)
-            const backendTrackingId = data.tracking_id || data.trackingId || data.messageId || data.message_id;
-            if (backendTrackingId) {
-              setTrackingId(backendTrackingId);
-            }
-
-            eomBuffer.current = ''; // Reset EOM buffer
-            eomFoundRef.current = false; // Reset EOM found flag
-
-            if (callbacksRef.current.onStreamingStarted) {
-              callbacksRef.current.onStreamingStarted(data);
-            }
-          }),
-
-          // Streaming chunk received
-          streamingManager.onPanelEvent(effectivePanelId, 'proposal_analysis_chunk', (data) => {
-            const chunkText = data.chunk || data.text || data.message || data.content || '';
-
-            // Ensure streaming is marked as active when chunks arrive
-            setIsStreaming(true);
-            isStreamingRef.current = true;
-
-            // Update full streaming content
-            setStreamingContent(prev => {
-              const newContent = prev + chunkText;
-              streamingContentRef.current = newContent;
-
-              // Check for [SYSTEM: EOM] marker
-              // Build up a buffer to check across chunk boundaries
-              eomBuffer.current += chunkText;
-              if (eomBuffer.current.length > 100) {
-                // Keep only last 100 chars to check for EOM
-                eomBuffer.current = eomBuffer.current.slice(-100);
-              }
-
-              // Only update display content if EOM hasn't been found yet
-              if (!eomFoundRef.current) {
-                // Check if we've received the EOM marker
-                const eomIndex = newContent.indexOf('[SYSTEM: EOM]');
-                if (eomIndex !== -1) {
-                  // Found EOM - display only content before it and stop updating display
-                  const displayPart = newContent.substring(0, eomIndex).trim();
-                  setDisplayContent(displayPart);
-                  eomFoundRef.current = true; // Mark that we've found EOM
-                } else {
-                  // No EOM yet, display all content
-                  setDisplayContent(newContent);
-                }
-              }
-
-              return newContent;
+          if (callbacksRef.current.onStreamingChunk) {
+            callbacksRef.current.onStreamingChunk({
+              chunk: data.chunk,
+              fullContent: newContent,
+              chunkIndex: data.chunkIndex
             });
+          }
+        }
+      }),
 
-            if (callbacksRef.current.onStreamingChunk) {
-              callbacksRef.current.onStreamingChunk(data);
-            }
-          }),
+      // Handle completion
+      onConversationEvent(conversationId, 'complete', (data) => {
+        console.log('[useProposalAnalysis] Analysis complete:', {
+          toolName: data.toolName,
+          hasStructured: !!data.structuredAnalysis,
+          contentType: data.contentType
+        });
 
-          // Analysis complete with structured data
-          streamingManager.onPanelEvent(effectivePanelId, 'proposal_analysis_complete', (data) => {
-            setIsAnalyzing(false);
-            isAnalyzingRef.current = false;
-            setIsStreaming(false);
-            isStreamingRef.current = false;
+        setIsAnalyzing(false);
+        isAnalyzingRef.current = false;
+        setIsStreaming(false);
+        isStreamingRef.current = false;
 
-            // Get the accumulated streaming content from ref
-            const fullContent = streamingContentRef.current;
-            let displayPart = fullContent;
+        // Check if this is a proposal analysis response
+        if (data.toolName === 'analyze_proposal') {
+          // Set structured analysis if available
+          let mappedStructuredAnalysis = null;
 
-            // Try to extract JSON from the accumulated content
-            let structuredData = null;
-
-            // Look for JSON block in the content (after EOM marker)
-            if (fullContent) {
-              // Split by [SYSTEM: EOM] to get display and JSON parts
-              const eomIndex = fullContent.indexOf('[SYSTEM: EOM]');
-              let jsonPart = '';
-
-              if (eomIndex !== -1) {
-                displayPart = fullContent.substring(0, eomIndex).trim();
-                jsonPart = fullContent.substring(eomIndex + '[SYSTEM: EOM]'.length).trim();
-              } else {
-                // If no EOM marker, don't try to parse JSON from markdown content
-                setDisplayContent(fullContent);
-                return;
-              }
-
-              // Make sure display content is set to the part before EOM
-              setDisplayContent(displayPart);
-
-              // Only try to parse JSON if we have content after EOM marker
-              if (!jsonPart.trim()) {
-                return;
-              }
-
-              // Try to find actual JSON block (must be valid JSON structure)
-              const jsonMatch = jsonPart.match(/\{[\s\S]*\}/);
-
-              if (jsonMatch) {
-                try {
-                  const parsedData = JSON.parse(jsonMatch[0]);
-
-                  // Validate that we have actual structured data
-                  const hasValidContent = (
-                    (Array.isArray(parsedData.strengths) && parsedData.strengths.length > 0) ||
-                    (Array.isArray(parsedData.weaknesses) && parsedData.weaknesses.length > 0) ||
-                    (Array.isArray(parsedData.improvements) && parsedData.improvements.length > 0) ||
-                    (parsedData.score !== null && parsedData.score !== undefined)
-                  );
-
-                  if (hasValidContent) {
-                    // Parse score as number if it's a string
-                    let scoreValue = null;
-                    if (parsedData.score !== null && parsedData.score !== undefined) {
-                      scoreValue = typeof parsedData.score === 'string' ? parseFloat(parsedData.score) : parsedData.score;
-                    }
-
-                    // Helper function to filter out markdown/JSON-like content from arrays
-                    const cleanArray = (arr) => {
-                      if (!Array.isArray(arr)) return [];
-                      return arr.filter(item => {
-                        if (typeof item !== 'string') return false;
-
-                        // Filter out markdown headers
-                        if (item.trim().startsWith('###')) return false;
-                        if (item.trim().startsWith('##')) return false;
-                        if (item.trim().startsWith('#')) return false;
-
-                        // Filter out markdown dividers
-                        if (item.trim() === '--' || item.trim() === '---') return false;
-                        if (item.trim().match(/^-+$/)) return false;
-
-                        // Filter out JSON syntax
-                        if (item.includes('"strengths":') || item.includes('"weaknesses":') || item.includes('"improvements":')) return false;
-                        if (item.trim().startsWith('{') || item.trim().startsWith('[')) return false;
-                        if (item.trim().endsWith('}') || item.trim().endsWith(']')) return false;
-
-                        // Filter out empty or whitespace-only items
-                        if (!item.trim()) return false;
-
-                        return true;
-                      });
-                    };
-
-                    // Map the JSON keys to our expected format
-                    // Backend sends: strengths, weaknesses, improvements
-                    // We map to: strengths, improvements (from weaknesses), suggestions (from improvements)
-                    structuredData = {
-                      score: scoreValue,
-                      strengths: cleanArray(parsedData.strengths),
-                      improvements: cleanArray(parsedData.weaknesses),
-                      suggestions: cleanArray(parsedData.improvements),
-                      red_flags: cleanArray(parsedData.red_flags),
-                      missing_elements: cleanArray(parsedData.missing_elements),
-                      key_requirements: cleanArray(parsedData.key_requirements),
-                      pricing_strategy: parsedData.pricing_strategy || null
-                    };
-                  }
-                } catch (error) {
-                  // Silent fail - structured data won't be available
-                }
-              }
-            }
-
-            // ONLY use locally parsed JSON from EOM marker - never use backend structured data
-            // If JSON isn't present, structured sections won't display
-            const finalStructured = structuredData;
-
-            const analysis = {
-              raw: displayPart || data.analysis?.raw || '',  // Use display part (before EOM)
-              structured: finalStructured
+          if (data.structuredAnalysis) {
+            // Map backend field names to frontend expected names
+            mappedStructuredAnalysis = {
+              ...data.structuredAnalysis,
+              // Map 'weaknesses' from backend to 'improvements' expected by frontend
+              improvements: data.structuredAnalysis.weaknesses || data.structuredAnalysis.improvements || [],
+              // Map 'recommendations' from backend to 'suggestions' expected by frontend
+              suggestions: data.structuredAnalysis.recommendations || data.structuredAnalysis.suggestions || []
             };
 
-            // Set the structured analysis
-            setAnalysis(analysis);
+            setStructuredAnalysis(mappedStructuredAnalysis);
+            setAnalysis({
+              raw: data.fullResponse,
+              structured: mappedStructuredAnalysis
+            });
+          } else {
+            setAnalysis({
+              raw: data.fullResponse,
+              structured: null
+            });
+          }
 
-            // Set message ID for rating
-            if (data.messageId || data.message_id) {
-              setMessageId(data.messageId || data.message_id);
-            }
+          // Set metrics
+          if (data.usage) {
+            setMetrics({
+              totalTokens: data.usage.totalTokens,
+              costCents: data.usage.costCents,
+              durationMs: data.usage.durationMs
+            });
+          }
 
-            // Set usage metrics if available
-            if (data.usage) {
-              setUsage(data.usage);
-            }
+          // Set message ID for rating
+          setMessageId(data.messageId);
 
-            // Set token metrics
-            if (data.tokens_used) {
-              setMetrics({
-                totalTokens: data.tokens_used,
-                modelUsed: data.model_used,
-                character: data.character
-              });
-            }
+          if (callbacksRef.current.onAnalysisComplete) {
+            callbacksRef.current.onAnalysisComplete({
+              analysis: {
+                raw: data.fullResponse,
+                structured: mappedStructuredAnalysis
+              },
+              messageId: data.messageId,
+              usage: data.usage,
+              contentType: data.contentType
+            });
+          }
+        }
+      }),
 
-            currentAnalysisRef.current = null;
+      // Handle tool errors
+      onConversationEvent(conversationId, 'tool_error', (data) => {
+        console.error('[useProposalAnalysis] Tool error:', data);
 
-            if (callbacksRef.current.onAnalysisComplete) {
-              callbacksRef.current.onAnalysisComplete({
-                ...data,
-                analysis
-              });
-            }
-          }),
+        if (data.toolName === 'analyze_proposal') {
+          setIsAnalyzing(false);
+          isAnalyzingRef.current = false;
+          setIsStreaming(false);
+          isStreamingRef.current = false;
 
-          // Analysis error
-          streamingManager.onPanelEvent(effectivePanelId, 'proposal_analysis_error', (data) => {
-            setIsAnalyzing(false);
-            isAnalyzingRef.current = false;
-            setError(data.error || 'Analysis failed');
-            currentAnalysisRef.current = null;
-            setTrackingId(null);
+          const errorMessage = data.validationErrors?.length > 0
+            ? data.validationErrors.map(e => `${e.field}: ${e.message}`).join(', ')
+            : data.error;
 
-            if (callbacksRef.current.onError) {
-              callbacksRef.current.onError(data);
-            }
-          }),
+          setError(errorMessage);
 
-          // Handle cancellation confirmation
-          streamingManager.onPanelEvent(effectivePanelId, 'proposal_analysis_cancelled', (data) => {
-            setIsAnalyzing(false);
-            isAnalyzingRef.current = false;
-            setIsStreaming(false);
-            isStreamingRef.current = false;
-            currentAnalysisRef.current = null;
-            setTrackingId(null);
+          if (callbacksRef.current.onError) {
+            callbacksRef.current.onError({
+              error: errorMessage,
+              validationErrors: data.validationErrors
+            });
+          }
+        }
+      }),
 
-            // Keep partial response if available
-            if (data.partial_response) {
-              const partialContent = data.partial_response;
-              setDisplayContent(partialContent);
-              setStreamingContent(partialContent);
-              streamingContentRef.current = partialContent;
-            }
+      // Handle general errors
+      onConversationEvent(conversationId, 'error', (data) => {
+        console.error('[useProposalAnalysis] General error:', data);
 
-            // Optionally call error handler with cancellation info
-            if (callbacksRef.current.onError) {
-              callbacksRef.current.onError({
-                ...data,
-                error: 'Analysis cancelled by user',
-                cancelled: true
-              });
-            }
-          })
-        ];
+        setIsAnalyzing(false);
+        isAnalyzingRef.current = false;
+        setIsStreaming(false);
+        isStreamingRef.current = false;
+        setError(data.error);
 
-        unsubscribersRef.current = handlers;
-      } catch (error) {
-        setError('Failed to initialize analysis');
-      }
-    };
+        if (callbacksRef.current.onError) {
+          callbacksRef.current.onError({ error: data.error });
+        }
+      })
+    ];
 
-    // Call the async function
-    setupHandlers().catch(error => {
-      setError('Failed to connect to analysis service');
-    });
+    unsubscribersRef.current = handlers;
 
-    // Cleanup
-    return () => {
-      console.log('[useProposalAnalysis] Cleanup running:', {
-        isStreaming: isStreamingRef.current,
-        isAnalyzing: isAnalyzingRef.current,
-        panelJoined: panelJoinedRef.current,
-        effectivePanelId,
-        willCleanupPanel: !isStreamingRef.current && !isAnalyzingRef.current && panelJoinedRef.current,
-        stackTrace: new Error().stack
-      });
-
-      // Don't cleanup if we're actively streaming or analyzing (check refs for current values)
-      if (isStreamingRef.current || isAnalyzingRef.current) {
-        console.log('[useProposalAnalysis] Skipping cleanup - active streaming/analyzing');
-        return;
-      }
-      unsubscribersRef.current.forEach(unsub => {
-        if (typeof unsub === 'function') unsub();
-      });
-      unsubscribersRef.current = [];
-      if (panelJoinedRef.current) {
-        console.log('[useProposalAnalysis] Leaving panel:', effectivePanelId);
-        leavePanel(effectivePanelId);
-        panelJoinedRef.current = false;
-        setIsPanelReady(false);
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, effectivePanelId, isConnected]);
-
-  const analyzeProposal = useCallback((jobPost, proposal, platform, metadata = {}) => {
-    if (!streamingManager) {
-      setError('WebSocket not initialized');
-      return null;
+    // Map panel to conversation for UI routing
+    if (panelId) {
+      mapPanelToConversation(panelId, conversationId);
     }
 
+    return () => {
+      unsubscribersRef.current.forEach(unsub => unsub());
+      unsubscribersRef.current = [];
+    };
+  }, [conversationId, conversationManager, onConversationEvent, mapPanelToConversation, panelId]);
+
+  // Analyze proposal function
+  const analyzeProposal = useCallback(async (jobPost, proposal, platform = 'upwork', metadata = {}) => {
     if (!isConnected) {
       setError('Not connected to server');
       return null;
     }
 
-    if (!panelJoinedRef.current || !isPanelReady) {
-      setError('Initializing connection... Please try again in a moment.');
-      return null;
-    }
-
     if (isAnalyzing) {
-      return null;
-    }
-
-    // Verify panel exists in streaming manager before sending
-    const panelExists = streamingManager.panels?.has(effectivePanelId);
-
-    if (!panelExists) {
-      setError('Connection error. Please refresh the page and try again.');
+      console.log('[useProposalAnalysis] Already analyzing');
       return null;
     }
 
     // Reset state
     setError(null);
     setAnalysis(null);
+    setStructuredAnalysis(null);
     setMetrics(null);
-    setUsage(null);
     setMessageId(null);
-    setTrackingId(null);
     setIsStreaming(false);
     isStreamingRef.current = false;
     setStreamingContent('');
-    setDisplayContent('');
     streamingContentRef.current = '';
-    eomBuffer.current = '';
-    eomFoundRef.current = false;
 
-    // Send the analysis request
     try {
-      const newTrackingId = streamingManager.sendMessageToPanel(
-        effectivePanelId,
-        jobPost, // Job post is the main content
+      console.log('[useProposalAnalysis] Starting analysis...');
+      setIsAnalyzing(true);
+      isAnalyzingRef.current = true;
+
+      // Step 1: Create conversation if needed
+      let convId = conversationId;
+      if (!convId) {
+        console.log('[useProposalAnalysis] Creating new conversation...');
+        convId = await createConversation(characterId, 'proposal_wizard', {});
+        setConversationId(convId);
+        console.log('[useProposalAnalysis] Conversation created:', convId);
+
+        // Map panel to conversation
+        if (panelId) {
+          mapPanelToConversation(panelId, convId);
+        }
+      }
+
+      // Step 2: Invoke the analyze_proposal tool
+      console.log('[useProposalAnalysis] Invoking analyze_proposal tool...');
+
+      if (callbacksRef.current.onAnalysisStarted) {
+        callbacksRef.current.onAnalysisStarted({ conversationId: convId });
+      }
+
+      // Wait a moment for event handlers to be set up if conversation was just created
+      if (!conversationId) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      await invokeTool(
+        convId,
+        characterId,
+        'analyze_proposal',
         {
-          analysisType: 'proposal_wizard',
-          characterId,
-          jobPost,
-          proposal,
-          platform,
-          extra: metadata
+          job_post: jobPost,
+          user_proposal: proposal || null,
+          platform: platform
         }
       );
 
-      if (!newTrackingId) {
-        setError('Failed to start analysis');
-        return null;
+      console.log('[useProposalAnalysis] Tool invoked successfully');
+
+      if (callbacksRef.current.onStreamingStarted) {
+        callbacksRef.current.onStreamingStarted({ conversationId: convId });
       }
 
-      // Store the tracking ID for potential cancellation
-      setTrackingId(newTrackingId);
-      return newTrackingId;
+      return convId;
     } catch (error) {
-      setError(error.message || 'Failed to send analysis');
+      console.error('[useProposalAnalysis] Failed to analyze proposal:', error);
+      setIsAnalyzing(false);
+      isAnalyzingRef.current = false;
+      setError(error.message || 'Failed to analyze proposal');
+
+      if (callbacksRef.current.onError) {
+        callbacksRef.current.onError({ error: error.message });
+      }
+
       return null;
     }
-  }, [streamingManager, isConnected, isAnalyzing, effectivePanelId, characterId]);
+  }, [isConnected, isAnalyzing, conversationId, characterId, createConversation, invokeTool, mapPanelToConversation, panelId]);
 
+  // Send follow-up message
+  const sendFollowUpMessage = useCallback(async (message) => {
+    if (!conversationId) {
+      setError('No active conversation');
+      return;
+    }
+
+    if (!isConnected) {
+      setError('Not connected to server');
+      return;
+    }
+
+    try {
+      console.log('[useProposalAnalysis] Sending follow-up message...');
+      await sendMessage(conversationId, characterId, message);
+      return conversationId;
+    } catch (error) {
+      console.error('[useProposalAnalysis] Failed to send message:', error);
+      setError(error.message || 'Failed to send message');
+      return null;
+    }
+  }, [conversationId, isConnected, characterId, sendMessage]);
+
+  // Reset function with cancellation
   const reset = useCallback(() => {
+    // Cancel any active request
+    if (conversationId && cancelRequest) {
+      cancelRequest(conversationId);
+    }
+
     setIsAnalyzing(false);
     isAnalyzingRef.current = false;
     setIsStreaming(false);
     isStreamingRef.current = false;
     setStreamingContent('');
-    setDisplayContent('');
     streamingContentRef.current = '';
     setAnalysis(null);
+    setStructuredAnalysis(null);
     setError(null);
     setMetrics(null);
-    setUsage(null);
     setMessageId(null);
-    setTrackingId(null);
-    currentAnalysisRef.current = null;
-    eomBuffer.current = '';
-    eomFoundRef.current = false;
-  }, []);
+    // Don't reset conversationId - keep it for follow-ups
+  }, [conversationId, cancelRequest]);
 
-  const cancelAnalysis = useCallback(() => {
-    if (!trackingId || !streamingManager || trackingId === 'pending_backend_tracking_id') {
-      return false;
+  // Clear conversation
+  const clearConversation = useCallback(() => {
+    reset();
+    setConversationId(null);
+    if (conversationManager && conversationId) {
+      conversationManager.clearConversation(conversationId);
     }
-
-    try {
-      // Send cancellation request via streaming manager
-      const success = streamingManager.cancelResponse(trackingId);
-
-      if (success) {
-        // Optimistically update UI state
-        setIsStreaming(false);
-        isStreamingRef.current = false;
-        setIsAnalyzing(false);
-        isAnalyzingRef.current = false;
-      }
-
-      return success;
-    } catch (error) {
-      return false;
-    }
-  }, [trackingId, streamingManager]);
-
-  const getStructuredAnalysis = useCallback(() => {
-    if (!analysis?.structured) {
-      return null;
-    }
-
-    return {
-      strengths: analysis.structured.strengths || [],
-      improvements: analysis.structured.improvements || [],
-      suggestions: analysis.structured.suggestions || [],
-      redFlags: analysis.structured.red_flags || [],
-      missingElements: analysis.structured.missing_elements || [],
-      keyRequirements: analysis.structured.key_requirements || [],
-      pricingStrategy: analysis.structured.pricing_strategy || null,
-      score: analysis.structured.score || null
-    };
-  }, [analysis]);
+  }, [reset, conversationId, conversationManager]);
 
   return {
     // State
-    isConnected,
-    isPanelReady,
+    conversationId,
     isAnalyzing,
     isStreaming,
-    streamingContent: displayContent, // Return display content (before EOM)
+    streamingContent,
     analysis,
-    structuredAnalysis: getStructuredAnalysis(),
-    rawAnalysis: analysis?.raw || null,
+    structuredAnalysis,
     error,
     metrics,
-    usage,
     messageId,
-    conversationId,
+    isConnected,
 
-    // Actions
+    // Functions
     analyzeProposal,
+    sendFollowUpMessage,
     reset,
-    cancelAnalysis
+    clearConversation
   };
 }

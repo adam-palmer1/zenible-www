@@ -45,6 +45,11 @@ class UserAPI {
     return this.request('/users/me/features', { method: 'GET' });
   }
 
+  // Alias for getUserFeatures to match ProposalWizard's expected method name
+  async getCurrentUserFeatures() {
+    return this.getUserFeatures();
+  }
+
   // Update user profile
   async updateProfile(data) {
     return this.request('/users/me', {
@@ -62,6 +67,15 @@ class UserAPI {
   async getUserConversations(params = {}) {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = queryString ? `/ai/conversations/?${queryString}` : '/ai/conversations/';
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  // Get messages for a specific conversation with pagination and filtering
+  async getConversationMessages(conversationId, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString
+      ? `/ai/conversations/${conversationId}/messages?${queryString}`
+      : `/ai/conversations/${conversationId}/messages`;
     return this.request(endpoint, { method: 'GET' });
   }
 

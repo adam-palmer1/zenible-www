@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import infoIcon from '../../assets/icons/info.svg';
@@ -610,7 +610,7 @@ export default function AIFeedbackSection({
       }`}>
         <h3 className={`font-inter font-semibold text-base sm:text-lg ${
           darkMode ? 'text-white' : 'text-zinc-950'
-        }`}>AI Analysis & Feedback</h3>
+        }`}>Expert Analysis</h3>
 
         <div className="flex items-center gap-2">
           {(isProcessing || analyzing) && (

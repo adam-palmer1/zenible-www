@@ -153,7 +153,7 @@ function Sidebar({ onClose, onToggleCollapse, isCollapsed: externalIsCollapsed }
                     {user.email}
                   </p>
                   <p className="text-xs text-gray-600 dark:text-gray-400">
-                    {user.role === 'admin' ? 'Administrator' : 'User'}
+                    {user.role === 'ADMIN' ? 'Administrator' : 'User'}
                   </p>
                 </div>
               )}

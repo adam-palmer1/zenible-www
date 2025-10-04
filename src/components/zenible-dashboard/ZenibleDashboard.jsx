@@ -14,9 +14,9 @@ export default function ZenibleDashboard() {
     <div className={`flex h-screen font-inter ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
       {/* Sidebar */}
       <NewSidebar />
-      
+
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col ml-[280px]">
         {/* Top Bar */}
         <ZenibleTopBar darkMode={darkMode} />
         

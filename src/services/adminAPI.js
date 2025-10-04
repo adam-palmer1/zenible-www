@@ -24,6 +24,8 @@ class AdminAPI {
       },
     };
 
+    console.log('Making request to:', url, 'with config:', config);
+
     try {
       const response = await fetch(url, config);
 
@@ -783,6 +785,146 @@ class AdminAPI {
     return this.request(`/ai/characters/${characterId}/platforms/${platformId}`, {
       method: 'DELETE',
     });
+  }
+
+  // AI Tools Management endpoints
+
+  /**
+   * Get all AI tools with optional filtering
+   * @param {Object} params - Query parameters
+   * @param {boolean} params.active_only - Filter by active tools only (default: true)
+   * @returns {Promise<Array>} List of AI tools
+   */
+  async getAITools(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/admin/ai-tools/?${queryString}` : '/admin/ai-tools/';
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  /**
+   * Get a specific AI tool by ID
+   * @param {string} toolId - The tool ID
+   * @returns {Promise<Object>} Tool object
+   */
+  async getAITool(toolId) {
+    return this.request(`/admin/ai-tools/${toolId}`, { method: 'GET' });
+  }
+
+  /**
+   * Create a new AI tool
+   * @param {Object} data - Tool data
+   * @param {string} data.name - Tool name (unique)
+   * @param {string} data.description - Tool description
+   * @param {Object} data.argument_schema - JSON Schema for tool arguments
+   * @param {boolean} data.is_active - Whether tool is active
+   * @returns {Promise<Object>} Created tool object
+   */
+  async createAITool(data) {
+    console.log('createAITool called with:', data);
+    try {
+      const result = await this.request('/admin/ai-tools/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      console.log('createAITool result:', result);
+      return result;
+    } catch (error) {
+      console.error('createAITool error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing AI tool
+   * @param {string} toolId - Tool ID
+   * @param {Object} data - Updated tool data
+   * @returns {Promise<Object>} Updated tool object
+   */
+  async updateAITool(toolId, data) {
+    return this.request(`/admin/ai-tools/${toolId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Delete an AI tool
+   * @param {string} toolId - Tool ID
+   * @returns {Promise<Object>} Deletion confirmation
+   */
+  async deleteAITool(toolId) {
+    return this.request(`/admin/ai-tools/${toolId}`, { method: 'DELETE' });
+  }
+
+  // Character Tool Instructions endpoints
+
+  /**
+   * Get character tool instructions with optional filtering
+   * @param {Object} params - Query parameters
+   * @param {string} params.character_id - Filter by character ID
+   * @param {string} params.tool_id - Filter by tool ID
+   * @param {boolean} params.enabled_only - Filter by enabled associations (default: true)
+   * @returns {Promise<Array>} List of character tool instructions
+   */
+  async getCharacterToolInstructions(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/admin/ai-tools/character-tools/?${queryString}` : '/admin/ai-tools/character-tools/';
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  /**
+   * Assign a tool to a character with custom instructions
+   * @param {Object} data - Assignment data
+   * @param {string} data.character_id - Character ID
+   * @param {string} data.tool_id - Tool ID
+   * @param {string} data.instructions - Custom instructions for this character
+   * @param {boolean} data.is_enabled - Whether assignment is enabled
+   * @returns {Promise<Object>} Created assignment
+   */
+  async assignToolToCharacter(data) {
+    return this.request('/admin/ai-tools/character-tools/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Update character tool instructions
+   * @param {string} instructionsId - Instructions ID
+   * @param {Object} data - Updated data
+   * @param {string} data.instructions - Updated instructions
+   * @param {boolean} data.is_enabled - Whether assignment is enabled
+   * @returns {Promise<Object>} Updated assignment
+   */
+  async updateCharacterToolInstructions(instructionsId, data) {
+    return this.request(`/admin/ai-tools/character-tools/${instructionsId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Remove a tool from a character
+   * @param {string} instructionsId - Instructions ID
+   * @returns {Promise<Object>} Removal confirmation
+   */
+  async removeToolFromCharacter(instructionsId) {
+    return this.request(`/admin/ai-tools/character-tools/${instructionsId}`, { method: 'DELETE' });
+  }
+
+  /**
+   * Get all tools assigned to a specific character
+   * @param {string} characterId - Character ID
+   * @param {Object} params - Query parameters
+   * @param {boolean} params.enabled_only - Filter by enabled tools (default: true)
+   * @returns {Promise<Object>} Character tools data
+   */
+  async getCharacterTools(characterId, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString
+      ? `/admin/ai-tools/characters/${characterId}/tools?${queryString}`
+      : `/admin/ai-tools/characters/${characterId}/tools`;
+    return this.request(endpoint, { method: 'GET' });
   }
 }
 

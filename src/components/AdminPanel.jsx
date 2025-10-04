@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { adminAPI } from '../utils/auth';
+import { adminAPI } from '../services/adminAPI';
 import { useAuth } from '../contexts/AuthContext';
 import UserEditModal from './UserEditModal';
+import AIToolsManager from './admin/AIToolsManager';
 
 export default function AdminPanel() {
   const { user, isAdmin } = useAuth();
@@ -161,6 +162,16 @@ export default function AdminPanel() {
             >
               Plans
             </button>
+            <button
+              onClick={() => setActiveTab('ai-tools')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'ai-tools'
+                  ? 'border-brand-purple text-brand-purple'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              AI Tools
+            </button>
           </nav>
         </div>
 
@@ -233,12 +244,12 @@ export default function AdminPanel() {
                               onChange={(e) => handleUpdateUser(userItem.id, { role: e.target.value })}
                               className="text-sm border border-gray-300 rounded px-2 py-1"
                             >
-                              <option value="user">User</option>
-                              <option value="admin">Admin</option>
+                              <option value="USER">User</option>
+                              <option value="ADMIN">Admin</option>
                             </select>
                           ) : (
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              userItem.role === 'admin' 
+                              userItem.role === 'ADMIN' 
                                 ? 'bg-purple-100 text-purple-800' 
                                 : 'bg-gray-100 text-gray-800'
                             }`}>
@@ -549,8 +560,13 @@ export default function AdminPanel() {
             </div>
           </div>
         )}
+
+        {/* AI Tools Tab */}
+        {activeTab === 'ai-tools' && (
+          <AIToolsManager />
+        )}
       </div>
-      
+
       {showUserModal && (
         <UserEditModal
           user={selectedUser}

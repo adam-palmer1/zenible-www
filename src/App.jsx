@@ -9,7 +9,6 @@ import GoogleCallback from './components/GoogleCallback';
 import UserSettings from './components/UserSettings';
 
 // Dashboard pages
-import AdminPanel from './components/AdminPanel';
 import ProtectedDashboard from './components/ProtectedDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProposalWizard from './components/proposal-wizard/ProposalWizard';
@@ -31,6 +30,7 @@ import AdminSettings from './components/admin/AdminSettings';
 import AIModelsManagement from './components/admin/AIModelsManagement';
 import ConversationManagement from './components/admin/ConversationManagement';
 import OnboardingQuestions from './components/admin/OnboardingQuestions';
+import AIToolsManager from './components/admin/AIToolsManager';
 
 // Root layout component with WebSocket provider
 function RootLayout() {
@@ -145,6 +145,10 @@ const router = createBrowserRouter([
           {
             path: 'settings',
             element: <AdminSettings />
+          },
+          {
+            path: 'ai-tools',
+            element: <AIToolsManager />
           }
         ]
       },

@@ -7,6 +7,13 @@ export default function AuditLogs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    total_pages: 1,
+    has_next: false,
+    has_prev: false
+  });
   const [filters, setFilters] = useState({
     user_id: '',
     action: '',
@@ -32,7 +39,14 @@ export default function AuditLogs() {
       params.per_page = filters.per_page;
 
       const response = await adminAPI.getAuditLogs(params);
-      setLogs(response.items || []);
+      setLogs(response.audit_logs || []);
+      setPagination({
+        total: response.total || 0,
+        page: response.page || 1,
+        total_pages: response.total_pages || 1,
+        has_next: response.has_next || false,
+        has_prev: response.has_prev || false
+      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -153,10 +167,12 @@ export default function AuditLogs() {
                       {log.ip_address || '-'}
                     </td>
                     <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                      {log.details ? (
+                      {log.changes || log.details ? (
                         <details className="cursor-pointer">
                           <summary>View</summary>
-                          <pre className="text-xs mt-1">{JSON.stringify(log.details, null, 2)}</pre>
+                          <pre className="text-xs mt-1 max-w-md overflow-auto">
+                            {JSON.stringify(log.changes || log.details, null, 2)}
+                          </pre>
                         </details>
                       ) : '-'}
                     </td>
@@ -164,6 +180,47 @@ export default function AuditLogs() {
                 ))}
               </tbody>
             </table>
+          )}
+
+          {/* Pagination */}
+          {!loading && !error && logs.length > 0 && pagination.total_pages > 1 && (
+            <div className={`px-6 py-4 border-t flex items-center justify-between ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+              <div className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                Showing {((pagination.page - 1) * filters.per_page) + 1} to{' '}
+                {Math.min(pagination.page * filters.per_page, pagination.total)} of {pagination.total} results
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFilters({ ...filters, page: pagination.page - 1 })}
+                  disabled={!pagination.has_prev}
+                  className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                    pagination.has_prev
+                      ? darkMode
+                        ? 'border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-border'
+                        : 'border-neutral-200 text-gray-700 hover:bg-gray-50'
+                      : 'border-neutral-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Previous
+                </button>
+                <span className={`px-3 py-2 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  Page {pagination.page} of {pagination.total_pages}
+                </span>
+                <button
+                  onClick={() => setFilters({ ...filters, page: pagination.page + 1 })}
+                  disabled={!pagination.has_next}
+                  className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                    pagination.has_next
+                      ? darkMode
+                        ? 'border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-border'
+                        : 'border-neutral-200 text-gray-700 hover:bg-gray-50'
+                      : 'border-neutral-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

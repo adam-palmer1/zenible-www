@@ -1,7 +1,7 @@
 import React, { createContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import WebSocketService from '../services/WebSocketService';
-import MultiPanelStreamingManager from '../services/MultiPanelStreamingManager';
+import ConversationStreamingManager from '../services/ConversationStreamingManager';
 import StableWebSocketConnection from '../services/StableWebSocketConnection';
 import { MessageQueueManager, ErrorRecoveryManager } from '../services/MessageQueueManager';
 
@@ -20,7 +20,7 @@ export const WebSocketProvider = ({ children }) => {
 
   const navigate = useNavigate();
   const wsServiceRef = useRef(null);
-  const streamingManagerRef = useRef(null);
+  const conversationManagerRef = useRef(null);
   const stableConnectionRef = useRef(null);
   const messageQueueRef = useRef(null);
   const errorRecoveryRef = useRef(null);
@@ -64,12 +64,12 @@ export const WebSocketProvider = ({ children }) => {
 
       await wsService.connect();
 
-      console.log('[WebSocketContext] Creating MultiPanelStreamingManager');
-      const streamingManager = new MultiPanelStreamingManager(wsService);
+      console.log('[WebSocketContext] Creating ConversationStreamingManager');
+      const conversationManager = new ConversationStreamingManager(wsService);
 
       console.log('[WebSocketContext] Creating support services');
       const stableConnection = new StableWebSocketConnection(wsService);
-      const messageQueue = new MessageQueueManager(wsService, streamingManager);
+      const messageQueue = new MessageQueueManager(wsService, conversationManager);
       const errorRecovery = new ErrorRecoveryManager(wsService, stableConnection);
 
       // Set callbacks
@@ -94,15 +94,14 @@ export const WebSocketProvider = ({ children }) => {
       });
 
       wsServiceRef.current = wsService;
-      streamingManagerRef.current = streamingManager;
+      conversationManagerRef.current = conversationManager;
       stableConnectionRef.current = stableConnection;
       messageQueueRef.current = messageQueue;
       errorRecoveryRef.current = errorRecovery;
 
       console.log('[WebSocketContext] All services initialized and stored in refs:', {
-        streamingManagerId: streamingManager.instanceId,
         hasWsService: !!wsServiceRef.current,
-        hasStreamingManager: !!streamingManagerRef.current
+        hasConversationManager: !!conversationManagerRef.current
       });
 
       // Monitor connection health
@@ -134,8 +133,7 @@ export const WebSocketProvider = ({ children }) => {
     // Cleanup on unmount
     return () => {
       console.log('[WebSocketContext] CLEANUP RUNNING - DESTROYING ALL SERVICES:', {
-        hasStreamingManager: !!streamingManagerRef.current,
-        streamingManagerId: streamingManagerRef.current?.instanceId,
+        hasConversationManager: !!conversationManagerRef.current,
         stackTrace: new Error().stack
       });
 
@@ -149,40 +147,92 @@ export const WebSocketProvider = ({ children }) => {
     };
   }, [initWebSocket]);
 
-  const sendMessage = useCallback((panelId, content, metadata) => {
-    if (!streamingManagerRef.current) {
-      return null;
-    }
-
-    try {
-      return streamingManagerRef.current.sendMessageToPanel(panelId, content, metadata);
-    } catch (error) {
-      // Queue message for retry
-      messageQueueRef.current?.enqueue({
-        panelId,
-        content,
-        metadata,
-        maxAttempts: 3
-      });
-      return null;
-    }
-  }, []);
-
-  const joinPanel = useCallback(async (panelId, conversationId) => {
-    if (!streamingManagerRef.current) {
+  // Create a new conversation
+  const createConversation = useCallback(async (characterId, feature = null, metadata = {}) => {
+    if (!conversationManagerRef.current) {
       throw new Error('WebSocket not initialized');
     }
 
-    await streamingManagerRef.current.createPanel(panelId, conversationId);
+    try {
+      const conversationId = await conversationManagerRef.current.createConversation(
+        characterId,
+        feature,
+        metadata
+      );
+      return conversationId;
+    } catch (error) {
+      console.error('[WebSocketContext] Failed to create conversation:', error);
+      throw error;
+    }
   }, []);
 
-  const leavePanel = useCallback(async (panelId) => {
-    if (!streamingManagerRef.current) return;
-    await streamingManagerRef.current.removePanel(panelId);
+  // Send a message in a conversation
+  const sendMessage = useCallback((conversationId, characterId, message) => {
+    if (!conversationManagerRef.current) {
+      throw new Error('WebSocket not initialized');
+    }
+
+    try {
+      conversationManagerRef.current.sendMessage(conversationId, characterId, message);
+    } catch (error) {
+      // Queue message for retry
+      messageQueueRef.current?.enqueue({
+        conversationId,
+        characterId,
+        message,
+        maxAttempts: 3
+      });
+      throw error;
+    }
   }, []);
 
-  const getPanelState = useCallback((panelId) => {
-    return streamingManagerRef.current?.getPanelState(panelId);
+  // Invoke a tool in a conversation
+  const invokeTool = useCallback((conversationId, characterId, toolName, toolArguments) => {
+    if (!conversationManagerRef.current) {
+      throw new Error('WebSocket not initialized');
+    }
+
+    try {
+      conversationManagerRef.current.invokeTool(
+        conversationId,
+        characterId,
+        toolName,
+        toolArguments
+      );
+    } catch (error) {
+      console.error('[WebSocketContext] Failed to invoke tool:', error);
+      throw error;
+    }
+  }, []);
+
+  // Map a panel to a conversation for UI routing
+  const mapPanelToConversation = useCallback((panelId, conversationId) => {
+    if (!conversationManagerRef.current) return;
+    conversationManagerRef.current.mapPanelToConversation(panelId, conversationId);
+  }, []);
+
+  // Get conversation for a panel
+  const getConversationForPanel = useCallback((panelId) => {
+    if (!conversationManagerRef.current) return null;
+    return conversationManagerRef.current.getConversationForPanel(panelId);
+  }, []);
+
+  // Get conversation state
+  const getConversationState = useCallback((conversationId) => {
+    if (!conversationManagerRef.current) return null;
+    return conversationManagerRef.current.getConversationState(conversationId);
+  }, []);
+
+  // Register event handler for a conversation
+  const onConversationEvent = useCallback((conversationId, event, handler) => {
+    if (!conversationManagerRef.current) return () => {};
+    return conversationManagerRef.current.onConversationEvent(conversationId, event, handler);
+  }, []);
+
+  // Cancel active AI request
+  const cancelRequest = useCallback((conversationId) => {
+    if (!conversationManagerRef.current) return;
+    conversationManagerRef.current.cancelRequest(conversationId);
   }, []);
 
   const reconnect = useCallback(async () => {
@@ -197,14 +247,32 @@ export const WebSocketProvider = ({ children }) => {
     isConnected,
     connectionHealth,
     connectionError,
+    createConversation,
     sendMessage,
-    joinPanel,
-    leavePanel,
-    getPanelState,
+    invokeTool,
+    cancelRequest,
+    mapPanelToConversation,
+    getConversationForPanel,
+    getConversationState,
+    onConversationEvent,
     reconnect,
     getQueueSize,
-    streamingManager: streamingManagerRef.current
-  }), [isConnected, connectionHealth, connectionError, sendMessage, joinPanel, leavePanel, getPanelState, reconnect, getQueueSize]);
+    conversationManager: conversationManagerRef.current
+  }), [
+    isConnected,
+    connectionHealth,
+    connectionError,
+    createConversation,
+    sendMessage,
+    cancelRequest,
+    invokeTool,
+    mapPanelToConversation,
+    getConversationForPanel,
+    getConversationState,
+    onConversationEvent,
+    reconnect,
+    getQueueSize
+  ]);
 
   return (
     <WebSocketContext.Provider value={value}>

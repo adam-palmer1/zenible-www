@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import React, { useState, useEffect, useRef, useContext } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import NewSidebar from '../sidebar/NewSidebar';
 import PlatformSelector from './PlatformSelector';
 import JobPostSection from './JobPostSection';
@@ -7,30 +8,16 @@ import ProposalInput from './ProposalInput';
 import AIFeedbackSection from './AIFeedbackSection';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useProposalAnalysis } from '../../hooks/useProposalAnalysis';
-import { useWebSocketConnection } from '../../hooks/useWebSocketConnection';
+import { WebSocketContext } from '../../contexts/WebSocketContext';
 import aiCharacterAPI from '../../services/aiCharacterAPI';
 import userAPI from '../../services/userAPI';
+import { getCharacterTools } from '../../services/toolDiscoveryAPI';
 
 export default function ProposalWizard() {
-  const componentIdRef = useRef(`ProposalWizard_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
-
-  useEffect(() => {
-    console.log('[ProposalWizard] COMPONENT MOUNTED:', {
-      componentId: componentIdRef.current,
-      timestamp: new Date().toISOString()
-    });
-
-    return () => {
-      console.log('[ProposalWizard] COMPONENT UNMOUNTING:', {
-        componentId: componentIdRef.current,
-        timestamp: new Date().toISOString(),
-        stackTrace: new Error().stack
-      });
-    };
-  }, []);
-
   const { darkMode } = usePreferences();
-  const [selectedPlatform, setSelectedPlatform] = useState(''); // Will be set by PlatformSelector
+
+  // State
+  const [selectedPlatform, setSelectedPlatform] = useState('');
   const [proposal, setProposal] = useState('');
   const [jobPost, setJobPost] = useState('');
   const [feedback, setFeedback] = useState(null);
@@ -45,6 +32,7 @@ export default function ProposalWizard() {
   const [followUpMessages, setFollowUpMessages] = useState([]);
   const [isFollowUpStreaming, setIsFollowUpStreaming] = useState(false);
   const [followUpStreamingContent, setFollowUpStreamingContent] = useState('');
+  const [characterTools, setCharacterTools] = useState(null);
 
   // History modal state
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -56,388 +44,433 @@ export default function ProposalWizard() {
   const [conversationMessages, setConversationMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
-  // Generate conversation ID using proper UUID format
-  const conversationIdRef = useRef(uuidv4());
+  // Message pagination and filtering state
+  const [messagePage, setMessagePage] = useState(1);
+  const [totalMessagePages, setTotalMessagePages] = useState(1);
+  const [messageFilter, setMessageFilter] = useState('');
+  const [messageOrder, setMessageOrder] = useState('asc');
 
-  // Get WebSocket connection for sending follow-up messages
-  const { sendMessage, streamingManager, joinPanel, leavePanel } = useWebSocketConnection();
-
-  // Use Proposal Analysis hook for proposal analysis
+  // Get WebSocket context
   const {
     isConnected,
-    isPanelReady,
+    sendMessage,
+    onConversationEvent,
+    conversationManager
+  } = useContext(WebSocketContext);
+
+  // Use Proposal Analysis hook
+  const {
+    conversationId,
     isAnalyzing: analyzing,
     isStreaming,
     streamingContent,
     analysis,
     structuredAnalysis,
-    rawAnalysis,
     error: analysisError,
     metrics,
-    usage,
     messageId,
     analyzeProposal: sendAnalysis,
+    sendFollowUpMessage: sendFollowUp,
     reset: resetAnalysis,
-    cancelAnalysis
+    clearConversation
   } = useProposalAnalysis({
-    conversationId: conversationIdRef.current,
     characterId: selectedCharacterId,
     panelId: 'proposal_wizard',
     onAnalysisStarted: (data) => {
+      console.log('[ProposalWizard] Analysis started:', data);
       setFeedback({
         isProcessing: true,
         score: null,
         analysis: null
       });
     },
-    onStreamingStarted: (data) => {
-      // Hide the typing indicator when streaming begins
-      setFeedback(prev => ({
-        ...prev,
-        isProcessing: false
-      }));
-    },
-    onStreamingChunk: (data) => {
-      // Chunk received - UI will update automatically
-    },
     onAnalysisComplete: (data) => {
-      // Set feedback with structured analysis
+      console.log('[ProposalWizard] Analysis complete:', data);
       setFeedback({
         isProcessing: false,
         analysis: data.analysis,
-        raw: data.analysis?.raw,
         structured: data.analysis?.structured,
-        score: data.analysis?.structured?.score,
-        usage: data.usage
+        raw: data.analysis?.raw,
+        messageId: data.messageId,
+        usage: data.usage,
+        contentType: data.contentType
       });
     },
+    onStreamingChunk: (data) => {
+      // Optional: handle streaming chunks if needed
+    },
     onError: (error) => {
+      console.error('[ProposalWizard] Analysis error:', error);
       setFeedback({
-        error: error.error || 'Analysis failed'
+        isProcessing: false,
+        error: error.error || 'An error occurred during analysis'
       });
     }
   });
 
-  // Fetch user features on mount
+  // Setup follow-up message event handlers
   useEffect(() => {
-    fetchUserFeatures();
-  }, []);
+    if (!conversationId || !onConversationEvent) return;
 
-  // Setup event listeners for follow-up conversation messages
-  useEffect(() => {
-    if (!streamingManager) return;
+    console.log('[ProposalWizard] Setting up follow-up message handlers for conversation:', conversationId);
 
-    const panelId = 'proposal_wizard';
     const unsubscribers = [];
 
-    // Listen for AI processing start
-    const processingSub = streamingManager.onPanelEvent(panelId, 'processing', (data) => {
-      console.log('[ProposalWizard] Follow-up processing started:', data);
-      setIsFollowUpStreaming(true);
-      setFollowUpStreamingContent('');
-    });
-    unsubscribers.push(processingSub);
-
-    // Listen for streaming start
-    const streamingStartSub = streamingManager.onPanelEvent(panelId, 'streaming_start', (data) => {
-      console.log('[ProposalWizard] Follow-up streaming started:', data);
-      setIsFollowUpStreaming(true);
-      setFollowUpStreamingContent('');
-    });
-    unsubscribers.push(streamingStartSub);
-
-    // Listen for streaming chunks
-    const chunkSub = streamingManager.onPanelEvent(panelId, 'chunk', (data) => {
-      console.log('[ProposalWizard] Follow-up chunk received:', data.chunk);
-      setFollowUpStreamingContent(data.content || '');
-    });
-    unsubscribers.push(chunkSub);
-
-    // Listen for streaming complete
-    const completeSub = streamingManager.onPanelEvent(panelId, 'streaming_complete', (data) => {
-      console.log('[ProposalWizard] Follow-up streaming complete:', data);
-      setIsFollowUpStreaming(false);
-
-      // Add AI message to history
-      setFollowUpMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.fullResponse || data.content || '',
-        messageId: data.messageId,
-        timestamp: data.timestamp || new Date().toISOString()
-      }]);
-
-      setFollowUpStreamingContent('');
-    });
-    unsubscribers.push(completeSub);
-
-    // Listen for errors
-    const errorSub = streamingManager.onPanelEvent(panelId, 'ai_error', (data) => {
-      console.error('[ProposalWizard] Follow-up error:', data);
-      setIsFollowUpStreaming(false);
-      setFollowUpStreamingContent('');
-    });
-    unsubscribers.push(errorSub);
-
-    console.log('[ProposalWizard] Event listeners registered for follow-up messages');
-
-    // Cleanup
-    return () => {
-      console.log('[ProposalWizard] Cleaning up follow-up message event listeners');
-      unsubscribers.forEach(unsub => {
-        if (typeof unsub === 'function') unsub();
-      });
-    };
-  }, [streamingManager]);
-
-  // Fetch conversations when history modal opens
-  useEffect(() => {
-    if (showHistoryModal) {
-      fetchConversations();
-    }
-  }, [showHistoryModal]);
-
-  // Helper function to get character avatar URL from user features
-  const getCharacterAvatarUrl = (characterId) => {
-    if (!userFeatures?.character_access || !characterId) {
-      return null;
-    }
-
-    const character = userFeatures.character_access.find(char => char.character_id === characterId);
-    return character?.character_avatar_url || null;
-  };
-
-  const fetchUserFeatures = async () => {
-    try {
-      const features = await userAPI.getUserFeatures();
-      setUserFeatures(features);
-
-      // After getting features, fetch available characters
-      await fetchCharacters(features);
-    } catch (error) {
-      // Still try to fetch characters even if features fail
-      fetchCharacters();
-    }
-  };
-
-  // Update avatar when userFeatures or selectedCharacterId changes
-  useEffect(() => {
-    if (userFeatures && selectedCharacterId) {
-      const avatarUrl = getCharacterAvatarUrl(selectedCharacterId);
-      setSelectedCharacterAvatar(avatarUrl);
-    }
-  }, [userFeatures, selectedCharacterId]);
-
-  const fetchCharacters = async (features = null) => {
-    try {
-      setLoadingCharacters(true);
-      const characters = await aiCharacterAPI.getProposalAnalysisCharacters();
-
-      if (characters && characters.length > 0) {
-        setAvailableCharacters(characters);
-        // Select the first character by default
-        const defaultChar = characters[0];
-        setSelectedCharacterId(defaultChar.id);
-        setSelectedCharacterName(defaultChar.name || 'AI Assistant');
-        setSelectedCharacterDescription(defaultChar.description || '');
-
-        // Use passed features or fall back to state
-        const currentFeatures = features || userFeatures;
-        if (currentFeatures?.character_access) {
-          const character = currentFeatures.character_access.find(char => char.character_id === defaultChar.id);
-          const avatarUrl = character?.character_avatar_url || null;
-          setSelectedCharacterAvatar(avatarUrl);
-        } else {
-          setSelectedCharacterAvatar(null);
+    // Handle follow-up message chunks
+    unsubscribers.push(
+      onConversationEvent(conversationId, 'chunk', (data) => {
+        // Only handle non-tool responses (regular messages)
+        if (!data.toolName) {
+          setIsFollowUpStreaming(true);
+          setFollowUpStreamingContent(data.fullContent || '');
         }
-      } else {
-        setFeedback({ error: 'No AI characters available for proposal analysis' });
+      })
+    );
+
+    // Handle follow-up message completion
+    unsubscribers.push(
+      onConversationEvent(conversationId, 'complete', (data) => {
+        // Only handle non-tool responses (regular messages)
+        if (!data.toolName) {
+          setIsFollowUpStreaming(false);
+          setFollowUpStreamingContent('');
+
+          // Add completed message to follow-up messages
+          setFollowUpMessages(prev => [...prev, {
+            role: 'assistant',
+            content: data.fullResponse,
+            timestamp: new Date().toISOString(),
+            messageId: data.messageId,
+            usage: data.usage
+          }]);
+        }
+      })
+    );
+
+    // Handle errors
+    unsubscribers.push(
+      onConversationEvent(conversationId, 'error', (data) => {
+        console.error('[ProposalWizard] Follow-up error:', data);
+        setIsFollowUpStreaming(false);
+        setFollowUpStreamingContent('');
+      })
+    );
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, [conversationId, onConversationEvent]);
+
+  // Load user features
+  useEffect(() => {
+    const loadUserFeatures = async () => {
+      try {
+        const features = await userAPI.getCurrentUserFeatures();
+        setUserFeatures(features);
+        const isEnabled = features?.proposal_wizard?.enabled ?? true;
+        setFeatureEnabled(isEnabled);
+      } catch (error) {
+        console.error('Failed to load user features:', error);
+        setFeatureEnabled(true);
       }
-    } catch (error) {
-      setFeedback({ error: 'Failed to load AI characters' });
-    } finally {
-      setLoadingCharacters(false);
+    };
+
+    loadUserFeatures();
+  }, []);
+
+  // Load AI characters
+  useEffect(() => {
+    const loadCharacters = async () => {
+      try {
+        setLoadingCharacters(true);
+
+        // Get user features to see which characters are available for proposal wizard
+        const userFeatures = await userAPI.getCurrentUserFeatures();
+        const allowedCharacterNames = userFeatures?.system_features?.proposal_wizard_model || [];
+
+        // Get all characters
+        const characters = await aiCharacterAPI.getUserCharacters();
+
+        // Filter characters based on what's allowed for proposal wizard
+        // If no specific characters are defined, show all characters
+        let proposalCharacters = characters;
+        if (allowedCharacterNames.length > 0) {
+          proposalCharacters = characters.filter(char =>
+            allowedCharacterNames.includes(char.internal_name) ||
+            allowedCharacterNames.includes(char.name.toLowerCase())
+          );
+        }
+
+        setAvailableCharacters(proposalCharacters);
+
+        if (proposalCharacters.length > 0 && !selectedCharacterId) {
+          const defaultChar = proposalCharacters[0];
+          setSelectedCharacterId(defaultChar.id);
+          setSelectedCharacterName(defaultChar.name);
+          setSelectedCharacterAvatar(defaultChar.avatar_url);
+          setSelectedCharacterDescription(defaultChar.description || '');
+        }
+      } catch (error) {
+        console.error('Failed to load AI characters:', error);
+
+        // Fallback: if features endpoint fails, just load all characters
+        try {
+          const characters = await aiCharacterAPI.getUserCharacters();
+          setAvailableCharacters(characters);
+
+          if (characters.length > 0 && !selectedCharacterId) {
+            const defaultChar = characters[0];
+            setSelectedCharacterId(defaultChar.id);
+            setSelectedCharacterName(defaultChar.name);
+            setSelectedCharacterAvatar(defaultChar.avatar_url);
+            setSelectedCharacterDescription(defaultChar.description);
+          }
+        } catch (fallbackError) {
+          console.error('Failed to load characters even in fallback:', fallbackError);
+          setAvailableCharacters([]);
+        }
+      } finally {
+        setLoadingCharacters(false);
+      }
+    };
+
+    loadCharacters();
+  }, []);
+
+  // Load character tools when character is selected
+  useEffect(() => {
+    const loadTools = async () => {
+      if (!selectedCharacterId) return;
+
+      try {
+        const tools = await getCharacterTools(selectedCharacterId);
+        setCharacterTools(tools);
+
+        // Check if character has analyze_proposal tool
+        const hasProposalTool = tools.available_tools?.some(
+          tool => tool.name === 'analyze_proposal' && tool.is_enabled
+        );
+
+        if (!hasProposalTool) {
+          console.warn('[ProposalWizard] Character does not have analyze_proposal tool');
+        }
+      } catch (error) {
+        console.error('[ProposalWizard] Failed to load character tools:', error);
+      }
+    };
+
+    loadTools();
+  }, [selectedCharacterId]);
+
+  // Handle character selection
+  const handleCharacterSelect = (character) => {
+    setSelectedCharacterId(character.id);
+    setSelectedCharacterName(character.name);
+    setSelectedCharacterAvatar(character.avatar_url);
+    setSelectedCharacterDescription(character.description || '');
+
+    // Clear conversation when switching characters
+    if (conversationId) {
+      clearConversation();
+      setFollowUpMessages([]);
+      setFeedback(null);
     }
   };
 
-  // Update character name and avatar when selection changes
-  const handleCharacterChange = (characterId) => {
-    setSelectedCharacterId(characterId);
-    const character = availableCharacters.find(c => c.id === characterId);
-    if (character) {
-      setSelectedCharacterName(character.name || 'AI Assistant');
-      setSelectedCharacterDescription(character.description || '');
-      setSelectedCharacterAvatar(getCharacterAvatarUrl(characterId));
-    }
-  };
-
+  // Handle proposal analysis
   const handleAnalyze = async () => {
-    console.log('[ProposalWizard] handleAnalyze CALLED:', {
-      componentId: componentIdRef.current,
-      hasProposal: !!proposal.trim(),
-      selectedPlatform,
-      isConnected,
-      isPanelReady,
+    console.log('[ProposalWizard] handleAnalyze called with:', {
+      hasJobPost: !!jobPost,
+      jobPostLength: jobPost?.length || 0,
+      hasProposal: !!proposal,
+      proposalLength: proposal?.length || 0,
       selectedCharacterId,
-      conversationId: conversationIdRef.current
+      selectedPlatform,
+      isConnected
     });
 
-    if (!proposal.trim()) {
-      console.log('[ProposalWizard] Analyze failed: No proposal');
-      setFeedback({ error: 'Please enter a proposal to analyze' });
-      return;
-    }
-
-    if (!selectedPlatform) {
-      console.log('[ProposalWizard] Analyze failed: No platform');
-      setFeedback({ error: 'Please select a platform' });
+    if (!jobPost || !selectedCharacterId) {
+      console.error('[ProposalWizard] Missing required data for analysis:', {
+        jobPost: jobPost ? 'present' : 'MISSING',
+        selectedCharacterId: selectedCharacterId ? 'present' : 'MISSING'
+      });
       return;
     }
 
     if (!isConnected) {
-      console.log('[ProposalWizard] Analyze failed: Not connected');
-      setFeedback({ error: 'Connecting to AI service... Please try again in a moment.' });
-      // Try to reinitialize connection
-      window.location.reload();
-      return;
-    }
-
-    if (!selectedCharacterId) {
-      console.log('[ProposalWizard] Analyze failed: No character selected');
-      setFeedback({ error: 'Please select an AI character' });
-      return;
-    }
-
-    console.log('[ProposalWizard] All validations passed, sending analysis...');
-
-    // Reset previous state
-    resetAnalysis();
-    setFeedback({
-      isProcessing: true,
-      score: null,
-      analysis: null
-    });
-
-    // Send proposal for analysis
-    const trackingId = sendAnalysis(
-      jobPost || 'No job post provided',
-      proposal,
-      selectedPlatform,
-      {
-        timestamp: new Date().toISOString()
-      }
-    );
-
-    console.log('[ProposalWizard] sendAnalysis returned trackingId:', {
-      trackingId,
-      analysisError
-    });
-
-    if (!trackingId) {
+      console.error('[ProposalWizard] Not connected to WebSocket');
       setFeedback({
-        error: analysisError || 'Failed to analyze proposal. Please try again.'
+        isProcessing: false,
+        error: 'Not connected to server. Please refresh the page.'
+      });
+      return;
+    }
+
+    console.log('[ProposalWizard] Starting proposal analysis...');
+
+    try {
+      // Clear previous feedback and messages
+      setFeedback(null);
+      setFollowUpMessages([]);
+      setFollowUpStreamingContent('');
+
+      // Send analysis request using the hook
+      const convId = await sendAnalysis(
+        jobPost,
+        proposal,
+        selectedPlatform || 'upwork'
+      );
+
+      if (!convId) {
+        console.error('[ProposalWizard] Failed to start analysis - no conversation ID returned');
+      } else {
+        console.log('[ProposalWizard] Analysis started with conversation:', convId);
+      }
+    } catch (error) {
+      console.error('[ProposalWizard] Error starting analysis:', error);
+      setFeedback({
+        isProcessing: false,
+        error: 'Failed to analyze proposal. Please try again.'
       });
     }
   };
 
-  // Fetch user conversations for history modal
-  const fetchConversations = async () => {
-    setLoadingConversations(true);
-    try {
-      const params = {
-        page: conversationPage,
-        per_page: 20,
-        order_by: 'created_at',
-        order_dir: 'desc'
-      };
+  // Handle follow-up message sending
+  const handleSendFollowUpMessage = async (message) => {
+    if (!conversationId || !selectedCharacterId) {
+      console.error('[ProposalWizard] Cannot send message - missing conversation or character');
+      throw new Error('Cannot send message - missing required data');
+    }
 
-      const response = await userAPI.getUserConversations(params);
-      setConversations(response.conversations || response.items || []);
-      setTotalConversationPages(response.total_pages || Math.ceil((response.total || 0) / 20) || 1);
+    if (!isConnected) {
+      console.error('[ProposalWizard] Not connected to WebSocket');
+      throw new Error('Not connected to server');
+    }
+
+    try {
+      console.log('[ProposalWizard] Sending follow-up message in conversation:', conversationId);
+
+      // Add user message to history
+      setFollowUpMessages(prev => [...prev, {
+        role: 'user',
+        content: message,
+        timestamp: new Date().toISOString()
+      }]);
+
+      // Send message using the hook
+      await sendFollowUp(message);
+
+      console.log('[ProposalWizard] Follow-up message sent successfully');
     } catch (error) {
-      console.error('Error fetching conversations:', error);
+      console.error('[ProposalWizard] Error sending follow-up message:', error);
+      throw error;
+    }
+  };
+
+  // Load conversation history
+  const loadConversations = async (page = 1) => {
+    try {
+      setLoadingConversations(true);
+      const response = await userAPI.getUserConversations(
+        'proposal_wizard',
+        page,
+        10
+      );
+      setConversations(response.items || []);
+      setTotalConversationPages(response.total_pages || 1);
+      setConversationPage(page);
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
     } finally {
       setLoadingConversations(false);
     }
   };
 
-  // Load conversation messages
-  const loadConversationMessages = async (conversation) => {
-    setSelectedHistoryConversation(conversation);
-    setLoadingMessages(true);
-    setConversationMessages([]);
-
+  // Load messages for selected conversation
+  const loadConversationMessages = async (conversationId, page = 1) => {
     try {
-      const details = await userAPI.getUserConversation(conversation.id);
-      setConversationMessages(details.messages || []);
+      setLoadingMessages(true);
+      const response = await userAPI.getConversationMessages(
+        conversationId,
+        page,
+        20,
+        messageFilter,
+        messageOrder
+      );
+      setConversationMessages(response.items || []);
+      setTotalMessagePages(response.total_pages || 1);
+      setMessagePage(page);
     } catch (error) {
-      console.error('Error loading conversation messages:', error);
+      console.error('Failed to load messages:', error);
     } finally {
       setLoadingMessages(false);
     }
   };
 
-  // Export conversation
-  const exportConversation = async (conversationId, format) => {
-    try {
-      await userAPI.exportUserConversation(conversationId, format);
-    } catch (error) {
-      console.error('Error exporting conversation:', error);
+  // Handle history modal open
+  const handleOpenHistory = () => {
+    setShowHistoryModal(true);
+    loadConversations(1);
+  };
+
+  // Handle conversation selection
+  const handleSelectConversation = async (conv) => {
+    setSelectedHistoryConversation(conv);
+    setMessagePage(1);
+    setMessageFilter('');
+    setMessageOrder('asc');
+    await loadConversationMessages(conv.id, 1);
+  };
+
+  // Handle loading conversation from history
+  const handleLoadConversation = () => {
+    if (selectedHistoryConversation && conversationMessages.length > 0) {
+      // Find the initial job post and proposal from the messages
+      const firstUserMessage = conversationMessages.find(msg => msg.role === 'user');
+      const firstAnalysis = conversationMessages.find(msg =>
+        msg.role === 'assistant' && msg.message_type === 'proposal_analysis'
+      );
+
+      if (firstUserMessage?.metadata?.job_post) {
+        setJobPost(firstUserMessage.metadata.job_post);
+      }
+      if (firstUserMessage?.metadata?.proposal) {
+        setProposal(firstUserMessage.metadata.proposal);
+      }
+      if (firstUserMessage?.metadata?.platform) {
+        setSelectedPlatform(firstUserMessage.metadata.platform);
+      }
+
+      // Load the conversation messages as follow-ups
+      const formattedMessages = conversationMessages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.created_at,
+        messageId: msg.id
+      }));
+      setFollowUpMessages(formattedMessages);
+
+      // Close modal
+      setShowHistoryModal(false);
     }
   };
 
-  const handleSendFollowUpMessage = async (message) => {
-    if (!sendMessage || !selectedCharacterId || !conversationIdRef.current) {
-      console.error('[ProposalWizard] Cannot send message - missing data:', {
-        hasSendMessage: !!sendMessage,
-        characterId: selectedCharacterId,
-        conversationId: conversationIdRef.current
-      });
-      throw new Error('Cannot send message - missing required data');
-    }
+  // Export conversation
+  const handleExportConversation = async () => {
+    if (!conversationId) return;
 
     try {
-      // Ensure panel is ready before sending message
-      if (!isPanelReady && streamingManager && joinPanel) {
-        console.log('[ProposalWizard] Panel not ready, joining panel first...');
-        try {
-          await joinPanel('proposal_wizard', conversationIdRef.current);
-          console.log('[ProposalWizard] Panel joined successfully');
-        } catch (joinError) {
-          console.error('[ProposalWizard] Failed to join panel:', joinError);
-          // Continue anyway - panel might already exist
-        }
-      }
-
-      console.log('[ProposalWizard] Sending follow-up message:', {
-        message,
-        characterId: selectedCharacterId,
-        conversationId: conversationIdRef.current,
-        panelId: 'proposal_wizard',
-        isPanelReady
-      });
-
-      // Send follow-up message using WebSocket
-      // This uses the start_ai_conversation event via sendMessage
-      const trackingId = sendMessage(
-        'proposal_wizard', // panelId
-        message,
-        {
-          characterId: selectedCharacterId,
-          conversationId: conversationIdRef.current,
-          messageType: 'follow_up'
-        }
-      );
-
-      console.log('[ProposalWizard] Message sent, tracking ID:', trackingId);
-
-      if (!trackingId) {
-        console.error('[ProposalWizard] Failed to get tracking ID - panel may not exist');
-      }
-
-      return trackingId;
+      const blob = await userAPI.exportConversation(conversationId, 'markdown');
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `proposal-analysis-${conversationId}.md`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
-      console.error('[ProposalWizard] Error sending message:', error);
-      throw error;
+      console.error('Error exporting conversation:', error);
     }
   };
 
@@ -446,331 +479,364 @@ export default function ProposalWizard() {
       {/* Sidebar */}
       <NewSidebar />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 ml-[280px]">
         {/* Header */}
-        <div className={`h-16 border-b ${
+        <div className={`h-16 border-b flex items-center justify-between px-4 sm:px-6 ${
           darkMode
-            ? 'bg-[#1a1a1a] border-[#333333]'
+            ? 'bg-[#1e1e1e] border-[#333333]'
             : 'bg-white border-neutral-200'
         }`}>
-          <div className="flex items-center justify-between h-full px-4">
-            <h1 className={`font-inter font-semibold text-xl sm:text-2xl ${
-              darkMode ? 'text-white' : 'text-zinc-950'
-            }`}>Proposal Wizard</h1>
+          <h1 className={`text-lg sm:text-xl font-semibold ${
+            darkMode ? 'text-white' : 'text-gray-900'
+          }`}>
+            Proposal Wizard
+          </h1>
 
-            {/* Right side controls */}
-            <div className="flex items-center gap-4">
-              {/* History Button */}
-              <button
-                onClick={() => setShowHistoryModal(true)}
-                className={`px-3 py-1 text-sm rounded-md border transition-colors ${
+          <div className="flex items-center gap-2">
+            {/* Character Selector Dropdown */}
+            {loadingCharacters ? (
+              <div className={`text-sm px-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Loading...
+              </div>
+            ) : availableCharacters.length > 0 && (
+              <select
+                value={selectedCharacterId || ''}
+                onChange={(e) => handleCharacterSelect(e.target.value)}
+                className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
                   darkMode
-                    ? 'bg-[#2a2a2a] border-[#444] text-white hover:bg-[#3a3a3a]'
-                    : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-50'
-                }`}
-                title="View conversation history"
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-zenible-primary'
+                    : 'bg-gray-100 border-gray-200 text-gray-700 focus:border-zenible-primary'
+                } focus:outline-none focus:ring-2 focus:ring-zenible-primary/20`}
               >
-                History
-              </button>
+                {!selectedCharacterId && <option value="">Select AI...</option>}
+                {availableCharacters.map((character) => (
+                  <option key={character.id} value={character.id}>
+                    {character.name}
+                  </option>
+                ))}
+              </select>
+            )}
 
-              {/* Character Selector */}
-              {!loadingCharacters && availableCharacters.length > 0 && (
-                <select
-                  value={selectedCharacterId || ''}
-                  onChange={(e) => handleCharacterChange(e.target.value)}
-                  className={`px-3 py-1 text-sm rounded-md border ${
-                    darkMode
-                      ? 'bg-[#2a2a2a] border-[#444] text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                  disabled={analyzing}
-                >
-                  <option value="">Select AI Assistant</option>
-                  {availableCharacters.map((char) => (
-                    <option key={char.id} value={char.id}>
-                      {char.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+            {conversationId && (
+              <button
+                onClick={handleExportConversation}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  darkMode
+                    ? 'bg-gray-700 text-white hover:bg-gray-600'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Export
+              </button>
+            )}
+            <button
+              onClick={handleOpenHistory}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                darkMode
+                  ? 'bg-gray-700 text-white hover:bg-gray-600'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              History
+            </button>
           </div>
         </div>
 
-        {/* Platform Selector */}
-        <PlatformSelector
-          darkMode={darkMode}
-          selectedPlatform={selectedPlatform}
-          setSelectedPlatform={setSelectedPlatform}
-          characterId={selectedCharacterId}
-        />
+        {/* Content Area */}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full flex flex-col lg:flex-row gap-4 p-4 sm:p-6">
+            {/* Left Column - Input */}
+            <div className="w-full lg:w-1/2 flex flex-col gap-4 overflow-y-auto">
+              <PlatformSelector
+                darkMode={darkMode}
+                selectedPlatform={selectedPlatform}
+                setSelectedPlatform={setSelectedPlatform}
+                characterId={selectedCharacterId}
+              />
 
-        {/* Content Section - Responsive grid */}
-        <div className={`flex-1 overflow-auto ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
-          <div className="p-2 sm:p-4 h-full">
-            {/* Show error if feature is disabled */}
-            {!featureEnabled && !loadingCharacters && (
-              <div className={`p-6 rounded-lg text-center max-w-2xl mx-auto mt-8 ${
-                darkMode ? 'bg-red-900/20 text-red-300' : 'bg-red-100 text-red-700'
-              }`}>
-                <h3 className="text-xl font-semibold mb-3">Feature Not Available</h3>
-                <p className="text-base">The Proposal Wizard feature is not enabled for your account.</p>
-                <p className="mt-2 text-sm opacity-80">Please contact support or upgrade your plan to access this feature.</p>
-              </div>
-            )}
+              <JobPostSection
+                darkMode={darkMode}
+                jobPost={jobPost}
+                setJobPost={setJobPost}
+              />
 
-            {/* Show content only if feature is enabled */}
-            {featureEnabled && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4 w-full h-full">
-              {/* Left Column - Job Post & Proposal */}
-              <div className="flex flex-col gap-2 sm:gap-4 w-full h-full min-h-0">
-                <JobPostSection
-                  darkMode={darkMode}
-                  onJobPostChange={setJobPost}
-                />
-                <ProposalInput
-                  darkMode={darkMode}
-                  proposal={proposal}
-                  setProposal={setProposal}
-                  onAnalyze={handleAnalyze}
-                  analyzing={analyzing}
-                  isPanelReady={isPanelReady}
-                  isConnected={isConnected}
-                />
-              </div>
-
-              {/* Right Column - AI Feedback */}
-              <div className="w-full h-full min-h-0 lg:min-h-[400px]">
-                <AIFeedbackSection
-                  darkMode={darkMode}
-                  feedback={feedback}
-                  analyzing={analyzing}
-                  isProcessing={feedback?.isProcessing}
-                  isStreaming={isStreaming}
-                  streamingContent={streamingContent}
-                  structuredAnalysis={structuredAnalysis}
-                  rawAnalysis={rawAnalysis}
-                  metrics={metrics}
-                  usage={usage}
-                  conversationId={conversationIdRef.current}
-                  messageId={messageId}
-                  onCancel={isStreaming ? cancelAnalysis : resetAnalysis}
-                  onSendMessage={handleSendFollowUpMessage}
-                  characterId={selectedCharacterId}
-                  characterName={selectedCharacterName}
-                  characterAvatarUrl={selectedCharacterAvatar}
-                  characterDescription={selectedCharacterDescription}
-                  followUpMessages={followUpMessages}
-                  isFollowUpStreaming={isFollowUpStreaming}
-                  followUpStreamingContent={followUpStreamingContent}
-                />
-              </div>
+              <ProposalInput
+                darkMode={darkMode}
+                proposal={proposal}
+                setProposal={setProposal}
+                analyzing={analyzing}
+                onAnalyze={handleAnalyze}
+                isPanelReady={isConnected}
+                isConnected={isConnected}
+              />
             </div>
-            )}
+
+            {/* Right Column - AI Feedback */}
+            <div className="w-full lg:w-1/2 h-full min-h-0 lg:min-h-[400px]">
+              <AIFeedbackSection
+                darkMode={darkMode}
+                feedback={feedback}
+                analyzing={analyzing}
+                isProcessing={feedback?.isProcessing}
+                isStreaming={isStreaming}
+                streamingContent={streamingContent}
+                structuredAnalysis={structuredAnalysis}
+                rawAnalysis={analysis?.raw}
+                metrics={metrics}
+                usage={feedback?.usage}
+                conversationId={conversationId}
+                messageId={messageId}
+                onCancel={resetAnalysis}
+                onSendMessage={handleSendFollowUpMessage}
+                characterId={selectedCharacterId}
+                characterName={selectedCharacterName}
+                characterAvatarUrl={selectedCharacterAvatar}
+                characterDescription={selectedCharacterDescription}
+                followUpMessages={followUpMessages}
+                isFollowUpStreaming={isFollowUpStreaming}
+                followUpStreamingContent={followUpStreamingContent}
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* History Modal */}
       {showHistoryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className={`w-full max-w-6xl max-h-[90vh] rounded-xl overflow-hidden flex flex-col ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
-            <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-              <h2 className={`text-xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className={`w-full max-w-4xl max-h-[90vh] rounded-xl shadow-xl flex flex-col ${
+            darkMode ? 'bg-[#1e1e1e]' : 'bg-white'
+          }`}>
+            {/* Modal Header */}
+            <div className={`px-6 py-4 border-b flex justify-between items-center ${
+              darkMode ? 'border-[#333333]' : 'border-gray-200'
+            }`}>
+              <h2 className={`text-xl font-semibold ${
+                darkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 Conversation History
               </h2>
               <button
-                onClick={() => {
-                  setShowHistoryModal(false);
-                  setSelectedHistoryConversation(null);
-                  setConversationMessages([]);
-                }}
-                className={`text-2xl font-light ${darkMode ? 'text-zenible-dark-text hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                onClick={() => setShowHistoryModal(false)}
+                className={`p-2 rounded-lg hover:bg-gray-100 ${
+                  darkMode ? 'hover:bg-gray-700' : ''
+                }`}
               >
-                ×
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <div className="flex-1 flex overflow-hidden">
-              {/* Conversation List */}
-              <div className={`w-1/3 border-r overflow-auto ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className={`font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      Your Conversations
-                    </h3>
+            {/* Modal Content */}
+            <div className="flex-1 overflow-hidden flex">
+              {/* Conversations List */}
+              <div className={`w-1/3 border-r overflow-y-auto ${
+                darkMode ? 'border-[#333333]' : 'border-gray-200'
+              }`}>
+                {loadingConversations ? (
+                  <div className="p-4 text-center">Loading...</div>
+                ) : conversations.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">No conversations yet</div>
+                ) : (
+                  conversations.map(conv => (
+                    <div
+                      key={conv.id}
+                      onClick={() => handleSelectConversation(conv)}
+                      className={`p-4 cursor-pointer border-b transition-colors ${
+                        selectedHistoryConversation?.id === conv.id
+                          ? darkMode
+                            ? 'bg-gray-700'
+                            : 'bg-gray-100'
+                          : darkMode
+                            ? 'hover:bg-gray-800'
+                            : 'hover:bg-gray-50'
+                      } ${darkMode ? 'border-[#333333]' : 'border-gray-200'}`}
+                    >
+                      <div className={`font-medium text-sm ${
+                        darkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {new Date(conv.created_at).toLocaleDateString()}
+                      </div>
+                      <div className={`text-xs mt-1 ${
+                        darkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        {conv.message_count} messages
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {/* Pagination */}
+                {totalConversationPages > 1 && (
+                  <div className="p-4 flex justify-center gap-2">
                     <button
-                      onClick={fetchConversations}
-                      className={`px-2 py-1 text-xs rounded ${
-                        darkMode
-                          ? 'bg-[#2a2a2a] text-white hover:bg-[#3a3a3a]'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      onClick={() => loadConversations(conversationPage - 1)}
+                      disabled={conversationPage === 1}
+                      className={`px-3 py-1 text-sm rounded ${
+                        conversationPage === 1
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:bg-gray-100'
                       }`}
                     >
-                      Refresh
+                      Previous
+                    </button>
+                    <span className="px-3 py-1 text-sm">
+                      {conversationPage} / {totalConversationPages}
+                    </span>
+                    <button
+                      onClick={() => loadConversations(conversationPage + 1)}
+                      disabled={conversationPage === totalConversationPages}
+                      className={`px-3 py-1 text-sm rounded ${
+                        conversationPage === totalConversationPages
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      Next
                     </button>
                   </div>
-
-                  {loadingConversations ? (
-                    <div className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-500'}`}>
-                      Loading conversations...
-                    </div>
-                  ) : conversations.length === 0 ? (
-                    <div className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-500'}`}>
-                      No conversations found
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {conversations.map((conversation) => (
-                        <div
-                          key={conversation.id}
-                          onClick={() => loadConversationMessages(conversation)}
-                          className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                            selectedHistoryConversation?.id === conversation.id
-                              ? (darkMode ? 'bg-[#3a3a3a]' : 'bg-blue-50')
-                              : (darkMode ? 'hover:bg-[#2a2a2a]' : 'hover:bg-gray-50')
-                          }`}
-                        >
-                          <div className={`font-medium text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                            {conversation.character_name || 'AI Assistant'}
-                          </div>
-                          <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {conversation.platform && `${conversation.platform} • `}
-                            {new Date(conversation.created_at).toLocaleDateString()}
-                          </div>
-                          <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {conversation.message_count || 0} messages
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Pagination */}
-                  {totalConversationPages > 1 && (
-                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-neutral-200">
-                      <button
-                        onClick={() => {
-                          setConversationPage(prev => Math.max(1, prev - 1));
-                          fetchConversations();
-                        }}
-                        disabled={conversationPage <= 1}
-                        className={`px-3 py-1 text-sm rounded ${
-                          conversationPage <= 1
-                            ? (darkMode ? 'text-gray-600' : 'text-gray-400')
-                            : (darkMode ? 'text-white hover:bg-[#2a2a2a]' : 'text-gray-700 hover:bg-gray-100')
-                        }`}
-                      >
-                        Previous
-                      </button>
-                      <span className={`text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-600'}`}>
-                        Page {conversationPage} of {totalConversationPages}
-                      </span>
-                      <button
-                        onClick={() => {
-                          setConversationPage(prev => Math.min(totalConversationPages, prev + 1));
-                          fetchConversations();
-                        }}
-                        disabled={conversationPage >= totalConversationPages}
-                        className={`px-3 py-1 text-sm rounded ${
-                          conversationPage >= totalConversationPages
-                            ? (darkMode ? 'text-gray-600' : 'text-gray-400')
-                            : (darkMode ? 'text-white hover:bg-[#2a2a2a]' : 'text-gray-700 hover:bg-gray-100')
-                        }`}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
 
-              {/* Conversation Details */}
+              {/* Messages */}
               <div className="flex-1 flex flex-col">
                 {selectedHistoryConversation ? (
                   <>
-                    {/* Conversation Header */}
-                    <div className={`p-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className={`font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                            {selectedHistoryConversation.character_name || 'AI Assistant'}
-                          </h4>
-                          <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {selectedHistoryConversation.platform && `${selectedHistoryConversation.platform} • `}
-                            {new Date(selectedHistoryConversation.created_at).toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => exportConversation(selectedHistoryConversation.id, 'json')}
-                            className={`px-2 py-1 text-xs rounded ${
-                              darkMode
-                                ? 'bg-[#2a2a2a] text-white hover:bg-[#3a3a3a]'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            Export JSON
-                          </button>
-                          <button
-                            onClick={() => exportConversation(selectedHistoryConversation.id, 'txt')}
-                            className={`px-2 py-1 text-xs rounded ${
-                              darkMode
-                                ? 'bg-[#2a2a2a] text-white hover:bg-[#3a3a3a]'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            Export TXT
-                          </button>
-                        </div>
-                      </div>
+                    {/* Message Filters */}
+                    <div className={`p-4 border-b flex gap-2 ${
+                      darkMode ? 'border-[#333333]' : 'border-gray-200'
+                    }`}>
+                      <select
+                        value={messageFilter}
+                        onChange={(e) => {
+                          setMessageFilter(e.target.value);
+                          loadConversationMessages(selectedHistoryConversation.id, 1);
+                        }}
+                        className={`px-3 py-1 text-sm rounded ${
+                          darkMode
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        <option value="">All Messages</option>
+                        <option value="user">User Only</option>
+                        <option value="assistant">AI Only</option>
+                      </select>
+                      <select
+                        value={messageOrder}
+                        onChange={(e) => {
+                          setMessageOrder(e.target.value);
+                          loadConversationMessages(selectedHistoryConversation.id, 1);
+                        }}
+                        className={`px-3 py-1 text-sm rounded ${
+                          darkMode
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        <option value="asc">Oldest First</option>
+                        <option value="desc">Newest First</option>
+                      </select>
                     </div>
 
-                    {/* Messages */}
-                    <div className="flex-1 overflow-auto p-4">
+                    {/* Messages List */}
+                    <div className="flex-1 overflow-y-auto p-4">
                       {loadingMessages ? (
-                        <div className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-500'}`}>
-                          Loading messages...
-                        </div>
+                        <div className="text-center">Loading messages...</div>
                       ) : conversationMessages.length === 0 ? (
-                        <div className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-500'}`}>
-                          No messages found
-                        </div>
+                        <div className="text-center text-gray-500">No messages</div>
                       ) : (
                         <div className="space-y-4">
-                          {conversationMessages.map((message, index) => (
-                            <div
-                              key={index}
-                              className={`p-3 rounded-lg ${
-                                message.role === 'user'
-                                  ? (darkMode ? 'bg-blue-600/20 ml-8' : 'bg-blue-50 ml-8')
-                                  : (darkMode ? 'bg-[#2a2a2a] mr-8' : 'bg-gray-50 mr-8')
-                              }`}
-                            >
-                              <div className={`text-xs mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                {message.role === 'user' ? 'You' : selectedHistoryConversation.character_name || 'AI Assistant'}
-                                {message.timestamp && (
-                                  <span className="ml-2">
-                                    {new Date(message.timestamp).toLocaleTimeString()}
-                                  </span>
-                                )}
-                              </div>
-                              <div className={`text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                                {message.content}
+                          {conversationMessages.map((msg, idx) => (
+                            <div key={msg.id || idx} className={`flex ${
+                              msg.role === 'user' ? 'justify-end' : 'justify-start'
+                            }`}>
+                              <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                                msg.role === 'user'
+                                  ? darkMode
+                                    ? 'bg-zenible-primary text-white'
+                                    : 'bg-zenible-primary text-white'
+                                  : darkMode
+                                    ? 'bg-gray-700 text-white'
+                                    : 'bg-gray-100 text-gray-900'
+                              }`}>
+                                <div className="text-sm">
+                                  {msg.content.length > 500 ? (
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                      {msg.content.substring(0, 500) + '...'}
+                                    </ReactMarkdown>
+                                  ) : (
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                      {msg.content}
+                                    </ReactMarkdown>
+                                  )}
+                                </div>
+                                <div className={`text-xs mt-1 ${
+                                  darkMode ? 'text-gray-400' : 'text-gray-600'
+                                }`}>
+                                  {new Date(msg.created_at).toLocaleString()}
+                                </div>
                               </div>
                             </div>
                           ))}
                         </div>
                       )}
+
+                      {/* Message Pagination */}
+                      {totalMessagePages > 1 && (
+                        <div className="mt-4 flex justify-center gap-2">
+                          <button
+                            onClick={() => loadConversationMessages(
+                              selectedHistoryConversation.id,
+                              messagePage - 1
+                            )}
+                            disabled={messagePage === 1}
+                            className={`px-3 py-1 text-sm rounded ${
+                              messagePage === 1
+                                ? 'opacity-50 cursor-not-allowed'
+                                : 'hover:bg-gray-100'
+                            }`}
+                          >
+                            Previous
+                          </button>
+                          <span className="px-3 py-1 text-sm">
+                            {messagePage} / {totalMessagePages}
+                          </span>
+                          <button
+                            onClick={() => loadConversationMessages(
+                              selectedHistoryConversation.id,
+                              messagePage + 1
+                            )}
+                            disabled={messagePage === totalMessagePages}
+                            className={`px-3 py-1 text-sm rounded ${
+                              messagePage === totalMessagePages
+                                ? 'opacity-50 cursor-not-allowed'
+                                : 'hover:bg-gray-100'
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Load Button */}
+                    <div className={`p-4 border-t ${
+                      darkMode ? 'border-[#333333]' : 'border-gray-200'
+                    }`}>
+                      <button
+                        onClick={handleLoadConversation}
+                        className="w-full px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-purple-600 transition-colors"
+                      >
+                        Load This Conversation
+                      </button>
                     </div>
                   </>
                 ) : (
-                  <div className={`flex-1 flex items-center justify-center ${darkMode ? 'text-zenible-dark-text' : 'text-gray-500'}`}>
-                    <div className="text-center">
-                      <div className="text-lg mb-2">Select a conversation</div>
-                      <div className="text-sm">Choose a conversation from the list to view its messages</div>
-                    </div>
+                  <div className="flex-1 flex items-center justify-center text-gray-500">
+                    Select a conversation to view messages
                   </div>
                 )}
               </div>

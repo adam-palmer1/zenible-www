@@ -76,7 +76,7 @@ export default function NewSidebar() {
   ];
 
   return (
-    <div className="w-[280px] h-full bg-[#FAFBFC] border-r border-[#E5E7EB] flex flex-col">
+    <div className="fixed left-0 top-0 h-screen w-[280px] bg-[#FAFBFC] border-r border-[#E5E7EB] flex flex-col">
       {/* Header */}
       <SidebarHeader />
 

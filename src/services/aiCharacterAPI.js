@@ -70,16 +70,53 @@ class AICharacterAPI {
       per_page: 50 // Get more characters to find suitable ones
     });
 
-    // If response is an array, return it directly
+    // Handle paginated response structure
     if (Array.isArray(response)) {
       return response;
     }
 
-    // Otherwise check for common response structures
-    if (response?.items) return response.items;
-    if (response?.characters) return response.characters;
-    if (response?.results) return response.results;
+    // Check for common paginated response structures
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data;
+    }
+    if (response?.items && Array.isArray(response.items)) {
+      return response.items;
+    }
+    if (response?.characters && Array.isArray(response.characters)) {
+      return response.characters;
+    }
+    if (response?.results && Array.isArray(response.results)) {
+      return response.results;
+    }
 
+    console.warn('Unexpected response structure from getProposalAnalysisCharacters:', response);
+    return [];
+  }
+
+  // Get user's available characters (alias for getCharacters)
+  async getUserCharacters(params = {}) {
+    const response = await this.getCharacters(params);
+
+    // Handle paginated response structure
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    // Check for common paginated response structures
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data;
+    }
+    if (response?.items && Array.isArray(response.items)) {
+      return response.items;
+    }
+    if (response?.characters && Array.isArray(response.characters)) {
+      return response.characters;
+    }
+    if (response?.results && Array.isArray(response.results)) {
+      return response.results;
+    }
+
+    console.warn('Unexpected response structure from getUserCharacters:', response);
     return [];
   }
 }
