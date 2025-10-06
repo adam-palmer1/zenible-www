@@ -1,35 +1,28 @@
 import React from 'react';
 
-export default function BoardroomIcon({ className = "w-5 h-5", color = "currentColor" }) {
+export default function BoardroomIcon({ className = "w-6 h-6", color = "currentColor" }) {
   return (
-    <svg className={className} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle
-        cx="7"
-        cy="6"
-        r="2.5"
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M14.44 19.05L15.96 20.57L19 17.53"
         stroke={color}
         strokeWidth="1.5"
-        fill="none"
-      />
-      <circle
-        cx="13"
-        cy="6"
-        r="2.5"
-        stroke={color}
-        strokeWidth="1.5"
-        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
       <path
-        d="M2 17.5C2 14.7386 4.23858 12.5 7 12.5C9.76142 12.5 12 14.7386 12 17.5"
+        d="M12.16 10.87C12.06 10.86 11.94 10.86 11.83 10.87C9.45 10.79 7.56 8.84 7.56 6.44C7.55 3.99 9.54 2 11.99 2C14.44 2 16.43 3.99 16.43 6.44C16.43 8.84 14.53 10.79 12.16 10.87Z"
         stroke={color}
         strokeWidth="1.5"
-        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
       <path
-        d="M8 17.5C8 14.7386 10.2386 12.5 13 12.5C15.7614 12.5 18 14.7386 18 17.5"
+        d="M11.99 21.81C10.17 21.81 8.36 21.35 6.98 20.43C4.56 18.81 4.56 16.17 6.98 14.56C9.73 12.72 14.24 12.72 16.99 14.56"
         stroke={color}
         strokeWidth="1.5"
-        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

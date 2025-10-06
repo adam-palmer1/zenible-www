@@ -926,6 +926,77 @@ class AdminAPI {
       : `/admin/ai-tools/characters/${characterId}/tools`;
     return this.request(endpoint, { method: 'GET' });
   }
+
+  // Completion Questions Management endpoints
+
+  /**
+   * Get completion questions for a character tool assignment
+   * @param {string} instructionsId - The character tool instructions ID
+   * @returns {Promise<Array>} List of completion questions
+   */
+  async getCompletionQuestions(instructionsId) {
+    return this.request(`/admin/ai-tools/character-tools/${instructionsId}/completion-questions`, {
+      method: 'GET'
+    });
+  }
+
+  /**
+   * Create a single completion question for a character tool assignment
+   * @param {string} instructionsId - The character tool instructions ID
+   * @param {Object} questionData - Question data
+   * @param {string} questionData.question_type - Type: text, number, select, multiselect, boolean
+   * @param {string} questionData.question_text - The question text
+   * @param {Object} questionData.validation_rules - Validation rules (optional)
+   * @param {boolean} questionData.is_required - Whether question is required
+   * @param {number} questionData.order_index - Display order
+   * @returns {Promise<Object>} Created question
+   */
+  async createCompletionQuestion(instructionsId, questionData) {
+    return this.request(`/admin/ai-tools/character-tools/${instructionsId}/completion-questions`, {
+      method: 'POST',
+      body: JSON.stringify(questionData)
+    });
+  }
+
+  /**
+   * Bulk create/replace completion questions for a character tool assignment
+   * @param {string} instructionsId - The character tool instructions ID
+   * @param {Array} questionsArray - Array of question objects
+   * @returns {Promise<Array>} Created questions
+   */
+  async bulkCreateCompletionQuestions(instructionsId, questionsArray) {
+    return this.request(`/admin/ai-tools/character-tools/${instructionsId}/completion-questions/bulk`, {
+      method: 'POST',
+      body: JSON.stringify({
+        character_tool_instructions_id: instructionsId,
+        questions: questionsArray
+      })
+    });
+  }
+
+  /**
+   * Update a completion question
+   * @param {string} questionId - The question ID
+   * @param {Object} questionData - Updated question data
+   * @returns {Promise<Object>} Updated question
+   */
+  async updateCompletionQuestion(questionId, questionData) {
+    return this.request(`/admin/ai-tools/completion-questions/${questionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(questionData)
+    });
+  }
+
+  /**
+   * Delete a completion question
+   * @param {string} questionId - The question ID
+   * @returns {Promise<Object>} Deletion confirmation
+   */
+  async deleteCompletionQuestion(questionId) {
+    return this.request(`/admin/ai-tools/completion-questions/${questionId}`, {
+      method: 'DELETE'
+    });
+  }
 }
 
 export const adminAPI = new AdminAPI();

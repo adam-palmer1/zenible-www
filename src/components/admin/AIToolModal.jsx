@@ -7,15 +7,18 @@ export default function AIToolModal({ tool, onClose, onSave }) {
     name: '',
     description: '',
     argument_schema: {},
+    response_schema: {},
     is_active: true
   });
-  const [schemaText, setSchemaText] = useState('');
+  const [argumentSchemaText, setArgumentSchemaText] = useState('');
+  const [responseSchemaText, setResponseSchemaText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [schemaError, setSchemaError] = useState(null);
+  const [argumentSchemaError, setArgumentSchemaError] = useState(null);
+  const [responseSchemaError, setResponseSchemaError] = useState(null);
 
-  // Default schema template
-  const defaultSchema = {
+  // Default schema templates
+  const defaultArgumentSchema = {
     type: "object",
     properties: {
       example_field: {
@@ -26,29 +29,54 @@ export default function AIToolModal({ tool, onClose, onSave }) {
     required: ["example_field"]
   };
 
+  const defaultResponseSchema = {
+    type: "object",
+    properties: {
+      success: {
+        type: "boolean",
+        description: "Whether the operation was successful"
+      },
+      data: {
+        type: "object",
+        description: "The result data"
+      },
+      message: {
+        type: "string",
+        description: "Human-readable message"
+      }
+    },
+    required: ["success"]
+  };
+
   useEffect(() => {
     if (tool) {
       // Editing existing tool
       setFormData({
         name: tool.name || '',
         description: tool.description || '',
-        argument_schema: tool.argument_schema || defaultSchema,
+        argument_schema: tool.argument_schema || defaultArgumentSchema,
+        response_schema: tool.response_schema || {},
         is_active: tool.is_active !== undefined ? tool.is_active : true
       });
-      setSchemaText(JSON.stringify(tool.argument_schema || defaultSchema, null, 2));
+      setArgumentSchemaText(JSON.stringify(tool.argument_schema || defaultArgumentSchema, null, 2));
+      setResponseSchemaText(tool.response_schema && Object.keys(tool.response_schema).length > 0
+        ? JSON.stringify(tool.response_schema, null, 2)
+        : '');
     } else {
       // Creating new tool
       setFormData({
         name: '',
         description: '',
-        argument_schema: defaultSchema,
+        argument_schema: defaultArgumentSchema,
+        response_schema: {},
         is_active: true
       });
-      setSchemaText(JSON.stringify(defaultSchema, null, 2));
+      setArgumentSchemaText(JSON.stringify(defaultArgumentSchema, null, 2));
+      setResponseSchemaText('');
     }
   }, [tool]);
 
-  const validateSchema = (schemaStr) => {
+  const validateArgumentSchema = (schemaStr) => {
     try {
       const parsed = JSON.parse(schemaStr);
 
@@ -65,17 +93,55 @@ export default function AIToolModal({ tool, onClose, onSave }) {
         throw new Error('Object schemas must have a "properties" field');
       }
 
-      setSchemaError(null);
+      setArgumentSchemaError(null);
       return parsed;
     } catch (err) {
-      setSchemaError(err.message);
+      setArgumentSchemaError(err.message);
       return null;
     }
   };
 
-  const handleSchemaChange = (value) => {
-    setSchemaText(value);
-    const validSchema = validateSchema(value);
+  const validateResponseSchema = (schemaStr) => {
+    try {
+      // Allow empty response schema
+      if (!schemaStr.trim()) {
+        setResponseSchemaError(null);
+        return {};
+      }
+
+      const parsed = JSON.parse(schemaStr);
+
+      // Basic validation for JSON Schema structure
+      if (typeof parsed !== 'object' || parsed === null) {
+        throw new Error('Schema must be a valid JSON object');
+      }
+
+      // Check if this is wrapped in a template format (with name and schema properties)
+      let actualSchema = parsed;
+      if (parsed.schema && typeof parsed.schema === 'object') {
+        // Extract the actual schema from the template wrapper
+        actualSchema = parsed.schema;
+      }
+
+      if (!actualSchema.type) {
+        throw new Error('Schema must have a "type" property');
+      }
+
+      if (actualSchema.type === 'object' && !actualSchema.properties) {
+        throw new Error('Object schemas must have a "properties" field');
+      }
+
+      setResponseSchemaError(null);
+      return actualSchema; // Return the unwrapped schema
+    } catch (err) {
+      setResponseSchemaError(err.message);
+      return null;
+    }
+  };
+
+  const handleArgumentSchemaChange = (value) => {
+    setArgumentSchemaText(value);
+    const validSchema = validateArgumentSchema(value);
     if (validSchema) {
       setFormData(prev => ({
         ...prev,
@@ -84,16 +150,31 @@ export default function AIToolModal({ tool, onClose, onSave }) {
     }
   };
 
+  const handleResponseSchemaChange = (value) => {
+    setResponseSchemaText(value);
+    const validSchema = validateResponseSchema(value);
+    if (validSchema !== null) {
+      setFormData(prev => ({
+        ...prev,
+        response_schema: validSchema
+      }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submitted');
     setLoading(true);
     setError(null);
 
     // Final schema validation
-    const validSchema = validateSchema(schemaText);
-    if (!validSchema) {
-      console.log('Schema validation failed:', schemaError);
+    const validArgumentSchema = validateArgumentSchema(argumentSchemaText);
+    if (!validArgumentSchema) {
+      setLoading(false);
+      return;
+    }
+
+    const validResponseSchema = validateResponseSchema(responseSchemaText);
+    if (validResponseSchema === null) {
       setLoading(false);
       return;
     }
@@ -101,22 +182,18 @@ export default function AIToolModal({ tool, onClose, onSave }) {
     try {
       const submitData = {
         ...formData,
-        argument_schema: validSchema
+        argument_schema: validArgumentSchema,
+        response_schema: validResponseSchema
       };
 
-      console.log('Submitting tool data:', submitData);
 
-      if (tool) {
+      if (tool && tool.id) {
         // Update existing tool
-        console.log('Updating tool:', tool.id);
         await adminAPI.updateAITool(tool.id, submitData);
       } else {
         // Create new tool
-        console.log('Creating new tool');
         await adminAPI.createAITool(submitData);
       }
-
-      console.log('Tool saved successfully');
       onSave();
     } catch (err) {
       console.error('Error saving tool:', err);
@@ -126,13 +203,22 @@ export default function AIToolModal({ tool, onClose, onSave }) {
     }
   };
 
-  const loadSchemaTemplate = (templateName) => {
+  const loadArgumentSchemaTemplate = (templateName) => {
     const templates = getSchemaTemplates();
-    const template = templates[templateName]?.schema || defaultSchema;
+    const template = templates[templateName]?.schema || defaultArgumentSchema;
 
     const templateText = JSON.stringify(template, null, 2);
-    setSchemaText(templateText);
-    handleSchemaChange(templateText);
+    setArgumentSchemaText(templateText);
+    handleArgumentSchemaChange(templateText);
+  };
+
+  const loadResponseSchemaTemplate = (templateName) => {
+    const templates = getSchemaTemplates();
+    const template = templates[templateName]?.responseSchema || defaultResponseSchema;
+
+    const templateText = JSON.stringify(template, null, 2);
+    setResponseSchemaText(templateText);
+    handleResponseSchemaChange(templateText);
   };
 
   return (
@@ -144,13 +230,13 @@ export default function AIToolModal({ tool, onClose, onSave }) {
         </div>
 
         {/* Modal */}
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
           <form onSubmit={handleSubmit}>
             {/* Header */}
             <div className="bg-white px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {tool ? `Edit Tool: ${tool.name}` : 'Create New AI Tool'}
+                  {tool && tool.id ? `Edit Tool: ${tool.name}` : tool ? `Clone Tool: ${tool.name}` : 'Create New AI Tool'}
                 </h3>
                 <button
                   type="button"
@@ -166,18 +252,17 @@ export default function AIToolModal({ tool, onClose, onSave }) {
             </div>
 
             {/* Content */}
-            <div className="bg-white px-6 py-4 max-h-96 overflow-y-auto">
+            <div className="bg-white px-6 py-4 max-h-[70vh] overflow-y-auto">
               {error && (
                 <div className="mb-4 bg-red-50 border border-red-300 rounded-lg p-4">
                   <p className="text-red-800">{error}</p>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Basic Information */}
-                <div className="space-y-4">
-                  <h4 className="text-md font-medium text-gray-900">Basic Information</h4>
-
+              {/* Basic Information Section */}
+              <div className="mb-6">
+                <h4 className="text-md font-medium text-gray-900 mb-4">Basic Information</h4>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Tool Name *
@@ -208,30 +293,33 @@ export default function AIToolModal({ tool, onClose, onSave }) {
                       placeholder="Describe what this tool does and when to use it..."
                     />
                   </div>
-
-                  <div>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={formData.is_active}
-                        onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
-                        className="h-4 w-4 text-brand-purple focus:ring-brand-purple border-gray-300 rounded"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Tool is active</span>
-                    </label>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Inactive tools cannot be assigned to characters
-                    </p>
-                  </div>
                 </div>
 
-                {/* JSON Schema Editor */}
+                <div className="mt-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_active}
+                      onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                      className="h-4 w-4 text-brand-purple focus:ring-brand-purple border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Tool is active</span>
+                  </label>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Inactive tools cannot be assigned to characters
+                  </p>
+                </div>
+              </div>
+
+              {/* Schema Sections */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Argument Schema Editor */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-md font-medium text-gray-900">Argument Schema</h4>
+                    <h4 className="text-md font-medium text-gray-900">Argument Schema *</h4>
                     <div className="flex gap-2">
                       <select
-                        onChange={(e) => loadSchemaTemplate(e.target.value)}
+                        onChange={(e) => loadArgumentSchemaTemplate(e.target.value)}
                         className="text-xs px-2 py-1 border border-gray-300 rounded"
                         defaultValue=""
                       >
@@ -248,23 +336,23 @@ export default function AIToolModal({ tool, onClose, onSave }) {
                   <div>
                     <textarea
                       rows="12"
-                      value={schemaText}
-                      onChange={(e) => handleSchemaChange(e.target.value)}
+                      value={argumentSchemaText}
+                      onChange={(e) => handleArgumentSchemaChange(e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg font-mono text-xs focus:outline-none focus:ring-2 ${
-                        schemaError ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-brand-purple'
+                        argumentSchemaError ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-brand-purple'
                       }`}
                       placeholder="Enter JSON Schema..."
                     />
-                    {schemaError && (
-                      <p className="mt-1 text-xs text-red-600">{schemaError}</p>
+                    {argumentSchemaError && (
+                      <p className="mt-1 text-xs text-red-600">{argumentSchemaError}</p>
                     )}
                     <p className="mt-1 text-xs text-gray-500">
                       Valid JSON Schema defining the tool's input parameters
                     </p>
                   </div>
 
-                  {/* Schema Preview */}
-                  {!schemaError && formData.argument_schema && (
+                  {/* Argument Schema Preview */}
+                  {!argumentSchemaError && formData.argument_schema && (
                     <div className="bg-gray-50 rounded-lg p-3">
                       <h5 className="text-xs font-medium text-gray-700 mb-2">Schema Summary:</h5>
                       <div className="text-xs text-gray-600">
@@ -277,6 +365,74 @@ export default function AIToolModal({ tool, onClose, onSave }) {
                         {formData.argument_schema.required && (
                           <div>
                             Required: {formData.argument_schema.required.join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Response Schema Editor */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-md font-medium text-gray-900">Response Schema</h4>
+                    <div className="flex gap-2">
+                      <select
+                        onChange={(e) => loadResponseSchemaTemplate(e.target.value)}
+                        className="text-xs px-2 py-1 border border-gray-300 rounded"
+                        defaultValue=""
+                      >
+                        <option value="">Load Template...</option>
+                        {Object.entries(getSchemaTemplates()).map(([key, template]) => (
+                          <option key={key} value={key}>
+                            {template.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <textarea
+                      rows="12"
+                      value={responseSchemaText}
+                      onChange={(e) => handleResponseSchemaChange(e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg font-mono text-xs focus:outline-none focus:ring-2 ${
+                        responseSchemaError ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-brand-purple'
+                      }`}
+                      placeholder="Enter JSON Schema (optional)...
+Example:
+{
+  &quot;type&quot;: &quot;object&quot;,
+  &quot;properties&quot;: {
+    &quot;success&quot;: { &quot;type&quot;: &quot;boolean&quot; },
+    &quot;data&quot;: { &quot;type&quot;: &quot;object&quot; }
+  },
+  &quot;required&quot;: [&quot;success&quot;]
+}"
+                    />
+                    {responseSchemaError && (
+                      <p className="mt-1 text-xs text-red-600">{responseSchemaError}</p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500">
+                      Optional JSON Schema defining the tool's expected output structure
+                    </p>
+                  </div>
+
+                  {/* Response Schema Preview */}
+                  {!responseSchemaError && formData.response_schema && Object.keys(formData.response_schema).length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <h5 className="text-xs font-medium text-gray-700 mb-2">Response Schema Summary:</h5>
+                      <div className="text-xs text-gray-600">
+                        <div>Type: {formData.response_schema.type}</div>
+                        {formData.response_schema.properties && (
+                          <div>
+                            Fields: {Object.keys(formData.response_schema.properties).join(', ')}
+                          </div>
+                        )}
+                        {formData.response_schema.required && (
+                          <div>
+                            Required: {formData.response_schema.required.join(', ')}
                           </div>
                         )}
                       </div>
@@ -297,10 +453,10 @@ export default function AIToolModal({ tool, onClose, onSave }) {
               </button>
               <button
                 type="submit"
-                disabled={loading || !!schemaError || !formData.name.trim() || !formData.description.trim()}
+                disabled={loading || !!argumentSchemaError || !!responseSchemaError || !formData.name.trim() || !formData.description.trim()}
                 className="px-4 py-2 bg-brand-purple text-white rounded-lg hover:bg-brand-purple-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Saving...' : (tool ? 'Update Tool' : 'Create Tool')}
+                {loading ? 'Saving...' : (tool && tool.id ? 'Update Tool' : 'Create Tool')}
               </button>
             </div>
           </form>

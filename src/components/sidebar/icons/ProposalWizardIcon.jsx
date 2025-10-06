@@ -1,33 +1,39 @@
 import React from 'react';
 
-export default function ProposalWizardIcon({ className = "w-5 h-5", color = "currentColor" }) {
+export default function ProposalWizardIcon({ className = "w-6 h-6", color = "currentColor" }) {
   return (
-    <svg className={className} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M2.5 15L5.5 12L8.5 15L15.5 8"
+        d="M21 7V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V7C3 4 4.5 2 8 2H16C19.5 2 21 4 21 7Z"
         stroke={color}
         strokeWidth="1.5"
+        strokeMiterlimit="10"
         strokeLinecap="round"
         strokeLinejoin="round"
-        fill="none"
       />
       <path
-        d="M12.5 8H15.5V11"
+        d="M14.5 4.5V6.5C14.5 7.6 15.4 8.5 16.5 8.5H18.5"
         stroke={color}
         strokeWidth="1.5"
+        strokeMiterlimit="10"
         strokeLinecap="round"
         strokeLinejoin="round"
-        fill="none"
       />
-      <rect
-        x="1.5"
-        y="1.5"
-        width="17"
-        height="17"
-        rx="2"
+      <path
+        d="M8 13H12"
         stroke={color}
         strokeWidth="1.5"
-        fill="none"
+        strokeMiterlimit="10"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 17H16"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeMiterlimit="10"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

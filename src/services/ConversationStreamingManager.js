@@ -6,7 +6,6 @@ class ConversationStreamingManager {
   constructor(wsService) {
     this.wsService = wsService;
     this.conversations = new Map(); // conversationId -> conversation state
-    this.panelMapping = new Map();  // panelId -> conversationId (for UI routing)
     this.activeTrackingIds = new Map(); // conversationId -> trackingId (for cancellation)
     this.setupGlobalHandlers();
   }
@@ -18,25 +17,20 @@ class ConversationStreamingManager {
       return;
     }
 
+    // Counter for tracking invocations
+    this.streamingCompleteCount = 0;
+
     // Log all AI-related events for debugging
     socket.onAny((eventName, ...args) => {
       if (eventName.includes('ai_') || eventName.includes('tool_')) {
         console.log(`[ConversationManager] Event received: ${eventName}`, args[0]);
+
+        // Log FULL raw data for ai_streaming_complete events
+        if (eventName === 'ai_streaming_complete') {
+          console.log(`[ConversationManager] 🔍 RAW ai_streaming_complete data (invocation #${++this.streamingCompleteCount}):`,
+            JSON.stringify(args[0], null, 2));
+        }
       }
-    });
-
-    // Conversation created
-    socket.on('ai_conversation_started', (data) => {
-      console.log('[ConversationManager] 🆕 Conversation started:', {
-        conversation_id: data.conversation_id,
-        timestamp: new Date().toISOString()
-      });
-
-      this.updateConversation(data.conversation_id, {
-        conversationId: data.conversation_id,
-        isActive: true,
-        createdAt: data.timestamp || new Date().toISOString()
-      });
     });
 
     // AI processing started
@@ -94,12 +88,16 @@ class ConversationStreamingManager {
 
     // Streaming complete
     socket.on('ai_streaming_complete', (data) => {
-      console.log('[ConversationManager] ✅ Streaming complete:', {
+      console.log('[ConversationManager] ✅ Streaming complete (summary):', {
         conversation_id: data.conversation_id,
         tool_name: data.tool_name,
         has_structured: !!data.structured_analysis,
         content_type: data.content_type
       });
+
+      console.log('[ConversationManager] 🔍 FULL event data keys:', Object.keys(data));
+      console.log('[ConversationManager] 🔍 tool_name value:', data.tool_name);
+      console.log('[ConversationManager] 🔍 Does data have tool_name key?', 'tool_name' in data);
 
       this.updateConversation(data.conversation_id, {
         isStreaming: false,
@@ -331,24 +329,6 @@ class ConversationStreamingManager {
   }
 
   /**
-   * Map a panel ID to a conversation ID (for UI routing)
-   */
-  mapPanelToConversation(panelId, conversationId) {
-    console.log('[ConversationManager] 🔗 Mapping panel to conversation:', {
-      panelId,
-      conversationId
-    });
-    this.panelMapping.set(panelId, conversationId);
-  }
-
-  /**
-   * Get conversation ID for a panel
-   */
-  getConversationForPanel(panelId) {
-    return this.panelMapping.get(panelId);
-  }
-
-  /**
    * Get conversation state
    */
   getConversationState(conversationId) {
@@ -424,15 +404,6 @@ class ConversationStreamingManager {
    */
   clearConversation(conversationId) {
     console.log('[ConversationManager] 🗑️ Clearing conversation:', conversationId);
-
-    // Remove panel mappings for this conversation
-    for (const [panelId, convId] of this.panelMapping.entries()) {
-      if (convId === conversationId) {
-        this.panelMapping.delete(panelId);
-      }
-    }
-
-    // Remove conversation
     this.conversations.delete(conversationId);
   }
 
@@ -442,7 +413,6 @@ class ConversationStreamingManager {
   clearAll() {
     console.log('[ConversationManager] 🗑️ Clearing all conversations');
     this.conversations.clear();
-    this.panelMapping.clear();
   }
 }
 

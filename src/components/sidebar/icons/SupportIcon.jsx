@@ -1,28 +1,28 @@
 import React from 'react';
 
-export default function SupportIcon({ className = "w-5 h-5", color = "currentColor" }) {
+export default function SupportIcon({ className = "w-6 h-6", color = "currentColor" }) {
   return (
-    <svg className={className} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle
-        cx="10"
-        cy="10"
-        r="7.5"
-        stroke={color}
-        strokeWidth="1.5"
-        fill="none"
-      />
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M7.5 7.5C7.5 6.11929 8.61929 5 10 5C11.3807 5 12.5 6.11929 12.5 7.5C12.5 8.88071 11.3807 10 10 10V11"
+        d="M12 7.75V13"
         stroke={color}
         strokeWidth="1.5"
         strokeLinecap="round"
-        fill="none"
+        strokeLinejoin="round"
       />
-      <circle
-        cx="10"
-        cy="14"
-        r="0.5"
-        fill={color}
+      <path
+        d="M21.08 8.58003V15.42C21.08 16.54 20.48 17.58 19.51 18.15L13.57 21.58C12.6 22.14 11.4 22.14 10.42 21.58L4.47998 18.15C3.50998 17.59 2.90997 16.55 2.90997 15.42V8.58003C2.90997 7.46003 3.50998 6.41999 4.47998 5.84999L10.42 2.42C11.39 1.86 12.59 1.86 13.57 2.42L19.51 5.84999C20.48 6.41999 21.08 7.45003 21.08 8.58003Z"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 16.2V16.3"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

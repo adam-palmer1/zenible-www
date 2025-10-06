@@ -25,26 +25,26 @@ export default function SidebarNavItem({
       <button
         onClick={handleClick}
         className={`
-          w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors duration-150 text-left group
+          w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors duration-150 text-left group
           ${isActive
-            ? 'bg-[#F3F0FF] text-[#8B5CF6]'
-            : 'text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#374151]'
+            ? 'bg-[#F5F3FF] border border-[#8E51FF] text-[#09090B]'
+            : 'text-[#71717A] hover:bg-[#F9FAFB] hover:text-[#374151]'
           }
         `}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Icon
-            className="w-5 h-5 flex-shrink-0"
-            color={isActive ? '#8B5CF6' : 'currentColor'}
+            className="w-6 h-6 flex-shrink-0"
+            color={isActive ? '#8E51FF' : 'currentColor'}
           />
-          <span className={`text-sm font-medium ${isActive ? 'font-semibold' : ''}`}>
+          <span className="text-sm font-medium">
             {label}
           </span>
         </div>
 
         {hasChevron && (
           <ChevronRightIcon
-            className="w-4 h-4 flex-shrink-0 opacity-50 group-hover:opacity-70"
+            className="w-4 h-4 flex-shrink-0 opacity-50 group-hover:opacity-70 rotate-270"
             color="currentColor"
           />
         )}

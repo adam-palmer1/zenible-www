@@ -21,7 +21,7 @@ export const getCharacterTools = async (characterId) => {
   }
 
   try {
-    const response = await fetch(`${baseUrl}/api/v1/ai/characters/${characterId}/tools`, {
+    const response = await fetch(`${baseUrl}/api/v1/ai/characters/${characterId}/tools?include_questions=true`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

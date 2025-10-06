@@ -6,7 +6,11 @@
       "mcp__figma-dev-mode-mcp-server__get_screenshot",
       "WebFetch(domain:demo-api.zenible.com)",
       "Bash(curl:*)",
-      "mcp__figma-dev-mode-mcp-server__get_metadata"
+      "mcp__figma-dev-mode-mcp-server__get_metadata",
+      "Read(//tmp/**)",
+      "Bash(cat:*)",
+      "Bash(md5sum:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

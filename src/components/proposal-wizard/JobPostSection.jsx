@@ -30,6 +30,7 @@ Type: Fixed price project`;
     if (!jobPost && setJobPost) {
       setJobPost(defaultJobPost);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

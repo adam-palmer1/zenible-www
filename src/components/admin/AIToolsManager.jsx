@@ -60,6 +60,19 @@ export default function AIToolsManager() {
     setShowToolModal(true);
   };
 
+  const handleCloneTool = (tool) => {
+    // Create a clone of the tool with a new name and reset some fields
+    const clonedTool = {
+      ...tool,
+      name: `${tool.name} (Copy)`,
+      id: null, // Remove ID so it creates a new tool
+      created_at: null,
+      updated_at: null
+    };
+    setEditingTool(clonedTool);
+    setShowToolModal(true);
+  };
+
   const handleDeleteTool = async (tool) => {
     if (!confirm(`Are you sure you want to delete the tool "${tool.name}"? This action cannot be undone and will remove it from all characters.`)) {
       return;
@@ -281,10 +294,10 @@ export default function AIToolsManager() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 w-80">
-                        <div className={`text-sm truncate ${
+                      <td className="px-6 py-4">
+                        <div className={`text-sm w-80 truncate ${
                           darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
-                        }`}>
+                        }`} title={tool.description}>
                           {tool.description}
                         </div>
                       </td>
@@ -322,6 +335,16 @@ export default function AIToolsManager() {
                             }`}
                           >
                             Edit
+                          </button>
+                          <button
+                            onClick={() => handleCloneTool(tool)}
+                            className={`text-sm ${
+                              darkMode
+                                ? 'text-blue-400 hover:text-blue-300'
+                                : 'text-blue-600 hover:text-blue-800'
+                            }`}
+                          >
+                            Clone
                           </button>
                           <button
                             onClick={() => handleDeleteTool(tool)}

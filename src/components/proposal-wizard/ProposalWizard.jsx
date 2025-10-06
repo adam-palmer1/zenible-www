@@ -9,12 +9,14 @@ import AIFeedbackSection from './AIFeedbackSection';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useProposalAnalysis } from '../../hooks/useProposalAnalysis';
 import { WebSocketContext } from '../../contexts/WebSocketContext';
+import { useAuth } from '../../contexts/AuthContext';
 import aiCharacterAPI from '../../services/aiCharacterAPI';
 import userAPI from '../../services/userAPI';
 import { getCharacterTools } from '../../services/toolDiscoveryAPI';
 
 export default function ProposalWizard() {
   const { darkMode } = usePreferences();
+  const { isAdmin } = useAuth();
 
   // State
   const [selectedPlatform, setSelectedPlatform] = useState('');
@@ -33,6 +35,7 @@ export default function ProposalWizard() {
   const [isFollowUpStreaming, setIsFollowUpStreaming] = useState(false);
   const [followUpStreamingContent, setFollowUpStreamingContent] = useState('');
   const [characterTools, setCharacterTools] = useState(null);
+  const [analysisHistory, setAnalysisHistory] = useState([]);
 
   // History modal state
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -86,6 +89,8 @@ export default function ProposalWizard() {
     },
     onAnalysisComplete: (data) => {
       console.log('[ProposalWizard] Analysis complete:', data);
+
+      // Set current feedback
       setFeedback({
         isProcessing: false,
         analysis: data.analysis,
@@ -94,6 +99,28 @@ export default function ProposalWizard() {
         messageId: data.messageId,
         usage: data.usage,
         contentType: data.contentType
+      });
+
+      // Add to analysis history
+      const newAnalysis = {
+        role: 'assistant',
+        type: 'analysis',
+        content: data.analysis?.raw,
+        structured: data.analysis?.structured,
+        messageId: data.messageId,
+        usage: data.usage,
+        timestamp: new Date().toISOString()
+      };
+      console.log('[ProposalWizard] Adding analysis to history:', {
+        messageId: newAnalysis.messageId,
+        timestamp: newAnalysis.timestamp,
+        hasStructured: !!newAnalysis.structured
+      });
+      setAnalysisHistory(prev => {
+        console.log('[ProposalWizard] Previous history length:', prev.length);
+        const newHistory = [...prev, newAnalysis];
+        console.log('[ProposalWizard] New history length:', newHistory.length);
+        return newHistory;
       });
     },
     onStreamingChunk: (data) => {
@@ -309,9 +336,8 @@ export default function ProposalWizard() {
     console.log('[ProposalWizard] Starting proposal analysis...');
 
     try {
-      // Clear previous feedback and messages
+      // Clear previous analysis (keep follow-up messages - they're part of conversation)
       setFeedback(null);
-      setFollowUpMessages([]);
       setFollowUpStreamingContent('');
 
       // Send analysis request using the hook
@@ -350,14 +376,8 @@ export default function ProposalWizard() {
     try {
       console.log('[ProposalWizard] Sending follow-up message in conversation:', conversationId);
 
-      // Add user message to history
-      setFollowUpMessages(prev => [...prev, {
-        role: 'user',
-        content: message,
-        timestamp: new Date().toISOString()
-      }]);
-
       // Send message using the hook
+      // Note: User message is added to conversationHistory in AIFeedbackSection
       await sendFollowUp(message);
 
       console.log('[ProposalWizard] Follow-up message sent successfully');
@@ -596,6 +616,13 @@ export default function ProposalWizard() {
                 followUpMessages={followUpMessages}
                 isFollowUpStreaming={isFollowUpStreaming}
                 followUpStreamingContent={followUpStreamingContent}
+                completionQuestions={
+                  characterTools?.available_tools
+                    ?.find(t => t.name === 'analyze_proposal')
+                    ?.completion_questions || []
+                }
+                isAdmin={isAdmin}
+                analysisHistory={analysisHistory}
               />
             </div>
           </div>

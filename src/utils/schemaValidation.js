@@ -129,6 +129,24 @@ export function getSchemaTemplates() {
           }
         },
         required: ["input"]
+      },
+      responseSchema: {
+        type: "object",
+        properties: {
+          success: {
+            type: "boolean",
+            description: "Whether the operation was successful"
+          },
+          result: {
+            type: "string",
+            description: "The processed result"
+          },
+          message: {
+            type: "string",
+            description: "Human-readable message"
+          }
+        },
+        required: ["success", "result"]
       }
     },
 
@@ -158,6 +176,36 @@ export function getSchemaTemplates() {
           }
         },
         required: ["text"]
+      },
+      responseSchema: {
+        type: "object",
+        properties: {
+          success: {
+            type: "boolean",
+            description: "Whether the analysis was successful"
+          },
+          analysis: {
+            type: "object",
+            properties: {
+              sentiment: {
+                type: "object",
+                properties: {
+                  score: { type: "number" },
+                  label: { type: "string" }
+                }
+              },
+              keywords: {
+                type: "array",
+                items: { type: "string" }
+              }
+            }
+          },
+          message: {
+            type: "string",
+            description: "Human-readable message"
+          }
+        },
+        required: ["success", "analysis"]
       }
     },
 
@@ -182,6 +230,28 @@ export function getSchemaTemplates() {
           }
         },
         required: ["text", "target_language"]
+      },
+      responseSchema: {
+        type: "object",
+        properties: {
+          success: {
+            type: "boolean",
+            description: "Whether the translation was successful"
+          },
+          translated_text: {
+            type: "string",
+            description: "The translated text"
+          },
+          detected_language: {
+            type: "string",
+            description: "Auto-detected source language"
+          },
+          confidence: {
+            type: "number",
+            description: "Translation confidence score (0-1)"
+          }
+        },
+        required: ["success", "translated_text"]
       }
     },
 
@@ -208,6 +278,32 @@ export function getSchemaTemplates() {
           }
         },
         required: ["file_url", "operation"]
+      },
+      responseSchema: {
+        type: "object",
+        properties: {
+          success: {
+            type: "boolean",
+            description: "Whether the file processing was successful"
+          },
+          content: {
+            type: "string",
+            description: "The processed file content"
+          },
+          metadata: {
+            type: "object",
+            properties: {
+              file_size: { type: "number" },
+              file_type: { type: "string" },
+              pages: { type: "number" }
+            }
+          },
+          message: {
+            type: "string",
+            description: "Human-readable message"
+          }
+        },
+        required: ["success", "content"]
       }
     },
 
@@ -237,6 +333,32 @@ export function getSchemaTemplates() {
           }
         },
         required: ["endpoint"]
+      },
+      responseSchema: {
+        type: "object",
+        properties: {
+          success: {
+            type: "boolean",
+            description: "Whether the API call was successful"
+          },
+          status_code: {
+            type: "number",
+            description: "HTTP status code returned"
+          },
+          data: {
+            type: "object",
+            description: "Response data from the API"
+          },
+          headers: {
+            type: "object",
+            description: "Response headers"
+          },
+          error: {
+            type: "string",
+            description: "Error message if the call failed"
+          }
+        },
+        required: ["success", "status_code"]
       }
     }
   };

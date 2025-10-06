@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import WebSocketService from '../services/WebSocketService';
 import ConversationStreamingManager from '../services/ConversationStreamingManager';
 import StableWebSocketConnection from '../services/StableWebSocketConnection';
-import { MessageQueueManager, ErrorRecoveryManager } from '../services/MessageQueueManager';
 
 export const WebSocketContext = createContext(null);
 
@@ -17,13 +16,12 @@ export const WebSocketProvider = ({ children }) => {
     connectionQuality: 'poor'
   });
   const [connectionError, setConnectionError] = useState(null);
+  const [accessToken, setAccessToken] = useState(localStorage.getItem('access_token'));
 
   const navigate = useNavigate();
   const wsServiceRef = useRef(null);
   const conversationManagerRef = useRef(null);
   const stableConnectionRef = useRef(null);
-  const messageQueueRef = useRef(null);
-  const errorRecoveryRef = useRef(null);
   const healthIntervalRef = useRef(null);
   const initializationRef = useRef(false);
 
@@ -69,8 +67,6 @@ export const WebSocketProvider = ({ children }) => {
 
       console.log('[WebSocketContext] Creating support services');
       const stableConnection = new StableWebSocketConnection(wsService);
-      const messageQueue = new MessageQueueManager(wsService, conversationManager);
-      const errorRecovery = new ErrorRecoveryManager(wsService, stableConnection);
 
       // Set callbacks
       stableConnection.setCallbacks({
@@ -82,22 +78,9 @@ export const WebSocketProvider = ({ children }) => {
         }
       });
 
-      messageQueue.setCallbacks({
-        onMessageFailed: (message) => {
-        }
-      });
-
-      errorRecovery.setCallbacks({
-        onAuthFailure: () => {
-          navigate('/signin');
-        }
-      });
-
       wsServiceRef.current = wsService;
       conversationManagerRef.current = conversationManager;
       stableConnectionRef.current = stableConnection;
-      messageQueueRef.current = messageQueue;
-      errorRecoveryRef.current = errorRecovery;
 
       console.log('[WebSocketContext] All services initialized and stored in refs:', {
         hasWsService: !!wsServiceRef.current,
@@ -113,16 +96,58 @@ export const WebSocketProvider = ({ children }) => {
     } catch (error) {
       console.error('[WebSocketContext] Initialization error:', error);
       setConnectionError('Failed to connect to server');
-      errorRecoveryRef.current?.handleError('connection_error', error);
       initializationRef.current = false; // Allow retry
     }
   }, [navigate]);
+
+  // Monitor localStorage changes for access token
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'access_token') {
+        const newToken = e.newValue;
+        setAccessToken(newToken);
+
+        if (newToken && !initializationRef.current) {
+          console.log('[WebSocketContext] Token detected via storage event, initializing WebSocket');
+          initWebSocket();
+        } else if (!newToken && initializationRef.current) {
+          console.log('[WebSocketContext] Token removed via storage event, disconnecting WebSocket');
+          // Cleanup WebSocket when token is removed
+          if (healthIntervalRef.current) {
+            clearInterval(healthIntervalRef.current);
+          }
+          stableConnectionRef.current?.destroy();
+          wsServiceRef.current?.disconnect();
+          initializationRef.current = false;
+          setIsConnected(false);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [initWebSocket]);
+
+  // Check for token periodically (fallback for same-tab changes)
+  useEffect(() => {
+    const checkToken = () => {
+      const currentToken = localStorage.getItem('access_token');
+      if (currentToken !== accessToken) {
+        setAccessToken(currentToken);
+      }
+    };
+
+    const interval = setInterval(checkToken, 1000); // Check every second
+    return () => clearInterval(interval);
+  }, [accessToken]);
 
   useEffect(() => {
     console.log('[WebSocketContext] Main effect running');
 
     // Only initialize if we have an access token
-    const accessToken = localStorage.getItem('access_token');
     if (accessToken) {
       console.log('[WebSocketContext] Access token found, initializing WebSocket');
       initWebSocket();
@@ -140,12 +165,11 @@ export const WebSocketProvider = ({ children }) => {
       if (healthIntervalRef.current) {
         clearInterval(healthIntervalRef.current);
       }
-      messageQueueRef.current?.destroy();
       stableConnectionRef.current?.destroy();
       wsServiceRef.current?.disconnect();
       initializationRef.current = false;
     };
-  }, [initWebSocket]);
+  }, [accessToken, initWebSocket]);
 
   // Create a new conversation
   const createConversation = useCallback(async (characterId, feature = null, metadata = {}) => {
@@ -172,18 +196,7 @@ export const WebSocketProvider = ({ children }) => {
       throw new Error('WebSocket not initialized');
     }
 
-    try {
-      conversationManagerRef.current.sendMessage(conversationId, characterId, message);
-    } catch (error) {
-      // Queue message for retry
-      messageQueueRef.current?.enqueue({
-        conversationId,
-        characterId,
-        message,
-        maxAttempts: 3
-      });
-      throw error;
-    }
+    conversationManagerRef.current.sendMessage(conversationId, characterId, message);
   }, []);
 
   // Invoke a tool in a conversation
@@ -203,18 +216,6 @@ export const WebSocketProvider = ({ children }) => {
       console.error('[WebSocketContext] Failed to invoke tool:', error);
       throw error;
     }
-  }, []);
-
-  // Map a panel to a conversation for UI routing
-  const mapPanelToConversation = useCallback((panelId, conversationId) => {
-    if (!conversationManagerRef.current) return;
-    conversationManagerRef.current.mapPanelToConversation(panelId, conversationId);
-  }, []);
-
-  // Get conversation for a panel
-  const getConversationForPanel = useCallback((panelId) => {
-    if (!conversationManagerRef.current) return null;
-    return conversationManagerRef.current.getConversationForPanel(panelId);
   }, []);
 
   // Get conversation state
@@ -239,10 +240,6 @@ export const WebSocketProvider = ({ children }) => {
     await stableConnectionRef.current?.forceReconnect();
   }, []);
 
-  const getQueueSize = useCallback(() => {
-    return messageQueueRef.current?.getQueueSize() || 0;
-  }, []);
-
   const value = useMemo(() => ({
     isConnected,
     connectionHealth,
@@ -251,12 +248,9 @@ export const WebSocketProvider = ({ children }) => {
     sendMessage,
     invokeTool,
     cancelRequest,
-    mapPanelToConversation,
-    getConversationForPanel,
     getConversationState,
     onConversationEvent,
     reconnect,
-    getQueueSize,
     conversationManager: conversationManagerRef.current
   }), [
     isConnected,
@@ -266,12 +260,9 @@ export const WebSocketProvider = ({ children }) => {
     sendMessage,
     cancelRequest,
     invokeTool,
-    mapPanelToConversation,
-    getConversationForPanel,
     getConversationState,
     onConversationEvent,
-    reconnect,
-    getQueueSize
+    reconnect
   ]);
 
   return (

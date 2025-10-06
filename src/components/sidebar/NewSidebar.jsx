@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import SidebarHeader from './SidebarHeader';
 import SidebarNavItem from './SidebarNavItem';
+import SidebarNavItemWithSubmenu from './SidebarNavItemWithSubmenu';
 import UserProfileSection from './UserProfileSection';
 
 // Icons
@@ -35,8 +36,25 @@ export default function NewSidebar() {
       icon: ContentCreatorIcon,
       label: 'Content Creator',
       path: '/content-creator',
-      hasChevron: true,
-      isActive: location.pathname.startsWith('/content-creator')
+      hasSubmenu: true,
+      isActive: location.pathname.startsWith('/content-creator'),
+      submenuItems: [
+        {
+          label: 'Viral Post Generator',
+          path: '/content-creator/viral-post-generator',
+          isActive: location.pathname === '/content-creator/viral-post-generator'
+        },
+        {
+          label: 'Hook Generator',
+          path: '/content-creator/hook-generator',
+          isActive: location.pathname === '/content-creator/hook-generator'
+        },
+        {
+          label: 'Email Outreach',
+          path: '/content-creator/email-outreach',
+          isActive: location.pathname === '/content-creator/email-outreach'
+        }
+      ]
     },
     {
       icon: TrainingIcon,
@@ -76,31 +94,43 @@ export default function NewSidebar() {
   ];
 
   return (
-    <div className="fixed left-0 top-0 h-screen w-[280px] bg-[#FAFBFC] border-r border-[#E5E7EB] flex flex-col">
+    <div className="fixed left-0 top-0 h-screen w-[280px] bg-white border-r border-[#E5E7EB] flex flex-col">
       {/* Header */}
       <SidebarHeader />
 
       {/* Main Navigation */}
       <nav className="flex-1 flex flex-col">
-        <div className="flex-1">
-          <div className="space-y-1">
+        <div className="flex-1 pt-2 pb-3">
+          <div className="space-y-2">
             {mainNavItems.map((item, index) => (
-              <SidebarNavItem
-                key={index}
-                icon={item.icon}
-                label={item.label}
-                path={item.path}
-                isActive={item.isActive}
-                hasChevron={item.hasChevron}
-                onClick={item.onClick}
-              />
+              item.hasSubmenu ? (
+                <SidebarNavItemWithSubmenu
+                  key={index}
+                  icon={item.icon}
+                  label={item.label}
+                  path={item.path}
+                  isActive={item.isActive}
+                  submenuItems={item.submenuItems}
+                  onClick={item.onClick}
+                />
+              ) : (
+                <SidebarNavItem
+                  key={index}
+                  icon={item.icon}
+                  label={item.label}
+                  path={item.path}
+                  isActive={item.isActive}
+                  hasChevron={item.hasChevron}
+                  onClick={item.onClick}
+                />
+              )
             ))}
           </div>
         </div>
 
         {/* Bottom Navigation */}
-        <div className="pb-4">
-          <div className="space-y-1">
+        <div className="border-t border-[#E5E7EB] bg-white py-4">
+          <div className="space-y-2">
             {bottomNavItems.map((item, index) => (
               <SidebarNavItem
                 key={`bottom-${index}`}

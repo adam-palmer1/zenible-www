@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useRef, useContext } from 'react';
 import { WebSocketContext } from '../contexts/WebSocketContext';
 
 /**
- * Hook for proposal analysis using the new AI tools system
- * Handles the two-step flow: create conversation, then invoke tool
+ * Hook for viral post analysis using the new AI tools system
+ * Supports two tools:
+ * - linkedin_post_from_draft (Polish tab)
+ * - linkedin_strategy_from_topic_goal_audience (Strategy tab)
  */
-export function useProposalAnalysis({
+export function useViralPostAnalysis({
   characterId,
-  panelId = 'proposal_wizard',
+  panelId = 'viral_post_generator',
   onAnalysisStarted,
   onAnalysisComplete,
   onStreamingStarted,
@@ -24,6 +26,7 @@ export function useProposalAnalysis({
   const [error, setError] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [messageId, setMessageId] = useState(null);
+  const [currentTool, setCurrentTool] = useState(null);
 
   // Refs
   const isAnalyzingRef = useRef(false);
@@ -66,7 +69,7 @@ export function useProposalAnalysis({
   useEffect(() => {
     if (!conversationId || !conversationManager) return;
 
-    console.log('[useProposalAnalysis] Setting up event handlers for conversation:', conversationId);
+    console.log('[useViralPostAnalysis] Setting up event handlers for conversation:', conversationId);
 
     // Clear previous handlers
     unsubscribersRef.current.forEach(unsub => unsub());
@@ -76,14 +79,14 @@ export function useProposalAnalysis({
     const handlers = [
       // Handle streaming chunks
       onConversationEvent(conversationId, 'chunk', (data) => {
-        console.log('[useProposalAnalysis] Received chunk:', {
+        console.log('[useViralPostAnalysis] Received chunk:', {
           toolName: data.toolName,
           chunkLength: data.chunk?.length,
           chunkIndex: data.chunkIndex
         });
 
-        // Only handle proposal analysis tool chunks (not regular messages)
-        if (data.toolName === 'analyze_proposal') {
+        // Handle chunks from both viral post tools
+        if (data.toolName === 'linkedin_post_from_draft' || data.toolName === 'linkedin_strategy_from_topic_goal_audience') {
           setIsStreaming(true);
           isStreamingRef.current = true;
 
@@ -103,30 +106,24 @@ export function useProposalAnalysis({
 
       // Handle completion
       onConversationEvent(conversationId, 'complete', (data) => {
-        console.log('[useProposalAnalysis] Analysis complete:', {
+        console.log('[useViralPostAnalysis] Analysis complete:', {
           toolName: data.toolName,
           hasStructured: !!data.structuredAnalysis,
           contentType: data.contentType
         });
 
-        // Check if this is a proposal analysis response
-        if (data.toolName === 'analyze_proposal') {
+        // Check if this is a viral post tool response
+        if (data.toolName === 'linkedin_post_from_draft' || data.toolName === 'linkedin_strategy_from_topic_goal_audience') {
           setIsAnalyzing(false);
           isAnalyzingRef.current = false;
           setIsStreaming(false);
           isStreamingRef.current = false;
+
           // Set structured analysis if available
           let mappedStructuredAnalysis = null;
 
           if (data.structuredAnalysis) {
-            // Extract only the fields we need: score, strengths, weaknesses, improvements
-            mappedStructuredAnalysis = {
-              score: data.structuredAnalysis.score,
-              strengths: data.structuredAnalysis.strengths || [],
-              weaknesses: data.structuredAnalysis.weaknesses || [],
-              improvements: data.structuredAnalysis.improvements || []
-            };
-
+            mappedStructuredAnalysis = data.structuredAnalysis;
             setStructuredAnalysis(mappedStructuredAnalysis);
             setAnalysis({
               raw: data.fullResponse,
@@ -167,9 +164,9 @@ export function useProposalAnalysis({
 
       // Handle tool errors
       onConversationEvent(conversationId, 'tool_error', (data) => {
-        console.error('[useProposalAnalysis] Tool error:', data);
+        console.error('[useViralPostAnalysis] Tool error:', data);
 
-        if (data.toolName === 'analyze_proposal') {
+        if (data.toolName === 'linkedin_post_from_draft' || data.toolName === 'linkedin_strategy_from_topic_goal_audience') {
           setIsAnalyzing(false);
           isAnalyzingRef.current = false;
           setIsStreaming(false);
@@ -192,7 +189,7 @@ export function useProposalAnalysis({
 
       // Handle general errors
       onConversationEvent(conversationId, 'error', (data) => {
-        console.error('[useProposalAnalysis] General error:', data);
+        console.error('[useViralPostAnalysis] General error:', data);
 
         setIsAnalyzing(false);
         isAnalyzingRef.current = false;
@@ -214,20 +211,20 @@ export function useProposalAnalysis({
     };
   }, [conversationId, conversationManager, onConversationEvent]);
 
-  // Analyze proposal function
-  const analyzeProposal = useCallback(async (jobPost, proposal, platform = 'upwork', metadata = {}) => {
+  // Analyze from draft (Tab 1)
+  const analyzeFromDraft = useCallback(async (draftPost) => {
     if (!isConnected) {
       setError('Not connected to server');
       return null;
     }
 
     if (isAnalyzing) {
-      console.log('[useProposalAnalysis] Already analyzing');
+      console.log('[useViralPostAnalysis] Already analyzing');
       return null;
     }
 
-    // Reset analysis state (will be preserved in analysisHistory by parent component)
-    console.log('[useProposalAnalysis] Resetting analysis state for new analysis');
+    // Reset analysis state
+    console.log('[useViralPostAnalysis] Resetting analysis state for new analysis');
     setError(null);
     setAnalysis(null);
     setStructuredAnalysis(null);
@@ -237,23 +234,24 @@ export function useProposalAnalysis({
     isStreamingRef.current = false;
     setStreamingContent('');
     streamingContentRef.current = '';
+    setCurrentTool('linkedin_post_from_draft');
 
     try {
-      console.log('[useProposalAnalysis] Starting analysis...');
+      console.log('[useViralPostAnalysis] Starting draft analysis...');
       setIsAnalyzing(true);
       isAnalyzingRef.current = true;
 
       // Step 1: Create conversation if needed
       let convId = conversationId;
       if (!convId) {
-        console.log('[useProposalAnalysis] Creating new conversation...');
-        convId = await createConversation(characterId, 'proposal_wizard', {});
+        console.log('[useViralPostAnalysis] Creating new conversation...');
+        convId = await createConversation(characterId, panelId, {});
         setConversationId(convId);
-        console.log('[useProposalAnalysis] Conversation created:', convId);
+        console.log('[useViralPostAnalysis] Conversation created:', convId);
       }
 
-      // Step 2: Invoke the analyze_proposal tool
-      console.log('[useProposalAnalysis] Invoking analyze_proposal tool...');
+      // Step 2: Invoke the linkedin_post_from_draft tool
+      console.log('[useViralPostAnalysis] Invoking linkedin_post_from_draft tool...');
 
       if (callbacksRef.current.onAnalysisStarted) {
         callbacksRef.current.onAnalysisStarted({ conversationId: convId });
@@ -267,15 +265,13 @@ export function useProposalAnalysis({
       await invokeTool(
         convId,
         characterId,
-        'analyze_proposal',
+        'linkedin_post_from_draft',
         {
-          job_post: jobPost,
-          user_proposal: proposal || null,
-          platform: platform
+          draft_post: draftPost
         }
       );
 
-      console.log('[useProposalAnalysis] Tool invoked successfully');
+      console.log('[useViralPostAnalysis] Tool invoked successfully');
 
       if (callbacksRef.current.onStreamingStarted) {
         callbacksRef.current.onStreamingStarted({ conversationId: convId });
@@ -283,10 +279,10 @@ export function useProposalAnalysis({
 
       return convId;
     } catch (error) {
-      console.error('[useProposalAnalysis] Failed to analyze proposal:', error);
+      console.error('[useViralPostAnalysis] Failed to analyze draft:', error);
       setIsAnalyzing(false);
       isAnalyzingRef.current = false;
-      setError(error.message || 'Failed to analyze proposal');
+      setError(error.message || 'Failed to analyze draft post');
 
       if (callbacksRef.current.onError) {
         callbacksRef.current.onError({ error: error.message });
@@ -294,7 +290,90 @@ export function useProposalAnalysis({
 
       return null;
     }
-  }, [isConnected, isAnalyzing, conversationId, characterId, createConversation, invokeTool]);
+  }, [isConnected, isAnalyzing, conversationId, characterId, panelId, createConversation, invokeTool]);
+
+  // Analyze from strategy (Tab 2)
+  const analyzeFromStrategy = useCallback(async (topic, goal, audience) => {
+    if (!isConnected) {
+      setError('Not connected to server');
+      return null;
+    }
+
+    if (isAnalyzing) {
+      console.log('[useViralPostAnalysis] Already analyzing');
+      return null;
+    }
+
+    // Reset analysis state
+    console.log('[useViralPostAnalysis] Resetting analysis state for new analysis');
+    setError(null);
+    setAnalysis(null);
+    setStructuredAnalysis(null);
+    setMessageId(null);
+    setMetrics(null);
+    setIsStreaming(false);
+    isStreamingRef.current = false;
+    setStreamingContent('');
+    streamingContentRef.current = '';
+    setCurrentTool('linkedin_strategy_from_topic_goal_audience');
+
+    try {
+      console.log('[useViralPostAnalysis] Starting strategy analysis...');
+      setIsAnalyzing(true);
+      isAnalyzingRef.current = true;
+
+      // Step 1: Create conversation if needed
+      let convId = conversationId;
+      if (!convId) {
+        console.log('[useViralPostAnalysis] Creating new conversation...');
+        convId = await createConversation(characterId, panelId, {});
+        setConversationId(convId);
+        console.log('[useViralPostAnalysis] Conversation created:', convId);
+      }
+
+      // Step 2: Invoke the linkedin_strategy_from_topic_goal_audience tool
+      console.log('[useViralPostAnalysis] Invoking linkedin_strategy_from_topic_goal_audience tool...');
+
+      if (callbacksRef.current.onAnalysisStarted) {
+        callbacksRef.current.onAnalysisStarted({ conversationId: convId });
+      }
+
+      // Wait a moment for event handlers to be set up if conversation was just created
+      if (!conversationId) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      await invokeTool(
+        convId,
+        characterId,
+        'linkedin_strategy_from_topic_goal_audience',
+        {
+          topic: topic,
+          goal: goal,
+          audience: audience
+        }
+      );
+
+      console.log('[useViralPostAnalysis] Tool invoked successfully');
+
+      if (callbacksRef.current.onStreamingStarted) {
+        callbacksRef.current.onStreamingStarted({ conversationId: convId });
+      }
+
+      return convId;
+    } catch (error) {
+      console.error('[useViralPostAnalysis] Failed to analyze strategy:', error);
+      setIsAnalyzing(false);
+      isAnalyzingRef.current = false;
+      setError(error.message || 'Failed to analyze strategy');
+
+      if (callbacksRef.current.onError) {
+        callbacksRef.current.onError({ error: error.message });
+      }
+
+      return null;
+    }
+  }, [isConnected, isAnalyzing, conversationId, characterId, panelId, createConversation, invokeTool]);
 
   // Send follow-up message
   const sendFollowUpMessage = useCallback(async (message) => {
@@ -309,11 +388,11 @@ export function useProposalAnalysis({
     }
 
     try {
-      console.log('[useProposalAnalysis] Sending follow-up message...');
+      console.log('[useViralPostAnalysis] Sending follow-up message...');
       await sendMessage(conversationId, characterId, message);
       return conversationId;
     } catch (error) {
-      console.error('[useProposalAnalysis] Failed to send message:', error);
+      console.error('[useViralPostAnalysis] Failed to send message:', error);
       setError(error.message || 'Failed to send message');
       return null;
     }
@@ -337,6 +416,7 @@ export function useProposalAnalysis({
     setError(null);
     setMetrics(null);
     setMessageId(null);
+    setCurrentTool(null);
     // Don't reset conversationId - keep it for follow-ups
   }, [conversationId, cancelRequest]);
 
@@ -360,10 +440,12 @@ export function useProposalAnalysis({
     error,
     metrics,
     messageId,
+    currentTool,
     isConnected,
 
     // Functions
-    analyzeProposal,
+    analyzeFromDraft,
+    analyzeFromStrategy,
     sendFollowUpMessage,
     reset,
     clearConversation

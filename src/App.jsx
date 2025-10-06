@@ -12,6 +12,7 @@ import UserSettings from './components/UserSettings';
 import ProtectedDashboard from './components/ProtectedDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProposalWizard from './components/proposal-wizard/ProposalWizard';
+import ViralPostGenerator from './components/viral-post-generator/ViralPostGenerator';
 import Plans from './components/Plans';
 import Pricing from './components/pricing/PricingNew';
 
@@ -71,6 +72,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ProposalWizard />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'content-creator/viral-post-generator',
+        element: (
+          <ProtectedRoute>
+            <ViralPostGenerator />
           </ProtectedRoute>
         )
       },
