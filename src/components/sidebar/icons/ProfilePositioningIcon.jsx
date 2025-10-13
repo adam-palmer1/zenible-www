@@ -1,31 +1,31 @@
 import React from 'react';
 
-export default function ContentCreatorIcon({ className = "w-6 h-6", color = "currentColor" }) {
+export default function ProfilePositioningIcon({ className = "w-6 h-6", color = "currentColor" }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M16.75 9.12L14.9 7.27C14.2 6.57 13.24 6.61 12.77 7.35L11.74 8.98L15.03 12.27L16.66 11.24C17.37 10.8 17.41 9.77 16.75 9.12Z"
+        d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"
         stroke={color}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M11.74 8.98L9.35 8.84C8.01 8.76 7.55 9.17 7.4 10.44L6.8 15.51C6.67 16.58 7.44 17.34 8.51 17.22L13.58 16.62C14.85 16.47 15.31 16.01 15.18 14.67L15.04 12.28"
+        d="M20.5901 22C20.5901 18.13 16.7402 15 12.0002 15C7.26015 15 3.41016 18.13 3.41016 22"
         stroke={color}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M7.49 16.52L9.34 14.67"
+        d="M18 8L22 4"
         stroke={color}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z"
+        d="M22 8L18 4"
         stroke={color}
         strokeWidth="1.5"
         strokeLinecap="round"

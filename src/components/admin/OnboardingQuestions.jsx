@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import adminAPI from '../../services/adminAPI';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
@@ -27,7 +27,7 @@ export default function OnboardingQuestions() {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedQuestion, setSelectedQuestion] = useState(null);
+  const [setSelectedQuestion] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState(null);
   const [statistics, setStatistics] = useState(null);

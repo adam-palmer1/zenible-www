@@ -997,6 +997,123 @@ class AdminAPI {
       method: 'DELETE'
     });
   }
+
+  // Tips Management endpoints
+
+  /**
+   * Get all tips with pagination and filters
+   * @param {Object} params - Query parameters
+   * @param {number} params.page - Page number (≥1)
+   * @param {number} params.per_page - Items per page (1-100)
+   * @param {string} params.character_id - Filter by AI character ID
+   * @param {boolean} params.is_active - Filter by active status
+   * @param {string} params.search - Search in content
+   * @returns {Promise<Object>} Paginated tips list
+   */
+  async getTips(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/admin/tips/?${queryString}` : '/admin/tips/';
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  /**
+   * Get a specific tip by ID
+   * @param {string} tipId - Tip ID
+   * @returns {Promise<Object>} Tip object
+   */
+  async getTip(tipId) {
+    return this.request(`/admin/tips/${tipId}`, { method: 'GET' });
+  }
+
+  /**
+   * Create a new tip
+   * @param {Object} data - Tip data
+   * @param {string} data.content - Main tip content (required)
+   * @param {string} data.ai_character_id - AI Character ID (optional)
+   * @param {boolean} data.is_active - Whether tip is active (default: true)
+   * @param {number} data.priority - Priority 1-10 (default: 1)
+   * @returns {Promise<Object>} Created tip object
+   */
+  async createTip(data) {
+    return this.request('/admin/tips/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Update an existing tip
+   * @param {string} tipId - Tip ID
+   * @param {Object} data - Updated tip data
+   * @returns {Promise<Object>} Updated tip object
+   */
+  async updateTip(tipId, data) {
+    return this.request(`/admin/tips/${tipId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Delete a tip
+   * @param {string} tipId - Tip ID
+   * @returns {Promise<Object>} Deletion confirmation
+   */
+  async deleteTip(tipId) {
+    return this.request(`/admin/tips/${tipId}`, { method: 'DELETE' });
+  }
+
+  /**
+   * Bulk create tips
+   * @param {Array} tips - Array of tip objects to create
+   * @returns {Promise<Array>} Created tips
+   */
+  async bulkCreateTips(tips) {
+    return this.request('/admin/tips/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ tips }),
+    });
+  }
+
+  /**
+   * Perform bulk actions on tips
+   * @param {Object} data - Bulk action data
+   * @param {Array<string>} data.tip_ids - List of tip IDs
+   * @param {string} data.action - Action: activate, deactivate, delete, assign
+   * @param {string} data.ai_character_id - Required for assign action
+   * @returns {Promise<Object>} Action result
+   */
+  async bulkActionTips(data) {
+    return this.request('/admin/tips/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Get tips analytics
+   * @param {Object} params - Query parameters
+   * @param {number} params.days - Number of days to analyze (1-365, default: 30)
+   * @param {string} params.character_id - Filter by character ID
+   * @returns {Promise<Object>} Analytics data
+   */
+  async getTipsAnalytics(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/admin/tips/analytics?${queryString}` : '/admin/tips/analytics';
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  /**
+   * Get tips engagement statistics
+   * @param {Object} params - Query parameters
+   * @param {number} params.days - Number of days to analyze (1-365, default: 30)
+   * @returns {Promise<Object>} Engagement statistics
+   */
+  async getTipsEngagement(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/admin/tips/engagement?${queryString}` : '/admin/tips/engagement';
+    return this.request(endpoint, { method: 'GET' });
+  }
 }
 
 export const adminAPI = new AdminAPI();

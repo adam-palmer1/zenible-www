@@ -15,34 +15,55 @@ const navItems = [
     ),
   },
   {
-    id: 'users',
-    label: 'Users',
+    id: 'user-management',
+    label: 'User Management',
     path: '/admin/users',
+    hasSubmenu: true,
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
       </svg>
     ),
+    submenuItems: [
+      {
+        id: 'users',
+        label: 'Users',
+        path: '/admin/users',
+      },
+      {
+        id: 'subscriptions',
+        label: 'Subscriptions',
+        path: '/admin/subscriptions',
+      },
+      {
+        id: 'payments',
+        label: 'Payments',
+        path: '/admin/payments',
+      },
+    ],
   },
   {
-    id: 'plans',
-    label: 'Plans',
+    id: 'plan-management',
+    label: 'Plan Management',
     path: '/admin/plans',
+    hasSubmenu: true,
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
       </svg>
     ),
-  },
-  {
-    id: 'features',
-    label: 'Features',
-    path: '/admin/features',
-    icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-      </svg>
-    ),
+    submenuItems: [
+      {
+        id: 'plans',
+        label: 'Plans',
+        path: '/admin/plans',
+      },
+      {
+        id: 'features',
+        label: 'Features',
+        path: '/admin/features',
+      },
+    ],
   },
   {
     id: 'onboarding-questions',
@@ -55,75 +76,60 @@ const navItems = [
     ),
   },
   {
-    id: 'subscriptions',
-    label: 'Subscriptions',
-    path: '/admin/subscriptions',
-    icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'payments',
-    label: 'Payments',
-    path: '/admin/payments',
-    icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'ai-characters',
-    label: 'AI Characters',
+    id: 'character-management',
+    label: 'Character Management',
     path: '/admin/ai-characters',
+    hasSubmenu: true,
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
       </svg>
     ),
+    submenuItems: [
+      {
+        id: 'ai-characters',
+        label: 'AI Characters',
+        path: '/admin/ai-characters',
+      },
+      {
+        id: 'ai-models',
+        label: 'AI Models',
+        path: '/admin/ai-models',
+      },
+      {
+        id: 'ai-tools',
+        label: 'AI Tools',
+        path: '/admin/ai-tools',
+      },
+      {
+        id: 'tips',
+        label: 'Tips',
+        path: '/admin/tips',
+      },
+    ],
   },
   {
-    id: 'ai-models',
-    label: 'AI Models',
-    path: '/admin/ai-models',
-    icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'ai-tools',
-    label: 'AI Tools',
-    path: '/admin/ai-tools',
-    icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'threads',
-    label: 'Threads',
-    path: '/admin/threads',
-    icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'conversations',
-    label: 'Conversations',
+    id: 'conversation-management',
+    label: 'Conversation Management',
     path: '/admin/conversations',
+    hasSubmenu: true,
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
       </svg>
     ),
+    submenuItems: [
+      {
+        id: 'conversations',
+        label: 'Conversations',
+        path: '/admin/conversations',
+      },
+      {
+        id: 'threads',
+        label: 'Threads',
+        path: '/admin/threads',
+      },
+    ],
   },
   {
     id: 'audit',
@@ -135,12 +141,69 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    id: 'event-management',
+    label: 'Event Management',
+    path: '/admin/events',
+    hasSubmenu: true,
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    ),
+    submenuItems: [
+      {
+        id: 'events',
+        label: 'Events',
+        path: '/admin/events',
+      },
+      {
+        id: 'hosts',
+        label: 'Hosts',
+        path: '/admin/hosts',
+      },
+    ],
+  },
+  {
+    id: 'quiz-management',
+    label: 'Quiz Management',
+    path: '/admin/quizzes',
+    hasSubmenu: true,
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+      </svg>
+    ),
+    submenuItems: [
+      {
+        id: 'quizzes',
+        label: 'Quizzes',
+        path: '/admin/quizzes',
+      },
+      {
+        id: 'quiz-tags',
+        label: 'Quiz Tags',
+        path: '/admin/quiz-tags',
+      },
+    ],
+  },
+  {
+    id: 'course-management',
+    label: 'Course Management',
+    path: '/admin/courses',
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+      </svg>
+    ),
+  },
 ];
 
 export default function AdminSidebar() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState({});
   const dropdownRef = useRef(null);
 
   const isActive = (path) => {
@@ -152,6 +215,27 @@ export default function AdminSidebar() {
     }
     return false;
   };
+
+  const toggleSubmenu = (itemId) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
+
+  // Auto-expand submenu if a child item is active
+  React.useEffect(() => {
+    const newExpandedMenus = {};
+    navItems.forEach(item => {
+      if (item.hasSubmenu && item.submenuItems) {
+        const hasActiveChild = item.submenuItems.some(subItem => isActive(subItem.path));
+        if (hasActiveChild) {
+          newExpandedMenus[item.id] = true;
+        }
+      }
+    });
+    setExpandedMenus(prev => ({ ...prev, ...newExpandedMenus }));
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -186,31 +270,105 @@ export default function AdminSidebar() {
       {/* Main Navigation */}
       <nav className="flex-1 flex flex-col">
         <div className="flex-1">
-          <div className="space-y-1">
+          <div className="space-y-2">
             {navItems.map((item) => (
-              <div key={item.id} className="px-4">
-                <Link
-                  to={item.path}
-                  className={`
-                    w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors duration-150 text-left group
-                    ${isActive(item.path)
-                      ? 'bg-[#F3F0FF] text-[#8B5CF6]'
-                      : 'text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#374151]'
-                    }
-                  `}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="w-5 h-5 flex-shrink-0">
-                      {React.cloneElement(item.icon, {
-                        className: 'w-5 h-5 flex-shrink-0',
-                        color: isActive(item.path) ? '#8B5CF6' : 'currentColor'
-                      })}
-                    </span>
-                    <span className={`text-sm font-medium ${isActive(item.path) ? 'font-semibold' : ''}`}>
-                      {item.label}
-                    </span>
+              <div key={item.id}>
+                {/* Main Item */}
+                <div className="px-4">
+                  {item.hasSubmenu ? (
+                    <button
+                      onClick={() => toggleSubmenu(item.id)}
+                      className={`
+                        w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors duration-150 text-left group
+                        ${isActive(item.path) && !expandedMenus[item.id]
+                          ? 'bg-[#F5F3FF] border border-[#8B5CF6] text-[#09090B]'
+                          : 'text-[#71717A] hover:bg-[#F9FAFB] hover:text-[#374151]'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 flex-shrink-0">
+                          {React.cloneElement(item.icon, {
+                            className: 'w-6 h-6 flex-shrink-0',
+                            color: isActive(item.path) && !expandedMenus[item.id] ? '#8B5CF6' : '#71717A'
+                          })}
+                        </span>
+                        <span className="text-sm font-medium">
+                          {item.label}
+                        </span>
+                      </div>
+
+                      {expandedMenus[item.id] ? (
+                        <svg className="w-2.5 h-2.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      )}
+                    </button>
+                  ) : (
+                    <Link
+                      to={item.path}
+                      className={`
+                        w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors duration-150 text-left group
+                        ${isActive(item.path)
+                          ? 'bg-[#F5F3FF] border border-[#8B5CF6] text-[#09090B]'
+                          : 'text-[#71717A] hover:bg-[#F9FAFB] hover:text-[#374151]'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 flex-shrink-0">
+                          {React.cloneElement(item.icon, {
+                            className: 'w-6 h-6 flex-shrink-0',
+                            color: isActive(item.path) ? '#8B5CF6' : '#71717A'
+                          })}
+                        </span>
+                        <span className="text-sm font-medium">
+                          {item.label}
+                        </span>
+                      </div>
+                    </Link>
+                  )}
+                </div>
+
+                {/* Submenu Items */}
+                {item.hasSubmenu && expandedMenus[item.id] && item.submenuItems && (
+                  <div className="mt-2 space-y-2">
+                    {item.submenuItems.map((subItem) => (
+                      <div key={subItem.id} className="px-4">
+                        <Link
+                          to={subItem.path}
+                          className={`
+                            w-full flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors duration-150 text-left
+                            ${isActive(subItem.path)
+                              ? 'bg-[#F5F3FF] border border-[#8B5CF6] text-[#09090B]'
+                              : 'text-[#71717A] hover:bg-[#F9FAFB] hover:text-[#374151]'
+                            }
+                          `}
+                        >
+                          <svg
+                            className="w-6 h-6 flex-shrink-0"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <circle
+                              cx="12"
+                              cy="12"
+                              r="3"
+                              fill={isActive(subItem.path) ? '#8B5CF6' : '#71717A'}
+                            />
+                          </svg>
+                          <span className="text-sm font-medium">
+                            {subItem.label}
+                          </span>
+                        </Link>
+                      </div>
+                    ))}
                   </div>
-                </Link>
+                )}
               </div>
             ))}
           </div>

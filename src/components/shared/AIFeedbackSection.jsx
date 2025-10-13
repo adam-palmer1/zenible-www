@@ -1210,33 +1210,51 @@ export default function AIFeedbackSection({
                 </div>
               )}
 
-              {/* Completion Question Buttons - Stay with original analysis */}
-              {(displayContent || structuredAnalysis) &&
-               !analyzing &&
-               !isProcessing &&
-               !isStreaming &&
-               !feedback?.error &&
-               !questionsSent &&
-               completionQuestions.length > 0 && (
-                <div className="flex flex-col gap-1.5 sm:gap-2">
-                  {completionQuestions
-                    .sort((a, b) => a.order_index - b.order_index)
-                    .map((q) => (
-                      <button
-                        key={q.id}
-                        onClick={() => handleSuggestionClick(q.question_text)}
-                        disabled={isSendingMessage}
-                        className={`w-full h-8 sm:h-9 px-2 sm:px-3 py-1.5 sm:py-2 rounded-[10px] border font-inter font-medium text-xs sm:text-sm transition-colors text-left ${
-                          darkMode
-                            ? 'bg-[#3a3a3a] border-[#4a4a4a] text-white hover:bg-[#444444]'
-                            : 'bg-white border-zinc-100 text-zinc-950 hover:bg-gray-50'
-                        } ${isSendingMessage ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {q.question_text}
-                      </button>
-                    ))}
-                </div>
-              )}
+              {/* Completion Question Buttons - Show after any completed analysis */}
+              {(() => {
+                const hasCompletedAnalysis = messageId || analysisHistory.length > 0;
+                const shouldShow = hasCompletedAnalysis &&
+                  !analyzing &&
+                  !isProcessing &&
+                  !isStreaming &&
+                  !feedback?.error &&
+                  !questionsSent &&
+                  completionQuestions.length > 0;
+
+                console.log('[AIFeedbackSection] Dynamic questions render check:', {
+                  shouldShow,
+                  hasCompletedAnalysis,
+                  messageId,
+                  analysisHistoryLength: analysisHistory.length,
+                  analyzing,
+                  isProcessing,
+                  isStreaming,
+                  hasError: !!feedback?.error,
+                  questionsSent,
+                  questionsCount: completionQuestions.length
+                });
+
+                return shouldShow && (
+                  <div className="flex flex-col gap-1.5 sm:gap-2">
+                    {completionQuestions
+                      .sort((a, b) => a.order_index - b.order_index)
+                      .map((q) => (
+                        <button
+                          key={q.id}
+                          onClick={() => handleSuggestionClick(q.question_text)}
+                          disabled={isSendingMessage}
+                          className={`w-full h-8 sm:h-9 px-2 sm:px-3 py-1.5 sm:py-2 rounded-[10px] border font-inter font-medium text-xs sm:text-sm transition-colors text-left ${
+                            darkMode
+                              ? 'bg-[#3a3a3a] border-[#4a4a4a] text-white hover:bg-[#444444]'
+                              : 'bg-white border-zinc-100 text-zinc-950 hover:bg-gray-50'
+                          } ${isSendingMessage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {q.question_text}
+                        </button>
+                      ))}
+                  </div>
+                );
+              })()}
 
               {/* 4. Conversation History - Chat bubbles */}
               {renderConversationHistory()}
@@ -1259,7 +1277,7 @@ export default function AIFeedbackSection({
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask me about proposal writing..."
+            placeholder="Ask me a question..."
             disabled={analyzing || isProcessing || isSendingMessage}
             className={`flex-1 bg-transparent font-inter font-normal text-xs sm:text-sm outline-none min-w-0 ${
               darkMode

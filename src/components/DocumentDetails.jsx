@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
-import { apiHelpers } from '../config/api';
+import { useState } from 'react';
 
 export default function DocumentDetails({ document, collection, onBack, onDelete }) {
-  const [metadata, setMetadata] = useState(document.metadata || {});
+  const [metadata] = useState(document.metadata || {});
   const [showMetadata, setShowMetadata] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
   const [chunks, setChunks] = useState([]);
@@ -61,7 +60,7 @@ export default function DocumentDetails({ document, collection, onBack, onDelete
       }));
       setChunks(simulatedChunks);
       setShowChunks(true);
-    } catch (err) {
+    } catch {
       alert('Failed to load chunks');
     } finally {
       setLoadingChunks(false);
@@ -288,7 +287,7 @@ export default function DocumentDetails({ document, collection, onBack, onDelete
           
           {showChunks && chunks.length > 0 && (
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {chunks.map((chunk, index) => (
+              {chunks.map((chunk) => (
                 <div key={chunk.id} className="border border-gray-200 rounded p-3">
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-sm font-medium text-gray-700">

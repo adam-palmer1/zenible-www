@@ -9,8 +9,6 @@ export default function CollectionDetails({ collection, onBack, onUpdate, onDele
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [editMode, setEditMode] = useState(false);
-  const [showImageUpload, setShowImageUpload] = useState(false);
-  const [collectionData, setCollectionData] = useState(collection);
   const [editForm, setEditForm] = useState({
     full_name: collection.full_name || '',
     friendly_name: collection.friendly_name || '',
@@ -23,6 +21,7 @@ export default function CollectionDetails({ collection, onBack, onUpdate, onDele
 
   useEffect(() => {
     loadDocuments();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, collection.name]);
 
   const loadDocuments = async () => {
@@ -432,18 +431,6 @@ export default function CollectionDetails({ collection, onBack, onUpdate, onDele
           )}
         </div>
       </div>
-      
-      {/* Image upload modal - commented out until ImageUploadModal component is implemented
-      {showImageUpload && (
-        <ImageUploadModal
-          collectionId={collectionData.id}
-          onClose={() => setShowImageUpload(false)}
-          onSuccess={(imageData) => {
-            setCollectionData({...collectionData, image_data: imageData});
-            setShowImageUpload(false);
-          }}
-        />
-      )} */}
     </div>
   );
 }

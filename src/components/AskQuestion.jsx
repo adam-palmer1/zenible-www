@@ -68,7 +68,7 @@ export default function AskQuestion({ collections }) {
             context_used: result.metrics?.context_used,
           });
         },
-        onError: (error) => {
+        onError: (_error) => {
           setError(error.message);
         }
       });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import customizationAPI from '../services/customizationAPI';
 import { usePreferences } from '../contexts/PreferencesContext';
 
@@ -6,8 +6,7 @@ const CustomizationQuestions = ({
   onComplete = null,
   showProgress = true,
   autoSave = true,
-  className = '',
-  mode = 'settings' // 'settings', 'onboarding', 'modal'
+  className = ''
 }) => {
   const { darkMode } = usePreferences();
   const [questions, setQuestions] = useState([]);
@@ -17,7 +16,6 @@ const CustomizationQuestions = ({
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
-  const [completionStatus, setCompletionStatus] = useState(null);
   const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
@@ -81,14 +79,14 @@ const CustomizationQuestions = ({
             if (!regex.test(value)) {
               return 'Invalid format';
             }
-          } catch (e) {
+          } catch {
             console.error('Invalid regex:', rules.regex);
           }
         }
         break;
 
       case 'number':
-      case 'range':
+      case 'range': {
         const numValue = parseFloat(value);
         if (value && isNaN(numValue)) {
           return 'Must be a valid number';
@@ -100,6 +98,7 @@ const CustomizationQuestions = ({
           return `Maximum value is ${rules.max_value}`;
         }
         break;
+      }
 
       case 'url':
         if (value) {
@@ -173,7 +172,7 @@ const CustomizationQuestions = ({
 
       // Prepare answers for submission
       const answersToSubmit = Object.entries(answers)
-        .filter(([questionId, answer]) => answer !== undefined && answer !== '')
+        .filter(([, answer]) => answer !== undefined && answer !== '')
         .map(([question_id, answer]) => ({
           question_id,
           answer_text: String(answer), // Convert to string as backend expects
@@ -351,7 +350,7 @@ const CustomizationQuestions = ({
           />
         );
 
-      case 'range':
+      case 'range': {
         const min = question.validation_rules?.min_value || 0;
         const max = question.validation_rules?.max_value || 100;
         const step = question.validation_rules?.step || 1;
@@ -373,6 +372,7 @@ const CustomizationQuestions = ({
             </div>
           </div>
         );
+      }
 
       case 'date':
         return (
@@ -486,7 +486,7 @@ const CustomizationQuestions = ({
 
       {/* Questions */}
       <div className="space-y-6">
-        {questions.map((question, index) => (
+        {questions.map((question) => (
           <div key={question.id} className={`rounded-lg shadow p-6 ${
             darkMode ? 'bg-zenible-dark-card' : 'bg-white'
           }`}>

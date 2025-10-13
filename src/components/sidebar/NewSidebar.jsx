@@ -7,11 +7,12 @@ import UserProfileSection from './UserProfileSection';
 
 // Icons
 import DashboardIcon from './icons/DashboardIcon';
-import BusinessSchoolIcon from './icons/BusinessSchoolIcon';
-import ContentCreatorIcon from './icons/ContentCreatorIcon';
-import TrainingIcon from './icons/TrainingIcon';
+import FreelancerAcademyIcon from './icons/FreelancerAcademyIcon';
+import ProfilePositioningIcon from './icons/ProfilePositioningIcon';
+import ContentOutreachIcon from './icons/ContentOutreachIcon';
 import BoardroomIcon from './icons/BoardroomIcon';
 import ProposalWizardIcon from './icons/ProposalWizardIcon';
+import ProposalsIcon from './icons/ProposalsIcon';
 import SupportIcon from './icons/SupportIcon';
 import UpgradeIcon from './icons/UpgradeIcon';
 
@@ -26,15 +27,66 @@ export default function NewSidebar() {
       isActive: location.pathname === '/dashboard'
     },
     {
-      icon: BusinessSchoolIcon,
-      label: 'Business School',
-      path: '/business-school',
-      hasChevron: true,
-      isActive: location.pathname.startsWith('/business-school')
+      icon: FreelancerAcademyIcon,
+      label: 'Freelancer Academy',
+      path: '/freelancer-academy',
+      hasSubmenu: true,
+      isActive: location.pathname.startsWith('/freelancer-academy'),
+      submenuItems: [
+        {
+          label: 'Foundations',
+          path: '/freelancer-academy/foundations',
+          isActive: location.pathname === '/freelancer-academy/foundations'
+        },
+        {
+          label: 'Growth',
+          path: '/freelancer-academy/growth',
+          isActive: location.pathname === '/freelancer-academy/growth'
+        },
+        {
+          label: 'Advanced',
+          path: '/freelancer-academy/advanced',
+          isActive: location.pathname === '/freelancer-academy/advanced'
+        },
+        {
+          label: 'Quizzes',
+          path: '/freelancer-academy/quizzes',
+          isActive: location.pathname === '/freelancer-academy/quizzes'
+        },
+        {
+          label: 'Live Q&A',
+          path: '/freelancer-academy/live-qa',
+          isActive: location.pathname === '/freelancer-academy/live-qa'
+        },
+        {
+          label: 'The Library',
+          path: '/freelancer-academy/the-library',
+          isActive: location.pathname === '/freelancer-academy/the-library'
+        }
+      ]
     },
     {
-      icon: ContentCreatorIcon,
-      label: 'Content Creator',
+      icon: ProfilePositioningIcon,
+      label: 'Profile & Positioning',
+      path: '/profile-positioning',
+      hasSubmenu: true,
+      isActive: location.pathname.startsWith('/profile-positioning'),
+      submenuItems: [
+        {
+          label: 'Profile Analyzer',
+          path: '/profile-positioning/profile-analyzer',
+          isActive: location.pathname === '/profile-positioning/profile-analyzer'
+        },
+        {
+          label: 'Headline & Bio Optimizer',
+          path: '/profile-positioning/headline-bio-optimizer',
+          isActive: location.pathname === '/profile-positioning/headline-bio-optimizer'
+        }
+      ]
+    },
+    {
+      icon: ContentOutreachIcon,
+      label: 'Content & Outreach',
       path: '/content-creator',
       hasSubmenu: true,
       isActive: location.pathname.startsWith('/content-creator'),
@@ -48,32 +100,33 @@ export default function NewSidebar() {
           label: 'Hook Generator',
           path: '/content-creator/hook-generator',
           isActive: location.pathname === '/content-creator/hook-generator'
-        },
-        {
-          label: 'Email Outreach',
-          path: '/content-creator/email-outreach',
-          isActive: location.pathname === '/content-creator/email-outreach'
         }
       ]
     },
     {
-      icon: TrainingIcon,
-      label: 'Training',
-      path: '/training',
-      hasChevron: true,
-      isActive: location.pathname.startsWith('/training')
+      icon: ProposalsIcon,
+      label: 'Proposals',
+      path: '/proposals',
+      hasSubmenu: true,
+      isActive: location.pathname.startsWith('/proposals') || location.pathname.startsWith('/proposal-wizard'),
+      submenuItems: [
+        {
+          label: 'Proposal Wizard',
+          path: '/proposal-wizard',
+          isActive: location.pathname.startsWith('/proposal-wizard')
+        },
+        {
+          label: 'Winning Templates',
+          path: '/proposals/winning-templates',
+          isActive: location.pathname === '/proposals/winning-templates'
+        }
+      ]
     },
     {
       icon: BoardroomIcon,
       label: 'The Boardroom',
       path: '/boardroom',
       isActive: location.pathname.startsWith('/boardroom')
-    },
-    {
-      icon: ProposalWizardIcon,
-      label: 'Proposal Wizard',
-      path: '/proposal-wizard',
-      isActive: location.pathname.startsWith('/proposal-wizard')
     }
   ];
 

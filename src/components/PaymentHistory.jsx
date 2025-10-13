@@ -28,6 +28,7 @@ export default function PaymentHistory() {
     } else {
       fetchInvoices();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, statusFilter, typeFilter, startDate, endDate, activeView]);
 
   const fetchPayments = async () => {

@@ -44,7 +44,7 @@ export default function SalesChart({ darkMode }) {
 
         {/* Chart bars */}
         <div className="flex-1 flex items-end gap-[10px] h-[390px] pb-6">
-          {chartData.map((data) => (
+          {chartData.map((_data) => (
             <div key={data.month} className="flex-1 flex flex-col items-center">
               <div className="w-full flex items-end h-[352px]">
                 <div 

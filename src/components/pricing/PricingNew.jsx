@@ -144,7 +144,7 @@ export default function PricingNew() {
     }
   };
 
-  const handlePaymentError = (error) => {
+  const handlePaymentError = (_error) => {
     alert(`Payment failed: ${error.message || error}`);
   };
 

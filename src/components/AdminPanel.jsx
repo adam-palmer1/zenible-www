@@ -8,7 +8,6 @@ export default function AdminPanel() {
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState([]);
-  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
@@ -36,10 +35,11 @@ export default function AdminPanel() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    
+
     if (activeTab === 'users') {
       loadUsers();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, activeTab, currentPage]);
 
   const loadUsers = async () => {

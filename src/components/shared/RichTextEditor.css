@@ -1,0 +1,88 @@
+/* Rich Text Editor Styles */
+.rich-text-editor {
+  min-height: 200px;
+}
+
+.rich-text-editor .ql-container {
+  font-size: 14px;
+  min-height: 150px;
+}
+
+.rich-text-editor .ql-editor {
+  min-height: 150px;
+}
+
+/* Dark Mode Styles */
+.rich-text-editor.dark .ql-toolbar.ql-snow {
+  background-color: #1a1a1a;
+  border-color: #333;
+}
+
+.rich-text-editor.dark .ql-container.ql-snow {
+  background-color: #0a0a0a;
+  border-color: #333;
+}
+
+.rich-text-editor.dark .ql-editor {
+  color: #e5e5e5;
+}
+
+.rich-text-editor.dark .ql-editor.ql-blank::before {
+  color: #737373;
+}
+
+/* Dark mode toolbar buttons */
+.rich-text-editor.dark .ql-toolbar.ql-snow .ql-stroke {
+  stroke: #e5e5e5;
+}
+
+.rich-text-editor.dark .ql-toolbar.ql-snow .ql-fill {
+  fill: #e5e5e5;
+}
+
+.rich-text-editor.dark .ql-toolbar.ql-snow .ql-picker-label {
+  color: #e5e5e5;
+}
+
+.rich-text-editor.dark .ql-toolbar.ql-snow .ql-picker-options {
+  background-color: #1a1a1a;
+  border-color: #333;
+}
+
+.rich-text-editor.dark .ql-toolbar.ql-snow .ql-picker-item {
+  color: #e5e5e5;
+}
+
+.rich-text-editor.dark .ql-toolbar.ql-snow .ql-picker-item:hover {
+  background-color: #333;
+}
+
+/* Active state */
+.rich-text-editor.dark .ql-toolbar.ql-snow button:hover,
+.rich-text-editor.dark .ql-toolbar.ql-snow button:focus,
+.rich-text-editor.dark .ql-toolbar.ql-snow button.ql-active {
+  color: #8b5cf6;
+}
+
+.rich-text-editor.dark .ql-toolbar.ql-snow button:hover .ql-stroke,
+.rich-text-editor.dark .ql-toolbar.ql-snow button:focus .ql-stroke,
+.rich-text-editor.dark .ql-toolbar.ql-snow button.ql-active .ql-stroke {
+  stroke: #8b5cf6;
+}
+
+.rich-text-editor.dark .ql-toolbar.ql-snow button:hover .ql-fill,
+.rich-text-editor.dark .ql-toolbar.ql-snow button:focus .ql-fill,
+.rich-text-editor.dark .ql-toolbar.ql-snow button.ql-active .ql-fill {
+  fill: #8b5cf6;
+}
+
+/* Fix borders */
+.rich-text-editor.dark .ql-snow.ql-toolbar button,
+.rich-text-editor.dark .ql-snow .ql-toolbar button {
+  border: none;
+}
+
+.rich-text-editor.dark .ql-snow.ql-toolbar button:hover,
+.rich-text-editor.dark .ql-snow .ql-toolbar button:hover {
+  background-color: #333;
+}

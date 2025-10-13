@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 
 export default function JobPostSection({ darkMode, jobPost, setJobPost }) {
   const defaultJobPost = `React Native Mobile App Developer Needed

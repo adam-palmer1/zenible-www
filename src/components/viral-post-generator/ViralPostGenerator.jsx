@@ -3,7 +3,7 @@ import NewSidebar from '../sidebar/NewSidebar';
 import DraftPostSection from './DraftPostSection';
 import StrategyInputSection from './StrategyInputSection';
 import PlatformContentOptions from './PlatformContentOptions';
-import AIFeedbackSection from './AIFeedbackSection';
+import AIFeedbackSection from '../shared/AIFeedbackSection';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useViralPostAnalysis } from '../../hooks/useViralPostAnalysis';
 import { WebSocketContext } from '../../contexts/WebSocketContext';

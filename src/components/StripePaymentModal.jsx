@@ -9,6 +9,7 @@ import {
   useElements
 } from '@stripe/react-stripe-js';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useAuth } from '../contexts/AuthContext';
 
 // Import SVG assets
 import shieldIcon from '../assets/payment-modal/shield-icon.svg';
@@ -29,29 +30,12 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError, onCan
   const stripe = useStripe();
   const elements = useElements();
   const { darkMode } = usePreferences();
+  const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [cardError, setCardError] = useState(null);
-  const [email, setEmail] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [nameError, setNameError] = useState('');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-
-    // Validate email and name
-    if (!email) {
-      setEmailError('Email is required');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setEmailError('Please enter a valid email');
-      return;
-    }
-    if (!fullName) {
-      setNameError('Full name is required');
-      return;
-    }
 
     if (!stripe || !elements) {
       return;
@@ -63,13 +47,13 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError, onCan
     const cardNumber = elements.getElement(CardNumberElement);
 
     try {
-      // Create payment method
+      // Create payment method using existing user data
       const { error, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
         card: cardNumber,
         billing_details: {
-          email: email,
-          name: fullName,
+          email: user?.email,
+          name: user?.full_name || user?.name,
         },
       });
 
@@ -130,59 +114,8 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError, onCan
           </div>
         </div>
 
-        {/* Contact Info Section */}
+        {/* Payment Information Section */}
         <div className="p-4 space-y-4">
-          <div>
-            <label className={`block text-sm font-medium mb-2 px-1 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-              Contact info
-            </label>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setEmailError('');
-                  }}
-                  placeholder="Email Address"
-                  className={`w-full px-4 py-3 rounded-[10px] border-[1.5px] ${
-                    emailError
-                      ? 'border-red-500'
-                      : darkMode
-                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text placeholder-zenible-dark-text-secondary'
-                      : 'bg-white border-neutral-200 text-zinc-950 placeholder-zinc-400'
-                  } focus:outline-none focus:ring-2 focus:ring-zenible-primary`}
-                />
-                {emailError && (
-                  <p className="text-xs text-red-500 mt-1 px-1">{emailError}</p>
-                )}
-              </div>
-              <div>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => {
-                    setFullName(e.target.value);
-                    setNameError('');
-                  }}
-                  placeholder="Full Name"
-                  className={`w-full px-4 py-3 rounded-[10px] border-[1.5px] ${
-                    nameError
-                      ? 'border-red-500'
-                      : darkMode
-                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text placeholder-zenible-dark-text-secondary'
-                      : 'bg-white border-neutral-200 text-zinc-950 placeholder-zinc-400'
-                  } focus:outline-none focus:ring-2 focus:ring-zenible-primary`}
-                />
-                {nameError && (
-                  <p className="text-xs text-red-500 mt-1 px-1">{nameError}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Payment Information Section */}
           <div>
             <div className="flex items-center justify-between mb-2 px-1">
               <label className={`text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>

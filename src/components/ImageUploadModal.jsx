@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { apiHelpers } from '../config/api';
 
 export default function ImageUploadModal({ collectionId, onClose, onSuccess }) {

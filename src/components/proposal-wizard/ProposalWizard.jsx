@@ -5,7 +5,7 @@ import NewSidebar from '../sidebar/NewSidebar';
 import PlatformSelector from './PlatformSelector';
 import JobPostSection from './JobPostSection';
 import ProposalInput from './ProposalInput';
-import AIFeedbackSection from './AIFeedbackSection';
+import AIFeedbackSection from '../shared/AIFeedbackSection';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useProposalAnalysis } from '../../hooks/useProposalAnalysis';
 import { WebSocketContext } from '../../contexts/WebSocketContext';

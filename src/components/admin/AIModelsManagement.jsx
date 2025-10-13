@@ -15,7 +15,7 @@ export default function AIModelsManagement() {
 
   // Pagination
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(20);
+  const [perPage] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
 
   // Filters

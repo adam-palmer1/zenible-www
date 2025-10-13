@@ -18,7 +18,7 @@ export default function AICharacterManagement() {
 
   // Available Tools state
   const [availableTools, setAvailableTools] = useState([]);
-  const [toolsLoading, setToolsLoading] = useState(false);
+  const [setToolsLoading] = useState(false);
 
   // Modal states
   const [showCharacterModal, setShowCharacterModal] = useState(false);
@@ -40,7 +40,7 @@ export default function AICharacterManagement() {
   const [statusFilter, setStatusFilter] = useState('');
 
   // Sync status
-  const [syncStatus, setSyncStatus] = useState({});
+  const [setSyncStatus] = useState({});
   const [syncing, setSyncing] = useState({});
 
   // Field selector states
@@ -476,7 +476,7 @@ export default function AICharacterManagement() {
     setShowCharacterModal(true);
   };
 
-  const handleEditCharacter = (character) => {
+  const handleEditCharacter = (_character) => {
     console.log('=== handleEditCharacter called ===');
     console.log('Character data:', character);
     console.log('Backend provider:', character.backend_provider);
@@ -521,7 +521,7 @@ export default function AICharacterManagement() {
     setShowCharacterModal(true);
   };
 
-  const handleCloneCharacter = (character) => {
+  const handleCloneCharacter = (_character) => {
     console.log('=== handleCloneCharacter called ===');
     console.log('Cloning character:', character);
 
@@ -720,7 +720,7 @@ export default function AICharacterManagement() {
     }
   };
 
-  const handleShowSyncModal = (character) => {
+  const handleShowSyncModal = (_character) => {
     setSyncingCharacter(character);
     setShowSyncModal(true);
   };
@@ -1220,7 +1220,7 @@ export default function AICharacterManagement() {
               <tbody className={`divide-y ${
                 darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'
               }`}>
-                {Array.isArray(characters) && characters.map((character) => (
+                {Array.isArray(characters) && characters.map((_character) => (
                   <tr key={character.id} className={`${
                     darkMode ? 'hover:bg-zenible-dark-bg' : 'hover:bg-gray-50'
                   } transition-colors`}>

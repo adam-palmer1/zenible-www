@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useNavigate } from 'react-router-dom';
-import ZenibleDashboard from './zenible-dashboard/ZenibleDashboard';
+import NewZenibleDashboard from './zenible-dashboard/NewZenibleDashboard';
 import OnboardingModal from './OnboardingModal';
 
 export default function ProtectedDashboard() {
@@ -75,7 +75,7 @@ export default function ProtectedDashboard() {
   // User is authenticated, show the dashboard
   return (
     <>
-      <ZenibleDashboard />
+      <NewZenibleDashboard />
       <OnboardingModal
         isOpen={showOnboarding}
         onClose={() => setShowOnboarding(false)}

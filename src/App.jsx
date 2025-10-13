@@ -13,6 +13,15 @@ import ProtectedDashboard from './components/ProtectedDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProposalWizard from './components/proposal-wizard/ProposalWizard';
 import ViralPostGenerator from './components/viral-post-generator/ViralPostGenerator';
+import Boardroom from './components/boardroom/Boardroom';
+import LiveQA from './components/live-qa/LiveQA';
+import KnowledgeQuizzes from './components/quizzes/KnowledgeQuizzes';
+import QuizAttemptPage from './components/quizzes/QuizAttemptPage';
+import QuizResultsPage from './components/quizzes/QuizResultsPage';
+import QuizHistoryPage from './components/quizzes/QuizHistoryPage';
+import CoursesComponent from './components/courses/CoursesComponent';
+import CourseDiscovery from './components/courses/CourseDiscovery';
+import LearningDashboard from './components/courses/LearningDashboard';
 import Plans from './components/Plans';
 import Pricing from './components/pricing/PricingNew';
 
@@ -32,6 +41,12 @@ import AIModelsManagement from './components/admin/AIModelsManagement';
 import ConversationManagement from './components/admin/ConversationManagement';
 import OnboardingQuestions from './components/admin/OnboardingQuestions';
 import AIToolsManager from './components/admin/AIToolsManager';
+import TipsManagement from './components/admin/TipsManagement';
+import EventsManagement from './components/admin/EventsManagement';
+import HostsManagement from './components/admin/HostsManagement';
+import QuizzesManagement from './components/admin/QuizzesManagement';
+import QuizTagsManagement from './components/admin/QuizTagsManagement';
+import CourseManagement from './components/admin/CourseManagement';
 
 // Root layout component with WebSocket provider
 function RootLayout() {
@@ -80,6 +95,102 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ViralPostGenerator />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'boardroom',
+        element: (
+          <ProtectedRoute>
+            <Boardroom />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'freelancer-academy/live-qa',
+        element: (
+          <ProtectedRoute>
+            <LiveQA />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'freelancer-academy/quizzes',
+        element: (
+          <ProtectedRoute>
+            <KnowledgeQuizzes />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'freelancer-academy/quizzes/:attemptId/take',
+        element: (
+          <ProtectedRoute>
+            <QuizAttemptPage />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'freelancer-academy/quizzes/:attemptId/results',
+        element: (
+          <ProtectedRoute>
+            <QuizResultsPage />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'freelancer-academy/quizzes/history',
+        element: (
+          <ProtectedRoute>
+            <QuizHistoryPage />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'freelancer-academy/courses',
+        element: (
+          <ProtectedRoute>
+            <CourseDiscovery />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'freelancer-academy/my-learning',
+        element: (
+          <ProtectedRoute>
+            <LearningDashboard />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'freelancer-academy/courses/:courseId',
+        element: (
+          <ProtectedRoute>
+            <CoursesComponent />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'freelancer-academy/foundations',
+        element: (
+          <ProtectedRoute>
+            <CoursesComponent courseCategory="Foundations" />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'freelancer-academy/growth',
+        element: (
+          <ProtectedRoute>
+            <CoursesComponent courseCategory="Growth" />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'freelancer-academy/advanced',
+        element: (
+          <ProtectedRoute>
+            <CoursesComponent courseCategory="Advanced" />
           </ProtectedRoute>
         )
       },
@@ -158,6 +269,30 @@ const router = createBrowserRouter([
           {
             path: 'ai-tools',
             element: <AIToolsManager />
+          },
+          {
+            path: 'tips',
+            element: <TipsManagement />
+          },
+          {
+            path: 'events',
+            element: <EventsManagement />
+          },
+          {
+            path: 'hosts',
+            element: <HostsManagement />
+          },
+          {
+            path: 'quizzes',
+            element: <QuizzesManagement />
+          },
+          {
+            path: 'quiz-tags',
+            element: <QuizTagsManagement />
+          },
+          {
+            path: 'courses',
+            element: <CourseManagement />
           }
         ]
       },

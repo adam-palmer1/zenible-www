@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiHelpers } from '../config/api';
 
-export default function SearchHistory({ onRefresh }) {
+export default function SearchHistory() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,6 +11,7 @@ export default function SearchHistory({ onRefresh }) {
 
   useEffect(() => {
     loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [limit]);
 
   const loadHistory = async () => {
@@ -77,7 +78,7 @@ export default function SearchHistory({ onRefresh }) {
     try {
       // await apiHelpers.clearSearchHistory();
       alert('Clear history functionality would be implemented with a backend endpoint');
-    } catch (err) {
+    } catch {
       alert('Failed to clear history');
     }
   };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePreferences } from '../contexts/PreferencesContext';
 import customizationAPI from '../services/customizationAPI';
 
@@ -7,10 +7,9 @@ const sparkleIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg
 const profileIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z' stroke='%238e51ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M20.5901 22C20.5901 18.13 16.7402 15 12.0002 15C7.26015 15 3.41016 18.13 3.41016 22' stroke='%238e51ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
 const briefcaseIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M8 21V7C8 5.895 8.895 5 10 5H14C15.105 5 16 5.895 16 7V21M5 21H19C20.105 21 21 20.105 21 19V11C21 9.895 20.105 9 19 9H5C3.895 9 3 9.895 3 11V19C3 20.105 3.895 21 5 21Z' stroke='%238e51ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
 const awardIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M12 15C15.866 15 19 11.866 19 8C19 4.13401 15.866 1 12 1C8.13401 1 5 4.13401 5 8C5 11.866 8.13401 15 12 15Z' stroke='%238e51ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M8.21 13.89L7 23L12 20L17 23L15.79 13.88' stroke='%238e51ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
-const checkIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M20 6L9 17L4 12' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
 
 export default function OnboardingModal({ isOpen, onClose }) {
-  const { darkMode, updatePreference, getPreference, reloadPreferences } = usePreferences();
+  const { darkMode, updatePreference, reloadPreferences } = usePreferences();
   const [currentStep, setCurrentStep] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showCompletion, setShowCompletion] = useState(false);
@@ -67,7 +66,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
             } else if (question.question_type === 'multi_select') {
               try {
                 answerValue = JSON.parse(answerValue);
-              } catch (e) {
+              } catch {
                 // If parsing fails, treat as single value array
                 answerValue = answerValue ? [answerValue] : [];
               }
@@ -166,7 +165,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
         await updatePreference('onboarding_reminder_date', null, 'user');
         await reloadPreferences();
         onClose();
-      } catch (err) {
+      } catch {
         setError('Failed to complete setup. Please try again.');
       } finally {
         setSaving(false);
@@ -190,7 +189,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
         // Show completion page after last question
         setShowCompletion(true);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to save answers. Please try again.');
     } finally {
       setSaving(false);
@@ -260,7 +259,6 @@ export default function OnboardingModal({ isOpen, onClose }) {
     const value = answers[question.id] || '';
     const error = validationErrors[question.id];
     const placeholder = question.metadata?.placeholder || question.placeholder || 'Enter your answer...';
-    const helpText = question.metadata?.help_text || question.help_text;
 
     switch (question.question_type) {
       case 'short_text':
@@ -297,7 +295,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
           />
         );
 
-      case 'single_select':
+      case 'single_select': {
         const options = question.metadata?.options || [];
         return (
           <select
@@ -319,8 +317,9 @@ export default function OnboardingModal({ isOpen, onClose }) {
             ))}
           </select>
         );
+      }
 
-      case 'multi_select':
+      case 'multi_select': {
         const multiOptions = question.metadata?.options || [];
         const selectedValues = value ? (Array.isArray(value) ? value : [value]) : [];
 
@@ -361,6 +360,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
             })}
           </div>
         );
+      }
 
       case 'boolean':
         return (
@@ -430,12 +430,9 @@ export default function OnboardingModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const totalPages = getTotalPages();
   const maxQuestionPage = questions.length ? Math.max(...questions.map(q => q.page_number || 1)) : 0;
   const currentDisplayStep = showWelcome ? 1 : showCompletion ? maxQuestionPage + 1 : currentStep + 1;
   const totalDisplaySteps = questions.length ? maxQuestionPage + 1 : 1; // +1 for welcome page
-  const isLastPage = !showWelcome && currentStep === maxQuestionPage;
-  const isFirstPage = showWelcome;
   const pageQuestions = getCurrentPageQuestions();
 
   return (

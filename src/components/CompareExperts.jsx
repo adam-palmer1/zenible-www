@@ -42,9 +42,9 @@ export default function CompareExperts({ collections }) {
 
   const handleCompareExperts = async (e) => {
     e.preventDefault();
-    
+
     const validExperts = Object.fromEntries(
-      Object.entries(selectedExperts).filter(([name, collection]) => collection !== '')
+      Object.entries(selectedExperts).filter(([, collection]) => collection !== '')
     );
 
     if (!question.trim() || Object.keys(validExperts).length < 2) {
@@ -92,7 +92,7 @@ export default function CompareExperts({ collections }) {
   };
 
   const validExperts = Object.fromEntries(
-    Object.entries(selectedExperts).filter(([name, collection]) => collection !== '')
+    Object.entries(selectedExperts).filter(([, collection]) => collection !== '')
   );
 
   return (

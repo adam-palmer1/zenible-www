@@ -10,7 +10,10 @@
       "Read(//tmp/**)",
       "Bash(cat:*)",
       "Bash(md5sum:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(for file in /home/zenible/zenible-web/src/components/proposal-wizard/*.jsx /home/zenible/zenible-web/src/components/viral-post-generator/*.jsx)",
+      "Bash(wc:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

@@ -5,7 +5,7 @@ import AdminRoute from './AdminRoute';
 import { usePreferences } from '../../contexts/PreferencesContext';
 
 export default function AdminLayout() {
-  const { darkMode, toggleDarkMode } = usePreferences();
+  const { darkMode } = usePreferences();
 
   return (
     <AdminRoute>
