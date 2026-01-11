@@ -98,9 +98,12 @@ class PlanAPI {
         throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log('getCurrentSubscription response:', data);
+      return data;
     } catch (error) {
       console.error('Failed to fetch current subscription:', error);
+      console.error('Error details:', error.message);
       return null;
     }
   }

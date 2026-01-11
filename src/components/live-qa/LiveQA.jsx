@@ -148,7 +148,7 @@ export default function LiveQA() {
       <NewSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col ml-[280px]">
+      <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
         {/* Page Header */}
         <div
           className={`border-b border-solid ${

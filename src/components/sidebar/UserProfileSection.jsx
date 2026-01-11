@@ -101,12 +101,6 @@ export default function UserProfileSection() {
       {/* Dropdown Menu */}
       {showDropdown && (
         <div className="absolute bottom-full left-4 right-4 mb-2 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-2 z-50 min-w-max">
-          <button
-            onClick={handleSettings}
-            className="w-full text-left px-4 py-2 text-sm text-[#374151] hover:bg-[#F9FAFB] transition-colors"
-          >
-            Settings
-          </button>
           {isAdmin && (
             <button
               onClick={handleAdminSettings}
@@ -115,7 +109,7 @@ export default function UserProfileSection() {
               Admin Settings
             </button>
           )}
-          <div className="border-t border-[#E5E7EB] my-1"></div>
+          {isAdmin && <div className="border-t border-[#E5E7EB] my-1"></div>}
           <button
             onClick={handleLogout}
             className="w-full text-left px-4 py-2 text-sm text-[#DC2626] hover:bg-[#FEF2F2] transition-colors"

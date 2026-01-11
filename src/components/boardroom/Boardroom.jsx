@@ -59,7 +59,7 @@ export default function Boardroom() {
         <NewSidebar />
 
         {/* Main Content Area with Expert Sidebar and Boardroom */}
-        <div className="flex-1 flex ml-[280px]">
+        <div className="flex-1 flex transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
           <div className="flex-1 flex p-4 gap-3.5">
             {/* Expert Sidebar */}
             <ExpertSidebar

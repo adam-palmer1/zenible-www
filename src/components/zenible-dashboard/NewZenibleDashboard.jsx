@@ -1,6 +1,7 @@
 import React from 'react';
 import NewSidebar from '../sidebar/NewSidebar';
 import TipOfTheDay from '../TipOfTheDay';
+import CurrentProjectsWidget from './CurrentProjectsWidget';
 import avatarImg from '../../assets/icons/dashboard/avatar.png';
 import checkIcon from '../../assets/icons/dashboard/check.svg';
 import mainIcon from '../../assets/icons/dashboard/icon.svg';
@@ -44,7 +45,7 @@ export default function NewZenibleDashboard() {
       <NewSidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-[280px] content-stretch flex flex-col items-start relative size-full">
+      <div className="flex-1 content-stretch flex flex-col items-start relative size-full transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
         {/* Welcome Header */}
         <div className="box-border content-stretch flex flex-col gap-[4px] items-start not-italic p-[16px] relative shrink-0 text-nowrap w-full whitespace-pre">
           <p className="font-['Inter'] font-semibold leading-[32px] relative shrink-0 text-[24px] text-zinc-950">
@@ -153,65 +154,9 @@ export default function NewZenibleDashboard() {
             </div>
           </div>
 
-          {/* Streak Card */}
-          <div className="basis-0 bg-white border border-neutral-200 border-solid box-border content-stretch flex flex-col gap-[16px] grow h-[246px] items-center min-h-px min-w-px p-[17px] relative rounded-[12px] shrink-0">
-            <div className="h-[20px] relative shrink-0 w-full">
-              <div className="bg-clip-padding border-0 border-[transparent] border-solid box-border content-stretch flex h-[20px] items-center justify-between relative w-full">
-                <div className="flex flex-col font-['Inter'] font-medium justify-center leading-[0] not-italic relative shrink-0 text-[16px] text-nowrap text-zinc-500">
-                  <p className="leading-[24px] whitespace-pre">Streak</p>
-                </div>
-                <div className="bg-neutral-50 box-border content-stretch flex gap-[8px] items-center justify-center p-[8px] relative rounded-[8px] shrink-0 size-[28px]">
-                  <div className="overflow-clip relative shrink-0 size-[16px]">
-                    <div className="absolute inset-0">
-                      <img alt="" className="block max-w-none size-full" src={fire1} />
-                    </div>
-                    <div className="absolute bottom-1/4 left-[53.13%] right-[31.25%] top-[59.38%]">
-                      <div className="absolute inset-[-20.003%]">
-                        <img alt="" className="block max-w-none size-full" src={fire2} />
-                      </div>
-                    </div>
-                    <div className="absolute inset-[9.38%_18.75%_12.5%_18.75%]">
-                      <div className="absolute inset-[-4%_-5%]">
-                        <img alt="" className="block max-w-none size-full" src={fire3} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="basis-0 grow min-h-px min-w-px relative shrink-0 w-full">
-              <div className="bg-clip-padding border-0 border-[transparent] border-solid box-border content-stretch flex flex-col gap-[16px] items-center relative size-full">
-                <div className="content-stretch flex gap-[16px] items-center relative shrink-0">
-                  <div className="opacity-30 relative shrink-0 size-[56px]">
-                    <p className="absolute font-['Arial'] leading-[36px] left-[calc(50%-15px)] not-italic text-[#1a1a1a] text-[30px] text-nowrap top-[calc(50%-18px)] whitespace-pre">
-                      💨
-                    </p>
-                  </div>
-                  <div className="opacity-30 relative shrink-0 size-[56px]">
-                    <p className="absolute font-['Arial'] leading-[40px] left-[calc(50%-18px)] not-italic text-[#1a1a1a] text-[36px] text-nowrap top-[calc(50%-20px)] whitespace-pre">
-                      🔥
-                    </p>
-                  </div>
-                  <div className="relative shrink-0 size-[56px]">
-                    <p className="absolute font-['Arial'] leading-[48px] left-[calc(50%-24px)] not-italic text-[#1a1a1a] text-[48px] text-nowrap top-[calc(50%-24px)] whitespace-pre">
-                      🔥
-                    </p>
-                  </div>
-                </div>
-                <div className="content-stretch flex flex-col items-center justify-center leading-[0] not-italic relative shrink-0 text-nowrap w-full">
-                  <div className="flex flex-col font-['Inter'] font-bold justify-center relative shrink-0 text-[#fb2c36] text-[48px]">
-                    <p className="leading-[56px] text-nowrap whitespace-pre">7</p>
-                  </div>
-                  <div className="flex flex-col font-['Inter'] font-normal justify-center relative shrink-0 text-[12px] text-zinc-400">
-                    <p className="leading-[20px] text-nowrap whitespace-pre">days in a row</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <p className="font-['Inter'] font-normal leading-[20px] not-italic relative shrink-0 text-[12px] text-center text-nowrap text-zinc-950 whitespace-pre">
-              <span>Longest: </span>
-              <span className="text-[#8e51ff]">14 days</span>
-            </p>
+          {/* Current Projects Widget */}
+          <div className="basis-0 grow min-h-px min-w-px shrink-0">
+            <CurrentProjectsWidget />
           </div>
 
           {/* Today's Goals Card */}

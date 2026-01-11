@@ -18,7 +18,7 @@ export default function AICharacterManagement() {
 
   // Available Tools state
   const [availableTools, setAvailableTools] = useState([]);
-  const [setToolsLoading] = useState(false);
+  const [toolsLoading, setToolsLoading] = useState(false);
 
   // Modal states
   const [showCharacterModal, setShowCharacterModal] = useState(false);
@@ -476,7 +476,7 @@ export default function AICharacterManagement() {
     setShowCharacterModal(true);
   };
 
-  const handleEditCharacter = (_character) => {
+  const handleEditCharacter = (character) => {
     console.log('=== handleEditCharacter called ===');
     console.log('Character data:', character);
     console.log('Backend provider:', character.backend_provider);
@@ -521,7 +521,7 @@ export default function AICharacterManagement() {
     setShowCharacterModal(true);
   };
 
-  const handleCloneCharacter = (_character) => {
+  const handleCloneCharacter = (character) => {
     console.log('=== handleCloneCharacter called ===');
     console.log('Cloning character:', character);
 
@@ -1220,7 +1220,7 @@ export default function AICharacterManagement() {
               <tbody className={`divide-y ${
                 darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'
               }`}>
-                {Array.isArray(characters) && characters.map((_character) => (
+                {Array.isArray(characters) && characters.map((character) => (
                   <tr key={character.id} className={`${
                     darkMode ? 'hover:bg-zenible-dark-bg' : 'hover:bg-gray-50'
                   } transition-colors`}>

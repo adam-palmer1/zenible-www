@@ -90,6 +90,21 @@ module.exports = {
         'theme-primary': 'var(--border-primary)',
         'theme-secondary': 'var(--border-secondary)',
       },
+      zIndex: {
+        'dropdown': '9000',
+        'modal-backdrop': '9500',
+        'modal': '9600',
+        'tooltip': '9999',
+      },
+      animation: {
+        'slide-up': 'slideUp 0.3s ease-out',
+      },
+      keyframes: {
+        slideUp: {
+          '0%': { transform: 'translateY(100%)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+      },
     },
   },
   plugins: [],

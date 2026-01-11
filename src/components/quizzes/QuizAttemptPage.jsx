@@ -4,6 +4,7 @@ import NewSidebar from '../sidebar/NewSidebar';
 import QuizHeader from './QuizHeader';
 import QuestionCard from './QuestionCard';
 import AnswerFeedback from './AnswerFeedback';
+import QuitConfirmationModal from './QuitConfirmationModal';
 import quizAPI from '../../services/quizAPI';
 
 export default function QuizAttemptPage() {
@@ -22,6 +23,7 @@ export default function QuizAttemptPage() {
   const [expiresAt, setExpiresAt] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showQuitModal, setShowQuitModal] = useState(false);
 
   useEffect(() => {
     // If attemptData was passed via location state, use it
@@ -65,21 +67,6 @@ export default function QuizAttemptPage() {
       if (response.is_correct) {
         setScore(score + response.points_earned);
       }
-
-      // Auto-advance after 3 seconds
-      setTimeout(() => {
-        if (response.quiz_completed) {
-          // Navigate to results page
-          navigate(`/freelancer-academy/quizzes/${attemptId}/results`);
-        } else {
-          // Move to next question
-          setCurrentQuestion(response.next_question);
-          setTotalPoints(totalPoints + (response.next_question?.points || 0));
-          setSelectedAnswers([]);
-          setFeedback(null);
-          setQuestionNumber(questionNumber + 1);
-        }
-      }, 3000);
     } catch (err) {
       console.error('[QuizAttemptPage] Error submitting answer:', err);
       if (err.message.includes('400')) {
@@ -92,11 +79,42 @@ export default function QuizAttemptPage() {
     }
   };
 
+  const handleNext = () => {
+    if (!feedback) return;
+
+    if (feedback.quiz_completed) {
+      // Navigate to results page
+      navigate(`/freelancer-academy/quizzes/${attemptId}/results`);
+    } else {
+      // Move to next question
+      setCurrentQuestion(feedback.next_question);
+      setTotalPoints(totalPoints + (feedback.next_question?.points || 0));
+      setSelectedAnswers([]);
+      setFeedback(null);
+      setQuestionNumber(questionNumber + 1);
+    }
+  };
+
+  const handleQuit = () => {
+    // Show confirmation modal
+    setShowQuitModal(true);
+  };
+
+  const handleConfirmQuit = () => {
+    // Navigate back to quizzes page
+    navigate('/freelancer-academy/quizzes');
+  };
+
+  const handleCancelQuit = () => {
+    // Close modal
+    setShowQuitModal(false);
+  };
+
   if (error) {
     return (
       <div className="flex h-screen bg-white">
         <NewSidebar />
-        <div className="flex-1 ml-[280px] flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-[500px]">
             <h2 className="font-['Inter'] font-semibold text-[20px] text-red-800 mb-2">
               Error
@@ -120,7 +138,7 @@ export default function QuizAttemptPage() {
     return (
       <div className="flex h-screen bg-white">
         <NewSidebar />
-        <div className="flex-1 ml-[280px] flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
           <p className="font-['Inter'] font-normal text-[16px] text-zinc-500">
             Loading quiz...
           </p>
@@ -133,7 +151,7 @@ export default function QuizAttemptPage() {
     <div className="flex h-screen bg-white">
       <NewSidebar />
 
-      <div className="flex-1 ml-[280px] overflow-auto">
+      <div className="flex-1 overflow-auto transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
         <QuizHeader
           questionNumber={questionNumber}
           totalQuestions={totalQuestions}
@@ -156,10 +174,20 @@ export default function QuizAttemptPage() {
               isCorrect={feedback.is_correct}
               pointsEarned={feedback.points_earned}
               correctAnswers={feedback.correct_answers}
+              onNext={handleNext}
+              onQuit={handleQuit}
             />
           )}
         </div>
       </div>
+
+      {/* Quit Confirmation Modal */}
+      {showQuitModal && (
+        <QuitConfirmationModal
+          onConfirm={handleConfirmQuit}
+          onCancel={handleCancelQuit}
+        />
+      )}
     </div>
   );
 }

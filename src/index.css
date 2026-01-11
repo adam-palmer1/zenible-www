@@ -122,6 +122,41 @@ body {
   background: var(--text-secondary);
 }
 
+/* Scrollbar visible only on hover */
+.scrollbar-hover {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hover::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hover:hover {
+  -ms-overflow-style: auto;
+  scrollbar-width: thin;
+}
+
+.scrollbar-hover:hover::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+}
+
+.scrollbar-hover:hover::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+.scrollbar-hover:hover::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+.scrollbar-hover:hover::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+
 /* Hide number input spinners */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
@@ -263,3 +298,40 @@ input[type="number"] {
 .w-sidebar-expanded { width: 240px; }
 .w-sidebar-collapsed { width: 80px; }
 .w-right-panel { width: 380px; }
+
+/* Design system background utilities */
+.design-bg-primary { background-color: var(--bg-primary); }
+.design-bg-secondary { background-color: var(--bg-secondary); }
+.design-bg-tertiary { background-color: var(--bg-tertiary); }
+.design-bg-quaternary { background-color: var(--bg-tertiary); }
+.design-bg-card { background-color: var(--bg-card); }
+
+/* Design system text utilities */
+.design-text-primary { color: var(--text-primary); }
+.design-text-secondary { color: var(--text-secondary); }
+.design-text-tertiary { color: var(--text-muted); }
+.design-text-muted { color: var(--text-muted); }
+
+/* Design system border utilities */
+.design-border { border-color: var(--border-primary); }
+.design-border-input { border-color: var(--border-input); }
+
+/* Design system input utilities */
+.design-input {
+  background-color: var(--design-input-bg);
+  border: 1px solid var(--border-input);
+  color: var(--text-primary);
+}
+
+.design-input:focus {
+  border-color: #8e51ff;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(142, 81, 255, 0.1);
+}
+
+/* Hover variants for design system */
+.hover\:design-bg-primary:hover { background-color: var(--bg-primary); }
+.hover\:design-bg-secondary:hover { background-color: var(--bg-secondary); }
+.hover\:design-bg-tertiary:hover { background-color: var(--bg-tertiary); }
+.hover\:design-bg-quaternary:hover { background-color: var(--bg-tertiary); }
+.hover\:design-text-primary:hover { color: var(--text-primary); }

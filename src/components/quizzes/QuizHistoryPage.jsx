@@ -58,7 +58,7 @@ export default function QuizHistoryPage() {
     return (
       <div className="flex h-screen bg-white">
         <NewSidebar />
-        <div className="flex-1 ml-[280px] flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-[500px]">
             <p className="font-['Inter'] font-normal text-[16px] text-red-600">
               {error}
@@ -79,7 +79,7 @@ export default function QuizHistoryPage() {
     <div className="flex h-screen bg-white">
       <NewSidebar />
 
-      <div className="flex-1 ml-[280px] overflow-auto">
+      <div className="flex-1 overflow-auto transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
         {/* Top Bar */}
         <div className="h-[64px] border-b border-neutral-200 flex items-center justify-between px-[24px]">
           <h1 className="font-['Inter'] font-semibold text-[24px] text-zinc-950 leading-[32px]">
@@ -130,7 +130,7 @@ export default function QuizHistoryPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-[12px] mb-[8px]">
                             <h3 className="font-['Inter'] font-semibold text-[18px] text-zinc-950">
-                              Quiz Attempt
+                              {attempt.quiz_title || 'Quiz Attempt'}
                             </h3>
                             <span
                               className={`px-[12px] py-[4px] rounded-[6px] text-[12px] font-['Inter'] font-medium ${statusBadge.color}`}

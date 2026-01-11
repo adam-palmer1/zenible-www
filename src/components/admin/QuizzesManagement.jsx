@@ -219,14 +219,22 @@ export default function QuizzesManagement() {
 
   const syncQuestionsAndAnswers = async (quizId) => {
     try {
-      // If editing, delete existing questions first
-      if (editingQuiz && editingQuiz.questions) {
-        for (const q of editingQuiz.questions) {
-          await quizAPI.deleteQuestion(q.id);
+      // Build maps for comparison
+      const originalQuestions = editingQuiz?.questions || [];
+      const originalQMap = new Map(originalQuestions.map(q => [q.id, q]));
+      const currentQIds = new Set(
+        quizForm.questions.filter(q => q.id).map(q => q.id)
+      );
+
+      // STEP 1: DELETE questions that were removed (exist in original but not in current)
+      for (const originalQ of originalQuestions) {
+        if (!currentQIds.has(originalQ.id)) {
+          console.log(`Deleting question ${originalQ.id}`);
+          await quizAPI.deleteQuestion(originalQ.id);
         }
       }
 
-      // Create all questions with their answers in single requests
+      // STEP 2: UPDATE or CREATE questions
       for (let i = 0; i < quizForm.questions.length; i++) {
         const question = quizForm.questions[i];
 
@@ -238,13 +246,22 @@ export default function QuizzesManagement() {
           order_index: j + 1
         }));
 
-        // Create question with answers
-        await quizAPI.addQuestion(quizId, {
+        const questionData = {
           question_text: question.question_text,
           points: parseInt(question.points),
           order_index: i + 1,
           answers: answers
-        });
+        };
+
+        if (question.id && originalQMap.has(question.id)) {
+          // UPDATE existing question (has ID and existed in original)
+          console.log(`Updating question ${question.id}`);
+          await quizAPI.updateQuestion(question.id, questionData);
+        } else {
+          // CREATE new question (no ID or new question)
+          console.log(`Creating new question at index ${i}`);
+          await quizAPI.addQuestion(quizId, questionData);
+        }
       }
     } catch (err) {
       console.error('Error syncing questions and answers:', err);

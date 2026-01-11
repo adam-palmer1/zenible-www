@@ -388,7 +388,7 @@ export default function ViralPostGenerator() {
     <div className={`flex h-screen ${darkMode ? 'bg-gray-900' : 'bg-neutral-50'}`}>
       <NewSidebar />
 
-      <div className="flex-1 flex flex-col ml-[280px]">
+      <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
         {/* Header */}
         <div className={`border-b ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-neutral-200 bg-white'} px-4 py-3`}>
           <h1 className={`text-2xl font-semibold ${darkMode ? 'text-gray-100' : 'text-zinc-950'}`}>

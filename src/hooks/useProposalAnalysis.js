@@ -32,7 +32,7 @@ export function useProposalAnalysis({
   } = useBaseAIAnalysis({
     characterId,
     panelId,
-    supportedTools: ['analyze_proposal'],
+    supportedTools: ['analyze_proposal', 'generate_proposal'],
     structuredAnalysisMapper: (data) => {
       // Extract only the fields we need: score, strengths, weaknesses, improvements
       return {
@@ -53,7 +53,15 @@ export function useProposalAnalysis({
   const analyzeProposal = useCallback(async (jobPost, proposal, platform = 'upwork', metadata = {}) => {
     return await invokeTool('analyze_proposal', {
       job_post: jobPost,
-      user_proposal: proposal || null,
+      user_proposal: proposal,
+      platform: platform
+    });
+  }, [invokeTool]);
+
+  // Proposal generation function
+  const generateProposal = useCallback(async (jobPost, platform = 'upwork', metadata = {}) => {
+    return await invokeTool('generate_proposal', {
+      job_post: jobPost,
       platform: platform
     });
   }, [invokeTool]);
@@ -73,6 +81,7 @@ export function useProposalAnalysis({
 
     // Functions
     analyzeProposal,
+    generateProposal,
     sendFollowUpMessage,
     reset,
     clearConversation

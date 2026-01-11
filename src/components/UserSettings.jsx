@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { authAPI } from '../utils/auth';
@@ -6,10 +7,30 @@ import planAPI from '../services/planAPI';
 import UpdatePaymentModal from './UpdatePaymentModal';
 import PaymentHistory from './PaymentHistory';
 import CustomizationQuestions from './CustomizationQuestions';
+import ProfileTab from './crm/settings/tabs/ProfileTab';
+import CurrenciesTab from './crm/settings/tabs/CurrenciesTab';
+import CountriesTab from './crm/settings/tabs/CountriesTab';
+import IntegrationsTab from './crm/settings/tabs/IntegrationsTab';
+import AdvancedTab from './crm/settings/tabs/AdvancedTab';
+import EmailTemplates from './settings/EmailTemplates';
+import NewSidebar from './sidebar/NewSidebar';
+import {
+  UserIcon,
+  CreditCardIcon,
+  BanknotesIcon,
+  PaintBrushIcon,
+  BuildingOfficeIcon,
+  CurrencyDollarIcon,
+  GlobeAltIcon,
+  PuzzlePieceIcon,
+  Cog6ToothIcon,
+  EnvelopeIcon,
+} from '@heroicons/react/24/outline';
 
 export default function UserSettings() {
   const { user, updateUser } = useAuth();
   const { darkMode } = usePreferences();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState(null);
@@ -20,11 +41,57 @@ export default function UserSettings() {
   const [cancelReason, setCancelReason] = useState('');
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Read tab from URL params, default to 'profile'
+    return searchParams.get('tab') || 'profile';
+  });
   const [showUpdatePaymentModal, setShowUpdatePaymentModal] = useState(false);
+
+  const accountSettings = [
+    { id: 'profile', label: 'Profile', icon: UserIcon },
+    { id: 'subscription', label: 'Subscription', icon: CreditCardIcon },
+    { id: 'payments', label: 'Payments', icon: BanknotesIcon },
+    { id: 'customization', label: 'Customization', icon: PaintBrushIcon },
+  ];
+
+  const companySettings = [
+    { id: 'company', label: 'Company Profile', icon: BuildingOfficeIcon },
+    { id: 'currencies', label: 'Currencies', icon: CurrencyDollarIcon },
+    { id: 'countries', label: 'Countries', icon: GlobeAltIcon },
+    { id: 'email-templates', label: 'Email Templates', icon: EnvelopeIcon },
+    { id: 'integrations', label: 'Integrations', icon: PuzzlePieceIcon },
+    { id: 'advanced', label: 'Advanced', icon: Cog6ToothIcon },
+  ];
+
+  const allTabs = [...accountSettings, ...companySettings];
 
   useEffect(() => {
     fetchUserProfile();
+  }, []);
+
+  // Handle OAuth callback indicators (Stripe connect success/error)
+  useEffect(() => {
+    const stripeConnected = searchParams.get('stripe_connected');
+    const stripeError = searchParams.get('stripe_error');
+
+    if (stripeConnected === 'true') {
+      setSuccessMessage('Stripe account connected successfully!');
+      // Clear the URL params
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('stripe_connected');
+      setSearchParams(newParams, { replace: true });
+    } else if (stripeError) {
+      const errorMessages = {
+        denied: 'Stripe authorization was denied.',
+        invalid: 'Invalid authorization parameters.',
+        failed: 'Failed to complete Stripe connection. Please try again.',
+      };
+      setError(errorMessages[stripeError] || 'An error occurred with Stripe connection.');
+      // Clear the URL params
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('stripe_error');
+      setSearchParams(newParams, { replace: true });
+    }
   }, []);
 
   const fetchUserProfile = async () => {
@@ -35,6 +102,7 @@ export default function UserSettings() {
         planAPI.getCurrentSubscription()
       ]);
 
+      console.log('Subscription data received:', subscriptionData);
       setProfile(userData);
       setCurrentSubscription(subscriptionData);
     } catch (err) {
@@ -131,90 +199,90 @@ export default function UserSettings() {
   }
 
   return (
-    <div className={`min-h-screen overflow-auto ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
-      <div className={`border-b px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-        <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-          Account Settings
-        </h1>
-        <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
-          Manage your account settings and preferences
-        </p>
-      </div>
+    <div className={`flex h-screen ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
+      {/* Sidebar */}
+      <NewSidebar />
 
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Tabs */}
-        <div className={`flex space-x-1 mb-6 p-1 rounded-lg ${darkMode ? 'bg-zenible-dark-card' : 'bg-gray-100'}`}>
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
-              activeTab === 'profile'
-                ? darkMode
-                  ? 'bg-zenible-dark-bg text-zenible-primary'
-                  : 'bg-white text-zenible-primary shadow-sm'
-                : darkMode
-                  ? 'text-zenible-dark-text-secondary hover:text-zenible-dark-text'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Profile
-          </button>
-          <button
-            onClick={() => setActiveTab('subscription')}
-            className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
-              activeTab === 'subscription'
-                ? darkMode
-                  ? 'bg-zenible-dark-bg text-zenible-primary'
-                  : 'bg-white text-zenible-primary shadow-sm'
-                : darkMode
-                  ? 'text-zenible-dark-text-secondary hover:text-zenible-dark-text'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Subscription
-          </button>
-          <button
-            onClick={() => setActiveTab('payments')}
-            className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
-              activeTab === 'payments'
-                ? darkMode
-                  ? 'bg-zenible-dark-bg text-zenible-primary'
-                  : 'bg-white text-zenible-primary shadow-sm'
-                : darkMode
-                  ? 'text-zenible-dark-text-secondary hover:text-zenible-dark-text'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Payments
-          </button>
-          <button
-            onClick={() => setActiveTab('customization')}
-            className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
-              activeTab === 'customization'
-                ? darkMode
-                  ? 'bg-zenible-dark-bg text-zenible-primary'
-                  : 'bg-white text-zenible-primary shadow-sm'
-                : darkMode
-                  ? 'text-zenible-dark-text-secondary hover:text-zenible-dark-text'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Customization
-          </button>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
+        {/* Settings Header & Tabs */}
+        <div className={`border-b ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+          <div className="px-6 pt-6 pb-0">
+            <h1 className={`text-2xl font-semibold mb-6 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+              Settings
+            </h1>
+
+            {/* Tabs Navigation */}
+            <div className="space-y-2 -mb-px">
+              {/* Account Settings Row */}
+              <div className="flex gap-1">
+                {accountSettings.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                        isActive
+                          ? 'border-zenible-primary text-zenible-primary'
+                          : darkMode
+                          ? 'border-transparent text-zenible-dark-text-secondary hover:text-zenible-dark-text hover:border-zenible-dark-border'
+                          : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Company Settings Row */}
+              <div className="flex gap-1">
+                {companySettings.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                        isActive
+                          ? 'border-zenible-primary text-zenible-primary'
+                          : darkMode
+                          ? 'border-transparent text-zenible-dark-text-secondary hover:text-zenible-dark-text hover:border-zenible-dark-border'
+                          : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Notifications */}
-        {error && (
+        {/* Content Area */}
+        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-zenible-dark-bg">
+          <div className="max-w-4xl mx-auto p-6">
+            {/* Notifications */}
+            {error && (
           <div className={`p-4 rounded-lg mb-6 ${darkMode ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-700'}`}>
             {error}
           </div>
         )}
-        {successMessage && (
-          <div className={`p-4 rounded-lg mb-6 ${darkMode ? 'bg-green-900/20 text-green-400' : 'bg-green-50 text-green-700'}`}>
-            {successMessage}
-          </div>
-        )}
+            {successMessage && (
+              <div className={`p-4 rounded-lg mb-6 ${darkMode ? 'bg-green-900/20 text-green-400' : 'bg-green-50 text-green-700'}`}>
+                {successMessage}
+              </div>
+            )}
 
-        {/* Tab Content */}
+            {/* Tab Content */}
         {activeTab === 'profile' ? (
           <div className="space-y-6">
             {/* Profile Information */}
@@ -375,7 +443,7 @@ export default function UserSettings() {
         ) : activeTab === 'subscription' ? (
           <div className="space-y-6">
             {/* Subscription Management */}
-            {currentSubscription && (
+            {currentSubscription && Object.keys(currentSubscription).length > 0 && (
           <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
               <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
@@ -531,7 +599,7 @@ export default function UserSettings() {
         )}
 
         {/* No Subscription Message */}
-        {!currentSubscription && !loading && (
+        {(!currentSubscription || Object.keys(currentSubscription).length === 0) && !loading && (
           <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
               <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
@@ -589,10 +657,23 @@ export default function UserSettings() {
               </div>
             </div>
           </div>
-        ) : null}
-      </div>
+        ) : activeTab === 'company' ? (
+          <ProfileTab />
+        ) : activeTab === 'currencies' ? (
+          <CurrenciesTab />
+        ) : activeTab === 'countries' ? (
+          <CountriesTab />
+        ) : activeTab === 'email-templates' ? (
+          <EmailTemplates />
+        ) : activeTab === 'integrations' ? (
+          <IntegrationsTab />
+            ) : activeTab === 'advanced' ? (
+              <AdvancedTab />
+            ) : null}
+          </div>
+        </div>
 
-      {/* Cancel Subscription Modal */}
+        {/* Cancel Subscription Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`w-full max-w-md mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
@@ -722,6 +803,7 @@ export default function UserSettings() {
         onSuccess={handleUpdatePaymentMethod}
         onError={(error) => setError(error.message)}
       />
+      </div>
     </div>
   );
 }

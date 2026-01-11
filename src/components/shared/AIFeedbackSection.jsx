@@ -45,6 +45,7 @@ export default function AIFeedbackSection({
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [questionsSent, setQuestionsSent] = useState(false);
   const [messageRatings, setMessageRatings] = useState({}); // Track ratings for all messages: { messageId: 'positive'|'negative'|null }
+  const [copiedMessageId, setCopiedMessageId] = useState(null); // Track which message was copied for clipboard feedback
   const contentEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
@@ -287,6 +288,69 @@ export default function AIFeedbackSection({
     }
   };
 
+  // Convert markdown to plain text while preserving newlines
+  const markdownToPlainText = (markdown) => {
+    if (!markdown) return '';
+
+    let text = markdown;
+
+    // Remove code blocks (```...```)
+    text = text.replace(/```[\s\S]*?```/g, (match) => {
+      // Extract code content between ``` markers
+      return match.replace(/```\w*\n?/g, '').replace(/```$/g, '');
+    });
+
+    // Remove inline code (`...`)
+    text = text.replace(/`([^`]+)`/g, '$1');
+
+    // Remove images ![alt](url)
+    text = text.replace(/!\[([^\]]*)\]\([^\)]+\)/g, '$1');
+
+    // Remove links [text](url) - keep text
+    text = text.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+
+    // Remove headers (# ## ### etc)
+    text = text.replace(/^#{1,6}\s+/gm, '');
+
+    // Remove bold (**text** or __text__)
+    text = text.replace(/(\*\*|__)(.*?)\1/g, '$2');
+
+    // Remove italic (*text* or _text_)
+    text = text.replace(/(\*|_)(.*?)\1/g, '$2');
+
+    // Remove strikethrough (~~text~~)
+    text = text.replace(/~~(.*?)~~/g, '$1');
+
+    // Remove blockquotes (> )
+    text = text.replace(/^>\s+/gm, '');
+
+    // Remove horizontal rules (---, ***, ___)
+    text = text.replace(/^(\*{3,}|-{3,}|_{3,})$/gm, '');
+
+    // Remove unordered list markers (-, *, +)
+    text = text.replace(/^[\*\-\+]\s+/gm, '');
+
+    // Remove ordered list markers (1., 2., etc)
+    text = text.replace(/^\d+\.\s+/gm, '');
+
+    // Remove HTML tags if any
+    text = text.replace(/<[^>]+>/g, '');
+
+    return text;
+  };
+
+  // Copy message content to clipboard
+  const handleCopyMessage = async (msgId, content) => {
+    try {
+      const plainText = markdownToPlainText(content);
+      await navigator.clipboard.writeText(plainText);
+      setCopiedMessageId(msgId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (err) {
+      console.error('[AIFeedbackSection] Failed to copy message:', err);
+    }
+  };
+
   const formatMetrics = () => {
     const metricsData = metrics || usage;
     if (!metricsData || !isAdmin) return null;
@@ -444,9 +508,17 @@ export default function AIFeedbackSection({
                     <div className="flex-1">
                       {/* Show content (markdown) */}
                       {msg.content && (
-                        <div className={`rounded-xl p-2.5 sm:p-3 ${
+                        <div className={`rounded-xl p-2.5 sm:p-3 relative ${
                           darkMode ? 'bg-[#2d2d2d]' : 'bg-zinc-100'
                         }`}>
+                          {/* Copy button in top-right */}
+                          <div className="absolute top-1 right-1 sm:top-1 sm:right-1">
+                            <CopyButton
+                              messageId={msg.messageId}
+                              content={msg.content}
+                            />
+                          </div>
+
                           <div className={`prose prose-sm max-w-none ${
                             darkMode
                               ? 'prose-invert prose-pre:bg-gray-800 prose-pre:text-gray-200'
@@ -602,7 +674,7 @@ export default function AIFeedbackSection({
                   )}
 
                   <div>
-                    <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                    <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm relative ${
                       msg.role === 'user'
                         ? darkMode
                           ? 'bg-zenible-primary text-white'
@@ -612,7 +684,16 @@ export default function AIFeedbackSection({
                           : 'bg-gray-100 text-gray-800'
                     }`}>
                       {msg.role === 'assistant' ? (
-                        <div className={`prose prose-sm max-w-none ${
+                        <>
+                          {/* Copy button in top-right for assistant messages */}
+                          <div className="absolute top-1 right-1">
+                            <CopyButton
+                              messageId={msg.messageId || `msg-${idx}`}
+                              content={msg.content}
+                            />
+                          </div>
+
+                          <div className={`prose prose-sm max-w-none ${
                           darkMode
                             ? 'prose-invert prose-pre:bg-gray-800 prose-pre:text-gray-200'
                             : 'prose-pre:bg-gray-100 prose-pre:text-gray-800'
@@ -680,6 +761,7 @@ export default function AIFeedbackSection({
                             {msg.content}
                           </ReactMarkdown>
                         </div>
+                        </>
                       ) : (
                         msg.content
                       )}
@@ -704,11 +786,20 @@ export default function AIFeedbackSection({
                 )}
               </div>
 
-              <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+              <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm relative ${
                 darkMode ? 'bg-[#2d2d2d] text-gray-200' : 'bg-gray-100 text-gray-800'
               }`}>
                 {followUpStreamingContent ? (
-                  <div className={`prose prose-sm max-w-none ${
+                  <>
+                    {/* Copy button in top-right for streaming content */}
+                    <div className="absolute top-1 right-1">
+                      <CopyButton
+                        messageId="streaming"
+                        content={followUpStreamingContent}
+                      />
+                    </div>
+
+                    <div className={`prose prose-sm max-w-none ${
                     darkMode
                       ? 'prose-invert prose-pre:bg-gray-800 prose-pre:text-gray-200'
                       : 'prose-pre:bg-gray-100 prose-pre:text-gray-800'
@@ -776,6 +867,7 @@ export default function AIFeedbackSection({
                       {followUpStreamingContent}
                     </ReactMarkdown>
                   </div>
+                  </>
                 ) : (
                   <span className="inline-flex">
                     <TypingDots darkMode={darkMode} size="sm" />
@@ -875,6 +967,41 @@ export default function AIFeedbackSection({
           </div>
         )}
       </div>
+    );
+  };
+
+  // Copy Icon (clipboard)
+  const CopyIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  );
+
+  // Check Icon (success)
+  const CheckIcon = () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M5 13l4 4L19 7" />
+    </svg>
+  );
+
+  // Copy Button Component
+  const CopyButton = ({ messageId, content }) => {
+    const isCopied = copiedMessageId === messageId;
+
+    return (
+      <button
+        onClick={() => handleCopyMessage(messageId, content)}
+        className={`p-2 rounded transition-colors ${
+          isCopied
+            ? darkMode ? 'text-green-400' : 'text-green-600'
+            : darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
+        }`}
+        title={isCopied ? 'Copied!' : 'Copy to clipboard'}
+      >
+        {isCopied ? <CheckIcon /> : <CopyIcon />}
+      </button>
     );
   };
 

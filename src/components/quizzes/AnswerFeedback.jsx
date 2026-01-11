@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function AnswerFeedback({ isCorrect, pointsEarned, correctAnswers }) {
+export default function AnswerFeedback({ isCorrect, pointsEarned, correctAnswers, onNext, onQuit }) {
   return (
     <div className="bg-white max-w-[900px] mx-auto px-[24px] py-[32px]">
       {/* Feedback Header */}
@@ -64,10 +64,23 @@ export default function AnswerFeedback({ isCorrect, pointsEarned, correctAnswers
         </div>
       </div>
 
-      {/* Auto-advancing message */}
-      <p className="font-['Inter'] font-normal text-[14px] text-zinc-500 text-center mt-[24px]">
-        Moving to next question in a moment...
-      </p>
+      {/* Action Buttons */}
+      <div className="flex gap-[16px] mt-[32px]">
+        <button
+          onClick={onQuit}
+          className="border border-neutral-200 bg-white text-zinc-950 px-[24px] py-[14px] rounded-[12px] font-['Inter'] font-medium text-[16px] hover:bg-gray-50 transition-colors flex items-center gap-[8px]"
+        >
+          <span>✕</span>
+          <span>Quit</span>
+        </button>
+        <button
+          onClick={onNext}
+          className="flex-1 bg-[#8e51ff] text-white px-[24px] py-[14px] rounded-[12px] font-['Inter'] font-medium text-[16px] hover:bg-violet-600 transition-colors flex items-center justify-center gap-[8px]"
+        >
+          <span>Next</span>
+          <span>›</span>
+        </button>
+      </div>
     </div>
   );
 }

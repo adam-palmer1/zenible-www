@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import adminAPI from '../services/adminAPI';
 import { useAuth } from './AuthContext';
 
@@ -16,6 +16,7 @@ export const PreferencesProvider = ({ children }) => {
   const { user } = useAuth();
   const [preferences, setPreferences] = useState({});
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
   // Load all preferences when user is authenticated
@@ -27,6 +28,7 @@ export const PreferencesProvider = ({ children }) => {
       setPreferences({});
       setDarkMode(false);
       setLoading(false);
+      setInitialized(false);
       document.documentElement.classList.remove('dark');
     }
   }, [user]);
@@ -48,16 +50,21 @@ export const PreferencesProvider = ({ children }) => {
   const loadPreferences = async () => {
     try {
       setLoading(true);
+      console.log('[PreferencesContext] Fetching preferences from API...');
       const data = await adminAPI.getPreferencesDict();
+      console.log('[PreferencesContext] Preferences fetched:', data);
       setPreferences(data || {});
+      setInitialized(true);
     } catch (error) {
-      console.error('Error loading preferences:', error);
+      console.error('[PreferencesContext] Error loading preferences:', error);
       // Set default preferences on error
       setPreferences({
         theme: { mode: 'light', darkMode: false }
       });
+      setInitialized(true); // Still mark as initialized even on error
     } finally {
       setLoading(false);
+      console.log('[PreferencesContext] Preferences loading complete');
     }
   };
 
@@ -134,20 +141,49 @@ export const PreferencesProvider = ({ children }) => {
     }, 'ui');
   };
 
-  const getPreference = (key, defaultValue = null) => {
+  const getPreference = useCallback((key, defaultValue = null) => {
     return preferences[key] !== undefined ? preferences[key] : defaultValue;
+  }, [preferences]);
+
+  // CRM-specific preference helpers
+  const getCRMFilters = () => {
+    return {
+      search: getPreference('crm_search', ''),
+      is_client: getPreference('crm_filter_is_client', null),
+      is_vendor: getPreference('crm_filter_is_vendor', null),
+      global_status_id: getPreference('crm_filter_status', null),
+      is_active: getPreference('crm_filter_is_active', true),
+      sort_by: getPreference('crm_sort_by', 'created_at_desc'),
+    };
+  };
+
+  const setCRMFilters = async (filters) => {
+    const updates = [
+      { key: 'crm_search', value: filters.search || '', category: 'crm' },
+      { key: 'crm_filter_is_client', value: filters.is_client, category: 'crm' },
+      { key: 'crm_filter_is_vendor', value: filters.is_vendor, category: 'crm' },
+      { key: 'crm_filter_status', value: filters.global_status_id, category: 'crm' },
+      { key: 'crm_filter_is_active', value: filters.is_active, category: 'crm' },
+      { key: 'crm_sort_by', value: filters.sort_by || 'created_at_desc', category: 'crm' },
+    ];
+
+    await bulkUpdatePreferences(updates);
   };
 
   const value = {
     preferences,
     loading,
+    initialized,
     darkMode,
     toggleDarkMode,
     updatePreference,
     bulkUpdatePreferences,
     deletePreference,
     getPreference,
-    reloadPreferences: loadPreferences
+    reloadPreferences: loadPreferences,
+    // CRM helpers
+    getCRMFilters,
+    setCRMFilters,
   };
 
   return (

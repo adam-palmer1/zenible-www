@@ -13,7 +13,16 @@
       "Bash(grep:*)",
       "Bash(for file in /home/zenible/zenible-web/src/components/proposal-wizard/*.jsx /home/zenible/zenible-web/src/components/viral-post-generator/*.jsx)",
       "Bash(wc:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(git diff:*)",
+      "Bash(npm run build:*)",
+      "Bash(tree:*)",
+      "mcp__figma-dev-mode-mcp-server__get_design_context",
+      "Bash(mkdir:*)",
+      "Bash(find:*)",
+      "Bash(xargs ls:*)",
+      "Bash(ls:*)",
+      "mcp__gpt-researcher__quick_search"
     ],
     "deny": [],
     "ask": []

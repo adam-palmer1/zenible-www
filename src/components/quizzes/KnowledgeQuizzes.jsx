@@ -17,6 +17,10 @@ export default function KnowledgeQuizzes() {
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [dailyQuizLimit, setDailyQuizLimit] = useState(null);
+  const [quizzesAttemptedToday, setQuizzesAttemptedToday] = useState(null);
+  const [quizzesRemainingToday, setQuizzesRemainingToday] = useState(null);
+  const [showNoAttemptsModal, setShowNoAttemptsModal] = useState(false);
 
   const QUIZ_COUNT = 16;
 
@@ -39,6 +43,17 @@ export default function KnowledgeQuizzes() {
         // Single quiz returned
         setQuizzes([data]);
       }
+
+      // Extract daily quiz limit info
+      if (data.daily_quiz_limit !== undefined) {
+        setDailyQuizLimit(data.daily_quiz_limit);
+      }
+      if (data.quizzes_attempted_today !== undefined) {
+        setQuizzesAttemptedToday(data.quizzes_attempted_today);
+      }
+      if (data.quizzes_remaining_today !== undefined) {
+        setQuizzesRemainingToday(data.quizzes_remaining_today);
+      }
     } catch (err) {
       console.error('[KnowledgeQuizzes] Error fetching random quizzes:', err);
       if (err.message.includes('404')) {
@@ -54,6 +69,12 @@ export default function KnowledgeQuizzes() {
   };
 
   const handleQuizClick = (quiz) => {
+    // Check if user has no remaining attempts
+    if (quizzesRemainingToday === 0) {
+      setShowNoAttemptsModal(true);
+      return;
+    }
+
     // Check if quiz is available before showing preview
     if (quiz.is_available === false) {
       setError('This quiz requires a subscription upgrade. Please upgrade your plan to access it.');
@@ -94,20 +115,25 @@ export default function KnowledgeQuizzes() {
     <div className="flex h-screen bg-white">
       <NewSidebar />
 
-      <div className="flex-1 ml-[280px] overflow-auto">
+      <div className="flex-1 overflow-auto transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
         {/* Top Bar */}
-        <div className="h-[64px] border-b border-neutral-200 flex items-center justify-between px-[24px] sticky top-0 bg-white z-10">
-          <h1 className="font-['Inter'] font-semibold text-[24px] text-zinc-950 leading-[32px]">
-            Knowledge Quizzes
-          </h1>
-          {!loading && quizzes.length > 0 && (
-            <button
-              onClick={fetchRandomQuizzes}
-              className="bg-white border border-neutral-200 text-zinc-950 px-[16px] py-[8px] rounded-[8px] font-['Inter'] font-medium text-[14px] hover:bg-gray-50 transition-colors"
-            >
-              Load New Quizzes
-            </button>
-          )}
+        <div className="border-b border-neutral-200 flex items-center justify-between px-[24px] sticky top-0 bg-white z-10 py-[16px]">
+          <div className="flex flex-col gap-[4px]">
+            <h1 className="font-['Inter'] font-semibold text-[24px] text-zinc-950 leading-[32px]">
+              Knowledge Quizzes
+            </h1>
+            {quizzesRemainingToday !== null && dailyQuizLimit !== null && (
+              <p className="font-['Inter'] font-normal text-[14px] text-zinc-400">
+                {quizzesRemainingToday} out of {dailyQuizLimit} quiz attempts remaining today
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => navigate('/freelancer-academy/quizzes/history')}
+            className="bg-white border border-neutral-200 text-zinc-950 px-[16px] py-[8px] rounded-[8px] font-['Inter'] font-medium text-[14px] hover:bg-gray-50 transition-colors"
+          >
+            Quiz History
+          </button>
         </div>
 
         {/* Content Section */}
@@ -161,7 +187,8 @@ export default function KnowledgeQuizzes() {
                   description={quiz.description || 'Test your knowledge'}
                   questionCount={quiz.total_questions}
                   isAttempted={quiz.is_attempted || false}
-                  isAvailable={quiz.is_available !== false}
+                  isAvailable={quiz.is_available !== false && quizzesRemainingToday !== 0}
+                  tags={quiz.tags || []}
                   onClick={() => handleQuizClick(quiz)}
                 />
               ))}
@@ -178,6 +205,49 @@ export default function KnowledgeQuizzes() {
           onTryAnother={handleTryAnother}
           onClose={handleCloseModal}
         />
+      )}
+
+      {/* No Attempts Remaining Modal */}
+      {showNoAttemptsModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setShowNoAttemptsModal(false)}
+        >
+          <div
+            className="bg-white border border-neutral-200 rounded-[12px] max-w-[500px] w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-[24px] pb-[16px] border-b border-neutral-200">
+              <h2 className="font-['Inter'] font-semibold text-[20px] text-zinc-950">
+                No Quiz Attempts Remaining
+              </h2>
+            </div>
+
+            {/* Content */}
+            <div className="p-[24px]">
+              <p className="font-['Inter'] font-normal text-[16px] text-zinc-600 leading-[24px]">
+                No more quiz attempts remaining today. Come back again tomorrow or upgrade your plan to continue immediately.
+              </p>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex gap-[16px] p-[24px] pt-[16px]">
+              <button
+                onClick={() => setShowNoAttemptsModal(false)}
+                className="flex-1 border border-neutral-200 bg-white text-zinc-950 py-[12px] px-[24px] rounded-[12px] font-['Inter'] font-medium text-[16px] hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => navigate('/pricing')}
+                className="flex-1 bg-[#8e51ff] text-white py-[12px] px-[24px] rounded-[12px] font-['Inter'] font-medium text-[16px] hover:bg-violet-600 transition-colors"
+              >
+                Upgrade Plan
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -73,6 +73,7 @@ export default function ProposalWizard() {
     metrics,
     messageId,
     analyzeProposal: sendAnalysis,
+    generateProposal: sendGeneration,
     sendFollowUpMessage: sendFollowUp,
     reset: resetAnalysis,
     clearConversation
@@ -273,13 +274,19 @@ export default function ProposalWizard() {
         const tools = await getCharacterTools(selectedCharacterId);
         setCharacterTools(tools);
 
-        // Check if character has analyze_proposal tool
-        const hasProposalTool = tools.available_tools?.some(
+        // Check if character has both required tools
+        const hasAnalyzeTool = tools.available_tools?.some(
           tool => tool.name === 'analyze_proposal' && tool.is_enabled
         );
+        const hasGenerateTool = tools.available_tools?.some(
+          tool => tool.name === 'generate_proposal' && tool.is_enabled
+        );
 
-        if (!hasProposalTool) {
+        if (!hasAnalyzeTool) {
           console.warn('[ProposalWizard] Character does not have analyze_proposal tool');
+        }
+        if (!hasGenerateTool) {
+          console.warn('[ProposalWizard] Character does not have generate_proposal tool');
         }
       } catch (error) {
         console.error('[ProposalWizard] Failed to load character tools:', error);
@@ -340,23 +347,35 @@ export default function ProposalWizard() {
       setFeedback(null);
       setFollowUpStreamingContent('');
 
-      // Send analysis request using the hook
-      const convId = await sendAnalysis(
-        jobPost,
-        proposal,
-        selectedPlatform || 'upwork'
-      );
+      // Conditional tool selection based on proposal content
+      let convId;
+      if (proposal && proposal.trim()) {
+        // Analyze existing proposal
+        console.log('[ProposalWizard] Analyzing existing proposal...');
+        convId = await sendAnalysis(
+          jobPost,
+          proposal,
+          selectedPlatform || 'upwork'
+        );
+      } else {
+        // Generate new proposal
+        console.log('[ProposalWizard] Generating new proposal...');
+        convId = await sendGeneration(
+          jobPost,
+          selectedPlatform || 'upwork'
+        );
+      }
 
       if (!convId) {
-        console.error('[ProposalWizard] Failed to start analysis - no conversation ID returned');
+        console.error('[ProposalWizard] Failed to start - no conversation ID returned');
       } else {
-        console.log('[ProposalWizard] Analysis started with conversation:', convId);
+        console.log('[ProposalWizard] Started with conversation:', convId);
       }
     } catch (error) {
-      console.error('[ProposalWizard] Error starting analysis:', error);
+      console.error('[ProposalWizard] Error starting:', error);
       setFeedback({
         isProcessing: false,
-        error: 'Failed to analyze proposal. Please try again.'
+        error: 'Failed to process request. Please try again.'
       });
     }
   };
@@ -385,6 +404,26 @@ export default function ProposalWizard() {
       console.error('[ProposalWizard] Error sending follow-up message:', error);
       throw error;
     }
+  };
+
+  // Handle start again - reset all state
+  const handleStartAgain = () => {
+    console.log('[ProposalWizard] Starting again - resetting all state');
+
+    // Reset all input state
+    setJobPost('');
+    setProposal('');
+    setSelectedPlatform('');
+
+    // Reset feedback and analysis state
+    setFeedback(null);
+    setFollowUpMessages([]);
+    setFollowUpStreamingContent('');
+    setIsFollowUpStreaming(false);
+    setAnalysisHistory([]);
+
+    // Reset conversation
+    resetAnalysis();
   };
 
   // Load conversation history
@@ -500,7 +539,7 @@ export default function ProposalWizard() {
       <NewSidebar />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 ml-[280px]">
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
         {/* Header */}
         <div className={`h-16 border-b flex items-center justify-between px-4 sm:px-6 ${
           darkMode
@@ -585,8 +624,11 @@ export default function ProposalWizard() {
                 darkMode={darkMode}
                 proposal={proposal}
                 setProposal={setProposal}
+                jobPost={jobPost}
                 analyzing={analyzing}
                 onAnalyze={handleAnalyze}
+                onStartAgain={handleStartAgain}
+                hasResults={feedback && !feedback.isProcessing && !analyzing}
                 isPanelReady={isConnected}
                 isConnected={isConnected}
               />

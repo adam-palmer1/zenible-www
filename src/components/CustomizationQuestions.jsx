@@ -17,6 +17,7 @@ const CustomizationQuestions = ({
   const [successMessage, setSuccessMessage] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
   const [isDirty, setIsDirty] = useState(false);
+  const [completionStatus, setCompletionStatus] = useState(null);
 
   useEffect(() => {
     loadQuestionsAndAnswers();

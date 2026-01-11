@@ -11,12 +11,11 @@ export default function QuizCard({
   questionCount = 5,
   isAttempted = false,
   isAvailable = true,
+  tags = [],
   onClick
 }) {
   const handleClick = () => {
-    if (isAvailable) {
-      onClick();
-    }
+    onClick();
   };
 
   return (
@@ -50,13 +49,27 @@ export default function QuizCard({
       </div>
 
       {/* Title and Description */}
-      <div className="content-stretch flex flex-col gap-[4px] items-start leading-[0] not-italic relative shrink-0 w-full">
+      <div className="content-stretch flex flex-col gap-[8px] items-start leading-[0] not-italic relative shrink-0 w-full">
         <div className="flex flex-col font-['Inter'] font-semibold justify-center relative shrink-0 text-[18px] text-zinc-950 w-full">
           <p className="leading-[26px]">{title}</p>
         </div>
         <div className="flex flex-col font-['Inter'] font-normal justify-center relative shrink-0 text-[14px] text-zinc-500 w-full">
           <p className="leading-[22px]">{description}</p>
         </div>
+
+        {/* Tags */}
+        {tags && tags.length > 0 && (
+          <div className="flex flex-wrap gap-[6px] mt-[4px]">
+            {tags.map((tag) => (
+              <span
+                key={tag.id}
+                className="bg-violet-50 text-[#8e51ff] px-[8px] py-[2px] rounded-[6px] text-[12px] font-['Inter'] font-medium capitalize"
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Bottom Section - Chip and Arrow Button */}

@@ -5,7 +5,7 @@ import planAPI from '../../services/planAPI';
 export default function PlanFeatureAssignment({ darkMode }) {
   const [plans, setPlans] = useState([]);
   const [selectedPlanId, setSelectedPlanId] = useState(null);
-  const [setPlanFeatures] = useState(null);
+  const [planFeatures, setPlanFeatures] = useState(null);
   const [allDisplayFeatures, setAllDisplayFeatures] = useState([]);
   const [allSystemFeatures, setAllSystemFeatures] = useState([]);
   const [allCharacters, setAllCharacters] = useState([]);

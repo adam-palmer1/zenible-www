@@ -1,17 +1,32 @@
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
+import { QueryClientProvider, ReactQueryDevtools } from './lib/react-query';
+import { queryClient } from './lib/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
+import { CRMProvider } from './contexts/CRMContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { InvoiceProvider } from './contexts/InvoiceContext';
+import { QuoteProvider } from './contexts/QuoteContext';
+import { ExpenseProvider } from './contexts/ExpenseContext';
+import { PaymentIntegrationsProvider } from './contexts/PaymentIntegrationsContext';
+import { CRMReferenceDataProvider } from './contexts/CRMReferenceDataContext';
 
 // Auth pages
 import SignIn from './pages/signin/SignIn';
 import GoogleCallback from './components/GoogleCallback';
 import UserSettings from './components/UserSettings';
+import StripeOAuthCallback from './components/settings/StripeOAuthCallback';
 
 // Dashboard pages
 import ProtectedDashboard from './components/ProtectedDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import CRMDashboard from './components/crm/CRMDashboard';
+import Calendar from './components/calendar/Calendar';
+import GoogleCalendarCallback from './components/calendar/GoogleCalendarCallback';
 import ProposalWizard from './components/proposal-wizard/ProposalWizard';
+import ProfileAnalyzer from './components/profile-analyzer/ProfileAnalyzer';
+import HeadlineAnalyzer from './components/headline-analyzer/HeadlineAnalyzer';
 import ViralPostGenerator from './components/viral-post-generator/ViralPostGenerator';
 import Boardroom from './components/boardroom/Boardroom';
 import LiveQA from './components/live-qa/LiveQA';
@@ -19,11 +34,17 @@ import KnowledgeQuizzes from './components/quizzes/KnowledgeQuizzes';
 import QuizAttemptPage from './components/quizzes/QuizAttemptPage';
 import QuizResultsPage from './components/quizzes/QuizResultsPage';
 import QuizHistoryPage from './components/quizzes/QuizHistoryPage';
-import CoursesComponent from './components/courses/CoursesComponent';
-import CourseDiscovery from './components/courses/CourseDiscovery';
-import LearningDashboard from './components/courses/LearningDashboard';
 import Plans from './components/Plans';
 import Pricing from './components/pricing/PricingNew';
+
+// Finance pages
+import { InvoiceDashboard, InvoiceForm, InvoiceDetail, PublicInvoiceView } from './components/finance/invoices';
+import { QuoteDashboard, QuoteForm, QuoteDetail, PublicQuoteView } from './components/finance/quotes';
+import { CreditNotesDashboard } from './components/finance/credit-notes';
+import { ExpenseDashboard, ExpenseForm, CategoryManagement } from './components/finance/expenses';
+import { PaymentDashboard, PaymentCallback } from './components/finance/payments';
+import { FinanceClientsDashboard } from './components/finance/clients';
+import { PaymentsProvider } from './contexts/PaymentsContext';
 
 // Admin pages
 import AdminLayout from './components/admin/AdminLayout';
@@ -46,7 +67,6 @@ import EventsManagement from './components/admin/EventsManagement';
 import HostsManagement from './components/admin/HostsManagement';
 import QuizzesManagement from './components/admin/QuizzesManagement';
 import QuizTagsManagement from './components/admin/QuizTagsManagement';
-import CourseManagement from './components/admin/CourseManagement';
 
 // Root layout component with WebSocket provider
 function RootLayout() {
@@ -87,6 +107,22 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ProposalWizard />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'profile-positioning/profile-analyzer',
+        element: (
+          <ProtectedRoute>
+            <ProfileAnalyzer />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'profile-positioning/headline-analyzer',
+        element: (
+          <ProtectedRoute>
+            <HeadlineAnalyzer />
           </ProtectedRoute>
         )
       },
@@ -147,54 +183,6 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: 'freelancer-academy/courses',
-        element: (
-          <ProtectedRoute>
-            <CourseDiscovery />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'freelancer-academy/my-learning',
-        element: (
-          <ProtectedRoute>
-            <LearningDashboard />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'freelancer-academy/courses/:courseId',
-        element: (
-          <ProtectedRoute>
-            <CoursesComponent />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'freelancer-academy/foundations',
-        element: (
-          <ProtectedRoute>
-            <CoursesComponent courseCategory="Foundations" />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'freelancer-academy/growth',
-        element: (
-          <ProtectedRoute>
-            <CoursesComponent courseCategory="Growth" />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'freelancer-academy/advanced',
-        element: (
-          <ProtectedRoute>
-            <CoursesComponent courseCategory="Advanced" />
-          </ProtectedRoute>
-        )
-      },
-      {
         path: 'plans',
         element: <Plans />
       },
@@ -207,6 +195,210 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <UserSettings />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'settings/payments/callback',
+        element: (
+          <ProtectedRoute>
+            <StripeOAuthCallback />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'crm/:tab?',
+        element: (
+          <ProtectedRoute>
+            <CRMProvider>
+              <CRMDashboard />
+            </CRMProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'calendar',
+        element: (
+          <ProtectedRoute>
+            <Calendar />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'auth/calendar/callback',
+        element: (
+          <ProtectedRoute>
+            <GoogleCalendarCallback />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/invoices',
+        element: (
+          <ProtectedRoute>
+            <InvoiceProvider>
+              <InvoiceDashboard />
+            </InvoiceProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/invoices/new',
+        element: (
+          <ProtectedRoute>
+            <InvoiceProvider>
+              <InvoiceForm />
+            </InvoiceProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/invoices/:id',
+        element: (
+          <ProtectedRoute>
+            <InvoiceProvider>
+              <InvoiceDetail />
+            </InvoiceProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/invoices/:id/edit',
+        element: (
+          <ProtectedRoute>
+            <InvoiceProvider>
+              <InvoiceForm />
+            </InvoiceProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'invoices/public/:token',
+        element: <PublicInvoiceView />
+      },
+      {
+        path: 'pay/:shareCode',
+        element: <PublicInvoiceView />
+      },
+      {
+        path: 'finance/quotes',
+        element: (
+          <ProtectedRoute>
+            <QuoteProvider>
+              <QuoteDashboard />
+            </QuoteProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/quotes/new',
+        element: (
+          <ProtectedRoute>
+            <QuoteProvider>
+              <QuoteForm />
+            </QuoteProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/quotes/:id',
+        element: (
+          <ProtectedRoute>
+            <QuoteProvider>
+              <QuoteDetail />
+            </QuoteProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/quotes/:id/edit',
+        element: (
+          <ProtectedRoute>
+            <QuoteProvider>
+              <QuoteForm />
+            </QuoteProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'quotes/public/:token',
+        element: <PublicQuoteView />
+      },
+      {
+        path: 'finance/credit-notes',
+        element: (
+          <ProtectedRoute>
+            <CreditNotesDashboard />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/expenses',
+        element: (
+          <ProtectedRoute>
+            <ExpenseProvider>
+              <ExpenseDashboard />
+            </ExpenseProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/expenses/new',
+        element: (
+          <ProtectedRoute>
+            <ExpenseProvider>
+              <ExpenseForm />
+            </ExpenseProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/expenses/:id/edit',
+        element: (
+          <ProtectedRoute>
+            <ExpenseProvider>
+              <ExpenseForm />
+            </ExpenseProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/expenses/categories',
+        element: (
+          <ProtectedRoute>
+            <ExpenseProvider>
+              <CategoryManagement />
+            </ExpenseProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/payments',
+        element: (
+          <ProtectedRoute>
+            <PaymentsProvider>
+              <PaymentDashboard />
+            </PaymentsProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/clients',
+        element: (
+          <ProtectedRoute>
+            <CRMProvider>
+              <FinanceClientsDashboard />
+            </CRMProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'payment-callback',
+        element: (
+          <ProtectedRoute>
+            <PaymentIntegrationsProvider>
+              <PaymentCallback />
+            </PaymentIntegrationsProvider>
           </ProtectedRoute>
         )
       },
@@ -289,10 +481,6 @@ const router = createBrowserRouter([
           {
             path: 'quiz-tags',
             element: <QuizTagsManagement />
-          },
-          {
-            path: 'courses',
-            element: <CourseManagement />
           }
         ]
       },
@@ -306,11 +494,19 @@ const router = createBrowserRouter([
 
 function App() {
   return (
-    <AuthProvider>
-      <PreferencesProvider>
-        <RouterProvider router={router} />
-      </PreferencesProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <CRMReferenceDataProvider>
+          <PreferencesProvider>
+            <NotificationProvider>
+              <RouterProvider router={router} />
+            </NotificationProvider>
+          </PreferencesProvider>
+        </CRMReferenceDataProvider>
+      </AuthProvider>
+      {/* React Query DevTools - only shows in development */}
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   );
 }
 

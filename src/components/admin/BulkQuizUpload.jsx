@@ -153,7 +153,9 @@ const validateBulkUpload = (data) => {
 };
 
 export default function BulkQuizUpload({ darkMode, onSuccess }) {
+  const [inputMode, setInputMode] = useState('file'); // 'file' or 'paste'
   const [file, setFile] = useState(null);
+  const [jsonInput, setJsonInput] = useState('');
   const [defaultTagIcon, setDefaultTagIcon] = useState('book-open');
   const [uploading, setUploading] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
@@ -173,8 +175,8 @@ export default function BulkQuizUpload({ darkMode, onSuccess }) {
     }
   };
 
-  // Parse and validate JSON file
-  const parseAndValidate = async (file) => {
+  // Parse and validate JSON from file
+  const parseAndValidateFile = async (file) => {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
@@ -199,17 +201,50 @@ export default function BulkQuizUpload({ darkMode, onSuccess }) {
     }
   };
 
+  // Parse and validate JSON from textarea
+  const parseAndValidateText = (text) => {
+    try {
+      const data = JSON.parse(text);
+
+      // Add default_tag_icon to data
+      data.default_tag_icon = defaultTagIcon;
+
+      // Validate
+      const errors = validateBulkUpload(data);
+      if (errors.length > 0) {
+        setValidationErrors(errors);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      setValidationErrors([{
+        field: 'json',
+        message: 'Invalid JSON format: ' + error.message
+      }]);
+      return null;
+    }
+  };
+
   // Upload to API
   const handleUpload = async () => {
-    if (!file) return;
+    // Validate input based on mode
+    if (inputMode === 'file' && !file) return;
+    if (inputMode === 'paste' && !jsonInput.trim()) return;
 
     setUploading(true);
     setValidationErrors([]);
     setUploadResult(null);
 
     try {
-      // Parse and validate
-      const data = await parseAndValidate(file);
+      // Parse and validate based on input mode
+      let data;
+      if (inputMode === 'file') {
+        data = await parseAndValidateFile(file);
+      } else {
+        data = parseAndValidateText(jsonInput);
+      }
+
       if (!data) {
         setUploading(false);
         return;
@@ -220,8 +255,9 @@ export default function BulkQuizUpload({ darkMode, onSuccess }) {
       setUploadResult(result);
 
       if (result.failed === 0 && onSuccess) {
-        // Clear file and reset after successful upload
+        // Clear inputs and reset after successful upload
         setFile(null);
+        setJsonInput('');
         setTimeout(() => {
           onSuccess();
         }, 2000);
@@ -233,9 +269,9 @@ export default function BulkQuizUpload({ darkMode, onSuccess }) {
     }
   };
 
-  // Download template JSON
-  const downloadTemplate = () => {
-    const template = {
+  // Get template JSON object
+  const getTemplate = () => {
+    return {
       default_tag_icon: "book-open",
       quizzes: [
         {
@@ -315,7 +351,11 @@ export default function BulkQuizUpload({ darkMode, onSuccess }) {
         }
       ]
     };
+  };
 
+  // Download template JSON as file
+  const downloadTemplate = () => {
+    const template = getTemplate();
     const blob = new Blob([JSON.stringify(template, null, 2)], {
       type: 'application/json'
     });
@@ -325,6 +365,17 @@ export default function BulkQuizUpload({ darkMode, onSuccess }) {
     link.download = 'bulk-quizzes-template.json';
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Copy template JSON to clipboard
+  const copyTemplateToClipboard = async () => {
+    try {
+      const template = getTemplate();
+      await navigator.clipboard.writeText(JSON.stringify(template, null, 2));
+      alert('Template copied to clipboard!');
+    } catch (error) {
+      alert('Failed to copy template to clipboard');
+    }
   };
 
   // Group errors by quiz index
@@ -340,6 +391,44 @@ export default function BulkQuizUpload({ darkMode, onSuccess }) {
       <h4 className={`font-medium mb-4 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
         Bulk Upload Quizzes
       </h4>
+
+      {/* Input Mode Tabs */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => {
+            setInputMode('file');
+            setValidationErrors([]);
+            setUploadResult(null);
+          }}
+          disabled={uploading}
+          className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+            inputMode === 'file'
+              ? 'bg-zenible-primary text-white'
+              : darkMode
+              ? 'bg-zenible-dark-bg border border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-border'
+              : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          📁 Upload File
+        </button>
+        <button
+          onClick={() => {
+            setInputMode('paste');
+            setValidationErrors([]);
+            setUploadResult(null);
+          }}
+          disabled={uploading}
+          className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+            inputMode === 'paste'
+              ? 'bg-zenible-primary text-white'
+              : darkMode
+              ? 'bg-zenible-dark-bg border border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-border'
+              : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          📋 Paste JSON
+        </button>
+      </div>
 
       {/* Default Tag Icon Selection */}
       <div className="mb-4">
@@ -370,34 +459,74 @@ export default function BulkQuizUpload({ darkMode, onSuccess }) {
         </p>
       </div>
 
-      {/* File Upload */}
-      <div className="flex gap-2 mb-4">
-        <input
-          type="file"
-          accept=".json"
-          onChange={handleFileChange}
-          disabled={uploading}
-          className={`flex-1 px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-gray-300'}`}
-        />
-        <button
-          onClick={handleUpload}
-          disabled={!file || uploading}
-          className={`px-4 py-2 rounded-lg text-sm ${
-            file && !uploading
-              ? 'bg-zenible-primary text-white hover:bg-opacity-90'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          {uploading ? 'Uploading...' : 'Upload'}
-        </button>
-        <button
-          onClick={downloadTemplate}
-          disabled={uploading}
-          className={`px-4 py-2 rounded-lg border text-sm ${darkMode ? 'border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-border' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
-        >
-          Download Template
-        </button>
-      </div>
+      {/* File Upload or JSON Paste Input */}
+      {inputMode === 'file' ? (
+        <div className="flex gap-2 mb-4">
+          <input
+            type="file"
+            accept=".json"
+            onChange={handleFileChange}
+            disabled={uploading}
+            className={`flex-1 px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-gray-300'}`}
+          />
+          <button
+            onClick={handleUpload}
+            disabled={!file || uploading}
+            className={`px-4 py-2 rounded-lg text-sm ${
+              file && !uploading
+                ? 'bg-zenible-primary text-white hover:bg-opacity-90'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            {uploading ? 'Uploading...' : 'Upload'}
+          </button>
+          <button
+            onClick={downloadTemplate}
+            disabled={uploading}
+            className={`px-4 py-2 rounded-lg border text-sm ${darkMode ? 'border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-border' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+          >
+            Download Template
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center justify-between">
+            <label className={`text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+              Paste Quiz JSON
+            </label>
+            <button
+              onClick={copyTemplateToClipboard}
+              disabled={uploading}
+              className={`px-3 py-1 rounded-lg border text-xs ${darkMode ? 'border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-border' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+            >
+              📋 Copy Template
+            </button>
+          </div>
+          <textarea
+            value={jsonInput}
+            onChange={(e) => {
+              setJsonInput(e.target.value);
+              setValidationErrors([]);
+              setUploadResult(null);
+            }}
+            disabled={uploading}
+            placeholder='Paste your quiz JSON here... (e.g., {"quizzes": [...]})'
+            rows={12}
+            className={`w-full px-3 py-2 rounded-lg border text-sm font-mono ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text placeholder-zenible-dark-text-secondary' : 'bg-white border-gray-300 placeholder-gray-400'}`}
+          />
+          <button
+            onClick={handleUpload}
+            disabled={!jsonInput.trim() || uploading}
+            className={`w-full px-4 py-2 rounded-lg text-sm font-medium ${
+              jsonInput.trim() && !uploading
+                ? 'bg-zenible-primary text-white hover:bg-opacity-90'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            {uploading ? 'Uploading...' : 'Upload JSON'}
+          </button>
+        </div>
+      )}
 
       {/* Validation Errors */}
       {validationErrors.length > 0 && (

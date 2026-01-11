@@ -10,7 +10,8 @@ export default function SidebarNavItemWithSubmenu({
   path,
   isActive = false,
   submenuItems = [],
-  onClick
+  onClick,
+  isCollapsed = false
 }) {
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(isActive || submenuItems.some(item => item.isActive));
@@ -36,28 +37,31 @@ export default function SidebarNavItemWithSubmenu({
   return (
     <div>
       {/* Main Item */}
-      <div className="px-4">
+      <div className={isCollapsed ? "px-2" : "px-4"}>
         <button
           onClick={handleMainClick}
           className={`
-            w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors duration-150 text-left group
+            w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-3 py-2.5 rounded-xl transition-colors duration-150 text-left group
             ${isActive && !isExpanded
               ? 'bg-[#F5F3FF] border border-[#8E51FF] text-[#09090B]'
               : 'text-[#71717A] hover:bg-[#F9FAFB] hover:text-[#374151]'
             }
           `}
+          title={isCollapsed ? label : undefined}
         >
           <div className="flex items-center gap-2">
             <Icon
               className="w-6 h-6 flex-shrink-0"
               color={isActive && !isExpanded ? '#8E51FF' : '#71717A'}
             />
-            <span className="text-sm font-medium">
-              {label}
-            </span>
+            {!isCollapsed && (
+              <span className="text-sm font-medium">
+                {label}
+              </span>
+            )}
           </div>
 
-          {submenuItems.length > 0 && (
+          {!isCollapsed && submenuItems.length > 0 && (
             isExpanded ? (
               <ChevronDownIcon
                 className="w-2.5 h-2.5 flex-shrink-0"
@@ -73,8 +77,8 @@ export default function SidebarNavItemWithSubmenu({
         </button>
       </div>
 
-      {/* Submenu Items */}
-      {isExpanded && submenuItems.length > 0 && (
+      {/* Submenu Items - Hidden when collapsed */}
+      {!isCollapsed && isExpanded && submenuItems.length > 0 && (
         <div className="mt-2">
           {submenuItems.map((item, index) => (
             <div key={index} className="px-4">

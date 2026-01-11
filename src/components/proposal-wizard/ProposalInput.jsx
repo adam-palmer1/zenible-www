@@ -1,30 +1,6 @@
 import React from 'react';
 
-const defaultProposal = `Dear Client,
-
-I'm excited to propose my services for your mobile app development project. With 5+ years of React Native experience, I can deliver a high-quality solution that meets your requirements.
-
-**Project Approach:**
-- Phase 1: Design & Planning (2 weeks)
-- Phase 2: Development (6 weeks)
-- Phase 3: Testing & Launch (1 week)
-
-**Timeline:** 9 weeks total
-**Budget:** $15,000 fixed price
-
-I've successfully delivered similar apps for startups, including a fitness tracking app with 10K+ downloads. My expertise includes React Native, Node.js, and AWS deployment.
-
-Looking forward to discussing this opportunity!
-
-Best regards,
-[Your Name]`;
-
-export default function ProposalInput({ darkMode, proposal, setProposal, onAnalyze, analyzing, isPanelReady, isConnected }) {
-  React.useEffect(() => {
-    if (!proposal) {
-      setProposal(defaultProposal);
-    }
-  }, []);
+export default function ProposalInput({ darkMode, proposal, setProposal, jobPost, onAnalyze, onStartAgain, hasResults, analyzing, isPanelReady, isConnected }) {
 
   return (
     <div className={`rounded-xl border border-dashed shadow-sm flex flex-col h-full ${
@@ -57,7 +33,7 @@ export default function ProposalInput({ darkMode, proposal, setProposal, onAnaly
             className={`w-full h-full font-inter font-normal text-xs sm:text-sm leading-[22px] resize-none outline-none bg-transparent whitespace-pre-wrap ${
               darkMode ? 'text-white placeholder:text-[#888888]' : 'text-zinc-950 placeholder:text-zinc-500'
             }`}
-            placeholder="Paste your proposal here..."
+            placeholder="Enter your proposal here for analysis, or leave blank if you would like Zenible to write one for you."
             spellCheck="true"
           />
         </div>
@@ -67,32 +43,42 @@ export default function ProposalInput({ darkMode, proposal, setProposal, onAnaly
       <div className="p-3 sm:p-4 flex justify-end flex-shrink-0">
         <button
           onClick={() => {
-            console.log('[ProposalInput] Analyze button clicked:', {
-              hasProposal: !!proposal,
-              analyzing,
-              isPanelReady,
-              isConnected,
-              disabled: !proposal || analyzing || !isPanelReady || !isConnected,
-              disabledReasons: {
-                noProposal: !proposal,
-                analyzing,
-                panelNotReady: !isPanelReady,
-                notConnected: !isConnected
+            if (hasResults) {
+              console.log('[ProposalInput] Start Again clicked');
+              if (onStartAgain) {
+                onStartAgain();
+              } else {
+                console.error('[ProposalInput] onStartAgain callback is not defined!');
               }
-            });
-            if (onAnalyze) {
-              onAnalyze();
             } else {
-              console.error('[ProposalInput] onAnalyze callback is not defined!');
+              console.log('[ProposalInput] Button clicked:', {
+                hasProposal: !!proposal,
+                hasJobPost: !!jobPost,
+                analyzing,
+                isPanelReady,
+                isConnected,
+                disabled: !jobPost || analyzing || !isPanelReady || !isConnected,
+                disabledReasons: {
+                  noJobPost: !jobPost,
+                  analyzing,
+                  panelNotReady: !isPanelReady,
+                  notConnected: !isConnected
+                }
+              });
+              if (onAnalyze) {
+                onAnalyze();
+              } else {
+                console.error('[ProposalInput] onAnalyze callback is not defined!');
+              }
             }
           }}
-          disabled={!proposal || analyzing || !isPanelReady || !isConnected}
+          disabled={!hasResults && (!jobPost || analyzing || !isPanelReady || !isConnected)}
           className={`px-4 sm:px-6 py-2.5 sm:py-3 bg-zenible-primary text-white rounded-xl font-inter font-medium text-sm sm:text-base transition-all ${
-            (!proposal || analyzing || !isPanelReady || !isConnected) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-600'
+            (!hasResults && (!jobPost || analyzing || !isPanelReady || !isConnected)) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-600'
           }`}
-          title={!isConnected ? 'Connecting...' : !isPanelReady ? 'Initializing...' : ''}
+          title={!hasResults && !jobPost ? 'Please enter a job post first' : !hasResults && !isConnected ? 'Connecting...' : !hasResults && !isPanelReady ? 'Initializing...' : ''}
         >
-          {analyzing ? 'Analyzing...' : !isConnected ? 'Connecting...' : !isPanelReady ? 'Initializing...' : 'Analyze Proposal'}
+          {hasResults ? 'Start Again' : analyzing ? (proposal ? 'Analyzing...' : 'Generating...') : !isConnected ? 'Connecting...' : !isPanelReady ? 'Initializing...' : (proposal ? 'Analyze Proposal' : 'Generate Proposal')}
         </button>
       </div>
     </div>
