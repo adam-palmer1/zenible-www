@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SERVICE_STATUS } from '../../../constants/crm';
 
 /**
  * Service form validation schema using Zod
@@ -7,6 +8,7 @@ import { z } from 'zod';
  * - Name is required
  * - Frequency type is required (one_off or recurring)
  * - Price must be a positive number if provided
+ * - Status must be one of: inactive, active, completed
  * - All other fields are optional
  */
 export const serviceSchema = z.object({
@@ -18,7 +20,7 @@ export const serviceSchema = z.object({
     required_error: 'Frequency type is required',
   }),
   time_period: z.enum(['weekly', 'monthly', 'yearly']).optional().or(z.literal('')),
-  is_active: z.boolean().optional(),
+  status: z.enum([SERVICE_STATUS.PENDING, SERVICE_STATUS.INACTIVE, SERVICE_STATUS.ACTIVE, SERVICE_STATUS.COMPLETED]).optional(),
   is_hidden: z.boolean().optional(),
 });
 
@@ -32,7 +34,7 @@ export const getServiceDefaultValues = (service = null, defaultCurrency = null) 
 
   return {
     frequency_type: 'one_off',
-    is_active: true,
+    status: SERVICE_STATUS.ACTIVE,
     is_hidden: false,
     currency_id: defaultCurrency?.id || '',
   };

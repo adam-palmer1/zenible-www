@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../ui/modal/Modal';
 import ServiceForm from './forms/ServiceForm';
 import { useCRM } from '../../contexts/CRMContext';
@@ -11,10 +11,17 @@ import { useServices, useCompanyCurrencies } from '../../hooks/crm';
 const AddServiceModal = ({ isOpen, onClose, service = null }) => {
   const { refresh } = useCRM();
   const { createService, updateService } = useServices();
-  const { companyCurrencies, defaultCurrency, loading: currenciesLoading } = useCompanyCurrencies();
+  const { companyCurrencies, defaultCurrency, loading: currenciesLoading, loadData: loadCurrencies } = useCompanyCurrencies({ skipInitialFetch: true });
 
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+
+  // Load currencies when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadCurrencies();
+    }
+  }, [isOpen, loadCurrencies]);
 
   // Handle form submission
   const handleSubmit = async (formData) => {

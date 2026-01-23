@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash2, Plus } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';
-import { calculateLineItemTax } from '../../../utils/invoiceCalculations';
+import LineItemTaxModal from '../shared/LineItemTaxModal';
 
 const InvoiceLineItems = ({
   items = [],
@@ -12,15 +12,29 @@ const InvoiceLineItems = ({
   discountValue = 0,
   readOnly = false,
 }) => {
+  const [taxModalOpen, setTaxModalOpen] = useState(false);
+  const [editingItemIndex, setEditingItemIndex] = useState(null);
+
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
 
     // Auto-calculate amount when quantity or price changes
     if (field === 'quantity' || field === 'price') {
-      const quantity = field === 'quantity' ? parseFloat(value) || 0 : newItems[index].quantity;
-      const price = field === 'price' ? parseFloat(value) || 0 : newItems[index].price;
+      const quantity = field === 'quantity' ? parseFloat(value) || 0 : parseFloat(newItems[index].quantity) || 0;
+      const price = field === 'price' ? parseFloat(value) || 0 : parseFloat(newItems[index].price) || 0;
       newItems[index].amount = quantity * price;
+
+      // Recalculate tax amounts if taxes exist
+      if (newItems[index].taxes && newItems[index].taxes.length > 0) {
+        const itemAmount = quantity * price;
+        newItems[index].taxes = newItems[index].taxes.map((tax, i) => ({
+          ...tax,
+          tax_amount: Math.round((itemAmount * tax.tax_rate / 100) * 100) / 100,
+          display_order: i
+        }));
+        newItems[index].tax_amount = newItems[index].taxes.reduce((sum, t) => sum + t.tax_amount, 0);
+      }
     }
 
     onChange(newItems);
@@ -31,36 +45,75 @@ const InvoiceLineItems = ({
       ...items,
       {
         description: '',
+        name: '',
+        subtext: '',
         quantity: 1,
         price: 0,
         amount: 0,
+        taxes: [],
+        tax_amount: 0,
       },
     ]);
   };
 
   const removeItem = (index) => {
+    onChange(items.filter((_, i) => i !== index));
+  };
+
+  // Open tax modal for a specific item
+  const handleOpenTaxModal = (index) => {
+    setEditingItemIndex(index);
+    setTaxModalOpen(true);
+  };
+
+  // Handle tax modal save
+  const handleTaxSave = (taxes) => {
+    if (editingItemIndex === null) return;
+
     const newItems = [...items];
-    if (newItems[index].id) {
-      // Existing item - mark for deletion (backend will handle removal)
-      newItems[index]._delete = true;
-    } else {
-      // New unsaved item - remove from array
-      newItems.splice(index, 1);
-    }
+    const item = newItems[editingItemIndex];
+
+    // Update item with new taxes
+    newItems[editingItemIndex] = {
+      ...item,
+      taxes: taxes,
+      tax_amount: taxes.reduce((sum, t) => sum + t.tax_amount, 0)
+    };
+
     onChange(newItems);
+    setTaxModalOpen(false);
+    setEditingItemIndex(null);
   };
 
-  const calculateItemTax = (item) => {
-    if (!taxRate) return 0;
-    const amount = parseFloat(item.amount || 0);
-    return calculateLineItemTax(amount, taxRate, discountType, discountValue);
-  };
-
+  // Calculate item total (amount + item taxes)
   const calculateItemTotal = (item) => {
-    const tax = calculateItemTax(item);
     const amount = parseFloat(item.amount || 0);
-    return amount + tax;
+    const taxAmount = item.taxes?.reduce((sum, t) => sum + (t.tax_amount || 0), 0) || 0;
+    return amount + taxAmount;
   };
+
+  // Get tax summary text for an item
+  const getItemTaxSummary = (item) => {
+    if (!item.taxes || item.taxes.length === 0) return null;
+
+    if (item.taxes.length === 1) {
+      return `${item.taxes[0].tax_name} (${item.taxes[0].tax_rate}%)`;
+    }
+
+    return `${item.taxes.length} taxes applied`;
+  };
+
+  // Auto-resize textareas when items are loaded or changed
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const textareas = document.querySelectorAll('.auto-grow-textarea');
+      textareas.forEach(textarea => {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+      });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [items]);
 
   return (
     <div className="space-y-4">
@@ -87,21 +140,16 @@ const InvoiceLineItems = ({
               <th className="px-4 py-3 text-left text-xs font-medium design-text-secondary uppercase tracking-wider">
                 Description
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium design-text-secondary uppercase tracking-wider w-24">
-                Quantity
-              </th>
               <th className="px-4 py-3 text-left text-xs font-medium design-text-secondary uppercase tracking-wider w-32">
                 Price
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium design-text-secondary uppercase tracking-wider w-24">
+                Qty
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium design-text-secondary uppercase tracking-wider w-32">
                 Amount
               </th>
-              {taxRate > 0 && (
-                <th className="px-4 py-3 text-left text-xs font-medium design-text-secondary uppercase tracking-wider w-24">
-                  Tax
-                </th>
-              )}
-              <th className="px-4 py-3 text-left text-xs font-medium design-text-secondary uppercase tracking-wider w-32">
+              <th className="px-4 py-3 text-left text-xs font-medium design-text-secondary uppercase tracking-wider w-36">
                 Total
               </th>
               {!readOnly && (
@@ -117,60 +165,128 @@ const InvoiceLineItems = ({
                 </td>
               </tr>
             ) : (
-              items.filter(item => !item._delete).map((item, index) => (
+              items.map((item, index) => (
                 <tr key={index} className="hover:design-bg-secondary transition-colors">
+                  {/* Description */}
                   <td className="px-4 py-3">
                     {readOnly ? (
-                      <span className="design-text-primary">{item.description || item.name}</span>
+                      <div>
+                        <span className="text-[#09090b] dark:text-white">{item.description || item.name}</span>
+                        {item.subtext && (
+                          <p className="text-xs text-[#71717a] dark:text-gray-400 mt-0.5 whitespace-pre-line">{item.subtext}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <textarea
+                          value={item.description || item.name || ''}
+                          onChange={(e) => {
+                            handleItemChange(index, 'description', e.target.value);
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                            }
+                          }}
+                          placeholder="Item description"
+                          rows={1}
+                          className="auto-grow-textarea w-full px-2 py-1 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none bg-transparent"
+                          style={{ minHeight: '24px' }}
+                        />
+                        <textarea
+                          value={item.subtext || ''}
+                          onChange={(e) => {
+                            handleItemChange(index, 'subtext', e.target.value);
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                            }
+                          }}
+                          placeholder="Additional details (optional)"
+                          maxLength={500}
+                          rows={1}
+                          className="auto-grow-textarea w-full px-2 py-1 text-xs text-gray-500 dark:text-gray-400 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none bg-transparent"
+                          style={{ minHeight: '20px' }}
+                        />
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Price */}
+                  <td className="px-4 py-3">
+                    {readOnly ? (
+                      <span className="design-text-primary">{formatCurrency(parseFloat(item.price || item.unit_price || 0), currency)}</span>
                     ) : (
                       <input
-                        type="text"
-                        value={item.description || ''}
-                        onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                        placeholder="Item description"
-                        className="w-full px-2 py-1 design-input rounded-md"
+                        type="number"
+                        value={item.price ?? item.unit_price ?? ''}
+                        onChange={(e) => handleItemChange(index, 'price', e.target.value)}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-2 py-1 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500 bg-transparent"
                       />
                     )}
                   </td>
+
+                  {/* Quantity */}
                   <td className="px-4 py-3">
                     {readOnly ? (
                       <span className="design-text-primary">{parseFloat(item.quantity || 0)}</span>
                     ) : (
                       <input
                         type="number"
-                        value={item.quantity}
+                        value={item.quantity ?? ''}
                         onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                         min="0"
-                        step="0.01"
-                        className="w-full px-2 py-1 design-input rounded-md"
+                        step="1"
+                        className="w-full px-2 py-1 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500 bg-transparent text-center"
                       />
                     )}
                   </td>
+
+                  {/* Amount (subtotal before tax) */}
                   <td className="px-4 py-3">
-                    {readOnly ? (
-                      <span className="design-text-primary">{formatCurrency(parseFloat(item.price || 0), currency)}</span>
-                    ) : (
-                      <input
-                        type="number"
-                        value={item.price}
-                        onChange={(e) => handleItemChange(index, 'price', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        className="w-full px-2 py-1 design-input rounded-md"
-                      />
+                    <div className="design-text-primary">
+                      {formatCurrency(parseFloat(item.amount || 0), currency)}
+                    </div>
+                    {/* +Tax button */}
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenTaxModal(index)}
+                        className="text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 font-medium"
+                      >
+                        {item.taxes && item.taxes.length > 0 ? 'Edit Tax' : '+ Tax'}
+                      </button>
                     )}
                   </td>
-                  <td className="px-4 py-3 design-text-primary font-medium">
-                    {formatCurrency(parseFloat(item.amount || 0), currency)}
+
+                  {/* Total (with taxes) */}
+                  <td className="px-4 py-3">
+                    <div>
+                      <div className="font-semibold design-text-primary">
+                        {formatCurrency(calculateItemTotal(item), currency)}
+                      </div>
+
+                      {/* Item taxes display */}
+                      {item.taxes && item.taxes.length > 0 && (
+                        <div className="mt-0.5">
+                          {item.taxes.map((tax, taxIndex) => (
+                            <div key={taxIndex} className="text-xs text-gray-500 dark:text-gray-400">
+                              {tax.tax_name}: {formatCurrency(tax.tax_amount, currency)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </td>
-                  {taxRate > 0 && (
-                    <td className="px-4 py-3 design-text-secondary text-sm">
-                      {formatCurrency(calculateItemTax(item), currency)}
-                    </td>
-                  )}
-                  <td className="px-4 py-3 design-text-primary font-semibold">
-                    {formatCurrency(calculateItemTotal(item), currency)}
-                  </td>
+
+                  {/* Remove button */}
                   {!readOnly && (
                     <td className="px-4 py-3">
                       <button
@@ -189,6 +305,19 @@ const InvoiceLineItems = ({
           </tbody>
         </table>
       </div>
+
+      {/* Line Item Tax Modal */}
+      <LineItemTaxModal
+        isOpen={taxModalOpen}
+        onClose={() => {
+          setTaxModalOpen(false);
+          setEditingItemIndex(null);
+        }}
+        onSave={handleTaxSave}
+        itemAmount={editingItemIndex !== null ? parseFloat(items[editingItemIndex]?.amount || 0) : 0}
+        initialTaxes={editingItemIndex !== null ? (items[editingItemIndex]?.taxes || []) : []}
+        currency={currency}
+      />
     </div>
   );
 };

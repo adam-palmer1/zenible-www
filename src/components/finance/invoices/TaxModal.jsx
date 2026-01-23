@@ -1,29 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { getCommonTaxRates } from '../../../utils/taxCalculations';
+import { X, Plus, Check, Loader2 } from 'lucide-react';
+import companiesAPI from '../../../services/api/crm/companies';
 
 const TaxModal = ({ isOpen, onClose, onSave, initialTaxRate = 0, initialTaxLabel = 'Tax' }) => {
   const [taxRate, setTaxRate] = useState(initialTaxRate);
   const [taxLabel, setTaxLabel] = useState(initialTaxLabel);
-  const [customRate, setCustomRate] = useState('');
+  const [companyTaxes, setCompanyTaxes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTaxName, setNewTaxName] = useState('');
+  const [newTaxRate, setNewTaxRate] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const commonRates = getCommonTaxRates();
-
+  // Fetch company taxes when modal opens
   useEffect(() => {
     if (isOpen) {
       setTaxRate(initialTaxRate);
       setTaxLabel(initialTaxLabel);
-      setCustomRate('');
+      setShowAddForm(false);
+      setNewTaxName('');
+      setNewTaxRate('');
+      loadCompanyTaxes();
     }
   }, [isOpen, initialTaxRate, initialTaxLabel]);
 
+  const loadCompanyTaxes = async () => {
+    try {
+      setLoading(true);
+      const taxes = await companiesAPI.listTaxes();
+      setCompanyTaxes(taxes || []);
+    } catch (error) {
+      console.error('Failed to load company taxes:', error);
+      setCompanyTaxes([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectTax = (tax) => {
+    setTaxRate(parseFloat(tax.tax_rate));
+    setTaxLabel(tax.tax_name);
+    setShowAddForm(false);
+  };
+
   const handleSave = () => {
-    const rate = customRate ? parseFloat(customRate) : taxRate;
-    if (rate < 0 || rate > 100) {
+    if (taxRate < 0 || taxRate > 100) {
       alert('Tax rate must be between 0 and 100');
       return;
     }
-    onSave(rate, taxLabel);
+    onSave(taxRate, taxLabel);
     onClose();
   };
 
@@ -32,10 +57,37 @@ const TaxModal = ({ isOpen, onClose, onSave, initialTaxRate = 0, initialTaxLabel
     onClose();
   };
 
-  const handleQuickSelect = (rate, label) => {
-    setTaxRate(rate);
-    setTaxLabel(label);
-    setCustomRate('');
+  const handleAddNewTax = async () => {
+    if (!newTaxName.trim()) {
+      alert('Please enter a tax name');
+      return;
+    }
+    const rate = parseFloat(newTaxRate);
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      alert('Tax rate must be between 0 and 100');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const newTax = await companiesAPI.createTax({
+        tax_name: newTaxName.trim(),
+        tax_rate: rate,
+      });
+
+      // Add to local list and select it
+      setCompanyTaxes(prev => [...prev, newTax]);
+      setTaxRate(rate);
+      setTaxLabel(newTaxName.trim());
+      setShowAddForm(false);
+      setNewTaxName('');
+      setNewTaxRate('');
+    } catch (error) {
+      console.error('Failed to create tax:', error);
+      alert(error.message || 'Failed to create tax');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -53,81 +105,171 @@ const TaxModal = ({ isOpen, onClose, onSave, initialTaxRate = 0, initialTaxLabel
               </h3>
               <button
                 onClick={onClose}
-                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white transition-colors"
+                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-6">
-              {/* Tax Label */}
+            <div className="space-y-4">
+              {/* Company Saved Taxes */}
               <div>
                 <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                  Tax Label
+                  Select Tax
                 </label>
-                <input
-                  type="text"
-                  value={taxLabel}
-                  onChange={(e) => setTaxLabel(e.target.value)}
-                  placeholder="e.g., VAT, GST, Sales Tax"
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 rounded-md"
-                />
-              </div>
 
-              {/* Common Tax Rates */}
-              <div>
-                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                  Quick Select
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {commonRates.map((rate) => (
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
+                  </div>
+                ) : companyTaxes.length === 0 && !showAddForm ? (
+                  <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+                    <p className="mb-3">No saved taxes found</p>
                     <button
-                      key={rate.value}
-                      type="button"
-                      onClick={() => handleQuickSelect(rate.value, rate.label)}
-                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        taxRate === rate.value && !customRate
-                          ? 'bg-zenible-primary text-white'
-                          : 'bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white hover:design-bg-tertiary'
-                      }`}
+                      onClick={() => setShowAddForm(true)}
+                      className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 font-medium"
                     >
-                      {rate.label}
+                      <Plus className="h-4 w-4" />
+                      Create your first tax
                     </button>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {companyTaxes.map((tax) => {
+                      const isSelected = taxRate === parseFloat(tax.tax_rate) && taxLabel === tax.tax_name;
+                      return (
+                        <button
+                          key={tax.id}
+                          type="button"
+                          onClick={() => handleSelectTax(tax)}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
+                            isSelected
+                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                              isSelected
+                                ? 'border-purple-500 bg-purple-500'
+                                : 'border-gray-300 dark:border-gray-600'
+                            }`}>
+                              {isSelected && <Check className="h-3 w-3 text-white" />}
+                            </div>
+                            <span className={`font-medium ${
+                              isSelected
+                                ? 'text-purple-700 dark:text-purple-400'
+                                : 'text-gray-900 dark:text-white'
+                            }`}>
+                              {tax.tax_name}
+                            </span>
+                          </div>
+                          <span className={`text-sm ${
+                            isSelected
+                              ? 'text-purple-600 dark:text-purple-400'
+                              : 'text-gray-500 dark:text-gray-400'
+                          }`}>
+                            {tax.tax_rate}%
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    {/* Add New Tax Button */}
+                    {!showAddForm && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddForm(true)}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add New Tax
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Custom Rate */}
-              <div>
-                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                  Custom Rate (%)
-                </label>
-                <input
-                  type="number"
-                  value={customRate}
-                  onChange={(e) => {
-                    setCustomRate(e.target.value);
-                    if (e.target.value) {
-                      setTaxRate(0);
-                    }
-                  }}
-                  placeholder="Enter custom rate"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 rounded-md"
-                />
-              </div>
+              {/* Add New Tax Form */}
+              {showAddForm && (
+                <div className="border border-purple-200 dark:border-purple-800 rounded-lg p-4 bg-purple-50 dark:bg-purple-900/20">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                    Create New Tax
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Tax Name
+                      </label>
+                      <input
+                        type="text"
+                        value={newTaxName}
+                        onChange={(e) => setNewTaxName(e.target.value)}
+                        placeholder="e.g., VAT, GST, Sales Tax"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 rounded-md text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Tax Rate (%)
+                      </label>
+                      <input
+                        type="number"
+                        value={newTaxRate}
+                        onChange={(e) => setNewTaxRate(e.target.value)}
+                        placeholder="e.g., 20"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 rounded-md text-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleAddNewTax}
+                        disabled={saving}
+                        className="flex-1 px-3 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                      >
+                        {saving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4" />
+                            Save Tax
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAddForm(false);
+                          setNewTaxName('');
+                          setNewTaxRate('');
+                        }}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Preview */}
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 dark:text-gray-300 text-sm">Preview:</span>
-                  <span className="text-gray-900 dark:text-white font-medium">
-                    {taxLabel} ({customRate || taxRate}%)
-                  </span>
+              {taxRate > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-300 text-sm">Selected:</span>
+                    <span className="text-gray-900 dark:text-white font-medium">
+                      {taxLabel} ({taxRate}%)
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -145,16 +287,17 @@ const TaxModal = ({ isOpen, onClose, onSave, initialTaxRate = 0, initialTaxLabel
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white design-bg-tertiary rounded-md hover:design-bg-quaternary"
+                className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-4 py-2 text-sm font-medium text-white bg-zenible-primary rounded-md hover:bg-zenible-primary/90"
+                disabled={taxRate === 0}
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save
+                Apply Tax
               </button>
             </div>
           </div>

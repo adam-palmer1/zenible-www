@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Calendar, Plus, Trash2, Loader2, ArrowLeft, ChevronDown, Settings } from 'lucide-react';
 import { useInvoices } from '../../../contexts/InvoiceContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
+import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { INVOICE_STATUS } from '../../../constants/finance';
 import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
 import { getCurrencySymbol } from '../../../utils/currencyUtils';
-import currenciesAPI from '../../../services/api/crm/currencies';
+import { applyNumberFormat } from '../../../utils/numberFormatUtils';
+import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import companiesAPI from '../../../services/api/crm/companies';
 import invoicesAPI from '../../../services/api/finance/invoices';
-import paymentIntegrationsAPI from '../../../services/api/finance/paymentIntegrations';
 import TaxModal from './TaxModal';
 import DiscountModal from './DiscountModal';
 import DepositModal from './DepositModal';
+import LineItemTaxModal from '../shared/LineItemTaxModal';
 import ClientSelectModal from './ClientSelectModal';
 import CurrencySelectModal from './CurrencySelectModal';
 import SendInvoiceDialog from './SendInvoiceDialog';
@@ -27,6 +30,22 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
   const { createInvoice, updateInvoice } = useInvoices();
   const { contacts: allContacts, loading: contactsLoading } = useContacts({ is_client: true });
   const { showSuccess, showError } = useNotification();
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
+
+  // Get number format from company settings
+  const numberFormat = useMemo(() => {
+    const formatId = getNumberFormat();
+    if (formatId && numberFormats.length > 0) {
+      return numberFormats.find(f => f.id === formatId);
+    }
+    return null; // Will use default US format
+  }, [getNumberFormat, numberFormats]);
+
+  // Helper function to format numbers
+  const formatNumber = (num) => {
+    return applyNumberFormat(num, numberFormat);
+  };
 
   // Refs for dropdown positioning
   const clientButtonRef = React.useRef(null);
@@ -35,9 +54,10 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
   // State
   const [invoice, setInvoice] = useState(invoiceProp);
   const [loading, setLoading] = useState(!!id && !invoiceProp);
-  const [currencies, setCurrencies] = useState([]);
-  const [currenciesLoading, setCurrenciesLoading] = useState(true);
   const [paymentTerms, setPaymentTerms] = useState(null);
+
+  // Currency hook
+  const { companyCurrencies: currencies, defaultCurrency: defaultCurrencyAssoc, loading: currenciesLoading } = useCompanyCurrencies();
 
   const isEditing = !!invoice || !!id;
 
@@ -61,13 +81,14 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
 
   // Notes
   const [notes, setNotes] = useState('');
-  const [terms, setTerms] = useState('');
+  const [paymentInstructions, setPaymentInstructions] = useState('');
+  const [companyDefaultPaymentInstructions, setCompanyDefaultPaymentInstructions] = useState('');
 
   // Recurring (Old format - keeping for backward compatibility)
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringType, setRecurringType] = useState(RECURRING_TYPE.MONTHLY);
   const [recurringEvery, setRecurringEvery] = useState(1);
-  const [recurringPeriod, setRecurringPeriod] = useState('Months');
+  const [recurringPeriod, setRecurringPeriod] = useState('months');
   const [recurringEndDate, setRecurringEndDate] = useState(null);
   const [recurringOccurrences, setRecurringOccurrences] = useState(null);
 
@@ -91,6 +112,8 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
   // Modals
   const [showTaxModal, setShowTaxModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [showLineItemTaxModal, setShowLineItemTaxModal] = useState(false);
+  const [editingLineItemIndex, setEditingLineItemIndex] = useState(null);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [savedInvoice, setSavedInvoice] = useState(null);
@@ -100,6 +123,14 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
 
   // Saving
   const [saving, setSaving] = useState(false);
+
+  // Determine save button text based on invoice status
+  const getSaveButtonText = () => {
+    if (invoice?.status && invoice.status !== 'draft') {
+      return 'Save';
+    }
+    return 'Save as Draft';
+  };
 
   // Load invoice when editing
   useEffect(() => {
@@ -146,20 +177,41 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         amount: parseFloat(item.amount || 0),
       }));
       setItems(normalizedItems);
+
+      // Auto-resize textareas after a short delay to let DOM update
+      setTimeout(() => {
+        const textareas = document.querySelectorAll('.auto-grow-textarea');
+        textareas.forEach(textarea => {
+          textarea.style.height = 'auto';
+          textarea.style.height = textarea.scrollHeight + 'px';
+        });
+      }, 50);
+
       setTaxRate(parseFloat(invoice.tax_rate || 0));
       setTaxLabel(invoice.tax_label || 'Tax');
       setDiscountType(invoice.discount_type || 'percentage');
       setDiscountValue(parseFloat(invoice.discount_value || invoice.discount_percentage || 0));
-      setDepositType(invoice.deposit_type || null);
-      setDepositValue(parseFloat(invoice.deposit_value || invoice.deposit_percentage || 0));
+
+      // Infer deposit type from which field has a value if deposit_type is not set
+      let inferredDepositType = invoice.deposit_type || null;
+      let inferredDepositValue = 0;
+      if (invoice.deposit_percentage && parseFloat(invoice.deposit_percentage) > 0) {
+        inferredDepositType = inferredDepositType || 'percentage';
+        inferredDepositValue = parseFloat(invoice.deposit_percentage);
+      } else if (invoice.deposit_value && parseFloat(invoice.deposit_value) > 0) {
+        inferredDepositType = inferredDepositType || 'fixed';
+        inferredDepositValue = parseFloat(invoice.deposit_value);
+      }
+      setDepositType(inferredDepositType);
+      setDepositValue(inferredDepositValue);
       setNotes(invoice.notes || '');
-      setTerms(invoice.terms || '');
+      setPaymentInstructions(invoice.payment_instructions || '');
 
       // Recurring (Old format - for backward compatibility)
       setIsRecurring(invoice.is_recurring || invoice.pricing_type === 'recurring' || false);
       setRecurringType(invoice.recurring_type || RECURRING_TYPE.MONTHLY);
       setRecurringEvery(invoice.recurring_every || invoice.custom_every || 1);
-      setRecurringPeriod(invoice.recurring_period || invoice.custom_period || 'Months');
+      setRecurringPeriod(invoice.recurring_period || invoice.custom_period || 'months');
       setRecurringEndDate(invoice.recurring_end_date || null);
       setRecurringOccurrences(invoice.recurring_occurrences || invoice.recurring_number || null);
 
@@ -179,34 +231,28 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
     }
   }, [invoice]);
 
-  // Load currencies
+  // Set default currency when currencies are loaded (for new invoices only)
   useEffect(() => {
-    const loadCurrencies = async () => {
-      try {
-        const data = await currenciesAPI.getCompanyCurrencies();
-        setCurrencies(data || []);
-        // Only set default currency on initial load for new invoices
-        if (!invoice && !currency && data && data.length > 0) {
-          const defaultCurrency = data.find(cc => cc.is_default);
-          setCurrency(defaultCurrency?.currency?.id || data[0]?.currency?.id);
-        }
-      } catch (error) {
-        console.error('Failed to load currencies:', error);
-        showError('Failed to load currencies');
-      } finally {
-        setCurrenciesLoading(false);
+    if (!invoice && !currency && currencies.length > 0) {
+      const defaultCurrencyId = defaultCurrencyAssoc?.currency?.id || currencies[0]?.currency?.id;
+      if (defaultCurrencyId) {
+        setCurrency(defaultCurrencyId);
       }
-    };
-    loadCurrencies();
-  }, [invoice]);
+    }
+  }, [invoice, currency, currencies, defaultCurrencyAssoc]);
 
-  // Set currency based on selected contact
+  // Set currency based on selected contact (contact currency takes priority over company default)
   useEffect(() => {
     if (!invoice && contactId && allContacts.length > 0 && currencies.length > 0) {
       const selectedContact = allContacts.find(c => c.id === contactId);
       if (selectedContact) {
-        // Try preferred_currency_id first, then currency_id, then keep current default
-        const contactCurrencyId = selectedContact.preferred_currency_id || selectedContact.currency_id;
+        // Check all possible currency field names on the contact
+        const contactCurrencyId =
+          selectedContact.preferred_currency_id ||
+          selectedContact.currency_id ||
+          selectedContact.default_currency_id ||
+          selectedContact.currency?.id;
+
         if (contactCurrencyId) {
           // Verify this currency is available in the company currencies
           const currencyExists = currencies.some(cc => cc.currency.id === contactCurrencyId);
@@ -214,6 +260,7 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
             setCurrency(contactCurrencyId);
           }
         }
+        // If contact has no currency set, keep the company default (already set by loadCurrencies)
       }
     }
   }, [contactId, allContacts, currencies, invoice]);
@@ -235,52 +282,23 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
     loadNextNumber();
   }, [invoice]);
 
-  // Load payment terms and calculate due date
+  // Load payment terms and company defaults
   useEffect(() => {
-    const loadPaymentTerms = async () => {
+    const loadCompanyDefaults = async () => {
       try {
         const data = await companiesAPI.getCurrent();
         if (data?.default_invoice_payment_terms) {
           setPaymentTerms(data.default_invoice_payment_terms);
         }
+        if (data?.default_payment_instructions) {
+          setCompanyDefaultPaymentInstructions(data.default_payment_instructions);
+        }
       } catch (error) {
-        console.error('Failed to load payment terms:', error);
+        console.error('Failed to load company defaults:', error);
       }
     };
-    loadPaymentTerms();
+    loadCompanyDefaults();
   }, []);
-
-  // Load payment integration status and set defaults for new invoices
-  useEffect(() => {
-    const loadIntegrationStatus = async () => {
-      // Only for new invoices, not editing existing ones
-      if (invoice) return;
-
-      try {
-        const [stripeStatus, paypalStatus] = await Promise.all([
-          paymentIntegrationsAPI.getStripeConnectStatus().catch(() => null),
-          paymentIntegrationsAPI.getPayPalStatus().catch(() => null),
-        ]);
-
-        // Auto-enable Stripe payments if connected and charges enabled
-        const isStripeConnected = stripeStatus?.status === 'enabled' && stripeStatus?.charges_enabled;
-        if (isStripeConnected) {
-          setAllowStripePayments(true);
-        }
-
-        // Auto-enable PayPal payments if connected
-        const isPayPalConnected = paypalStatus?.is_connected;
-        if (isPayPalConnected) {
-          setAllowPaypalPayments(true);
-        }
-      } catch (error) {
-        // Silently fail - user can still manually enable payment options
-        console.error('Failed to load integration status:', error);
-      }
-    };
-
-    loadIntegrationStatus();
-  }, [invoice]);
 
   useEffect(() => {
     if (!invoice && paymentTerms && invoiceDate) {
@@ -303,7 +321,7 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
 
   // Line item handlers
   const addLineItem = () => {
-    setItems([...items, { description: '', quantity: 1, price: 0, amount: 0 }]);
+    setItems([...items, { description: '', subtext: '', quantity: 1, price: 0, amount: 0, taxes: [], tax_amount: 0 }]);
   };
 
   const updateLineItem = (index, field, value) => {
@@ -315,13 +333,55 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
       const qty = parseFloat(newItems[index].quantity) || 0;
       const price = parseFloat(newItems[index].price) || 0;
       newItems[index].amount = qty * price;
+
+      // Recalculate tax amounts if taxes exist
+      if (newItems[index].taxes && newItems[index].taxes.length > 0) {
+        const itemAmount = qty * price;
+        newItems[index].taxes = newItems[index].taxes.map((tax, i) => ({
+          ...tax,
+          tax_amount: Math.round((itemAmount * tax.tax_rate / 100) * 100) / 100,
+          display_order: i
+        }));
+        newItems[index].tax_amount = newItems[index].taxes.reduce((sum, t) => sum + t.tax_amount, 0);
+      }
     }
 
     setItems(newItems);
   };
 
   const removeLineItem = (index) => {
+    // Simply remove from array - backend uses replace-all strategy
     setItems(items.filter((_, i) => i !== index));
+  };
+
+  // Line item tax handlers
+  const openLineItemTaxModal = (index) => {
+    setEditingLineItemIndex(index);
+    setShowLineItemTaxModal(true);
+  };
+
+  const handleLineItemTaxSave = (taxes) => {
+    if (editingLineItemIndex === null) return;
+
+    const newItems = [...items];
+    const item = newItems[editingLineItemIndex];
+
+    newItems[editingLineItemIndex] = {
+      ...item,
+      taxes: taxes,
+      tax_amount: taxes.reduce((sum, t) => sum + t.tax_amount, 0)
+    };
+
+    setItems(newItems);
+    setShowLineItemTaxModal(false);
+    setEditingLineItemIndex(null);
+  };
+
+  // Calculate item total (amount + item taxes)
+  const calculateItemTotal = (item) => {
+    const amount = parseFloat(item.amount || 0);
+    const taxAmount = item.taxes?.reduce((sum, t) => sum + (t.tax_amount || 0), 0) || 0;
+    return amount + taxAmount;
   };
 
   // Save handler
@@ -335,7 +395,7 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
     }
   };
 
-  const handleSave = async (saveStatus = INVOICE_STATUS.DRAFT) => {
+  const handleSave = async (saveStatus = INVOICE_STATUS.DRAFT, openSendDialog = false) => {
     // Validation
     if (!contactId) {
       showError('Please select a client');
@@ -369,8 +429,10 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         currency_id: currency,
         status: saveStatus,
         invoice_items: items.map(item => ({
+          ...(item.id && { id: item.id }), // Include id for existing items to update them
           name: item.description || item.name,
           description: item.description || item.name,
+          subtext: item.subtext || null,
           quantity: parseFloat(item.quantity),
           price: parseFloat(item.price),
           amount: parseFloat(item.amount),
@@ -381,8 +443,8 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         discount_value: discountValue > 0 ? parseFloat(discountValue) : undefined,
         deposit_type: depositValue > 0 ? depositType : undefined,
         deposit_value: depositValue > 0 ? parseFloat(depositValue) : undefined,
-        notes: notes || undefined,
-        terms: terms || undefined,
+        notes: notes || null,
+        payment_instructions: paymentInstructions || companyDefaultPaymentInstructions || null,
         // Old recurring format (keeping for backward compatibility)
         is_recurring: isRecurring,
         recurring_type: isRecurring ? recurringType : undefined,
@@ -414,8 +476,8 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         showSuccess('Invoice created successfully');
       }
 
-      // If saving with SENT status, open send dialog
-      if (saveStatus === INVOICE_STATUS.SENT) {
+      // Only open send dialog if explicitly requested (via Save & Send button)
+      if (openSendDialog) {
         setSavedInvoice(result);
         setShowSendDialog(true);
       } else {
@@ -590,42 +652,63 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">Quantity</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Price</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Amount</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">Price</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">Qty</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">Amount</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Total</th>
                 <th className="px-4 py-3 w-12"></th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-sm text-gray-500">
+                  <td colSpan="6" className="px-4 py-8 text-center text-sm text-gray-500">
                     No items added yet. Click "+ Add Items" to get started.
                   </td>
                 </tr>
               ) : (
                 items.map((item, index) => (
-                  <tr key={index}>
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                        placeholder="Item description"
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      />
+                  <tr key={item.id || index}>
+                    <td className="px-4 py-3 align-top">
+                      <div className="space-y-1">
+                        <textarea
+                          value={item.description}
+                          onChange={(e) => {
+                            updateLineItem(index, 'description', e.target.value);
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                            }
+                          }}
+                          placeholder="Item description"
+                          rows={1}
+                          className="auto-grow-textarea w-full px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none bg-transparent"
+                          style={{ minHeight: '24px' }}
+                        />
+                        <textarea
+                          value={item.subtext || ''}
+                          onChange={(e) => {
+                            updateLineItem(index, 'subtext', e.target.value);
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                            }
+                          }}
+                          placeholder="Additional details (optional)"
+                          maxLength={500}
+                          rows={1}
+                          className="auto-grow-textarea w-full px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none bg-transparent"
+                          style={{ minHeight: '20px' }}
+                        />
+                      </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
-                        min="0"
-                        step="1"
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 align-top">
                       <input
                         type="number"
                         value={item.price}
@@ -633,19 +716,58 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
                         min="0"
                         step="0.01"
                         placeholder="0.00"
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-right focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        className="w-full px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-purple-500 bg-transparent"
                       />
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                      {getCurrencySymbol(currencyCode)}{item.amount.toFixed(2)}
+                    <td className="px-4 py-3 align-top">
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
+                        min="0"
+                        step="1"
+                        className="w-full px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500 bg-transparent"
+                      />
                     </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => removeLineItem(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                    <td className="px-4 py-3 align-top">
+                      <div className="pt-1">
+                        <div className="text-sm font-medium text-gray-900">
+                          {getCurrencySymbol(currencyCode)}{formatNumber(item.amount)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openLineItemTaxModal(index)}
+                          className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                        >
+                          {item.taxes && item.taxes.length > 0 ? 'Edit Tax' : '+ Tax'}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <div className="pt-1">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {getCurrencySymbol(currencyCode)}{formatNumber(calculateItemTotal(item))}
+                        </div>
+                        {item.taxes && item.taxes.length > 0 && (
+                          <div className="mt-0.5">
+                            {item.taxes.map((tax, taxIndex) => (
+                              <div key={taxIndex} className="text-xs text-gray-500">
+                                {tax.tax_name}: {getCurrencySymbol(currencyCode)}{formatNumber(tax.tax_amount)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <div className="pt-1">
+                        <button
+                          onClick={() => removeLineItem(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -659,36 +781,124 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
       <div className="space-y-2">
         <div className="flex items-center justify-between py-2">
           <span className="text-sm text-gray-600">Sub Total:</span>
-          <span className="text-sm font-medium text-gray-900">{getCurrencySymbol(currencyCode)}{totals.subtotal.toFixed(2)}</span>
+          <span className="text-sm font-medium text-gray-900">{getCurrencySymbol(currencyCode)}{formatNumber(totals.subtotal)}</span>
         </div>
+
+        {/* Discount */}
+        {discountValue > 0 && (
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                Discount {discountType === 'percentage' ? `(${discountValue}%)` : ''}:
+              </span>
+              <button
+                onClick={() => setShowDiscountModal(true)}
+                className="text-xs text-purple-600 hover:text-purple-700"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => setDiscountValue(0)}
+                className="text-xs text-red-600 hover:text-red-700"
+              >
+                Remove
+              </button>
+            </div>
+            <span className="text-sm font-medium text-red-600">
+              -{getCurrencySymbol(currencyCode)}{formatNumber(totals.discount || 0)}
+            </span>
+          </div>
+        )}
+
+        {/* Tax */}
+        {taxRate > 0 && (
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                {taxLabel} ({taxRate}%):
+              </span>
+              <button
+                onClick={() => setShowTaxModal(true)}
+                className="text-xs text-purple-600 hover:text-purple-700"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => setTaxRate(0)}
+                className="text-xs text-red-600 hover:text-red-700"
+              >
+                Remove
+              </button>
+            </div>
+            <span className="text-sm font-medium text-gray-900">
+              {getCurrencySymbol(currencyCode)}{formatNumber(totals.tax || 0)}
+            </span>
+          </div>
+        )}
 
         <div className="flex items-center justify-between py-3 px-4 bg-purple-100 rounded-lg">
           <span className="text-sm font-semibold text-gray-900">Total Amount:</span>
-          <span className="text-lg font-bold text-gray-900">{getCurrencySymbol(currencyCode)}{totals.total.toFixed(2)}</span>
+          <span className="text-lg font-bold text-gray-900">{getCurrencySymbol(currencyCode)}{formatNumber(totals.total)}</span>
         </div>
 
+        {/* Deposit */}
+        {depositValue > 0 && depositType && (
+          <div className="flex items-center justify-between py-2 px-4 bg-blue-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-blue-700">
+                Deposit Required {depositType === 'percentage' ? `(${depositValue}%)` : ''}:
+              </span>
+              <button
+                onClick={() => setShowDepositModal(true)}
+                className="text-xs text-purple-600 hover:text-purple-700"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => { setDepositValue(0); setDepositType(null); }}
+                className="text-xs text-red-600 hover:text-red-700"
+              >
+                Remove
+              </button>
+            </div>
+            <span className="text-sm font-medium text-blue-700">
+              {getCurrencySymbol(currencyCode)}{formatNumber(
+                depositType === 'percentage'
+                  ? (totals.total * depositValue / 100)
+                  : depositValue
+              )}
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center gap-3 pt-2">
-          <button
-            onClick={() => setShowTaxModal(true)}
-            className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-          >
-            <Plus className="h-4 w-4" />
-            Add Tax
-          </button>
-          <button
-            onClick={() => setShowDiscountModal(true)}
-            className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-          >
-            <Plus className="h-4 w-4" />
-            Add Discount
-          </button>
-          <button
-            onClick={() => setShowDepositModal(true)}
-            className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-          >
-            <Plus className="h-4 w-4" />
-            Add Deposit
-          </button>
+          {taxRate === 0 && (
+            <button
+              onClick={() => setShowTaxModal(true)}
+              className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
+              <Plus className="h-4 w-4" />
+              Add Tax
+            </button>
+          )}
+          {discountValue === 0 && (
+            <button
+              onClick={() => setShowDiscountModal(true)}
+              className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
+              <Plus className="h-4 w-4" />
+              Add Discount
+            </button>
+          )}
+          {(!depositValue || depositValue === 0) && (
+            <button
+              onClick={() => setShowDepositModal(true)}
+              className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
+              <Plus className="h-4 w-4" />
+              Add Deposit
+            </button>
+          )}
         </div>
       </div>
 
@@ -696,12 +906,12 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes (Internal)
+            Notes
           </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Internal Note(Note Visible To Client)"
+            placeholder="Invoice Notes (Visible to Clients)"
             rows={4}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
@@ -709,12 +919,12 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Terms & Conditions
+            Payment Instructions
           </label>
           <textarea
-            value={terms}
-            onChange={(e) => setTerms(e.target.value)}
-            placeholder="Write Payment Terms and Condition"
+            value={paymentInstructions}
+            onChange={(e) => setPaymentInstructions(e.target.value)}
+            placeholder={companyDefaultPaymentInstructions || "Enter payment instructions"}
             rows={4}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
@@ -752,15 +962,15 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
           </button>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => handleSave(INVOICE_STATUS.DRAFT)}
+              onClick={() => handleSave(invoice?.status && invoice.status !== 'draft' ? invoice.status : INVOICE_STATUS.DRAFT)}
               disabled={saving}
               className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
-              Save to Draft
+              {getSaveButtonText()}
             </button>
             <button
-              onClick={() => handleSave(INVOICE_STATUS.SENT)}
+              onClick={() => handleSave(INVOICE_STATUS.SENT, true)}
               disabled={saving}
               className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
             >
@@ -809,6 +1019,18 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         currency={currencyCode}
       />
 
+      <LineItemTaxModal
+        isOpen={showLineItemTaxModal}
+        onClose={() => {
+          setShowLineItemTaxModal(false);
+          setEditingLineItemIndex(null);
+        }}
+        onSave={handleLineItemTaxSave}
+        itemAmount={editingLineItemIndex !== null ? parseFloat(items[editingLineItemIndex]?.amount || 0) : 0}
+        initialTaxes={editingLineItemIndex !== null ? (items[editingLineItemIndex]?.taxes || []) : []}
+        currency={currencyCode}
+      />
+
       <InvoiceSettingsModal
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
@@ -818,9 +1040,9 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         recurringPeriod={recurringPeriod}
         recurringEndDate={recurringEndDate}
         recurringOccurrences={recurringOccurrences}
+        recurringStatus={recurringStatus}
         startDate={invoiceDate}
         pricingType={pricingType}
-        recurringStatus={recurringStatus}
         recurringNumber={recurringNumber}
         customEvery={customEvery}
         customPeriod={customPeriod}
@@ -829,6 +1051,8 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         allowPartialPayments={allowPartialPayments}
         automaticPaymentEnabled={automaticPaymentEnabled}
         automaticEmail={automaticEmail}
+        invoiceStatus={invoice?.status || 'draft'}
+        isEditing={isEditing && isRecurring}
         onChange={(updates) => {
           // Old format (for backward compatibility)
           if ('isRecurring' in updates) {
@@ -909,15 +1133,15 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
                 Invoice Settings
               </button>
               <button
-                onClick={() => handleSave(INVOICE_STATUS.DRAFT)}
+                onClick={() => handleSave(invoice?.status && invoice.status !== 'draft' ? invoice.status : INVOICE_STATUS.DRAFT)}
                 disabled={saving}
                 className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
                 {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
-                Save to Draft
+                {getSaveButtonText()}
               </button>
               <button
-                onClick={() => handleSave(INVOICE_STATUS.SENT)}
+                onClick={() => handleSave(INVOICE_STATUS.SENT, true)}
                 disabled={saving}
                 className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
               >

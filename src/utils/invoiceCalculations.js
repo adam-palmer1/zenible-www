@@ -77,55 +77,100 @@ export const calculateDepositAmount = (total, depositPercentage = 0, depositAmou
 };
 
 /**
+ * Calculate item-level taxes total from line items
+ * @param {Array} lineItems - Array of line items with taxes array
+ * @returns {number} Total item-level taxes
+ */
+export const calculateItemLevelTaxes = (lineItems = []) => {
+  return lineItems.reduce((total, item) => {
+    if (item.taxes && Array.isArray(item.taxes)) {
+      return total + item.taxes.reduce((taxSum, tax) => taxSum + (parseFloat(tax.tax_amount) || 0), 0);
+    }
+    return total;
+  }, 0);
+};
+
+/**
+ * Get tax breakdown grouped by tax name
+ * @param {Array} lineItems - Array of line items with taxes array
+ * @returns {Array} Array of { tax_name, tax_rate, tax_amount } grouped by name
+ */
+export const getTaxBreakdown = (lineItems = []) => {
+  const taxGroups = {};
+
+  lineItems.forEach(item => {
+    if (item.taxes && Array.isArray(item.taxes)) {
+      item.taxes.forEach(tax => {
+        const key = `${tax.tax_name}_${tax.tax_rate}`;
+        if (!taxGroups[key]) {
+          taxGroups[key] = {
+            tax_name: tax.tax_name,
+            tax_rate: tax.tax_rate,
+            tax_amount: 0
+          };
+        }
+        taxGroups[key].tax_amount += parseFloat(tax.tax_amount) || 0;
+      });
+    }
+  });
+
+  return Object.values(taxGroups).map(tax => ({
+    ...tax,
+    tax_amount: parseFloat(tax.tax_amount.toFixed(2))
+  }));
+};
+
+/**
  * Calculate invoice/quote total
- * @param {Array} lineItems - Array of line items
- * @param {Object} options - Discount and deposit options
+ * @param {Array} lineItems - Array of line items (may include taxes array per item)
+ * @param {number} taxRate - Document-level tax rate (percentage, 0-100)
+ * @param {string} discountType - 'percentage' or 'fixed'
+ * @param {number} discountValue - Discount value (percentage or fixed amount)
  * @returns {Object} Breakdown of totals
  */
-export const calculateInvoiceTotal = (lineItems = [], options = {}) => {
-  const {
-    discountPercentage = 0,
-    discountAmount = null,
-    depositPercentage = 0,
-    depositAmount = null,
-  } = options;
-
-  // Calculate subtotal (before tax)
+export const calculateInvoiceTotal = (lineItems = [], taxRate = 0, discountType = 'percentage', discountValue = 0) => {
+  // Calculate subtotal (before tax and discount)
   const subtotal = calculateSubtotal(lineItems);
 
+  // Calculate item-level taxes (from each item's taxes array)
+  const itemLevelTax = calculateItemLevelTaxes(lineItems);
+
   // Calculate discount
-  const discount = calculateDiscountAmount(subtotal, discountPercentage, discountAmount);
+  let discount = 0;
+  if (discountValue > 0) {
+    if (discountType === 'percentage') {
+      discount = (subtotal * discountValue) / 100;
+    } else {
+      discount = parseFloat(discountValue) || 0;
+    }
+  }
 
   // Subtotal after discount
-  const subtotalAfterDiscount = subtotal - discount;
+  const subtotalAfterDiscount = Math.max(0, subtotal - discount);
 
-  // Calculate tax (on subtotal after discount)
-  const taxTotal = lineItems.reduce((total, item) => {
-    const itemAmount = calculateLineItemAmount(item.quantity, item.price);
-    // Proportionally reduce item amount by discount
-    const discountRatio = subtotal > 0 ? discount / subtotal : 0;
-    const itemAmountAfterDiscount = itemAmount * (1 - discountRatio);
-    const tax = calculateLineItemTax(itemAmountAfterDiscount, item.tax_rate || item.tax || 0);
-    return total + tax;
-  }, 0);
+  // Calculate document-level tax on subtotal after discount
+  const globalTaxRate = parseFloat(taxRate) || 0;
+  const documentTax = (subtotalAfterDiscount * globalTaxRate) / 100;
 
-  // Total (subtotal - discount + tax)
-  const total = subtotalAfterDiscount + taxTotal;
+  // Total tax = item-level taxes + document-level tax
+  const totalTax = itemLevelTax + documentTax;
 
-  // Calculate deposit
-  const deposit = calculateDepositAmount(total, depositPercentage, depositAmount);
+  // Total (subtotal - discount + item taxes + document tax)
+  const total = subtotalAfterDiscount + totalTax;
 
-  // Amount due (total - deposit)
-  const amountDue = total - deposit;
+  // Get tax breakdown for display
+  const taxBreakdown = getTaxBreakdown(lineItems);
 
   return {
     subtotal: parseFloat(subtotal.toFixed(2)),
     discount: parseFloat(discount.toFixed(2)),
     subtotalAfterDiscount: parseFloat(subtotalAfterDiscount.toFixed(2)),
-    taxTotal: parseFloat(taxTotal.toFixed(2)),
+    itemLevelTax: parseFloat(itemLevelTax.toFixed(2)),
+    documentTax: parseFloat(documentTax.toFixed(2)),
+    tax: parseFloat(totalTax.toFixed(2)),
+    taxTotal: parseFloat(totalTax.toFixed(2)), // Alias for backwards compatibility
+    taxBreakdown,
     total: parseFloat(total.toFixed(2)),
-    deposit: parseFloat(deposit.toFixed(2)),
-    amountDue: parseFloat(amountDue.toFixed(2)),
   };
 };
 

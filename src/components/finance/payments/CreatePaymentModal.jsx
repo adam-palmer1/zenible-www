@@ -1,26 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, CreditCard, Loader2, User, DollarSign, Calendar, FileText } from 'lucide-react';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { PAYMENT_METHOD, PAYMENT_METHOD_LABELS } from '../../../constants/finance';
+import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
+import ContactSelectorModal from '../../calendar/ContactSelectorModal';
 import paymentsAPI from '../../../services/api/finance/payments';
 
 const CreatePaymentModal = ({ isOpen, onClose }) => {
   const { createPayment, refresh } = usePayments();
   const { showSuccess, showError } = useNotification();
+  const { companyCurrencies, defaultCurrency, loading: currenciesLoading } = useCompanyCurrencies();
 
   const [submitting, setSubmitting] = useState(false);
   const [nextNumber, setNextNumber] = useState('');
+  const [selectedContact, setSelectedContact] = useState(null);
+  const [showContactSelector, setShowContactSelector] = useState(false);
+  const contactButtonRef = useRef(null);
+
   const [formData, setFormData] = useState({
-    contact_id: '',
-    customer_name: '',
-    customer_email: '',
+    contact_id: null,
     amount: '',
-    currency: 'USD',
+    currency_id: null,
     payment_method: PAYMENT_METHOD.BANK_TRANSFER,
     payment_date: new Date().toISOString().split('T')[0],
     reference_number: '',
-    description: '',
+    notes: '',
   });
 
   // Fetch next payment number when modal opens
@@ -36,28 +41,48 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
+  // Set default currency when currencies load
+  useEffect(() => {
+    if (defaultCurrency && !formData.currency_id) {
+      setFormData(prev => ({ ...prev, currency_id: defaultCurrency.currency.id }));
+    }
+  }, [defaultCurrency, formData.currency_id]);
+
   // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
       setFormData({
-        contact_id: '',
-        customer_name: '',
-        customer_email: '',
+        contact_id: null,
         amount: '',
-        currency: 'USD',
+        currency_id: defaultCurrency?.currency?.id || null,
         payment_method: PAYMENT_METHOD.BANK_TRANSFER,
         payment_date: new Date().toISOString().split('T')[0],
         reference_number: '',
-        description: '',
+        notes: '',
       });
+      setSelectedContact(null);
     }
-  }, [isOpen]);
+  }, [isOpen, defaultCurrency]);
 
   if (!isOpen) return null;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleContactSelect = (contact) => {
+    setSelectedContact(contact);
+    setFormData(prev => ({ ...prev, contact_id: contact?.id || null }));
+  };
+
+  const getContactDisplayName = () => {
+    if (!selectedContact) return 'Select Contact';
+    const fullName = `${selectedContact.first_name || ''} ${selectedContact.last_name || ''}`.trim();
+    if (fullName) return fullName;
+    if (selectedContact.business_name) return selectedContact.business_name;
+    if (selectedContact.email) return selectedContact.email;
+    return 'No Name';
   };
 
   const handleSubmit = async (e) => {
@@ -69,8 +94,13 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (!formData.customer_name && !formData.contact_id) {
-      showError('Please enter a customer name or select a contact');
+    if (!formData.contact_id) {
+      showError('Please select a contact');
+      return;
+    }
+
+    if (!formData.currency_id) {
+      showError('Please select a currency');
       return;
     }
 
@@ -78,17 +108,20 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
       setSubmitting(true);
 
       const paymentData = {
-        ...formData,
+        contact_id: formData.contact_id,
         amount: parseFloat(formData.amount),
-        contact_id: formData.contact_id ? parseInt(formData.contact_id) : null,
+        currency_id: formData.currency_id,
+        payment_method: formData.payment_method,
+        payment_date: formData.payment_date,
       };
 
-      // Remove empty fields
-      Object.keys(paymentData).forEach(key => {
-        if (paymentData[key] === '' || paymentData[key] === null) {
-          delete paymentData[key];
-        }
-      });
+      // Add optional fields if they have values
+      if (formData.reference_number) {
+        paymentData.reference_number = formData.reference_number;
+      }
+      if (formData.notes) {
+        paymentData.notes = formData.notes;
+      }
 
       await createPayment(paymentData);
       showSuccess('Payment recorded successfully');
@@ -100,8 +133,6 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
       setSubmitting(false);
     }
   };
-
-  const currencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'CNY', 'INR', 'NZD'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -137,34 +168,30 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
 
         {/* Content */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Customer Name */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+          {/* Contact Selection */}
+          <div className="relative">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               <User className="h-4 w-4" />
-              Customer Name
+              Contact <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              name="customer_name"
-              value={formData.customer_name}
-              onChange={handleChange}
-              placeholder="Enter customer name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-          </div>
+            <button
+              ref={contactButtonRef}
+              type="button"
+              onClick={() => setShowContactSelector(true)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-left hover:border-purple-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors dark:bg-gray-700 dark:border-gray-600 dark:hover:border-purple-400"
+            >
+              <span className={selectedContact ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}>
+                {getContactDisplayName()}
+              </span>
+            </button>
 
-          {/* Customer Email */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Customer Email (optional)
-            </label>
-            <input
-              type="email"
-              name="customer_email"
-              value={formData.customer_email}
-              onChange={handleChange}
-              placeholder="customer@example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            {/* Contact Selector Dropdown */}
+            <ContactSelectorModal
+              isOpen={showContactSelector}
+              onClose={() => setShowContactSelector(false)}
+              onSelect={handleContactSelect}
+              selectedContactId={formData.contact_id}
+              anchorRef={contactButtonRef}
             />
           </div>
 
@@ -173,7 +200,7 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
             <div className="col-span-2 space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 <DollarSign className="h-4 w-4" />
-                Amount
+                Amount <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -184,57 +211,61 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
                 min="0"
                 placeholder="0.00"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Currency
+                Currency <span className="text-red-500">*</span>
               </label>
               <select
-                name="currency"
-                value={formData.currency}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                name="currency_id"
+                value={formData.currency_id || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, currency_id: parseInt(e.target.value) }))}
+                disabled={currenciesLoading}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
               >
-                {currencies.map(curr => (
-                  <option key={curr} value={curr}>{curr}</option>
+                <option value="">Select</option>
+                {companyCurrencies.map(cc => (
+                  <option key={cc.currency.id} value={cc.currency.id}>
+                    {cc.currency.code} - {cc.currency.name}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Payment Method */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              <CreditCard className="h-4 w-4" />
-              Payment Method
-            </label>
-            <select
-              name="payment_method"
-              value={formData.payment_method}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              {Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Payment Date */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              <Calendar className="h-4 w-4" />
-              Payment Date
-            </label>
-            <input
-              type="date"
-              name="payment_date"
-              value={formData.payment_date}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
+          {/* Payment Date and Method */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Calendar className="h-4 w-4" />
+                Payment Date
+              </label>
+              <input
+                type="date"
+                name="payment_date"
+                value={formData.payment_date}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <CreditCard className="h-4 w-4" />
+                Payment Method
+              </label>
+              <select
+                name="payment_method"
+                value={formData.payment_method}
+                onChange={handleChange}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                {Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Reference Number */}
@@ -248,23 +279,23 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
               value={formData.reference_number}
               onChange={handleChange}
               placeholder="e.g., check number, transaction ID"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
 
-          {/* Description */}
+          {/* Notes */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               <FileText className="h-4 w-4" />
-              Description (optional)
+              Notes (optional)
             </label>
             <textarea
-              name="description"
-              value={formData.description}
+              name="notes"
+              value={formData.notes}
               onChange={handleChange}
               rows={3}
               placeholder="Add notes about this payment..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
         </form>

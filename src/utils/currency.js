@@ -36,43 +36,67 @@ export const getCurrencySymbol = (currencyCode) => {
  * Format amount with currency symbol
  * @param {number} amount - Numeric amount
  * @param {string} currencyCode - ISO 4217 currency code
- * @param {boolean} showCode - Show currency code instead of symbol
+ * @param {Object} numberFormat - Number format object with decimal_separator and thousands_separator
  * @returns {string} Formatted currency string
  */
-export const formatCurrency = (amount, currencyCode = 'USD', showCode = false) => {
+export const formatCurrency = (amount, currencyCode = 'USD', numberFormat = null) => {
   if (amount === null || amount === undefined) return '';
 
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
-  const formatted = numAmount.toFixed(2);
 
   // Ensure currencyCode is valid
   const code = currencyCode || 'USD';
+  const symbol = getCurrencySymbol(code);
 
-  if (showCode) {
-    return `${code} ${formatted}`;
+  // If no number format specified, use default with thousands separators
+  if (!numberFormat) {
+    const formatted = numAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return `${symbol}${formatted}`;
   }
 
-  const symbol = getCurrencySymbol(code);
-  return `${symbol}${formatted}`;
+  // Apply custom number format
+  const parts = numAmount.toFixed(2).split('.');
+  const integerPart = parts[0].replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    numberFormat.thousands_separator || ','
+  );
+  const formattedNumber = `${integerPart}${numberFormat.decimal_separator || '.'}${parts[1]}`;
+
+  return `${symbol}${formattedNumber}`;
 };
 
 /**
  * Format currency with thousands separator
  * @param {number} amount - Numeric amount
  * @param {string} currencyCode - ISO 4217 currency code
- * @returns {string} Formatted currency with commas
+ * @param {Object} numberFormat - Number format object with decimal_separator and thousands_separator
+ * @returns {string} Formatted currency with separators
  */
-export const formatCurrencyWithCommas = (amount, currencyCode = 'USD') => {
+export const formatCurrencyWithCommas = (amount, currencyCode = 'USD', numberFormat = null) => {
   if (amount === null || amount === undefined) return '';
 
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
-  const formatted = numAmount.toLocaleString('en-GB', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
 
   // Ensure currencyCode is valid
   const code = currencyCode || 'USD';
   const symbol = getCurrencySymbol(code);
-  return `${symbol}${formatted}`;
+
+  // If no number format specified, use default locale formatting
+  if (!numberFormat) {
+    const formatted = numAmount.toLocaleString('en-GB', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+    return `${symbol}${formatted}`;
+  }
+
+  // Apply custom number format
+  const parts = numAmount.toFixed(2).split('.');
+  const integerPart = parts[0].replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    numberFormat.thousands_separator || ','
+  );
+  const formattedNumber = `${integerPart}${numberFormat.decimal_separator || '.'}${parts[1]}`;
+
+  return `${symbol}${formattedNumber}`;
 };

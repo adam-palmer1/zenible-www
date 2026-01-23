@@ -88,7 +88,7 @@ const AutomaticPaymentConsentModal = ({
                 <span className="font-medium">Amount:</span> {invoice?.currency} {typeof invoice?.total === 'number' ? invoice.total.toFixed(2) : parseFloat(invoice?.total || 0).toFixed(2)}
               </p>
               <p>
-                <span className="font-medium">Frequency:</span> {invoice?.recurring_type || 'Monthly'}
+                <span className="font-medium">Frequency:</span> {(invoice?.recurring_type || 'monthly').charAt(0).toUpperCase() + (invoice?.recurring_type || 'monthly').slice(1)}
               </p>
               {invoice?.recurring_number && invoice.recurring_number !== -1 && (
                 <p>

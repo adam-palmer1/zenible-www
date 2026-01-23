@@ -233,6 +233,104 @@ class InvoicesAPI {
   }
 
   /**
+   * Get invoice by share code (public endpoint without auth)
+   * @param {string} shareCode - Public share code
+   * @returns {Promise<Object>} Invoice
+   */
+  async getPublicByShareCode(shareCode) {
+    return request(`/invoices/${shareCode}`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Create a Stripe payment for a public invoice
+   * @param {string} shareCode - Public share link code
+   * @param {Object} paymentData - Payment data { amount?, customer_email? }
+   * @returns {Promise<Object>} { payment_id, client_secret, publishable_key, amount, currency }
+   */
+  async createStripePayment(shareCode, paymentData) {
+    return request(`/invoices/${shareCode}/stripe/create-payment`, {
+      method: 'POST',
+      body: JSON.stringify(paymentData),
+    });
+  }
+
+  /**
+   * Get Stripe payment status for a public invoice
+   * @param {string} shareCode - Public share link code
+   * @param {string} paymentId - Payment record UUID
+   * @returns {Promise<Object>} Payment status
+   */
+  async getStripePaymentStatus(shareCode, paymentId) {
+    return request(`/invoices/${shareCode}/stripe/payment/${paymentId}/status`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Create a PayPal order for a public invoice
+   * @param {string} shareCode - Public share code
+   * @param {Object} orderData - Order data { amount, return_url, cancel_url }
+   * @returns {Promise<Object>} { order_id, approve_url }
+   */
+  async createPayPalOrder(shareCode, orderData) {
+    return request(`/invoices/${shareCode}/paypal/create-order`, {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    });
+  }
+
+  /**
+   * Capture a PayPal order for a public invoice
+   * @param {string} shareCode - Public share code
+   * @param {Object} captureData - Capture data { order_id }
+   * @returns {Promise<Object>} Capture result
+   */
+  async capturePayPalOrder(shareCode, captureData) {
+    return request(`/invoices/${shareCode}/paypal/capture-order`, {
+      method: 'POST',
+      body: JSON.stringify(captureData),
+    });
+  }
+
+  /**
+   * Get PayPal order status for a public invoice
+   * @param {string} shareCode - Public share code
+   * @param {string} orderId - PayPal order ID
+   * @returns {Promise<Object>} Order status
+   */
+  async getPayPalOrderStatus(shareCode, orderId) {
+    return request(`/invoices/${shareCode}/paypal/order-status/${orderId}`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Create a Stripe SetupIntent for saving card details (for recurring payments)
+   * @param {string} shareCode - Public share link code
+   * @returns {Promise<Object>} { client_secret, setup_intent_id, publishable_key, customer_id, stripe_account_id? }
+   */
+  async createStripeSetupIntent(shareCode) {
+    return request(`/invoices/${shareCode}/stripe/setup-card`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Confirm card setup was successful (verify with backend after Stripe confirmation)
+   * @param {string} shareCode - Public share link code
+   * @param {string} setupIntentId - Stripe SetupIntent ID
+   * @returns {Promise<Object>} Confirmation result
+   */
+  async confirmCardSetup(shareCode, setupIntentId) {
+    return request(`/invoices/${shareCode}/stripe/confirm-setup`, {
+      method: 'POST',
+      body: JSON.stringify({ setup_intent_id: setupIntentId }),
+    });
+  }
+
+  /**
    * Get payment history for an invoice
    * @param {string|number} invoiceId - Invoice ID
    * @returns {Promise<Array>} Payment history
@@ -331,133 +429,43 @@ class InvoicesAPI {
     });
   }
 
-  // ==========================================
-  // Public Invoice Payment API Methods
-  // These endpoints don't require authentication
-  // ==========================================
+  // ========== Project Allocation Endpoints ==========
 
   /**
-   * Get public invoice by share code
-   * @param {string} shareCode - Invoice share code
-   * @returns {Promise<Object>} Public invoice data
+   * Get project allocations for an invoice
+   * @param {string} invoiceId - Invoice UUID
+   * @returns {Promise<Object>} { allocations: [...], total_percentage: number, total_allocated_amount: number }
    */
-  async getPublicByShareCode(shareCode) {
-    return publicRequest(`/invoices/${shareCode}`, {
+  async getAllocations(invoiceId) {
+    return request(`${this.baseEndpoint}/${invoiceId}/allocations`, {
       method: 'GET',
     });
   }
 
   /**
-   * Get payment status for public invoice
-   * @param {string} shareCode - Invoice share code
-   * @returns {Promise<Object>} Payment status
+   * Update project allocations for an invoice (replaces all existing allocations)
+   * @param {string} invoiceId - Invoice UUID
+   * @param {Array} allocations - Array of { project_id, percentage }
+   * @returns {Promise<Object>} Updated allocations
    */
-  async getPublicPaymentStatus(shareCode) {
-    return publicRequest(`/invoices/${shareCode}/payment-status`, {
-      method: 'GET',
+  async updateAllocations(invoiceId, allocations) {
+    return request(`${this.baseEndpoint}/${invoiceId}/allocations`, {
+      method: 'PUT',
+      body: JSON.stringify({ allocations }),
     });
   }
 
   /**
-   * Create Stripe payment for public invoice
-   * @param {string} shareCode - Invoice share code
-   * @param {Object} params - { amount?: number, customer_email?: string }
-   * @returns {Promise<Object>} { payment_id, client_secret, publishable_key, amount, currency }
+   * Delete all project allocations for an invoice
+   * @param {string} invoiceId - Invoice UUID
+   * @returns {Promise<void>}
    */
-  async createStripePayment(shareCode, params = {}) {
-    return publicRequest(`/invoices/${shareCode}/stripe/create-payment`, {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
-  /**
-   * Get Stripe payment status
-   * @param {string} shareCode - Invoice share code
-   * @param {string} paymentId - Payment ID
-   * @returns {Promise<Object>} Payment status
-   */
-  async getStripePaymentStatus(shareCode, paymentId) {
-    return publicRequest(`/invoices/${shareCode}/stripe/payment/${paymentId}/status`, {
-      method: 'GET',
-    });
-  }
-
-  /**
-   * Create PayPal order for public invoice
-   * @param {string} shareCode - Invoice share code
-   * @param {Object} params - { amount?: number, return_url, cancel_url }
-   * @returns {Promise<Object>} { order_id, approve_url, amount, currency }
-   */
-  async createPayPalOrder(shareCode, params) {
-    return publicRequest(`/invoices/${shareCode}/paypal/create-order`, {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
-  /**
-   * Capture PayPal order for public invoice
-   * @param {string} shareCode - Invoice share code
-   * @param {Object} params - { order_id }
-   * @returns {Promise<Object>} Capture result
-   */
-  async capturePayPalOrder(shareCode, params) {
-    return publicRequest(`/invoices/${shareCode}/paypal/capture-order`, {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
-  /**
-   * Get PayPal order status
-   * @param {string} shareCode - Invoice share code
-   * @param {string} orderId - PayPal order ID
-   * @returns {Promise<Object>} Order status
-   */
-  async getPayPalOrderStatus(shareCode, orderId) {
-    return publicRequest(`/invoices/${shareCode}/paypal/order/${orderId}/status`, {
-      method: 'GET',
+  async deleteAllocations(invoiceId) {
+    return request(`${this.baseEndpoint}/${invoiceId}/allocations`, {
+      method: 'DELETE',
     });
   }
 }
-
-/**
- * Public request handler (no authentication required)
- */
-const publicRequest = async (endpoint, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
-
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
-
-    if (response.status === 204) {
-      return null;
-    }
-
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      const error = new Error(data?.detail || data?.message || `Request failed with status ${response.status}`);
-      error.status = response.status;
-      error.data = data;
-      throw error;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('[InvoicesAPI] Public request error:', error);
-    throw error;
-  }
-};
 
 // Export singleton instance
 const invoicesAPI = new InvoicesAPI();

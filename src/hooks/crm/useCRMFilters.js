@@ -53,13 +53,16 @@ export function useCRMFilters(contacts = [], baseFilters = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preferencesInitialized, filtersLoaded]);
 
-  // Build contact filters with is_hidden based on showHidden state
+  // Build contact filters for CRM tab
+  // - has_crm_status=true: Only fetch contacts that have been assigned to the CRM pipeline
+  //   (have a global or custom status). This excludes vendor-only contacts.
+  // - Note: We don't send is_hidden to the API because the backend does strict matching.
+  //   Hidden contact filtering is done client-side in CRMDashboard.jsx
   const contactFilters = useMemo(() => ({
     ...baseFilters,
-    // When showHidden is false (default): filter to show only non-hidden contacts
-    // When showHidden is true: don't filter (show all including hidden)
-    ...(!showHidden ? { is_hidden: false } : {})
-  }), [baseFilters, showHidden]);
+    has_crm_status: true,  // Only get contacts in the CRM pipeline
+    per_page: 500,         // Get all CRM contacts (pipeline needs all to display columns)
+  }), [baseFilters]);
 
   // Filter contacts by selected statuses
   const filteredContacts = useMemo(() => {

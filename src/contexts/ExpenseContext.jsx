@@ -10,6 +10,7 @@ export const ExpenseProvider = ({ children }) => {
   const { getPreference, updatePreference } = usePreferences();
 
   const [expenses, setExpenses] = useState([]);
+  const [stats, setStats] = useState(null);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -26,12 +27,26 @@ export const ExpenseProvider = ({ children }) => {
   const [selectedExpenseIds, setSelectedExpenseIds] = useState([]);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
+  // Default to last 30 days
+  const getDefaultDateRange = () => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 29); // 29 days ago + today = 30 days
+    return {
+      start_date: thirtyDaysAgo.toISOString().split('T')[0],
+      end_date: today.toISOString().split('T')[0],
+    };
+  };
+
+  const defaultRange = getDefaultDateRange();
   const [filters, setFilters] = useState({
     search: '',
     category_id: null,
     vendor_id: null,
-    from_date: null,
-    to_date: null,
+    vendor_ids: null, // comma-separated string of vendor IDs for multi-select filter
+    start_date: defaultRange.start_date,
+    end_date: defaultRange.end_date,
+    date_field: 'entry', // 'entry' (expense_date) or 'paid' (paid_at)
   });
 
   const [pagination, setPagination] = useState({
@@ -45,15 +60,18 @@ export const ExpenseProvider = ({ children }) => {
 
   useEffect(() => {
     if (user) {
+      const savedDateField = getPreference('expense_date_field', 'entry');
       const savedFilters = {
         search: getPreference('expense_search', ''),
         category_id: getPreference('expense_filter_category', null),
         vendor_id: getPreference('expense_filter_vendor', null),
+        vendor_ids: getPreference('expense_filter_vendor_ids', null),
+        date_field: savedDateField,
       };
       const savedSort = getPreference('expense_sort_by', 'expense_date');
       const savedOrder = getPreference('expense_sort_order', 'desc');
 
-      setFilters(savedFilters);
+      setFilters(prev => ({ ...prev, ...savedFilters }));
       setSortBy(savedSort);
       setSortOrder(savedOrder);
       setPreferencesLoaded(true);
@@ -69,21 +87,43 @@ export const ExpenseProvider = ({ children }) => {
 
       // Build params, filtering out null/undefined values
       const params = {
-        skip: (pagination.page - 1) * pagination.limit,
-        limit: pagination.limit,
+        page: pagination.page,
+        per_page: pagination.limit,
         sort_by: sortBy,
-        sort_order: sortOrder,
+        sort_direction: sortOrder,
       };
 
       // Only add filter params if they have actual values
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== null && value !== undefined && value !== '') {
+          // Handle date field translation
+          if (key === 'date_field') {
+            // Don't pass date_field directly, it's handled by translating start_date/end_date
+            return;
+          }
+          if (key === 'start_date' || key === 'end_date') {
+            // Translate based on date_field
+            const dateField = filters.date_field || 'entry';
+            if (dateField === 'paid') {
+              // For paid date, use paid_from/paid_to
+              if (key === 'start_date') {
+                params.paid_from = value;
+              } else {
+                params.paid_to = value;
+              }
+            } else {
+              // For entry date (expense_date), use start_date/end_date
+              params[key] = value;
+            }
+            return;
+          }
           params[key] = value;
         }
       });
 
       const response = await expensesAPI.list(params);
       setExpenses(response.items || response);
+      setStats(response.stats || null);
       setPagination(prev => ({
         ...prev,
         total: response.total || response.length,
@@ -255,8 +295,14 @@ export const ExpenseProvider = ({ children }) => {
     if (newFilters.vendor_id !== undefined) {
       updatePreference('expense_filter_vendor', newFilters.vendor_id, 'finance');
     }
+    if (newFilters.vendor_ids !== undefined) {
+      updatePreference('expense_filter_vendor_ids', newFilters.vendor_ids, 'finance');
+    }
     if (newFilters.search !== undefined) {
       updatePreference('expense_search', newFilters.search, 'finance');
+    }
+    if (newFilters.date_field !== undefined) {
+      updatePreference('expense_date_field', newFilters.date_field, 'finance');
     }
   }, [updatePreference]);
 
@@ -324,6 +370,7 @@ export const ExpenseProvider = ({ children }) => {
 
   const value = useMemo(() => ({
     expenses,
+    stats,
     categories,
     loading,
     error,
@@ -364,6 +411,7 @@ export const ExpenseProvider = ({ children }) => {
     clearSelection,
   }), [
     expenses,
+    stats,
     categories,
     loading,
     error,

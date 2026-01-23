@@ -5,13 +5,48 @@ import {
   EyeIcon,
   PencilIcon,
   TrashIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
-import { useContacts } from '../../hooks/crm';
+import { useContacts, useCompanyCurrencies } from '../../hooks/crm';
 import { useNotification } from '../../contexts/NotificationContext';
 import { formatCurrency } from '../../utils/currency';
 import Dropdown from '../ui/dropdown/Dropdown';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
+
+/**
+ * Sortable Column Header Component
+ * Displays a clickable header with sort indicator
+ */
+const SortableColumnHeader = ({ field, label, sortField, sortDirection, onSort, align = 'left' }) => {
+  const isActive = sortField === field;
+  const alignClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
+
+  return (
+    <th
+      className={`px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors select-none text-${align}`}
+      onClick={() => onSort(field)}
+    >
+      <div className={`flex items-center gap-1 ${alignClass}`}>
+        <span>{label}</span>
+        <span className={`flex flex-col ${isActive ? 'text-zenible-primary' : 'text-gray-300'}`}>
+          {isActive ? (
+            sortDirection === 'asc' ? (
+              <ChevronUpIcon className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDownIcon className="h-3.5 w-3.5" />
+            )
+          ) : (
+            <svg className="h-3.5 w-3.5 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+          )}
+        </span>
+      </div>
+    </th>
+  );
+};
 
 /**
  * ClientsView Component
@@ -25,21 +60,69 @@ const ClientsView = ({
   refreshKey = 0,
   // Filter state from useClientsFilters hook
   searchQuery,
-  selectedSort,
+  sortField,
+  sortDirection,
+  handleSortChange,
   showHiddenClients,
+  showPreferredCurrency = true,
   visibleColumns,
   availableColumns,
+  visibleFieldNames = [],
 }) => {
   const { showError, showSuccess } = useNotification();
+  const { defaultCurrency, numberFormat } = useCompanyCurrencies();
+
+  // Get the default currency code for formatting
+  const defaultCurrencyCode = defaultCurrency?.currency?.code || 'GBP';
 
   const [showRemoveClientModal, setShowRemoveClientModal] = useState(false);
   const [clientToRemove, setClientToRemove] = useState(null);
   const [showDeleteClientModal, setShowDeleteClientModal] = useState(false);
   const [clientToDelete, setClientToDelete] = useState(null);
 
-  // Fetch clients (contacts with is_client: true) with financial details
+  // Build the filters object for the API request
+  // Memoize to prevent unnecessary re-renders and API calls
+  const contactFilters = useMemo(() => {
+    // Essential fields always needed for basic UI functionality
+    // These must match valid field names from GET /contacts/fields
+    const essentialFields = [
+      'id',
+      'first_name',
+      'last_name',
+      'business_name',
+      'display_name',
+      'email',
+      'phone',
+      'is_hidden',
+      'created_at',
+    ];
+
+    const baseFilters = {
+      is_client: true,
+    };
+
+    // When not showing preferred currency, preserve original currencies
+    if (!showPreferredCurrency) {
+      baseFilters.preserve_currencies = true;
+    }
+
+    // Only add fields parameter if we have visible field names
+    // This ensures the initial request works before fields metadata loads
+    if (visibleFieldNames.length > 0) {
+      const allFields = new Set([...essentialFields, ...visibleFieldNames]);
+      return {
+        ...baseFilters,
+        fields: Array.from(allFields).join(','),
+      };
+    }
+
+    // Without fields parameter, API returns all fields (default behavior)
+    return baseFilters;
+  }, [visibleFieldNames, showPreferredCurrency]);
+
+  // Fetch clients (contacts with is_client: true) with only the requested fields
   const { contacts: clients, loading: clientsLoading, updateContact, deleteContact } = useContacts(
-    { is_client: true, include_financial_details: true },
+    contactFilters,
     refreshKey
   );
 
@@ -62,39 +145,63 @@ const ClientsView = ({
 
     // Apply hidden filter
     if (!showHiddenClients) {
-      filtered = filtered.filter((client) => client.is_visible_in_clients !== false);
+      filtered = filtered.filter((client) => !client.is_hidden);
     }
 
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (selectedSort) {
-        case 'newest':
-          return new Date(b.created_at) - new Date(a.created_at);
-        case 'oldest':
-          return new Date(a.created_at) - new Date(b.created_at);
-        case 'name':
-          const nameA = `${a.first_name || ''} ${a.last_name || ''}`.trim();
-          const nameB = `${b.first_name || ''} ${b.last_name || ''}`.trim();
-          return nameA.localeCompare(nameB);
-        case 'services_high':
-          return (b.services_count || 0) - (a.services_count || 0);
-        case 'services_low':
-          return (a.services_count || 0) - (b.services_count || 0);
-        case 'value_high':
-          const totalA = parseFloat(a.one_off_total || 0) + parseFloat(a.recurring_total || 0);
-          const totalB = parseFloat(b.one_off_total || 0) + parseFloat(b.recurring_total || 0);
-          return totalB - totalA;
-        case 'value_low':
-          const totalA2 = parseFloat(a.one_off_total || 0) + parseFloat(a.recurring_total || 0);
-          const totalB2 = parseFloat(b.one_off_total || 0) + parseFloat(b.recurring_total || 0);
-          return totalA2 - totalB2;
-        default:
-          return 0;
-      }
-    });
+    // Apply sorting by field and direction
+    if (sortField) {
+      filtered.sort((a, b) => {
+        let valueA, valueB;
+
+        // Handle special sorting cases
+        if (sortField === 'display_name') {
+          valueA = (a.display_name || `${a.first_name || ''} ${a.last_name || ''}`.trim()).toLowerCase();
+          valueB = (b.display_name || `${b.first_name || ''} ${b.last_name || ''}`.trim()).toLowerCase();
+        } else if (sortField === 'created_at') {
+          valueA = new Date(a.created_at || 0);
+          valueB = new Date(b.created_at || 0);
+        } else if (['confirmed_services_count', 'active_services_count', 'pending_services_count'].includes(sortField)) {
+          valueA = parseInt(a[sortField] || 0, 10);
+          valueB = parseInt(b[sortField] || 0, 10);
+        } else if ([
+          'confirmed_one_off_total', 'active_one_off_total', 'pending_one_off_total', 'lifetime_one_off_total',
+          'confirmed_recurring_total', 'active_recurring_total', 'pending_recurring_total', 'value_net_total',
+          'expenses_total', 'value_gross_total', 'attribution_total',
+          'invoiced_total', 'payments_total', 'paid_total',
+          'total_outstanding', 'total_expenses_paid', 'total_expenses_outstanding'
+        ].includes(sortField)) {
+          // Handle array format (when preserve_currencies=true) - sum all amounts
+          const getFinancialValue = (val) => {
+            if (Array.isArray(val)) {
+              return val.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+            }
+            return parseFloat(val || 0);
+          };
+          valueA = getFinancialValue(a[sortField]);
+          valueB = getFinancialValue(b[sortField]);
+        } else {
+          // Default string comparison
+          valueA = (a[sortField] || '').toString().toLowerCase();
+          valueB = (b[sortField] || '').toString().toLowerCase();
+        }
+
+        // Compare values
+        let comparison = 0;
+        if (valueA instanceof Date && valueB instanceof Date) {
+          comparison = valueA - valueB;
+        } else if (typeof valueA === 'number' && typeof valueB === 'number') {
+          comparison = valueA - valueB;
+        } else {
+          comparison = valueA.localeCompare ? valueA.localeCompare(valueB) : (valueA > valueB ? 1 : -1);
+        }
+
+        // Apply direction
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
 
     return filtered;
-  }, [clients, searchQuery, showHiddenClients, selectedSort]);
+  }, [clients, searchQuery, showHiddenClients, sortField, sortDirection]);
 
   const handleEditClient = (client) => {
     if (openContactModal) {
@@ -104,14 +211,14 @@ const ClientsView = ({
 
   const handleHideClient = async (client) => {
     try {
-      // Determine current visibility state (undefined/null/true = visible, false = hidden)
-      const isCurrentlyVisible = client.is_visible_in_clients !== false;
-      const newVisibility = !isCurrentlyVisible;
+      // Determine current hidden state
+      const isCurrentlyHidden = client.is_hidden === true;
+      const newHiddenState = !isCurrentlyHidden;
 
       // updateContact handles both API call and local state update
-      await updateContact(client.id, { is_visible_in_clients: newVisibility });
+      await updateContact(client.id, { is_hidden: newHiddenState });
 
-      showSuccess(newVisibility ? 'Client is now visible' : 'Client has been hidden');
+      showSuccess(newHiddenState ? 'Client has been hidden' : 'Client is now visible');
     } catch (error) {
       console.error('Error updating client visibility:', error);
       showError('Failed to update client visibility');
@@ -168,58 +275,44 @@ const ClientsView = ({
     }
   };
 
+  // Format financial value - handles both single value and array format (when preserve_currencies=true)
+  // Returns a React element when multiple currencies, or a string for single value
   const formatFinancialValue = (value, currency) => {
+    // Handle array format (when preserve_currencies=true)
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return '-';
+      }
+
+      // Filter out zero values
+      const nonZeroValues = value.filter(v => v.amount && parseFloat(v.amount) !== 0);
+
+      if (nonZeroValues.length === 0) {
+        return '-';
+      }
+
+      // If multiple currencies, show each on separate line
+      if (nonZeroValues.length > 1) {
+        return (
+          <div className="flex flex-col">
+            {nonZeroValues.map((v, index) => (
+              <span key={index}>
+                {formatCurrency(parseFloat(v.amount), v.currency_code || defaultCurrencyCode, numberFormat)}
+              </span>
+            ))}
+          </div>
+        );
+      }
+
+      // Single currency in array format
+      return formatCurrency(parseFloat(nonZeroValues[0].amount), nonZeroValues[0].currency_code || defaultCurrencyCode, numberFormat);
+    }
+
+    // Handle single value format (when showing preferred currency)
     if (!value || value === null || value === '0' || parseFloat(value) === 0) {
       return '-';
     }
-    return formatCurrency(parseFloat(value), currency || 'USD');
-  };
-
-  // Extract total outstanding from financial_details
-  const getTotalOutstanding = (client) => {
-    if (!client.financial_details?.invoices_by_currency || client.financial_details.invoices_by_currency.length === 0) {
-      return { value: null, currency: null };
-    }
-
-    // If single currency, return that
-    if (client.financial_details.invoices_by_currency.length === 1) {
-      const invoice = client.financial_details.invoices_by_currency[0];
-      return {
-        value: invoice.total_outstanding,
-        currency: invoice.currency_code,
-      };
-    }
-
-    // If multiple currencies, sum them all and show as multi-currency
-    // For now, just return the first one (can be enhanced later)
-    const invoice = client.financial_details.invoices_by_currency[0];
-    return {
-      value: invoice.total_outstanding,
-      currency: invoice.currency_code,
-    };
-  };
-
-  // Extract total billed from financial_details
-  const getTotalBilled = (client) => {
-    if (!client.financial_details?.invoices_by_currency || client.financial_details.invoices_by_currency.length === 0) {
-      return { value: null, currency: null };
-    }
-
-    // If single currency, return that
-    if (client.financial_details.invoices_by_currency.length === 1) {
-      const invoice = client.financial_details.invoices_by_currency[0];
-      return {
-        value: invoice.total_billed,
-        currency: invoice.currency_code,
-      };
-    }
-
-    // If multiple currencies, return the first one (can be enhanced later)
-    const invoice = client.financial_details.invoices_by_currency[0];
-    return {
-      value: invoice.total_billed,
-      currency: invoice.currency_code,
-    };
+    return formatCurrency(parseFloat(value), currency || defaultCurrencyCode, numberFormat);
   };
 
   if (clientsLoading) {
@@ -237,55 +330,255 @@ const ClientsView = ({
         <table className="w-full">
           <thead>
             <tr className="border-b border-[#e5e5e5] dark:border-gray-700">
-              {visibleColumns.name && (
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Name
-                </th>
+              {visibleColumns.display_name && (
+                <SortableColumnHeader
+                  field="display_name"
+                  label="Name"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="left"
+                />
               )}
               {visibleColumns.email && (
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Email
-                </th>
+                <SortableColumnHeader
+                  field="email"
+                  label="Email"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="left"
+                />
               )}
               {visibleColumns.phone && (
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Phone
-                </th>
+                <SortableColumnHeader
+                  field="phone"
+                  label="Phone"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="left"
+                />
               )}
               {visibleColumns.business_name && (
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Company
-                </th>
+                <SortableColumnHeader
+                  field="business_name"
+                  label="Company"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="left"
+                />
               )}
-              {visibleColumns.services_count && (
-                <th className="text-center px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Services
-                </th>
+              {visibleColumns.confirmed_services_count && (
+                <SortableColumnHeader
+                  field="confirmed_services_count"
+                  label="Confirmed Services"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="center"
+                />
               )}
-              {visibleColumns.one_off_total && (
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  One-off Total
-                </th>
+              {visibleColumns.active_services_count && (
+                <SortableColumnHeader
+                  field="active_services_count"
+                  label="Active Services"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="center"
+                />
               )}
-              {visibleColumns.recurring_total && (
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Recurring Total
-                </th>
+              {visibleColumns.pending_services_count && (
+                <SortableColumnHeader
+                  field="pending_services_count"
+                  label="Pending Services"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="center"
+                />
               )}
-              {visibleColumns.amount_outstanding && (
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Amount Outstanding
-                </th>
+              {visibleColumns.confirmed_one_off_total && (
+                <SortableColumnHeader
+                  field="confirmed_one_off_total"
+                  label="Confirmed One-off"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
               )}
-              {visibleColumns.total_billed && (
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Total Billed
-                </th>
+              {visibleColumns.active_one_off_total && (
+                <SortableColumnHeader
+                  field="active_one_off_total"
+                  label="Active One-off"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
               )}
-              {visibleColumns.client_since && (
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Client Since
-                </th>
+              {visibleColumns.pending_one_off_total && (
+                <SortableColumnHeader
+                  field="pending_one_off_total"
+                  label="Pending One-off"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.lifetime_one_off_total && (
+                <SortableColumnHeader
+                  field="lifetime_one_off_total"
+                  label="Lifetime One-off"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.confirmed_recurring_total && (
+                <SortableColumnHeader
+                  field="confirmed_recurring_total"
+                  label="Confirmed Recurring"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.active_recurring_total && (
+                <SortableColumnHeader
+                  field="active_recurring_total"
+                  label="Active Recurring"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.pending_recurring_total && (
+                <SortableColumnHeader
+                  field="pending_recurring_total"
+                  label="Pending Recurring"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.value_net_total && (
+                <SortableColumnHeader
+                  field="value_net_total"
+                  label="Value (Net)"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.expenses_total && (
+                <SortableColumnHeader
+                  field="expenses_total"
+                  label="Expenses Total"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.value_gross_total && (
+                <SortableColumnHeader
+                  field="value_gross_total"
+                  label="Value (Gross)"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.attribution_total && (
+                <SortableColumnHeader
+                  field="attribution_total"
+                  label="Attribution Total"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.invoiced_total && (
+                <SortableColumnHeader
+                  field="invoiced_total"
+                  label="Total Invoiced"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.payments_total && (
+                <SortableColumnHeader
+                  field="payments_total"
+                  label="Payments Total"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.paid_total && (
+                <SortableColumnHeader
+                  field="paid_total"
+                  label="Paid Total"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.total_outstanding && (
+                <SortableColumnHeader
+                  field="total_outstanding"
+                  label="Outstanding"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.total_expenses_paid && (
+                <SortableColumnHeader
+                  field="total_expenses_paid"
+                  label="Expenses Paid"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.total_expenses_outstanding && (
+                <SortableColumnHeader
+                  field="total_expenses_outstanding"
+                  label="Expenses Outstanding"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {visibleColumns.created_at && (
+                <SortableColumnHeader
+                  field="created_at"
+                  label="Client Since"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="left"
+                />
               )}
               {visibleColumns.actions && (
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400"></th>
@@ -312,30 +605,30 @@ const ClientsView = ({
                     }`}
                     onClick={() => onClientClick && onClientClick(client)}
                   >
-                    {visibleColumns.name && (
+                    {visibleColumns.display_name && (
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-gray-200 dark:bg-gray-700">
                             {client.profile_picture ? (
                               <img
                                 src={client.profile_picture}
-                                alt={`${client.first_name} ${client.last_name}`}
+                                alt={client.display_name || client.business_name || 'Client'}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
                               <span className="font-medium text-sm text-gray-600 dark:text-gray-400">
-                                {client.first_name?.[0]}
-                                {client.last_name?.[0]}
+                                {(client.first_name || client.business_name || '')?.[0]?.toUpperCase()}
+                                {(client.last_name || '')?.[0]?.toUpperCase()}
                               </span>
                             )}
                           </div>
                           <div>
                             <p
                               className={`font-medium text-gray-900 dark:text-white ${
-                                client.is_visible_in_clients === false ? 'line-through italic opacity-60' : ''
+                                client.is_hidden ? 'line-through italic opacity-60' : ''
                               }`}
                             >
-                              {client.first_name} {client.last_name}
+                              {client.display_name || client.business_name || 'Unnamed Client'}
                             </p>
                           </div>
                         </div>
@@ -346,7 +639,7 @@ const ClientsView = ({
                     )}
                     {visibleColumns.phone && (
                       <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
-                        {client.phone ? `${client.country_code || ''} ${client.phone}`.trim() : '-'}
+                        {client.phone || '-'}
                       </td>
                     )}
                     {visibleColumns.business_name && (
@@ -354,38 +647,107 @@ const ClientsView = ({
                         {client.business_name || '-'}
                       </td>
                     )}
-                    {visibleColumns.services_count && (
+                    {visibleColumns.confirmed_services_count && (
+                      <td className="px-4 py-4 text-sm text-center text-zenible-primary">
+                        {client.confirmed_services_count || 0}
+                      </td>
+                    )}
+                    {visibleColumns.active_services_count && (
                       <td className="px-4 py-4 text-sm text-center text-gray-900 dark:text-white">
-                        {client.services_count || 0}
+                        {client.active_services_count || 0}
                       </td>
                     )}
-                    {visibleColumns.one_off_total && (
+                    {visibleColumns.pending_services_count && (
+                      <td className="px-4 py-4 text-sm text-center text-amber-600 dark:text-amber-400">
+                        {client.pending_services_count || 0}
+                      </td>
+                    )}
+                    {visibleColumns.confirmed_one_off_total && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-zenible-primary">
+                        {formatFinancialValue(client.confirmed_one_off_total, client.total_value_currency)}
+                      </td>
+                    )}
+                    {visibleColumns.active_one_off_total && (
                       <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
-                        {formatFinancialValue(client.one_off_total, client.total_value_currency)}
+                        {formatFinancialValue(client.active_one_off_total, client.total_value_currency)}
                       </td>
                     )}
-                    {visibleColumns.recurring_total && (
+                    {visibleColumns.pending_one_off_total && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-amber-600 dark:text-amber-400">
+                        {formatFinancialValue(client.pending_one_off_total, client.total_value_currency)}
+                      </td>
+                    )}
+                    {visibleColumns.lifetime_one_off_total && (
                       <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
-                        {formatFinancialValue(client.recurring_total, client.total_value_currency)}
+                        {formatFinancialValue(client.lifetime_one_off_total, client.total_value_currency)}
                       </td>
                     )}
-                    {visibleColumns.amount_outstanding && (
+                    {visibleColumns.confirmed_recurring_total && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-zenible-primary">
+                        {formatFinancialValue(client.confirmed_recurring_total, client.total_value_currency)}
+                      </td>
+                    )}
+                    {visibleColumns.active_recurring_total && (
                       <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
-                        {(() => {
-                          const { value, currency } = getTotalOutstanding(client);
-                          return formatFinancialValue(value, currency);
-                        })()}
+                        {formatFinancialValue(client.active_recurring_total, client.total_value_currency)}
                       </td>
                     )}
-                    {visibleColumns.total_billed && (
+                    {visibleColumns.pending_recurring_total && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-amber-600 dark:text-amber-400">
+                        {formatFinancialValue(client.pending_recurring_total, client.total_value_currency)}
+                      </td>
+                    )}
+                    {visibleColumns.value_net_total && (
                       <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
-                        {(() => {
-                          const { value, currency } = getTotalBilled(client);
-                          return formatFinancialValue(value, currency);
-                        })()}
+                        {formatFinancialValue(client.value_net_total, client.total_value_currency)}
                       </td>
                     )}
-                    {visibleColumns.client_since && (
+                    {visibleColumns.expenses_total && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-red-600 dark:text-red-400">
+                        {formatFinancialValue(client.expenses_total, client.expenses_currency)}
+                      </td>
+                    )}
+                    {visibleColumns.value_gross_total && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
+                        {formatFinancialValue(client.value_gross_total, client.total_value_currency)}
+                      </td>
+                    )}
+                    {visibleColumns.attribution_total && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
+                        {formatFinancialValue(client.attribution_total, client.total_value_currency)}
+                      </td>
+                    )}
+                    {visibleColumns.invoiced_total && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
+                        {formatFinancialValue(client.invoiced_total)}
+                      </td>
+                    )}
+                    {visibleColumns.payments_total && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-green-600 dark:text-green-400">
+                        {formatFinancialValue(client.payments_total)}
+                      </td>
+                    )}
+                    {visibleColumns.paid_total && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-green-600 dark:text-green-400">
+                        {formatFinancialValue(client.paid_total, client.total_value_currency)}
+                      </td>
+                    )}
+                    {visibleColumns.total_outstanding && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
+                        {formatFinancialValue(client.total_outstanding, client.outstanding_currency)}
+                      </td>
+                    )}
+                    {visibleColumns.total_expenses_paid && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
+                        {formatFinancialValue(client.total_expenses_paid, client.expenses_currency)}
+                      </td>
+                    )}
+                    {visibleColumns.total_expenses_outstanding && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-red-600 dark:text-red-400">
+                        {formatFinancialValue(client.total_expenses_outstanding, client.expenses_currency)}
+                      </td>
+                    )}
+                    {visibleColumns.created_at && (
                       <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
                         {formatDate(client.created_at)}
                       </td>
@@ -450,7 +812,7 @@ const ClientsView = ({
                               handleHideClient(client);
                             }}
                           >
-                            {client.is_visible_in_clients !== false ? (
+                            {!client.is_hidden ? (
                               <>
                                 <EyeSlashIcon className="h-4 w-4" />
                                 Hide Client

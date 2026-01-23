@@ -321,6 +321,46 @@ export const subscriptionAPI = {
   }
 };
 
+// User API calls
+export const userAPI = {
+  async checkUsernameAvailability(username) {
+    const response = await fetch(`${API_BASE_URL}/users/username/check/${username}`);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to check username');
+    }
+
+    return response.json();
+  },
+
+  async getCurrentUsername() {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/users/username`);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to get username');
+    }
+
+    return response.json();
+  },
+
+  async updateUsername(username) {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/users/username`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to update username');
+    }
+
+    return response.json();
+  }
+};
+
 // Admin API calls
 export const adminAPI = {
   async getUsers(skip = 0, limit = 20) {

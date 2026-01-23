@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import ServiceAutocomplete from './ServiceAutocomplete';
+import { SERVICE_STATUS, SERVICE_STATUS_LABELS } from '../../constants/crm';
 
 /**
  * Inline service creation form for contact details
@@ -16,33 +17,68 @@ const InlineServiceForm = ({
 }) => {
   const [serviceItems, setServiceItems] = useState([]);
   const [modifiedServices, setModifiedServices] = useState(new Set());
+  // Use refs to track initialization without causing re-renders
+  const initializedIdsRef = useRef(new Set());
+  const hasInitializedRef = useRef(false);
 
-  // Initialize or reset services
+  // Helper to map a backend service to form format
+  const mapServiceToForm = useCallback((service, index) => ({
+    id: service.id || `new-${index}`,
+    name: service.name || '',
+    description: service.description || '',
+    price: service.price?.toString() || '',
+    currency: service.currency_code || service.currency?.code || service.currency || defaultCurrency,
+    pricingType: service.frequency_type === 'one_off' ? 'Fixed' : 'Recurring',
+    recurringType: service.time_period === 'weekly' ? 'Weekly' :
+                  service.time_period === 'monthly' ? 'Monthly' :
+                  service.time_period === 'yearly' ? 'Yearly' :
+                  service.time_period === 'custom' ? 'Custom' : 'Weekly',
+    recurringNumber: service.recurring_number !== undefined ? service.recurring_number : -1,
+    customEvery: service.custom_every?.toString() || '1',
+    customPeriod: service.custom_period ? `${service.custom_period}s` : 'Weeks',
+    notes: service.notes || '',
+    status: service.status || SERVICE_STATUS.ACTIVE
+  }), [defaultCurrency]);
+
+  // Initialize or update services - only re-map when services are added/removed
+  // This effect only handles initialization and detecting added/removed services.
+  // It does NOT re-run when service data changes (same IDs) to preserve local form state.
   useEffect(() => {
+    // Skip if services is undefined (shouldn't happen but be safe)
+    if (!services) return;
+
+    const currentIds = new Set(services.map(s => s.id).filter(Boolean));
+    const currentIdsArray = [...currentIds];
+    const initializedIdsArray = [...initializedIdsRef.current];
+
     if (services.length === 0) {
-      setServiceItems([]);
-      setModifiedServices(new Set());
+      // Only reset if we actually had services before AND have items to clear
+      if (hasInitializedRef.current && initializedIdsRef.current.size > 0) {
+        setServiceItems([]);
+        setModifiedServices(new Set());
+        initializedIdsRef.current = new Set();
+        hasInitializedRef.current = false;
+      }
     } else {
-      // Map backend services to form format
-      setServiceItems(services.map((service, index) => ({
-        id: service.id || `new-${index}`,
-        name: service.name || '',
-        description: service.description || '',
-        price: service.price?.toString() || '',
-        currency: service.currency_code || service.currency?.code || service.currency || defaultCurrency,
-        pricingType: service.frequency_type === 'one_off' ? 'Fixed' : 'Recurring',
-        recurringType: service.time_period === 'weekly' ? 'Weekly' :
-                      service.time_period === 'monthly' ? 'Monthly' :
-                      service.time_period === 'yearly' ? 'Yearly' :
-                      service.time_period === 'custom' ? 'Custom' : 'Weekly',
-        recurringNumber: service.recurring_number !== undefined ? service.recurring_number : -1,
-        customEvery: service.custom_every?.toString() || '1',
-        customPeriod: service.custom_period ? `${service.custom_period}s` : 'Weeks',
-        notes: service.notes || ''
-      })));
-      setModifiedServices(new Set());
+      // Check if services were added or removed (not just updated)
+      const idsChanged = currentIds.size !== initializedIdsRef.current.size ||
+        currentIdsArray.some(id => !initializedIdsRef.current.has(id)) ||
+        initializedIdsArray.some(id => !currentIds.has(id));
+
+      // Only initialize if:
+      // 1. We haven't initialized yet, OR
+      // 2. Service IDs actually changed (added/removed)
+      // Never re-initialize just because data changed (same IDs)
+      if (!hasInitializedRef.current || idsChanged) {
+        setServiceItems(services.map((service, index) => mapServiceToForm(service, index)));
+        setModifiedServices(new Set());
+        initializedIdsRef.current = currentIds;
+        hasInitializedRef.current = true;
+      }
+      // If only data changed (same IDs), don't re-map - keep local form state
     }
-  }, [services, defaultCurrency]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [services]);
 
   // Constants for form options
   const pricingTypes = ['Fixed', 'Recurring'];
@@ -75,7 +111,8 @@ const InlineServiceForm = ({
       recurringNumber: -1,
       customEvery: '1',
       customPeriod: 'Weeks',
-      notes: ''
+      notes: '',
+      status: SERVICE_STATUS.ACTIVE
     };
     setServiceItems(prev => [...prev, newService]);
   };
@@ -124,6 +161,9 @@ const InlineServiceForm = ({
         handleServiceChange(serviceId, 'customPeriod', service.custom_period ? `${service.custom_period}s` : 'Weeks');
       }
     }
+
+    // Set status (default to active for new contact services)
+    handleServiceChange(serviceId, 'status', service.status || SERVICE_STATUS.ACTIVE);
   };
 
   const transformServicesForBackend = (services) => {
@@ -131,7 +171,8 @@ const InlineServiceForm = ({
       const baseService = {
         name: service.name.trim(),
         description: service.description || '',
-        notes: service.notes || ''
+        notes: service.notes || '',
+        status: service.status || SERVICE_STATUS.ACTIVE
       };
 
       if (service.price) {
@@ -356,6 +397,22 @@ const InlineServiceForm = ({
             />
           </div>
 
+          {/* Status */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700">Status</label>
+            <select
+              value={serviceItem.status || SERVICE_STATUS.ACTIVE}
+              onChange={(e) => handleServiceChange(serviceItem.id, 'status', e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-900 outline-none focus:border-zenible-primary focus:ring-1 focus:ring-zenible-primary cursor-pointer"
+            >
+              {Object.values(SERVICE_STATUS).map((status) => (
+                <option key={status} value={status}>
+                  {SERVICE_STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Save Button for new services */}
           {serviceItem.id.toString().startsWith('new-') && serviceItem.name.trim() && (
             <div className="flex justify-end pt-2 border-t border-gray-200">
@@ -387,37 +444,11 @@ const InlineServiceForm = ({
                   if (onUpdate && serviceItem.name.trim()) {
                     try {
                       const serviceData = transformServicesForBackend([serviceItem])[0];
-                      const updatedService = await onUpdate(serviceItem.id, serviceData);
+                      await onUpdate(serviceItem.id, serviceData);
 
-                      // Update local serviceItems with the response to keep form in sync
-                      if (updatedService) {
-                        setServiceItems(prev =>
-                          prev.map(s => {
-                            if (s.id === serviceItem.id) {
-                              // Re-map the updated service from backend format to form format
-                              return {
-                                id: updatedService.id,
-                                name: updatedService.name || '',
-                                description: updatedService.description || '',
-                                price: updatedService.price?.toString() || '',
-                                currency: updatedService.currency_code || updatedService.currency?.code || updatedService.currency || defaultCurrency,
-                                pricingType: updatedService.frequency_type === 'one_off' ? 'Fixed' : 'Recurring',
-                                recurringType: updatedService.time_period === 'weekly' ? 'Weekly' :
-                                              updatedService.time_period === 'monthly' ? 'Monthly' :
-                                              updatedService.time_period === 'yearly' ? 'Yearly' :
-                                              updatedService.time_period === 'custom' ? 'Custom' : 'Weekly',
-                                recurringNumber: updatedService.recurring_number !== undefined ? updatedService.recurring_number : -1,
-                                customEvery: updatedService.custom_every?.toString() || '1',
-                                customPeriod: updatedService.custom_period ? `${updatedService.custom_period}s` : 'Weeks',
-                                notes: updatedService.notes || ''
-                              };
-                            }
-                            return s;
-                          })
-                        );
-                      }
-
-                      // Remove from modified set after successful update
+                      // Don't re-map from backend response - keep current form state
+                      // The form already has the correct data from user input
+                      // Just remove from modified set after successful update
                       setModifiedServices(prev => {
                         const next = new Set(prev);
                         next.delete(serviceItem.id);

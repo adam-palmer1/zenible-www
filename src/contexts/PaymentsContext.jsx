@@ -24,6 +24,7 @@ export const PaymentsProvider = ({ children }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
   // Filters
@@ -32,6 +33,8 @@ export const PaymentsProvider = ({ children }) => {
     status: null,
     contact_id: null,
     unallocated_only: false,
+    start_date: null,
+    end_date: null,
   });
 
   // Pagination
@@ -87,6 +90,11 @@ export const PaymentsProvider = ({ children }) => {
         total: response.total || items.length,
         total_pages: response.total_pages || Math.ceil((response.total || items.length) / prev.per_page),
       }));
+
+      // Extract stats from list response if available
+      if (response.stats) {
+        setStats(response.stats);
+      }
 
       setInitialized(true);
     } catch (err) {
@@ -299,6 +307,16 @@ export const PaymentsProvider = ({ children }) => {
     setShowCreateModal(false);
   }, []);
 
+  const openEditModal = useCallback((payment) => {
+    setSelectedPayment(payment);
+    setShowEditModal(true);
+  }, []);
+
+  const closeEditModal = useCallback(() => {
+    setShowEditModal(false);
+    setSelectedPayment(null);
+  }, []);
+
   const value = useMemo(() => ({
     // State
     payments,
@@ -311,6 +329,7 @@ export const PaymentsProvider = ({ children }) => {
     showDetailModal,
     showRefundModal,
     showCreateModal,
+    showEditModal,
     selectedPayment,
 
     // Methods
@@ -335,6 +354,8 @@ export const PaymentsProvider = ({ children }) => {
     closeRefundModal,
     openCreateModal,
     closeCreateModal,
+    openEditModal,
+    closeEditModal,
   }), [
     payments,
     loading,
@@ -346,6 +367,7 @@ export const PaymentsProvider = ({ children }) => {
     showDetailModal,
     showRefundModal,
     showCreateModal,
+    showEditModal,
     selectedPayment,
     fetchPayments,
     fetchStats,
@@ -365,6 +387,8 @@ export const PaymentsProvider = ({ children }) => {
     closeRefundModal,
     openCreateModal,
     closeCreateModal,
+    openEditModal,
+    closeEditModal,
   ]);
 
   return <PaymentsContext.Provider value={value}>{children}</PaymentsContext.Provider>;

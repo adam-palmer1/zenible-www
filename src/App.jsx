@@ -38,13 +38,18 @@ import Plans from './components/Plans';
 import Pricing from './components/pricing/PricingNew';
 
 // Finance pages
-import { InvoiceDashboard, InvoiceForm, InvoiceDetail, PublicInvoiceView } from './components/finance/invoices';
+import { InvoiceDashboard, InvoiceForm, InvoiceDetail, PublicInvoiceView, RecurringInvoices } from './components/finance/invoices';
 import { QuoteDashboard, QuoteForm, QuoteDetail, PublicQuoteView } from './components/finance/quotes';
 import { CreditNotesDashboard } from './components/finance/credit-notes';
-import { ExpenseDashboard, ExpenseForm, CategoryManagement } from './components/finance/expenses';
+import { ExpenseDashboard, ExpenseForm, CategoryManagement, RecurringExpenses } from './components/finance/expenses';
 import { PaymentDashboard, PaymentCallback } from './components/finance/payments';
+import { ReportsDashboard } from './components/finance/reports';
 import { FinanceClientsDashboard } from './components/finance/clients';
 import { PaymentsProvider } from './contexts/PaymentsContext';
+import { ReportsProvider } from './contexts/ReportsContext';
+
+// Booking pages
+import { PublicUserPage, PublicBookingPage, BookingConfirmation, BookingCancellation, ZoomCallback } from './pages/booking';
 
 // Admin pages
 import AdminLayout from './components/admin/AdminLayout';
@@ -253,6 +258,16 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: 'finance/invoices/recurring',
+        element: (
+          <ProtectedRoute>
+            <InvoiceProvider>
+              <RecurringInvoices />
+            </InvoiceProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
         path: 'finance/invoices/:id',
         element: (
           <ProtectedRoute>
@@ -324,6 +339,32 @@ const router = createBrowserRouter([
         path: 'quotes/public/:token',
         element: <PublicQuoteView />
       },
+      // Public booking routes (no auth required)
+      {
+        path: 'book/:username',
+        element: <PublicUserPage />
+      },
+      {
+        path: 'book/:username/:shortcode',
+        element: <PublicBookingPage />
+      },
+      {
+        path: 'booking/confirm/:token',
+        element: <BookingConfirmation />
+      },
+      {
+        path: 'booking/cancel/:token',
+        element: <BookingCancellation />
+      },
+      // Zoom OAuth callback (authenticated)
+      {
+        path: 'settings/integrations/zoom/callback',
+        element: (
+          <ProtectedRoute>
+            <ZoomCallback />
+          </ProtectedRoute>
+        )
+      },
       {
         path: 'finance/credit-notes',
         element: (
@@ -373,12 +414,32 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: 'finance/expenses/recurring',
+        element: (
+          <ProtectedRoute>
+            <ExpenseProvider>
+              <RecurringExpenses />
+            </ExpenseProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
         path: 'finance/payments',
         element: (
           <ProtectedRoute>
             <PaymentsProvider>
               <PaymentDashboard />
             </PaymentsProvider>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/reports',
+        element: (
+          <ProtectedRoute>
+            <ReportsProvider>
+              <ReportsDashboard />
+            </ReportsProvider>
           </ProtectedRoute>
         )
       },

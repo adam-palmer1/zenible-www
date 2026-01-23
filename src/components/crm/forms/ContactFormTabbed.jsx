@@ -77,7 +77,7 @@ const ContactFormTabbed = ({
       const basicFields = ['first_name', 'last_name', 'business_name', 'email', 'country_code', 'phone'];
       const addressFields = ['address_line_1', 'address_line_2', 'city', 'state', 'postcode', 'country'];
       const additionalFields = ['is_client', 'is_vendor', 'current_global_status_id', 'current_custom_status_id', 'notes'];
-      const financeFields = ['currency_id', 'preferred_currency_id', 'invoice_payment_terms', 'invoice_notes', 'registration_number', 'tax_number', 'tax_id', 'vendor_type', 'default_payment_terms'];
+      const financeFields = ['currency_id', 'preferred_currency_id', 'invoice_payment_terms', 'invoice_notes', 'hourly_rate', 'registration_number', 'tax_number', 'tax_id', 'vendor_type', 'default_payment_terms'];
 
       if (errorFields.some(field => basicFields.includes(field))) {
         setActiveTab('basic');
@@ -771,6 +771,31 @@ const ContactFormTabbed = ({
                 </div>
               </div>
             )}
+
+            {/* Hourly Rate */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Hourly Rate
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Override company default hourly rate for this contact
+              </p>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">
+                  {companyCurrencies.find(cc => cc.currency.id === watch('currency_id'))?.currency?.symbol ||
+                   defaultCurrency?.currency?.symbol ||
+                   '£'}
+                </span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...methods.register('hourly_rate')}
+                  placeholder="e.g., 50.00"
+                  className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                />
+              </div>
+            </div>
 
             {/* Preferred Currency (for Vendors) */}
             {watch('is_vendor') && companyCurrencies.length > 0 && (

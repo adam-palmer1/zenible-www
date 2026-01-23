@@ -12,14 +12,21 @@ import { useContacts, useContactStatuses, useCompanyCurrencies } from '../../hoo
  */
 const AddContactModal = ({ isOpen, onClose, contact = null }) => {
   const { refresh, initialContactStatus, initialContactType } = useCRM();
-  const { createContact, updateContact, getContact } = useContacts();
+  const { createContact, updateContact, getContact } = useContacts({}, 0, { skipInitialFetch: true });
   const { allStatuses } = useContactStatuses();
-  const { companyCurrencies } = useCompanyCurrencies();
+  const { companyCurrencies, loadData: loadCurrencies } = useCompanyCurrencies({ skipInitialFetch: true });
 
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [fullContact, setFullContact] = useState(null);
   const [fetchingContact, setFetchingContact] = useState(false);
+
+  // Load currencies when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      loadCurrencies();
+    }
+  }, [isOpen, loadCurrencies]);
 
   // Fetch full contact details when editing (list view only has minimal fields)
   React.useEffect(() => {

@@ -6,6 +6,7 @@ import ServicesList from './ServicesList';
 import ServiceAutocomplete from './ServiceAutocomplete';
 import InlineServiceForm from './InlineServiceForm';
 import ContactFinancialsTab from './ContactFinancialsTab';
+import ServiceDetailModal from './ServiceDetailModal';
 import { useContactActivities } from '../../hooks/crm/useContactActivities';
 import { useContacts } from '../../hooks/crm/useContacts';
 import { useServices } from '../../hooks/crm/useServices';
@@ -17,14 +18,23 @@ const ContactDetailsPanel = ({ contact: initialContact, onClose }) => {
   const [activeTab, setActiveTab] = useState('notes');
   const [contact, setContact] = useState(initialContact);
   const [loadingContact, setLoadingContact] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
+  const [showServiceDetailModal, setShowServiceDetailModal] = useState(false);
   const { refresh } = useCRM();
   const { activities, loading, error, fetchActivities, loadMore, pagination } = useContactActivities(contact?.id);
-  const { createContactService, assignService, updateContactService, unassignService, getContact } = useContacts();
+  const { createContactService, assignService, updateContactService, unassignService, getContact } = useContacts({}, 0, { skipInitialFetch: true });
   const { services: allServices, fetchServices } = useServices();
-  const { companyCurrencies, defaultCurrency } = useCompanyCurrencies();
+  const { companyCurrencies, defaultCurrency, loadData: loadCurrencies } = useCompanyCurrencies({ skipInitialFetch: true });
 
   // Extract currency objects from company currencies for backward compatibility
   const currencies = companyCurrencies.map(cc => cc.currency);
+
+  // Load currencies when panel opens
+  useEffect(() => {
+    if (initialContact?.id) {
+      loadCurrencies();
+    }
+  }, [initialContact?.id, loadCurrencies]);
 
   // Fetch full contact details when panel opens or contact ID changes
   useEffect(() => {
@@ -104,13 +114,10 @@ const ContactDetailsPanel = ({ contact: initialContact, onClose }) => {
     try {
       const updatedService = await updateContactService(contact.id, serviceId, serviceData);
 
-      // Update local contact state with updated service
-      setContact((prev) => ({
-        ...prev,
-        services: prev.services.map((s) =>
-          s.id === serviceId ? updatedService : s
-        ),
-      }));
+      // Fetch full contact to get complete service data (including currency, status labels, etc.)
+      // This ensures ServicesList and other components have all the data they need
+      const fullContact = await getContact(contact.id);
+      setContact(fullContact);
 
       // Refresh CRM list to show updated service values on contact cards
       refresh();
@@ -119,6 +126,30 @@ const ContactDetailsPanel = ({ contact: initialContact, onClose }) => {
     } catch (err) {
       console.error('Failed to update service:', err);
       throw err;
+    }
+  };
+
+  // Handle opening service detail modal
+  const handleServiceClick = (service) => {
+    setSelectedService(service);
+    setShowServiceDetailModal(true);
+  };
+
+  // Handle refreshing contact after service attribution/invoice changes
+  const handleServiceUpdate = async () => {
+    try {
+      const updatedContact = await getContact(contact.id);
+      setContact(updatedContact);
+      // Also update selected service with fresh data
+      if (selectedService) {
+        const updatedService = updatedContact.services?.find(s => s.id === selectedService.id);
+        if (updatedService) {
+          setSelectedService(updatedService);
+        }
+      }
+      refresh();
+    } catch (err) {
+      console.error('Failed to refresh contact:', err);
     }
   };
 
@@ -229,6 +260,7 @@ const ContactDetailsPanel = ({ contact: initialContact, onClose }) => {
                     <ServicesList
                       services={contact.services}
                       onDelete={handleRemoveService}
+                      onServiceClick={handleServiceClick}
                     />
                   </div>
                 )}
@@ -301,13 +333,22 @@ const ContactDetailsPanel = ({ contact: initialContact, onClose }) => {
               </>
             ) : activeTab === 'financials' ? (
               /* Financials Tab */
-              <ContactFinancialsTab
-                contactId={contact.id}
-                isVendor={contact.is_vendor === true}
-              />
+              <ContactFinancialsTab contactId={contact.id} />
             ) : null}
           </div>
       </div>
+
+      {/* Service Detail Modal */}
+      <ServiceDetailModal
+        isOpen={showServiceDetailModal}
+        onClose={() => {
+          setShowServiceDetailModal(false);
+          setSelectedService(null);
+        }}
+        service={selectedService}
+        contactId={contact.id}
+        onServiceUpdate={handleServiceUpdate}
+      />
     </Modal>
   );
 };

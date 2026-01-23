@@ -11,13 +11,16 @@ const InvoiceSettingsModal = ({
   recurringPeriod,
   recurringEndDate,
   recurringOccurrences,
+  recurringStatus = 'active',
   startDate,
   allowStripePayments,
   allowPaypalPayments,
   allowPartialPayments,
   automaticPaymentEnabled,
   automaticEmail,
+  invoiceStatus = 'draft',
   onChange,
+  isEditing = false,
 }) => {
   if (!isOpen) return null;
 
@@ -52,8 +55,10 @@ const InvoiceSettingsModal = ({
                 recurringPeriod={recurringPeriod}
                 recurringEndDate={recurringEndDate}
                 recurringOccurrences={recurringOccurrences}
+                recurringStatus={recurringStatus}
                 startDate={startDate}
                 onChange={onChange}
+                isEditing={isEditing}
               />
 
               {/* Payment Options */}
@@ -137,9 +142,9 @@ const InvoiceSettingsModal = ({
           <div className="bg-gray-50 dark:bg-gray-900 px-6 py-4 flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-6 py-2 text-sm font-medium text-gray-900 dark:text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+              className="px-6 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
             >
-              Done
+              Save
             </button>
           </div>
         </div>

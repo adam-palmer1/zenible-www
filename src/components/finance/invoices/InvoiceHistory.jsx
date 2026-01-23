@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, User } from 'lucide-react';
+import { User, Edit2 } from 'lucide-react';
 import invoicesAPI from '../../../services/api/finance/invoices';
 
 const InvoiceHistory = ({ invoiceId }) => {
@@ -25,22 +25,120 @@ const InvoiceHistory = ({ invoiceId }) => {
     }
   };
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  // Format time for display
+  const formatTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  // Get relative time (e.g., "1d ago")
+  const getRelativeTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+    if (diffDays > 0) {
+      return `${diffDays}d ago`;
+    } else if (diffHours > 0) {
+      return `${diffHours}h ago`;
+    } else if (diffMinutes > 0) {
+      return `${diffMinutes}m ago`;
+    } else {
+      return 'Just now';
+    }
+  };
+
+  // Determine if this is a creation event
+  const isCreationEvent = (change) => {
+    return change.field_name === 'created' ||
+           change.field_name === 'invoice_created' ||
+           (change.field_name === 'status' && !change.old_value && change.new_value === 'draft');
+  };
+
+  // Get badge style based on event type
+  const getBadgeStyle = (change) => {
+    if (isCreationEvent(change)) {
+      return 'bg-[#dff2fe] text-[#09090b]';
+    }
+    return 'bg-[#f4f4f5] text-[#09090b]';
+  };
+
+  // Get icon style based on event type
+  const getIconStyle = (change) => {
+    if (isCreationEvent(change)) {
+      return {
+        bg: 'bg-[#dff2fe]',
+        icon: Edit2,
+        color: 'text-[#00A6F4]'
+      };
+    }
+    return {
+      bg: 'bg-[#fafafa] dark:bg-gray-700',
+      icon: User,
+      color: 'text-[#71717a]'
+    };
+  };
+
+  // Get display label for field name
+  const getFieldLabel = (change) => {
+    if (isCreationEvent(change)) {
+      return 'Invoice created';
+    }
+    return change.field_name?.replace(/_/g, '_') || 'Change';
+  };
+
+  // Get display value for change
+  const getChangeDisplay = (change) => {
+    if (isCreationEvent(change)) {
+      return change.new_value || change.change_reason || '';
+    }
+
+    if (change.old_value && change.new_value) {
+      return `${change.old_value}→ ${change.new_value}`;
+    } else if (change.new_value) {
+      return change.new_value;
+    } else if (change.old_value) {
+      return `${change.old_value} (removed)`;
+    }
+    return change.change_reason || '';
+  };
+
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-        <p className="mt-2 text-sm design-text-secondary">Loading history...</p>
+      <div className="flex items-center justify-center py-8">
+        <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+        <span className="ml-2 text-[14px] text-[#71717a]">Loading history...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-8">
-        <p className="design-text-secondary">{error}</p>
+      <div className="flex flex-col items-center justify-center py-8">
+        <p className="text-[14px] text-[#71717a] mb-3">{error}</p>
         <button
           onClick={loadHistory}
-          className="mt-4 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700"
+          className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors"
         >
           Retry
         </button>
@@ -50,61 +148,56 @@ const InvoiceHistory = ({ invoiceId }) => {
 
   if (history.changes.length === 0) {
     return (
-      <div className="text-center py-8 design-text-secondary">
-        No changes recorded yet
+      <div className="flex items-center justify-center py-8">
+        <p className="text-[14px] text-[#71717a]">No changes recorded yet</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {history.changes.map((change) => (
-        <div key={change.id} className="flex gap-4 p-4 design-bg-secondary rounded-lg border design-border">
-          <div className="flex-shrink-0">
-            <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <User className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            </div>
-          </div>
+    <div className="flex flex-col">
+      {history.changes.map((change, index) => {
+        const isLast = index === history.changes.length - 1;
+        const iconStyle = getIconStyle(change);
+        const IconComponent = iconStyle.icon;
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="font-medium design-text-primary">
-                {change.changed_by_user?.name || 'System'}
-              </span>
-              <span className="design-text-secondary text-sm">
-                changed{' '}
-                <code className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">
-                  {change.field_name}
-                </code>
-              </span>
-            </div>
-
-            <div className="text-sm design-text-secondary mb-1">
-              {change.old_value && (
-                <span className="line-through mr-2">{change.old_value}</span>
-              )}
-              {change.old_value && change.new_value && '→ '}
-              {change.new_value && (
-                <span className="font-medium design-text-primary">{change.new_value}</span>
-              )}
-              {!change.old_value && !change.new_value && (
-                <span className="italic">No value change recorded</span>
-              )}
-            </div>
-
-            {change.change_reason && (
-              <div className="text-sm italic design-text-secondary mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded">
-                Reason: {change.change_reason}
+        return (
+          <div key={change.id} className="flex gap-4">
+            {/* Timeline column */}
+            <div className="flex flex-col items-center w-8 shrink-0">
+              {/* Icon circle */}
+              <div className={`w-8 h-8 rounded-full ${iconStyle.bg} flex items-center justify-center`}>
+                <IconComponent className={`h-[14px] w-[14px] ${iconStyle.color}`} />
               </div>
-            )}
+              {/* Vertical line (except for last item) */}
+              {!isLast && (
+                <div className="w-px flex-1 bg-[#e5e5e5] dark:bg-gray-700 min-h-[16px]" />
+              )}
+            </div>
 
-            <div className="flex items-center gap-1 text-xs design-text-secondary mt-2">
-              <Clock className="h-3 w-3" />
-              {new Date(change.created_at).toLocaleString()}
+            {/* Content column */}
+            <div className={`flex-1 flex gap-4 ${!isLast ? 'pb-4' : ''}`}>
+              {/* Change details */}
+              <div className="flex-1 flex flex-col gap-[2px]">
+                {/* Badge */}
+                <span className={`inline-flex items-center justify-center px-1 py-[3px] h-5 rounded-[6px] text-[10px] font-normal leading-[14px] w-fit ${getBadgeStyle(change)}`}>
+                  {getFieldLabel(change)}
+                </span>
+                {/* Value */}
+                <p className="text-[14px] font-normal leading-[22px] text-[#09090b] dark:text-white truncate">
+                  {getChangeDisplay(change)}
+                </p>
+              </div>
+
+              {/* Date/Time */}
+              <div className="flex flex-col items-end justify-center text-[10px] font-normal leading-[14px] text-[#71717a] text-center whitespace-nowrap shrink-0">
+                <span>{formatDate(change.created_at)}</span>
+                <span>{formatTime(change.created_at)}</span>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

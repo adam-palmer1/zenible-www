@@ -9,12 +9,15 @@ import { getNextAppointment } from '../../utils/crm/appointmentUtils';
 
 /**
  * Calculate total value for a contact
- * Formula: (recurring_total * 12) + one_off_total
+ * Formula: (confirmed_recurring + active_recurring) + (confirmed_one_off + active_one_off)
+ * Note: recurring totals from API are already annualized
  */
 const calculateContactValue = (contact) => {
-  const recurringTotal = contact.recurring_total || 0;
-  const oneOffTotal = contact.one_off_total || 0;
-  return (recurringTotal * 12) + oneOffTotal;
+  const confirmedRecurring = parseFloat(contact?.confirmed_recurring_total) || 0;
+  const activeRecurring = parseFloat(contact?.active_recurring_total) || 0;
+  const confirmedOneOff = parseFloat(contact?.confirmed_one_off_total) || 0;
+  const activeOneOff = parseFloat(contact?.active_one_off_total) || 0;
+  return confirmedRecurring + activeRecurring + confirmedOneOff + activeOneOff;
 };
 
 /**

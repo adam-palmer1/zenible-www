@@ -3,6 +3,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormField, FormSelect, FormTextarea } from '../../ui/form';
 import { serviceSchema, getServiceDefaultValues } from '../schemas/serviceSchema';
+import {
+  SERVICE_STATUS,
+  SERVICE_STATUS_LABELS,
+  SERVICE_STATUS_HEX_COLORS,
+} from '../../../constants/crm';
 
 /**
  * Service form component using React Hook Form
@@ -35,6 +40,13 @@ const ServiceForm = ({
   const currencyOptions = (companyCurrencies || []).map((cc) => ({
     value: cc.currency?.id || cc.id,
     label: `${cc.currency?.code || cc.code}${cc.currency?.symbol ? ` (${cc.currency.symbol})` : ''}`,
+  }));
+
+  // Status options with color indicators
+  const statusOptions = Object.values(SERVICE_STATUS).map((status) => ({
+    value: status,
+    label: SERVICE_STATUS_LABELS[status],
+    color: SERVICE_STATUS_HEX_COLORS[status],
   }));
 
   return (
@@ -109,6 +121,13 @@ const ServiceForm = ({
           placeholder="Select..."
         />
       )}
+
+      {/* Status */}
+      <FormSelect
+        name="status"
+        label="Status"
+        options={statusOptions}
+      />
 
       {/* Footer Buttons */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">

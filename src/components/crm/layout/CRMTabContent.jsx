@@ -3,7 +3,7 @@ import SalesPipeline from '../SalesPipeline';
 import ContactsListView from '../ContactsListView';
 import ClientsView from '../ClientsView';
 import VendorsView from '../VendorsView';
-import ServicesTable from '../ServicesTable';
+import ServicesView from '../ServicesView';
 import ProjectsTable from '../ProjectsTable';
 import { ContactActionsProvider } from '../../../contexts/ContactActionsContext';
 import contactsAPI from '../../../services/api/crm/contacts';
@@ -31,6 +31,9 @@ import contactsAPI from '../../../services/api/crm/contacts';
  * @param {Function} deleteService - Delete service
  * @param {number} refreshKey - Key for triggering refresh
  * @param {Object} clientsFilters - Clients tab filter state and handlers
+ * @param {Object} vendorsFilters - Vendors tab filter state and handlers
+ * @param {Object} projectsFilters - Projects tab filter state and handlers
+ * @param {Object} servicesFilters - Services tab filter state and handlers
  */
 const CRMTabContent = ({
   activeTab,
@@ -53,6 +56,9 @@ const CRMTabContent = ({
   deleteService,
   refreshKey,
   clientsFilters,
+  vendorsFilters,
+  projectsFilters,
+  servicesFilters,
 }) => {
   if (activeTab === 'crm') {
     if (contactsLoading) {
@@ -130,30 +136,34 @@ const CRMTabContent = ({
   }
 
   if (activeTab === 'vendors') {
-    return <VendorsView onVendorClick={selectContact} openContactModal={openContactModal} refreshKey={refreshKey} />;
+    return (
+      <VendorsView
+        onVendorClick={selectContact}
+        openContactModal={openContactModal}
+        refreshKey={refreshKey}
+        {...vendorsFilters}
+      />
+    );
   }
 
   if (activeTab === 'services') {
     return (
-      <div className="bg-white rounded-lg shadow h-full overflow-hidden">
-        <ServicesTable
-          services={services}
-          onEdit={openServiceModal}
-          onDelete={(service) => {
-            if (window.confirm('Are you sure you want to delete this service?')) {
-              deleteService(service.id);
-            }
-          }}
-          loading={servicesLoading}
-        />
-      </div>
+      <ServicesView
+        services={services}
+        servicesLoading={servicesLoading}
+        onEditService={openServiceModal}
+        onDeleteService={(service) => deleteService(service.id)}
+        onClientClick={selectContact}
+        refreshKey={refreshKey}
+        {...servicesFilters}
+      />
     );
   }
 
   if (activeTab === 'projects') {
     return (
       <div className="bg-white rounded-lg shadow h-full overflow-hidden">
-        <ProjectsTable />
+        <ProjectsTable selectedStatuses={projectsFilters?.selectedStatuses || []} />
       </div>
     );
   }

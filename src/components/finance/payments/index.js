@@ -8,6 +8,8 @@ export { default as PaymentList } from './PaymentList';
 export { default as PaymentDetailModal } from './PaymentDetailModal';
 export { default as RefundModal } from './RefundModal';
 export { default as CreatePaymentModal } from './CreatePaymentModal';
+export { default as EditPaymentModal } from './EditPaymentModal';
+export { default as LinkExpenseModal } from './LinkExpenseModal';
 export { default as PaymentMethodsManager } from './PaymentMethodsManager';
 export { default as StripePaymentForm } from './StripePaymentForm';
 export { default as PayPalPaymentForm } from './PayPalPaymentForm';

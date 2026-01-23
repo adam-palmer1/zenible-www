@@ -118,3 +118,32 @@ export const PROJECT_STATUS_HEX_COLORS = {
   [PROJECT_STATUS.COMPLETED]: '#10B981', // green
   [PROJECT_STATUS.CANCELLED]: '#EF4444', // red
 };
+
+// Service Status
+export const SERVICE_STATUS = {
+  PENDING: 'pending',
+  INACTIVE: 'inactive',
+  ACTIVE: 'active',
+  COMPLETED: 'completed',
+};
+
+export const SERVICE_STATUS_LABELS = {
+  [SERVICE_STATUS.PENDING]: 'Pending',
+  [SERVICE_STATUS.INACTIVE]: 'Inactive',
+  [SERVICE_STATUS.ACTIVE]: 'Active',
+  [SERVICE_STATUS.COMPLETED]: 'Completed',
+};
+
+export const SERVICE_STATUS_COLORS = {
+  [SERVICE_STATUS.PENDING]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+  [SERVICE_STATUS.INACTIVE]: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  [SERVICE_STATUS.ACTIVE]: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  [SERVICE_STATUS.COMPLETED]: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+};
+
+export const SERVICE_STATUS_HEX_COLORS = {
+  [SERVICE_STATUS.PENDING]: '#F59E0B', // yellow/amber
+  [SERVICE_STATUS.INACTIVE]: '#6B7280', // gray
+  [SERVICE_STATUS.ACTIVE]: '#10B981', // green
+  [SERVICE_STATUS.COMPLETED]: '#3B82F6', // blue
+};

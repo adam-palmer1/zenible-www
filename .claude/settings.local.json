@@ -22,7 +22,10 @@
       "Bash(find:*)",
       "Bash(xargs ls:*)",
       "Bash(ls:*)",
-      "mcp__gpt-researcher__quick_search"
+      "mcp__gpt-researcher__quick_search",
+      "Bash(xargs cat:*)",
+      "Bash(jq:*)",
+      "WebFetch(domain:localhost)"
     ],
     "deny": [],
     "ask": []

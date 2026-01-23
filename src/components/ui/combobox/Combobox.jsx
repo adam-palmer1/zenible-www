@@ -159,13 +159,15 @@ const Combobox = ({
         </span>
         <div className="flex items-center gap-1">
           {allowClear && value && !disabled && (
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               onClick={handleClear}
-              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+              onKeyDown={(e) => e.key === 'Enter' && handleClear(e)}
+              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer"
             >
               <XMarkIcon className="h-4 w-4 design-text-secondary" />
-            </button>
+            </span>
           )}
           <ChevronDownIcon
             className={`h-4 w-4 design-text-secondary transition-transform ${isOpen ? 'rotate-180' : ''}`}

@@ -1,24 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { PencilIcon, TrashIcon, PlusIcon, ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import { PencilIcon, TrashIcon, ReceiptPercentIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { useProjects } from '../../hooks/crm';
 import { useCRM } from '../../contexts/CRMContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import { usePreferences } from '../../contexts/PreferencesContext';
-import { useDebouncedPreference } from '../../hooks/useDebouncedPreference';
+import { ExpenseProvider } from '../../contexts/ExpenseContext';
+import ConfirmationModal from '../common/ConfirmationModal';
+import AssignExpenseModal from '../finance/expenses/AssignExpenseModal';
+import ProjectDetailModal from './ProjectDetailModal';
 import {
-  PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
   PROJECT_STATUS_COLORS,
-  PROJECT_STATUS_HEX_COLORS
 } from '../../constants/crm';
 
-export default function ProjectsTable() {
-  const { getPreference } = usePreferences();
-  const { updatePreference: updateDebouncedPreference } = useDebouncedPreference();
-  const [selectedStatuses, setSelectedStatuses] = useState([]);
-  const [showStatusFilter, setShowStatusFilter] = useState(false);
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
-  const statusFilterRef = useRef(null);
+export default function ProjectsTable({ selectedStatuses = [] }) {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
+  const [showExpensesModal, setShowExpensesModal] = useState(false);
+  const [projectForExpenses, setProjectForExpenses] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   const { projects, loading, deleteProject } = useProjects(
     selectedStatuses.length > 0 ? { statuses: selectedStatuses } : {}
@@ -26,62 +26,34 @@ export default function ProjectsTable() {
   const { openProjectModal } = useCRM();
   const { showSuccess, showError } = useNotification();
 
-  // Load status filter from preferences
-  useEffect(() => {
-    if (!preferencesLoaded) {
-      const savedStatuses = getPreference('projects_status_filter', []);
-      setSelectedStatuses(savedStatuses);
-      setPreferencesLoaded(true);
-    }
-  }, [getPreference, preferencesLoaded]);
-
-  // Close status filter dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (statusFilterRef.current && !statusFilterRef.current.contains(event.target)) {
-        setShowStatusFilter(false);
-      }
-    };
-
-    if (showStatusFilter) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showStatusFilter]);
-
-  const handleStatusToggle = async (status) => {
-    const newStatuses = selectedStatuses.includes(status)
-      ? selectedStatuses.filter(s => s !== status)
-      : [...selectedStatuses, status];
-
-    setSelectedStatuses(newStatuses);
-
-    // Save to backend preferences
-    try {
-      await updateDebouncedPreference('projects_status_filter', newStatuses, 'projects');
-    } catch (error) {
-      console.error('Failed to save status filter preference:', error);
-    }
+  const handleDeleteClick = (project) => {
+    setProjectToDelete(project);
+    setShowDeleteModal(true);
   };
 
-  const handleClearStatuses = async () => {
-    setSelectedStatuses([]);
-    try {
-      await updateDebouncedPreference('projects_status_filter', [], 'projects');
-    } catch (error) {
-      console.error('Failed to clear status filter preference:', error);
-    }
+  const handleExpensesClick = (project) => {
+    setProjectForExpenses(project);
+    setShowExpensesModal(true);
   };
 
-  // All project statuses for the filter
-  const allProjectStatuses = Object.values(PROJECT_STATUS);
+  const handleViewProject = (project) => {
+    setSelectedProject(project);
+    setShowDetailModal(true);
+  };
 
-  const handleDelete = async (project) => {
-    if (!confirm(`Delete project "${project.name}"?`)) return;
+  const handleCloseDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedProject(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!projectToDelete) return;
 
     try {
-      await deleteProject(project.id);
+      await deleteProject(projectToDelete.id);
       showSuccess('Project deleted successfully');
+      setShowDeleteModal(false);
+      setProjectToDelete(null);
     } catch (error) {
       showError('Failed to delete project');
     }
@@ -97,143 +69,19 @@ export default function ProjectsTable() {
 
   if (projects.length === 0) {
     return (
-      <div>
-        {/* Status Filter */}
-        <div className="mb-6">
-          <div className="relative" ref={statusFilterRef}>
-            <button
-              onClick={() => setShowStatusFilter(!showStatusFilter)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <span className="text-sm font-medium design-text-primary">Status</span>
-              {selectedStatuses.length > 0 && (
-                <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium bg-zenible-primary text-white rounded-full">
-                  {selectedStatuses.length}
-                </span>
-              )}
-              <ChevronDownIcon className={`h-4 w-4 design-text-secondary transition-transform ${showStatusFilter ? 'rotate-180' : ''}`} />
-            </button>
-
-            {/* Status Filter Dropdown */}
-            {showStatusFilter && (
-              <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
-                <div className="p-3 space-y-2">
-                  {allProjectStatuses.map((status) => (
-                    <label
-                      key={status}
-                      className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedStatuses.includes(status)}
-                        onChange={() => handleStatusToggle(status)}
-                        className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
-                      />
-                      <div className="flex items-center gap-2 flex-1">
-                        <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: PROJECT_STATUS_HEX_COLORS[status] }}
-                        />
-                        <span className="text-sm design-text-primary">
-                          {PROJECT_STATUS_LABELS[status]}
-                        </span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-
-                {/* Clear Filter Button */}
-                {selectedStatuses.length > 0 && (
-                  <div className="border-t border-gray-200 dark:border-gray-700 p-3">
-                    <button
-                      onClick={handleClearStatuses}
-                      className="w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 flex items-center justify-center gap-2"
-                    >
-                      <XMarkIcon className="h-4 w-4" />
-                      Clear Filter
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-            {selectedStatuses.length > 0 ? 'No projects match your filter' : 'No projects yet'}
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            {selectedStatuses.length > 0 ? 'Try selecting different statuses or clear the filter' : 'Create your first project to get started'}
-          </p>
-        </div>
+      <div className="text-center py-12">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+          {selectedStatuses.length > 0 ? 'No projects match your filter' : 'No projects yet'}
+        </h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
+          {selectedStatuses.length > 0 ? 'Try selecting different statuses or clear the filter' : 'Create your first project to get started'}
+        </p>
       </div>
     );
   }
 
   return (
     <div>
-      {/* Status Filter */}
-      <div className="mb-6">
-        <div className="relative" ref={statusFilterRef}>
-          <button
-            onClick={() => setShowStatusFilter(!showStatusFilter)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <span className="text-sm font-medium text-gray-900 dark:text-white">Status</span>
-            {selectedStatuses.length > 0 && (
-              <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium bg-zenible-primary text-white rounded-full">
-                {selectedStatuses.length}
-              </span>
-            )}
-            <ChevronDownIcon className={`h-4 w-4 text-gray-600 dark:text-gray-400 transition-transform ${showStatusFilter ? 'rotate-180' : ''}`} />
-          </button>
-
-          {/* Status Filter Dropdown */}
-          {showStatusFilter && (
-            <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
-              <div className="p-3 space-y-2">
-                {allProjectStatuses.map((status) => (
-                  <label
-                    key={status}
-                    className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedStatuses.includes(status)}
-                      onChange={() => handleStatusToggle(status)}
-                      className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
-                    />
-                    <div className="flex items-center gap-2 flex-1">
-                      <div
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: PROJECT_STATUS_HEX_COLORS[status] }}
-                      />
-                      <span className="text-sm text-gray-900 dark:text-white">
-                        {PROJECT_STATUS_LABELS[status]}
-                      </span>
-                    </div>
-                  </label>
-                ))}
-              </div>
-
-              {/* Clear Filter Button */}
-              {selectedStatuses.length > 0 && (
-                <div className="border-t border-gray-200 dark:border-gray-700 p-3">
-                  <button
-                    onClick={handleClearStatuses}
-                    className="w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 flex items-center justify-center gap-2"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                    Clear Filter
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-[#e5e5e5] dark:border-gray-700">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -266,7 +114,12 @@ export default function ProjectsTable() {
               {projects.map((project, index) => (
                 <tr key={project.id} className={`border-b border-[#e5e5e5] dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${index === projects.length - 1 ? 'border-b-0' : ''}`}>
                   <td className="px-4 py-4">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">{project.name}</div>
+                    <button
+                      onClick={() => handleViewProject(project)}
+                      className="text-sm font-medium text-zenible-primary hover:text-purple-700 dark:hover:text-purple-400 text-left"
+                    >
+                      {project.name}
+                    </button>
                     {project.description && (
                       <div className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-md">
                         {project.description}
@@ -298,6 +151,20 @@ export default function ProjectsTable() {
                   </td>
                   <td className="px-4 py-4 text-right text-sm">
                     <button
+                      onClick={() => handleViewProject(project)}
+                      className="text-blue-600 hover:text-blue-700 dark:hover:text-blue-400 mr-3 transition-colors"
+                      title="View Details"
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleExpensesClick(project)}
+                      className="text-green-600 hover:text-green-700 dark:hover:text-green-400 mr-3 transition-colors"
+                      title="Expenses"
+                    >
+                      <ReceiptPercentIcon className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => openProjectModal(project)}
                       className="text-zenible-primary hover:text-purple-600 dark:hover:text-purple-400 mr-3 transition-colors"
                       title="Edit"
@@ -305,7 +172,7 @@ export default function ProjectsTable() {
                       <PencilIcon className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(project)}
+                      onClick={() => handleDeleteClick(project)}
                       className="text-red-600 hover:text-red-900 dark:hover:text-red-400 transition-colors"
                       title="Delete"
                     >
@@ -318,6 +185,61 @@ export default function ProjectsTable() {
           </table>
         </div>
       </div>
+
+      {/* Delete Project Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setProjectToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Project?"
+        message={
+          <div>
+            <p className="mb-2">
+              Are you sure you want to delete the project "{projectToDelete?.name}"?
+            </p>
+            <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+              Warning: This action cannot be undone.
+            </p>
+          </div>
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmColor="red"
+        icon={TrashIcon}
+        iconColor="text-red-600"
+      />
+
+      {/* Assign Expenses to Project Modal */}
+      {projectForExpenses && (
+        <ExpenseProvider>
+          <AssignExpenseModal
+            open={showExpensesModal}
+            onOpenChange={(open) => {
+              setShowExpensesModal(open);
+              if (!open) setProjectForExpenses(null);
+            }}
+            entityType="project"
+            entityId={projectForExpenses.id}
+            entityName={projectForExpenses.name}
+            onUpdate={() => {
+              // Optionally refresh projects if needed
+            }}
+          />
+        </ExpenseProvider>
+      )}
+
+      {/* Project Detail Modal */}
+      <ProjectDetailModal
+        isOpen={showDetailModal}
+        onClose={handleCloseDetailModal}
+        project={selectedProject}
+        onUpdate={() => {
+          // Optionally refresh projects if needed
+        }}
+      />
     </div>
   );
 }

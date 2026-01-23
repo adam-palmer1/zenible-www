@@ -13,7 +13,7 @@ import {
   generateErrorCSV
 } from '../../../utils/csvParser';
 import expensesAPI from '../../../services/api/finance/expenses';
-import currenciesAPI from '../../../services/api/crm/currencies';
+import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 
 const STEPS = {
   UPLOAD: 'upload',
@@ -29,7 +29,7 @@ const STEPS = {
  */
 const CSVImportModal = ({ open, onOpenChange }) => {
   const { categories, refresh } = useExpenses();
-  const { contacts: vendors } = useContacts({ is_vendor: true });
+  const { contacts: vendors } = useContacts({ is_vendor: true }, 0, { skipInitialFetch: !open });
   const { showSuccess, showError } = useNotification();
 
   const [currentStep, setCurrentStep] = useState(STEPS.UPLOAD);
@@ -39,31 +39,20 @@ const CSVImportModal = ({ open, onOpenChange }) => {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importResults, setImportResults] = useState({ success: 0, failed: 0, errors: [] });
-  const [currencies, setCurrencies] = useState([]);
   const [selectedCurrency, setSelectedCurrency] = useState('');
   const [createMissing, setCreateMissing] = useState(true);
 
-  // Load currencies when modal opens
-  React.useEffect(() => {
-    if (open) {
-      loadCurrencies();
-    }
-  }, [open]);
+  // Use currencies hook
+  const { companyCurrencies: currencies, defaultCurrency: defaultCurrencyAssoc } = useCompanyCurrencies();
 
-  const loadCurrencies = async () => {
-    try {
-      const data = await currenciesAPI.getCompanyCurrencies();
-      setCurrencies(data || []);
-      if (data && data.length > 0) {
-        const defaultCurr = data.find(cc => cc.is_default);
-        if (defaultCurr) {
-          setSelectedCurrency(defaultCurr.currency.id);
-        }
+  // Set default currency when modal opens and currencies are loaded
+  React.useEffect(() => {
+    if (open && currencies.length > 0 && !selectedCurrency) {
+      if (defaultCurrencyAssoc?.currency?.id) {
+        setSelectedCurrency(defaultCurrencyAssoc.currency.id);
       }
-    } catch (error) {
-      console.error('Failed to load currencies:', error);
     }
-  };
+  }, [open, currencies, defaultCurrencyAssoc, selectedCurrency]);
 
   const handleClose = () => {
     // Reset state
@@ -74,6 +63,7 @@ const CSVImportModal = ({ open, onOpenChange }) => {
     setImporting(false);
     setImportProgress(0);
     setImportResults({ success: 0, failed: 0, errors: [] });
+    setSelectedCurrency('');
     setCreateMissing(true);
     onOpenChange(false);
   };

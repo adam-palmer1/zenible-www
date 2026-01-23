@@ -10,6 +10,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import paymentIntegrationsAPI from '../../../../services/api/finance/paymentIntegrations';
+import ZoomConnectCard from './integrations/ZoomConnectCard';
 
 // Stripe logo SVG component
 const StripeLogo = ({ className = 'h-6 w-6' }) => (
@@ -777,6 +778,20 @@ const IntegrationsTab = () => {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Video Conferencing Section */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          Video Conferencing
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Connect video conferencing services to auto-generate meeting links for call bookings.
+        </p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ZoomConnectCard onStatusChange={handleStatusChange} />
+        </div>
       </div>
 
       {/* Other Integrations Section */}

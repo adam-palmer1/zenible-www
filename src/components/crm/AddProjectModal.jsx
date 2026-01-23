@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PlusIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import Modal from '../ui/modal/Modal';
 import { useCRM } from '../../contexts/CRMContext';
-import { useProjects } from '../../hooks/crm';
+import { useProjects, useCompanyCurrencies } from '../../hooks/crm';
 import { useNotification } from '../../contexts/NotificationContext';
 import {
   PROJECT_STATUS,
@@ -22,6 +22,7 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
   const { refresh } = useCRM();
   const { createProject, updateProject, refresh: refreshProjects } = useProjects();
   const { showSuccess, showError } = useNotification();
+  const { companyCurrencies } = useCompanyCurrencies();
 
   // Client selector state
   const [selectedContact, setSelectedContact] = useState(null);
@@ -42,6 +43,8 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
     start_date: '',
     end_date: '',
     notes: '',
+    default_hourly_rate: '',
+    default_currency_id: '',
   });
   const [clientServices, setClientServices] = useState([]);
   const [selectedServices, setSelectedServices] = useState([]);
@@ -87,6 +90,8 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
         start_date: projectData.start_date || '',
         end_date: projectData.end_date || '',
         notes: projectData.notes || '',
+        default_hourly_rate: projectData.default_hourly_rate || '',
+        default_currency_id: projectData.default_currency_id || '',
       });
 
       // Set selected contact for display
@@ -118,6 +123,8 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
         start_date: startDate,
         end_date: endDate,
         notes: '',
+        default_hourly_rate: '',
+        default_currency_id: '',
       });
       setSelectedContact(null);
       setSelectedServices([]);
@@ -146,7 +153,12 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
 
   const handleContactSelect = (contact) => {
     setSelectedContact(contact);
-    setFormData(prev => ({ ...prev, contact_id: contact?.id || null }));
+    setFormData(prev => ({
+      ...prev,
+      contact_id: contact?.id || null,
+      // Default currency from contact if not already set
+      default_currency_id: prev.default_currency_id || contact?.currency_id || '',
+    }));
 
     // Load client services when contact is selected
     if (contact?.id) {
@@ -181,9 +193,6 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
     if (!formData.name.trim()) {
       newErrors.name = 'Project name is required';
     }
-    if (!formData.contact_id) {
-      newErrors.contact_id = 'Client is required';
-    }
     if (formData.start_date && formData.end_date && formData.end_date < formData.start_date) {
       newErrors.end_date = 'End date must be after start date';
     }
@@ -201,12 +210,19 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
       setLoading(true);
       setErrors({});
 
+      // Build payload with properly converted billing defaults
+      const payload = {
+        ...formData,
+        default_hourly_rate: formData.default_hourly_rate ? parseFloat(formData.default_hourly_rate) : null,
+        default_currency_id: formData.default_currency_id || null,
+      };
+
       // Create or update project
       let savedProject;
       if (project) {
-        savedProject = await updateProject(project.id, formData);
+        savedProject = await updateProject(project.id, payload);
       } else {
-        savedProject = await createProject(formData);
+        savedProject = await createProject(payload);
       }
 
       // Assign services if any selected
@@ -278,7 +294,7 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
             {/* Client */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Client *
+                Client
               </label>
               <button
                 ref={contactButtonRef}
@@ -387,6 +403,56 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               />
+            </div>
+
+            {/* Billing Defaults */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                Billing Defaults (Optional)
+              </h4>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Default Hourly Rate */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Default Hourly Rate
+                  </label>
+                  <input
+                    type="number"
+                    name="default_hourly_rate"
+                    step="0.01"
+                    min="0"
+                    value={formData.default_hourly_rate}
+                    onChange={handleChange}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  />
+                </div>
+
+                {/* Default Currency */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Currency
+                  </label>
+                  <select
+                    name="default_currency_id"
+                    value={formData.default_currency_id}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="">Use contact/company default</option>
+                    {companyCurrencies.map(c => (
+                      <option key={c.currency_id} value={c.currency_id}>
+                        {c.currency?.code || 'Unknown'} - {c.currency?.name || 'Unknown'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                If not set, billable hours will use contact or company defaults
+              </p>
             </div>
 
             {/* Service Assignment Section */}

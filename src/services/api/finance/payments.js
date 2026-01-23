@@ -275,6 +275,43 @@ class PaymentsAPI {
   async getStripeInvoices() {
     return request('/payments/invoices', { method: 'GET' });
   }
+
+  // ========== Project Allocation Endpoints ==========
+
+  /**
+   * Get project allocations for a payment
+   * @param {string} paymentId - Payment UUID
+   * @returns {Promise<Object>} { allocations: [...], total_percentage: number, total_allocated_amount: number }
+   */
+  async getProjectAllocations(paymentId) {
+    return request(`${this.baseEndpoint}/${paymentId}/allocations`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Update project allocations for a payment (replaces all existing allocations)
+   * @param {string} paymentId - Payment UUID
+   * @param {Array} allocations - Array of { project_id, percentage }
+   * @returns {Promise<Object>} Updated allocations
+   */
+  async updateProjectAllocations(paymentId, allocations) {
+    return request(`${this.baseEndpoint}/${paymentId}/allocations`, {
+      method: 'PUT',
+      body: JSON.stringify({ allocations }),
+    });
+  }
+
+  /**
+   * Delete all project allocations for a payment
+   * @param {string} paymentId - Payment UUID
+   * @returns {Promise<void>}
+   */
+  async deleteProjectAllocations(paymentId) {
+    return request(`${this.baseEndpoint}/${paymentId}/allocations`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 const paymentsAPI = new PaymentsAPI();

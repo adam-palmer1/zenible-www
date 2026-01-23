@@ -50,6 +50,11 @@ class ContactsAPI {
     }
   }
 
+  // Get available fields metadata for contacts list
+  async getFields() {
+    return this.request('/crm/contacts/fields', { method: 'GET' });
+  }
+
   // List contacts with pagination and filters
   async list(params = {}) {
     // Filter out null, undefined, and empty string values
@@ -67,8 +72,13 @@ class ContactsAPI {
   }
 
   // Get single contact by ID
-  async get(contactId) {
-    return this.request(`/crm/contacts/${contactId}`, { method: 'GET' });
+  // Supports optional query params like include_financial_details=true
+  async get(contactId, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString
+      ? `/crm/contacts/${contactId}?${queryString}`
+      : `/crm/contacts/${contactId}`;
+    return this.request(endpoint, { method: 'GET' });
   }
 
   // Create new contact
@@ -219,6 +229,140 @@ class ContactsAPI {
     return this.request(`/crm/contacts/${contactId}/taxes/${taxId}`, {
       method: 'DELETE',
     });
+  }
+
+  // Get projects assigned to a contact
+  async getProjects(contactId) {
+    return this.request(`/crm/contacts/${contactId}/projects`, { method: 'GET' });
+  }
+
+  // =====================
+  // Service Attributions
+  // =====================
+
+  // List attributions for a contact service
+  async listAttributions(contactId, serviceId) {
+    return this.request(`/crm/contacts/${contactId}/services/${serviceId}/attributions`, {
+      method: 'GET',
+    });
+  }
+
+  // Create attribution for a contact service
+  async createAttribution(contactId, serviceId, data) {
+    return this.request(`/crm/contacts/${contactId}/services/${serviceId}/attributions`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Delete attribution
+  async deleteAttribution(contactId, serviceId, attributionId) {
+    return this.request(`/crm/contacts/${contactId}/services/${serviceId}/attributions/${attributionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // =====================
+  // Service Invoice Links
+  // =====================
+
+  // List invoice links for a contact service
+  async listInvoiceLinks(contactId, serviceId) {
+    return this.request(`/crm/contacts/${contactId}/services/${serviceId}/invoices`, {
+      method: 'GET',
+    });
+  }
+
+  // Create invoice link for a contact service
+  async createInvoiceLink(contactId, serviceId, data) {
+    return this.request(`/crm/contacts/${contactId}/services/${serviceId}/invoices`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Delete invoice link
+  async deleteInvoiceLink(contactId, serviceId, invoiceLinkId) {
+    return this.request(`/crm/contacts/${contactId}/services/${serviceId}/invoices/${invoiceLinkId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // =====================
+  // Service Invoice Actions
+  // =====================
+
+  // Create one-off invoice from service
+  async createInvoiceFromService(contactId, serviceId, data) {
+    // data: { amount: number, amount_type: 'fixed' | 'percentage' }
+    return this.request(`/crm/contacts/${contactId}/services/${serviceId}/create-invoice`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Link recurring service to invoice template
+  async linkServiceToTemplate(contactId, serviceId, templateId) {
+    return this.request(`/crm/contacts/${contactId}/services/${serviceId}/link-invoice`, {
+      method: 'POST',
+      body: JSON.stringify({ invoice_id: templateId }),
+    });
+  }
+
+  // Unlink service from invoice template
+  async unlinkServiceFromTemplate(contactId, serviceId) {
+    return this.request(`/crm/contacts/${contactId}/services/${serviceId}/link-invoice`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Create recurring invoice template from service
+  async createRecurringTemplateFromService(contactId, serviceId, data = {}) {
+    return this.request(`/crm/contacts/${contactId}/services/${serviceId}/create-recurring-invoice`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // =====================
+  // Contact Merge
+  // =====================
+
+  /**
+   * Merge two contacts - source contact data is merged into target contact
+   * Target contact wins for conflicts, source contact is soft-deleted after merge
+   *
+   * @param {string} targetContactId - The contact to merge INTO (will be kept)
+   * @param {string} sourceContactId - The contact to merge FROM (will be deleted)
+   * @returns {Object} Merge result with records_transferred and attributes_filled
+   */
+  async merge(targetContactId, sourceContactId) {
+    return this.request(`/crm/contacts/${targetContactId}/merge`, {
+      method: 'POST',
+      body: JSON.stringify({ source_contact_id: sourceContactId }),
+    });
+  }
+
+  /**
+   * Search contacts for merge target selection
+   * Excludes the source contact from results
+   *
+   * @param {string} query - Search query
+   * @param {string} excludeContactId - Contact ID to exclude from results
+   * @returns {Array} List of contacts matching the search
+   */
+  async searchForMerge(query, excludeContactId) {
+    const params = {
+      search: query,
+      per_page: 20,
+      include_hidden: false,
+    };
+    const result = await this.list(params);
+    // Filter out the source contact
+    if (result.items) {
+      result.items = result.items.filter(c => c.id !== excludeContactId);
+    }
+    return result;
   }
 }
 

@@ -86,6 +86,11 @@ export default function NewSidebar() {
           label: 'Payments',
           path: '/finance/payments',
           isActive: location.pathname.startsWith('/finance/payments')
+        },
+        {
+          label: 'Reports',
+          path: '/finance/reports',
+          isActive: location.pathname.startsWith('/finance/reports')
         }
       ]
     },

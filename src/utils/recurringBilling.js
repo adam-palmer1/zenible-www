@@ -20,30 +20,33 @@ export const calculateNextBillingDate = (
   customPeriod = 'Months'
 ) => {
   const start = new Date(startDate);
+  // Normalize to lowercase for case-insensitive matching
+  const type = (recurringType || 'monthly').toLowerCase();
+  const period = (customPeriod || 'months').toLowerCase();
 
-  switch (recurringType) {
-    case 'Weekly':
+  switch (type) {
+    case 'weekly':
       return addWeeks(start, 1);
 
-    case 'Monthly':
+    case 'monthly':
       return addMonths(start, 1);
 
-    case 'Quarterly':
+    case 'quarterly':
       return addMonths(start, 3);
 
-    case 'Yearly':
+    case 'yearly':
       return addYears(start, 1);
 
-    case 'Custom':
+    case 'custom':
       const every = parseInt(customEvery) || 1;
-      switch (customPeriod) {
-        case 'Days':
+      switch (period) {
+        case 'days':
           return addDays(start, every);
-        case 'Weeks':
+        case 'weeks':
           return addWeeks(start, every);
-        case 'Months':
+        case 'months':
           return addMonths(start, every);
-        case 'Years':
+        case 'years':
           return addYears(start, every);
         default:
           return addMonths(start, every);
@@ -126,22 +129,25 @@ export const getRecurringFrequencyLabel = (
   customEvery = 1,
   customPeriod = 'Months'
 ) => {
-  switch (recurringType) {
-    case 'Weekly':
+  // Normalize to lowercase for case-insensitive matching
+  const type = (recurringType || 'monthly').toLowerCase();
+
+  switch (type) {
+    case 'weekly':
       return 'Every week';
-    case 'Monthly':
+    case 'monthly':
       return 'Every month';
-    case 'Quarterly':
+    case 'quarterly':
       return 'Every 3 months';
-    case 'Yearly':
+    case 'yearly':
       return 'Every year';
-    case 'Custom':
+    case 'custom':
       const every = parseInt(customEvery) || 1;
-      const period = customPeriod.toLowerCase();
+      const period = (customPeriod || 'months').toLowerCase();
       if (every === 1) {
         return `Every ${period.slice(0, -1)}`; // Remove 's' from period
       }
-      return `Every ${every} ${period.toLowerCase()}`;
+      return `Every ${every} ${period}`;
     default:
       return recurringType;
   }
@@ -201,25 +207,29 @@ export const getRecurringIntervalDays = (
   customEvery = 1,
   customPeriod = 'Months'
 ) => {
-  switch (recurringType) {
-    case 'Weekly':
+  // Normalize to lowercase for case-insensitive matching
+  const type = (recurringType || 'monthly').toLowerCase();
+  const period = (customPeriod || 'months').toLowerCase();
+
+  switch (type) {
+    case 'weekly':
       return 7;
-    case 'Monthly':
+    case 'monthly':
       return 30; // Approximate
-    case 'Quarterly':
+    case 'quarterly':
       return 90; // Approximate
-    case 'Yearly':
+    case 'yearly':
       return 365; // Approximate
-    case 'Custom':
+    case 'custom':
       const every = parseInt(customEvery) || 1;
-      switch (customPeriod) {
-        case 'Days':
+      switch (period) {
+        case 'days':
           return every;
-        case 'Weeks':
+        case 'weeks':
           return every * 7;
-        case 'Months':
+        case 'months':
           return every * 30; // Approximate
-        case 'Years':
+        case 'years':
           return every * 365; // Approximate
         default:
           return 30;

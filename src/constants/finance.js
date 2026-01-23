@@ -168,13 +168,13 @@ export const PAYMENT_TYPE_COLORS = {
   [PAYMENT_TYPE.REFUND]: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
 };
 
-// Recurring Types
+// Recurring Types (backend expects lowercase values)
 export const RECURRING_TYPE = {
-  WEEKLY: 'Weekly',
-  MONTHLY: 'Monthly',
-  QUARTERLY: 'Quarterly',
-  YEARLY: 'Yearly',
-  CUSTOM: 'Custom',
+  WEEKLY: 'weekly',
+  MONTHLY: 'monthly',
+  QUARTERLY: 'quarterly',
+  YEARLY: 'yearly',
+  CUSTOM: 'custom',
 };
 
 export const RECURRING_TYPE_LABELS = {
@@ -185,12 +185,12 @@ export const RECURRING_TYPE_LABELS = {
   [RECURRING_TYPE.CUSTOM]: 'Custom',
 };
 
-// Custom Period Types
+// Custom Period Types (backend expects lowercase values)
 export const CUSTOM_PERIOD = {
-  DAYS: 'Days',
-  WEEKS: 'Weeks',
-  MONTHS: 'Months',
-  YEARS: 'Years',
+  DAYS: 'days',
+  WEEKS: 'weeks',
+  MONTHS: 'months',
+  YEARS: 'years',
 };
 
 export const CUSTOM_PERIOD_LABELS = {

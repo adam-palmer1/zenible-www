@@ -5,6 +5,9 @@ import CRMTopBar from './layout/CRMTopBar';
 import CRMHeader from './layout/CRMHeader';
 import CRMFiltersBar from './filters/CRMFiltersBar';
 import ClientsFiltersBar from './filters/ClientsFiltersBar';
+import VendorsFiltersBar from './filters/VendorsFiltersBar';
+import ProjectsFiltersBar from './filters/ProjectsFiltersBar';
+import ServicesFiltersBar from './filters/ServicesFiltersBar';
 import CRMTabContent from './layout/CRMTabContent';
 import AddContactModal from './AddContactModal';
 import AddServiceModal from './AddServiceModal';
@@ -16,6 +19,9 @@ import { useContacts, useContactStatuses, useServices } from '../../hooks/crm';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useCRMFilters } from '../../hooks/crm/useCRMFilters';
 import { useClientsFilters } from '../../hooks/crm/useClientsFilters';
+import { useVendorsFilters } from '../../hooks/crm/useVendorsFilters';
+import { useProjectsFilters } from '../../hooks/crm/useProjectsFilters';
+import { useServicesFilters } from '../../hooks/crm/useServicesFilters';
 
 /**
  * Main CRM Dashboard component (REFACTORED with new design)
@@ -103,6 +109,15 @@ const CRMDashboard = () => {
 
   // Clients Filters Hook - Manages clients tab filter state
   const clientsFilters = useClientsFilters();
+
+  // Vendors Filters Hook - Manages vendors tab filter state
+  const vendorsFilters = useVendorsFilters();
+
+  // Projects Filters Hook - Manages projects tab filter state
+  const projectsFilters = useProjectsFilters();
+
+  // Services Filters Hook - Manages services tab filter state
+  const servicesFilters = useServicesFilters();
 
   // Load contacts with combined filters
   const { contacts, loading: contactsLoading, updateContact } = useContacts(contactFilters, refreshKey);
@@ -206,14 +221,58 @@ const CRMDashboard = () => {
                 onSearchChange={clientsFilters.setSearchQuery}
                 showHidden={clientsFilters.showHiddenClients}
                 onShowHiddenToggle={clientsFilters.handleShowHiddenToggle}
-                sortOrder={clientsFilters.selectedSort}
-                onSortChange={clientsFilters.handleSortChange}
+                showPreferredCurrency={clientsFilters.showPreferredCurrency}
+                onPreferredCurrencyToggle={clientsFilters.handlePreferredCurrencyToggle}
                 visibleColumns={clientsFilters.visibleColumns}
                 availableColumns={clientsFilters.availableColumns}
+                columnsByCategory={clientsFilters.columnsByCategory}
                 onToggleColumn={clientsFilters.toggleColumnVisibility}
                 showColumnSelector={clientsFilters.showColumnSelector}
                 setShowColumnSelector={clientsFilters.setShowColumnSelector}
                 columnSelectorRef={clientsFilters.columnSelectorRef}
+                fieldsLoading={clientsFilters.fieldsLoading}
+              />
+            )}
+
+            {/* Vendors tab filters */}
+            {activeTab === 'vendors' && (
+              <VendorsFiltersBar
+                searchQuery={vendorsFilters.searchQuery}
+                onSearchChange={vendorsFilters.setSearchQuery}
+                showHidden={vendorsFilters.showHiddenVendors}
+                onShowHiddenToggle={vendorsFilters.handleShowHiddenToggle}
+                showPreferredCurrency={vendorsFilters.showPreferredCurrency}
+                onPreferredCurrencyToggle={vendorsFilters.handlePreferredCurrencyToggle}
+                visibleColumns={vendorsFilters.visibleColumns}
+                availableColumns={vendorsFilters.availableColumns}
+                onToggleColumn={vendorsFilters.toggleColumnVisibility}
+                showColumnSelector={vendorsFilters.showColumnSelector}
+                setShowColumnSelector={vendorsFilters.setShowColumnSelector}
+                columnSelectorRef={vendorsFilters.columnSelectorRef}
+              />
+            )}
+
+            {/* Projects tab filters */}
+            {activeTab === 'projects' && (
+              <ProjectsFiltersBar
+                selectedStatuses={projectsFilters.selectedStatuses}
+                onStatusToggle={projectsFilters.handleStatusToggle}
+                onClearStatuses={projectsFilters.handleClearStatuses}
+              />
+            )}
+
+            {/* Services tab filters */}
+            {activeTab === 'services' && (
+              <ServicesFiltersBar
+                activeSubtab={servicesFilters.activeSubtab}
+                onSubtabChange={servicesFilters.setActiveSubtab}
+                searchQuery={servicesFilters.searchQuery}
+                onSearchChange={servicesFilters.setSearchQuery}
+                statusFilter={servicesFilters.statusFilter}
+                onStatusFilterChange={servicesFilters.setStatusFilter}
+                frequencyTypeFilter={servicesFilters.frequencyTypeFilter}
+                onFrequencyTypeFilterChange={servicesFilters.setFrequencyTypeFilter}
+                activeFilterCount={servicesFilters.activeFilterCount}
               />
             )}
           </CRMHeader>
@@ -242,6 +301,9 @@ const CRMDashboard = () => {
         deleteService={deleteService}
         refreshKey={refreshKey}
         clientsFilters={clientsFilters}
+        vendorsFilters={vendorsFilters}
+        projectsFilters={projectsFilters}
+        servicesFilters={servicesFilters}
       />
 
       {/* Modals */}

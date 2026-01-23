@@ -1,13 +1,16 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import {
   PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
-  PROJECT_STATUS_HEX_COLORS
+  PROJECT_STATUS_HEX_COLORS,
+  Z_INDEX
 } from '../../constants/crm';
 
 /**
  * Modal for selecting a single project status
+ * Uses portal and high z-index to appear above other modals
  */
 const StatusSelectorModal = ({
   isOpen,
@@ -19,14 +22,20 @@ const StatusSelectorModal = ({
 
   const allStatuses = Object.values(PROJECT_STATUS);
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  const modal = (
+    <div
+      className="fixed inset-0 overflow-y-auto"
+      style={{ zIndex: Z_INDEX.MODAL_BACKDROP + 100 }}
+    >
       <div className="flex items-center justify-center min-h-screen px-4">
         {/* Backdrop */}
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
 
         {/* Modal */}
-        <div className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+        <div
+          className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl"
+          style={{ zIndex: Z_INDEX.MODAL + 100 }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -89,6 +98,9 @@ const StatusSelectorModal = ({
       </div>
     </div>
   );
+
+  // Render using portal at document.body level to ensure proper z-index stacking
+  return createPortal(modal, document.body);
 };
 
 export default StatusSelectorModal;

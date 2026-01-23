@@ -321,6 +321,43 @@ class QuotesAPI {
       body: JSON.stringify(quoteData),
     });
   }
+
+  // ========== Project Allocation Endpoints ==========
+
+  /**
+   * Get project allocations for a quote
+   * @param {string} quoteId - Quote UUID
+   * @returns {Promise<Object>} { allocations: [...], total_percentage: number, total_allocated_amount: number }
+   */
+  async getAllocations(quoteId) {
+    return request(`${this.baseEndpoint}/${quoteId}/allocations`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Update project allocations for a quote (replaces all existing allocations)
+   * @param {string} quoteId - Quote UUID
+   * @param {Array} allocations - Array of { project_id, percentage }
+   * @returns {Promise<Object>} Updated allocations
+   */
+  async updateAllocations(quoteId, allocations) {
+    return request(`${this.baseEndpoint}/${quoteId}/allocations`, {
+      method: 'PUT',
+      body: JSON.stringify({ allocations }),
+    });
+  }
+
+  /**
+   * Delete all project allocations for a quote
+   * @param {string} quoteId - Quote UUID
+   * @returns {Promise<void>}
+   */
+  async deleteAllocations(quoteId) {
+    return request(`${this.baseEndpoint}/${quoteId}/allocations`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 const quotesAPI = new QuotesAPI();

@@ -77,9 +77,13 @@ const Modal = ({
                     {title}
                   </Dialog.Title>
                 )}
-                {description && (
+                {description ? (
                   <Dialog.Description className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     {description}
+                  </Dialog.Description>
+                ) : (
+                  <Dialog.Description className="sr-only">
+                    {title || 'Modal dialog'}
                   </Dialog.Description>
                 )}
               </div>

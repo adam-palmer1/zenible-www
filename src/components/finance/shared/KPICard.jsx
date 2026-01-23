@@ -7,24 +7,33 @@ import React from 'react';
  * - Value: 18px semibold, #09090b
  * - Icon: 52x52px with colored background on right side
  * - Padding: 16px, Border radius: 12px
+ * - Optional subtitle for additional details (e.g., currency breakdown)
  */
-const KPICard = ({ title, value, icon: Icon, iconColor = 'blue' }) => {
+const KPICard = ({ title, value, subtitle, icon: Icon, iconColor = 'blue' }) => {
   const iconColorVariants = {
     blue: {
       bg: 'bg-[#dff2fe]', // Blue light from Figma
       iconColor: 'text-[#0ea5e9]', // Blue-500
     },
+    purple: {
+      bg: 'bg-[#ede9fe]', // Purple light from Figma
+      iconColor: 'text-[#8b5cf6]', // Purple-500
+    },
     green: {
-      bg: 'bg-[#d1fae5]', // Green light
-      iconColor: 'text-[#10b981]', // Green-500
+      bg: 'bg-[#dcfce7]', // Green light from Figma
+      iconColor: 'text-[#00a63e]', // Green
     },
     yellow: {
       bg: 'bg-[#fef3c7]', // Yellow light
       iconColor: 'text-[#f59e0b]', // Yellow-500
     },
     red: {
-      bg: 'bg-[#fee2e2]', // Red light
+      bg: 'bg-[#ffe2e2]', // Red light from Figma
       iconColor: 'text-[#ef4444]', // Red-500
+    },
+    orange: {
+      bg: 'bg-[#ffedd5]', // Orange light
+      iconColor: 'text-[#f97316]', // Orange-500
     },
   };
 
@@ -40,6 +49,11 @@ const KPICard = ({ title, value, icon: Icon, iconColor = 'blue' }) => {
         <p className="text-lg font-semibold text-[#09090b] leading-[26px]">
           {value}
         </p>
+        {subtitle && (
+          <p className="text-xs text-[#a1a1aa] leading-[18px] mt-1">
+            {subtitle}
+          </p>
+        )}
       </div>
 
       {/* Icon */}

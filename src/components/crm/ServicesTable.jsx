@@ -1,6 +1,7 @@
 import React from 'react';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../utils/currencyUtils';
+import { SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS } from '../../constants/crm';
 
 /**
  * Component to display services catalog in a table view
@@ -41,6 +42,9 @@ const ServicesTable = ({ services = [], onEdit, onDelete, loading = false }) => 
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                 Frequency
               </th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
+                Status
+              </th>
               <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                 Actions
               </th>
@@ -78,6 +82,15 @@ const ServicesTable = ({ services = [], onEdit, onDelete, loading = false }) => 
                     ? service.time_period || 'Recurring'
                     : 'One-off'}
                 </span>
+              </td>
+              <td className="px-4 py-4 whitespace-nowrap">
+                {service.status && (
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${SERVICE_STATUS_COLORS[service.status] || 'bg-gray-100 text-gray-800'}`}
+                  >
+                    {SERVICE_STATUS_LABELS[service.status] || service.status}
+                  </span>
+                )}
               </td>
               <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end gap-2">

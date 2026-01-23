@@ -6,40 +6,52 @@
 
 /**
  * Calculate total annual value for a contact
- * Formula: (recurring_total * 12) + one_off_total
+ * Formula: (confirmed_recurring + active_recurring) + (confirmed_one_off + active_one_off)
+ * Note: recurring totals from API are already annualized
  *
  * @param {Object} contact - Contact object with financial data
- * @param {number} contact.recurring_total - Monthly recurring revenue
- * @param {number} contact.one_off_total - One-time payment total
+ * @param {number} contact.confirmed_recurring_total - Confirmed annualized recurring revenue
+ * @param {number} contact.active_recurring_total - Active annualized recurring revenue
+ * @param {number} contact.confirmed_one_off_total - Confirmed one-off total
+ * @param {number} contact.active_one_off_total - Active one-off total
  * @returns {number} Total annual value
  */
 export const calculateContactValue = (contact) => {
-  const recurringTotal = contact?.recurring_total || 0;
-  const oneOffTotal = contact?.one_off_total || 0;
-  return (recurringTotal * 12) + oneOffTotal;
+  const confirmedRecurring = parseFloat(contact?.confirmed_recurring_total) || 0;
+  const activeRecurring = parseFloat(contact?.active_recurring_total) || 0;
+  const confirmedOneOff = parseFloat(contact?.confirmed_one_off_total) || 0;
+  const activeOneOff = parseFloat(contact?.active_one_off_total) || 0;
+  return confirmedRecurring + activeRecurring + confirmedOneOff + activeOneOff;
 };
 
 /**
- * Calculate monthly recurring revenue (MRR) for a contact
+ * Calculate annual recurring revenue (ARR) for a contact
+ * Sums confirmed and active recurring totals (already annualized from API)
  *
  * @param {Object} contact - Contact object
- * @param {number} contact.recurring_total - Monthly recurring total
- * @returns {number} Monthly recurring revenue
+ * @param {number} contact.confirmed_recurring_total - Confirmed annualized recurring
+ * @param {number} contact.active_recurring_total - Active annualized recurring
+ * @returns {number} Annual recurring revenue
  */
 export const calculateMRR = (contact) => {
-  return contact?.recurring_total || 0;
+  const confirmedRecurring = parseFloat(contact?.confirmed_recurring_total) || 0;
+  const activeRecurring = parseFloat(contact?.active_recurring_total) || 0;
+  // Note: API returns annualized values, so divide by 12 for monthly
+  return (confirmedRecurring + activeRecurring) / 12;
 };
 
 /**
  * Calculate annual recurring revenue (ARR) for a contact
  *
  * @param {Object} contact - Contact object
- * @param {number} contact.recurring_total - Monthly recurring total
+ * @param {number} contact.confirmed_recurring_total - Confirmed annualized recurring
+ * @param {number} contact.active_recurring_total - Active annualized recurring
  * @returns {number} Annual recurring revenue
  */
 export const calculateARR = (contact) => {
-  const mrr = calculateMRR(contact);
-  return mrr * 12;
+  const confirmedRecurring = parseFloat(contact?.confirmed_recurring_total) || 0;
+  const activeRecurring = parseFloat(contact?.active_recurring_total) || 0;
+  return confirmedRecurring + activeRecurring;
 };
 
 /**

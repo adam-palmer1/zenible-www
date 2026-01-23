@@ -13,6 +13,10 @@ import {
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import { useExpenses } from '../../../contexts/ExpenseContext';
+import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
+import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
+import { getCurrencySymbol } from '../../../utils/currency';
+import { applyNumberFormat } from '../../../utils/numberFormatUtils';
 
 // Register Chart.js components
 ChartJS.register(
@@ -33,6 +37,23 @@ const ExpenseAnalytics = () => {
     categories,
     loading,
   } = useExpenses();
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
+
+  // Get number format from company settings
+  const numberFormat = useMemo(() => {
+    const formatId = getNumberFormat();
+    if (formatId && numberFormats.length > 0) {
+      return numberFormats.find(f => f.id === formatId);
+    }
+    return null; // Will use default format
+  }, [getNumberFormat, numberFormats]);
+
+  // Helper to format currency amounts
+  const formatAmount = (amount, currencyCode = 'USD') => {
+    const symbol = getCurrencySymbol(currencyCode);
+    return `${symbol}${applyNumberFormat(amount, numberFormat)}`;
+  };
 
   // Filter states
   const [analyticsTimeRange, setAnalyticsTimeRange] = useState('6months');
@@ -245,9 +266,9 @@ const ExpenseAnalytics = () => {
       },
       tooltip: {
         callbacks: {
-          label: function(context) {
+          label: (context) => {
             if (context.datasetIndex === 0) {
-              return `Total: $${context.parsed.y.toFixed(2)}`;
+              return `Total: ${formatAmount(context.parsed.y)}`;
             } else {
               return `Transactions: ${context.parsed.y}`;
             }
@@ -270,9 +291,7 @@ const ExpenseAnalytics = () => {
           color: '#F3F4F6',
         },
         ticks: {
-          callback: function(value) {
-            return '$' + value.toFixed(0);
-          },
+          callback: (value) => formatAmount(value),
         },
       },
       y1: {
@@ -322,9 +341,7 @@ const ExpenseAnalytics = () => {
       },
       tooltip: {
         callbacks: {
-          label: function(context) {
-            return `${context.label}: $${context.parsed.y.toFixed(2)}`;
-          },
+          label: (context) => `${context.label}: ${formatAmount(context.parsed.y)}`,
         },
       },
     },
@@ -341,9 +358,7 @@ const ExpenseAnalytics = () => {
           color: '#F3F4F6',
         },
         ticks: {
-          callback: function(value) {
-            return '$' + value.toFixed(0);
-          },
+          callback: (value) => formatAmount(value),
         },
       },
     },
@@ -428,7 +443,7 @@ const ExpenseAnalytics = () => {
                 <div>
                   <p className="text-sm font-medium design-text-secondary">Total Spent</p>
                   <p className="text-2xl font-bold design-text-primary">
-                    ${parseFloat(analyticsData.growthMetrics.totalExpenses || 0).toFixed(2)}
+                    {formatAmount(parseFloat(analyticsData.growthMetrics.totalExpenses || 0))}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
@@ -466,7 +481,7 @@ const ExpenseAnalytics = () => {
                 <div>
                   <p className="text-sm font-medium design-text-secondary">Avg Transaction</p>
                   <p className="text-2xl font-bold design-text-primary">
-                    ${analyticsData.growthMetrics.avgExpenseAmount?.toFixed(2) || '0.00'}
+                    {formatAmount(analyticsData.growthMetrics.avgExpenseAmount || 0)}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
@@ -517,7 +532,7 @@ const ExpenseAnalytics = () => {
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-red-600 text-sm">
-                          ${parseFloat(expense.amount || 0).toFixed(2)}
+                          {formatAmount(parseFloat(expense.amount || 0))}
                         </p>
                         <p className="text-xs text-red-500">High amount</p>
                       </div>
@@ -566,7 +581,7 @@ const ExpenseAnalytics = () => {
                     </div>
                     <div className="text-right">
                       <p className="font-medium design-text-primary text-sm">
-                        ${parseFloat(category.total || 0).toFixed(2)}
+                        {formatAmount(parseFloat(category.total || 0))}
                       </p>
                       <p className={`text-xs ${category.growthRate >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                         {category.growthRate >= 0 ? '+' : ''}

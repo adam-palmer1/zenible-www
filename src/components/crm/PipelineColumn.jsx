@@ -24,12 +24,24 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
   const [editedTitle, setEditedTitle] = useState(displayName);
   const inputRef = useRef(null);
 
-  // Calculate total value in this stage (separated one-off and recurring)
+  // Calculate total value in this stage (separated by status: pending, confirmed, active)
   const columnTotals = contacts.reduce((acc, contact) => {
-    acc.oneOff += parseFloat(contact.one_off_total || 0);
-    acc.recurring += parseFloat(contact.recurring_total || 0);
+    // Pending totals
+    acc.pendingOneOff += parseFloat(contact.pending_one_off_total || 0);
+    acc.pendingRecurring += parseFloat(contact.pending_recurring_total || 0);
+    // Confirmed totals (ready to start)
+    acc.confirmedOneOff += parseFloat(contact.confirmed_one_off_total || 0);
+    acc.confirmedRecurring += parseFloat(contact.confirmed_recurring_total || 0);
+    // Active totals (being worked on)
+    acc.activeOneOff += parseFloat(contact.active_one_off_total || 0);
+    acc.activeRecurring += parseFloat(contact.active_recurring_total || 0);
     return acc;
-  }, { oneOff: 0, recurring: 0 });
+  }, { pendingOneOff: 0, pendingRecurring: 0, confirmedOneOff: 0, confirmedRecurring: 0, activeOneOff: 0, activeRecurring: 0 });
+
+  // Check if we have any values to display
+  const hasPendingValues = columnTotals.pendingOneOff > 0 || columnTotals.pendingRecurring > 0;
+  const hasConfirmedValues = columnTotals.confirmedOneOff > 0 || columnTotals.confirmedRecurring > 0;
+  const hasActiveValues = columnTotals.activeOneOff > 0 || columnTotals.activeRecurring > 0;
 
   // Get currency from first contact (all should be in default currency)
   const totalCurrency = contacts[0]?.total_value_currency || 'GBP';
@@ -106,7 +118,7 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
   };
 
   return (
-    <div className="flex-1 min-w-[280px] sm:min-w-[320px] lg:min-w-0 transition-all duration-200">
+    <div className="flex-1 min-w-[252px] sm:min-w-[288px] lg:min-w-0 transition-all duration-200">
       {/* Column Header - Figma Design */}
       <div className="p-3 w-full rounded-2xl bg-white border border-[#f4f4f5] transition-all duration-200">
         <div className="flex items-center gap-0.5 w-full">
@@ -187,14 +199,49 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
         <>
           {/* Horizontal divider line */}
           <div className="border-t border-[#e5e5e5] my-2" />
-          {/* Amount */}
-          <div className="flex items-center justify-start text-xs sm:text-sm min-h-[20px]">
-            {(columnTotals.oneOff > 0 || columnTotals.recurring > 0) ? (
-              <ServiceValueDisplay
-                oneOffTotal={columnTotals.oneOff}
-                recurringTotal={columnTotals.recurring}
-                currency={totalCurrency}
-              />
+          {/* Amount - show pending, confirmed and active separately */}
+          <div className="flex flex-col gap-1 text-xs sm:text-sm min-h-[20px]">
+            {(hasPendingValues || hasConfirmedValues || hasActiveValues) ? (
+              <>
+                {hasPendingValues && (
+                  <div className="flex items-center gap-1.5 overflow-hidden">
+                    <span className="text-amber-600 dark:text-amber-400 text-xs shrink-0">Pending:</span>
+                    <div className="truncate min-w-0">
+                      <ServiceValueDisplay
+                        oneOffTotal={columnTotals.pendingOneOff}
+                        recurringTotal={columnTotals.pendingRecurring}
+                        currency={totalCurrency}
+                        variant="pending"
+                      />
+                    </div>
+                  </div>
+                )}
+                {hasConfirmedValues && (
+                  <div className="flex items-center gap-1.5 overflow-hidden">
+                    <span className="text-zenible-primary text-xs shrink-0">Confirmed:</span>
+                    <div className="truncate min-w-0">
+                      <ServiceValueDisplay
+                        oneOffTotal={columnTotals.confirmedOneOff}
+                        recurringTotal={columnTotals.confirmedRecurring}
+                        currency={totalCurrency}
+                        variant="confirmed"
+                      />
+                    </div>
+                  </div>
+                )}
+                {hasActiveValues && (
+                  <div className="flex items-center gap-1.5 overflow-hidden">
+                    <span className="text-gray-500 dark:text-gray-400 text-xs shrink-0">Active:</span>
+                    <div className="truncate min-w-0">
+                      <ServiceValueDisplay
+                        oneOffTotal={columnTotals.activeOneOff}
+                        recurringTotal={columnTotals.activeRecurring}
+                        currency={totalCurrency}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <span className="text-transparent select-none">-</span>
             )}
@@ -212,9 +259,18 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
               snapshot.isDraggingOver ? 'bg-brand-purple/10 shadow-[0_0_0_3px_rgba(138,43,225,0.3)]' : ''
             }`}
           >
-            <div className="flex flex-col gap-2 sm:gap-3 w-full">
+            {/* Use auto-fill grid when fewer columns - allows up to 10% compression (280px -> 252px) */}
+            <div
+              className="w-full gap-2 sm:gap-3"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: totalVisibleColumns <= 4
+                  ? 'repeat(auto-fill, minmax(min(252px, 100%), 1fr))'
+                  : '1fr'
+              }}
+            >
               {contacts.length === 0 ? (
-                <div className="text-center py-8 text-design-text-muted">
+                <div className="text-center py-8 text-design-text-muted col-span-full">
                   <p className="text-sm">No contacts</p>
                 </div>
               ) : (

@@ -3,16 +3,14 @@ import {
   Search,
   Filter,
   MoreVertical,
-  DollarSign,
-  Clock,
   CheckCircle,
-  XCircle,
   RefreshCw,
   Eye,
   RotateCcw,
   CreditCard,
-  Calendar,
-  Plus
+  Plus,
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
@@ -26,6 +24,7 @@ import {
 } from '../../../constants/finance';
 import { formatCurrency } from '../../../utils/currency';
 import KPICard from '../shared/KPICard';
+import DateRangeFilter from '../expenses/DateRangeFilter';
 
 const PaymentList = () => {
   const {
@@ -33,12 +32,14 @@ const PaymentList = () => {
     loading,
     filters,
     pagination,
-    stats: apiStats,
+    stats,
     updateFilters,
     setPagination,
     openDetailModal,
     openRefundModal,
     openCreateModal,
+    openEditModal,
+    deletePayment,
     refresh
   } = usePayments();
   const { showSuccess, showError } = useNotification();
@@ -49,44 +50,23 @@ const PaymentList = () => {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
   const [actionMenuPosition, setActionMenuPosition] = useState({ top: 0, left: 0 });
+  const [deletingPaymentId, setDeletingPaymentId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
 
-  // Calculate stats from payments (use API stats when available, otherwise compute locally)
-  const stats = useMemo(() => {
-    // If API stats are available, use them
-    if (apiStats) {
-      return {
-        total: apiStats.total_count || apiStats.total || payments.length,
-        totalAmount: apiStats.total_amount || apiStats.completed_amount || 0,
-        pendingCount: apiStats.pending_count || 0,
-        pendingAmount: apiStats.pending_amount || 0,
-        refundedCount: apiStats.refunded_count || 0,
-        refundedAmount: apiStats.refunded_amount || 0,
-      };
-    }
+  // Format converted total for main display
+  const getConvertedDisplay = (convertedObj) => {
+    if (!convertedObj || !convertedObj.total) return '0.00';
+    return formatCurrency(convertedObj.total, convertedObj.currency_code);
+  };
 
-    // Fallback to computing from local payments array
-    const total = payments.length;
-    const completed = payments.filter(p =>
-      p.status === PAYMENT_STATUS.COMPLETED || p.status === PAYMENT_STATUS.SUCCEEDED
-    );
-    const pending = payments.filter(p => p.status === PAYMENT_STATUS.PENDING || p.status === PAYMENT_STATUS.PROCESSING);
-    const refunded = payments.filter(p =>
-      p.status === PAYMENT_STATUS.REFUNDED || p.status === PAYMENT_STATUS.PARTIALLY_REFUNDED
-    );
-
-    const totalAmount = completed.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-    const pendingAmount = pending.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-    const refundedAmount = refunded.reduce((sum, p) => sum + (parseFloat(p.refunded_amount || p.amount) || 0), 0);
-
-    return {
-      total,
-      totalAmount,
-      pendingCount: pending.length,
-      pendingAmount,
-      refundedCount: refunded.length,
-      refundedAmount,
-    };
-  }, [payments, apiStats]);
+  // Get subtitle for multi-currency breakdown (shows original amounts)
+  const getCurrencySubtitle = (currencyArray) => {
+    if (!currencyArray || currencyArray.length === 0) return null;
+    return currencyArray
+      .map(item => `${item.currency_symbol}${parseFloat(item.total).toLocaleString()}`)
+      .join(' + ');
+  };
 
   // Helper to get customer display name from contact object
   const getCustomerName = (payment) => {
@@ -161,6 +141,12 @@ const PaymentList = () => {
     setOpenActionMenuId(null);
   };
 
+  // Handle edit payment
+  const handleEditPayment = (payment) => {
+    openEditModal(payment);
+    setOpenActionMenuId(null);
+  };
+
   // Handle refund
   const handleRefund = (payment) => {
     if (payment.status !== PAYMENT_STATUS.COMPLETED && payment.status !== PAYMENT_STATUS.SUCCEEDED) {
@@ -169,6 +155,36 @@ const PaymentList = () => {
     }
     openRefundModal(payment);
     setOpenActionMenuId(null);
+  };
+
+  // Handle delete - show confirmation
+  const handleDeleteClick = (payment) => {
+    setPaymentToDelete(payment);
+    setShowDeleteConfirm(true);
+    setOpenActionMenuId(null);
+  };
+
+  // Confirm delete
+  const handleConfirmDelete = async () => {
+    if (!paymentToDelete) return;
+
+    try {
+      setDeletingPaymentId(paymentToDelete.id);
+      await deletePayment(paymentToDelete.id);
+      showSuccess('Payment deleted successfully');
+      setShowDeleteConfirm(false);
+      setPaymentToDelete(null);
+    } catch (err) {
+      showError(err.message || 'Failed to delete payment');
+    } finally {
+      setDeletingPaymentId(null);
+    }
+  };
+
+  // Cancel delete
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setPaymentToDelete(null);
   };
 
   // Format date
@@ -198,28 +214,24 @@ const PaymentList = () => {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
         <KPICard
           title="Total Payments"
-          value={stats.total}
+          value={loading ? '...' : (stats?.total_count || payments.length).toString()}
           icon={CreditCard}
           iconColor="blue"
         />
         <KPICard
           title="Total Received"
-          value={formatCurrency(stats.totalAmount, 'USD')}
+          value={loading ? '...' : getConvertedDisplay(stats?.converted_total)}
+          subtitle={!loading && stats?.total_by_currency?.length > 0 ? getCurrencySubtitle(stats.total_by_currency) : undefined}
           icon={CheckCircle}
           iconColor="green"
         />
         <KPICard
-          title="Pending"
-          value={`${stats.pendingCount} (${formatCurrency(stats.pendingAmount, 'USD')})`}
-          icon={Clock}
-          iconColor="yellow"
-        />
-        <KPICard
           title="Refunded"
-          value={`${stats.refundedCount} (${formatCurrency(stats.refundedAmount, 'USD')})`}
+          value={loading ? '...' : getConvertedDisplay(stats?.converted_refunded)}
+          subtitle={!loading && stats?.refunded_by_currency?.length > 0 ? getCurrencySubtitle(stats.refunded_by_currency) : undefined}
           icon={RotateCcw}
           iconColor="orange"
         />
@@ -252,7 +264,16 @@ const PaymentList = () => {
               />
             </div>
 
-            {/* Filter Dropdown */}
+            {/* Date Range Filter */}
+            <DateRangeFilter
+              startDate={filters.start_date}
+              endDate={filters.end_date}
+              onChange={({ start_date, end_date }) => {
+                updateFilters({ start_date, end_date });
+              }}
+            />
+
+            {/* Status Filter Dropdown */}
             <div className="relative">
               <button
                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
@@ -422,6 +443,13 @@ const PaymentList = () => {
                                   <Eye className="h-4 w-4" />
                                   View Details
                                 </button>
+                                <button
+                                  onClick={() => handleEditPayment(payment)}
+                                  className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  Edit
+                                </button>
                                 {(payment.status === PAYMENT_STATUS.COMPLETED || payment.status === PAYMENT_STATUS.SUCCEEDED) && (
                                   <button
                                     onClick={() => handleRefund(payment)}
@@ -431,6 +459,13 @@ const PaymentList = () => {
                                     Refund
                                   </button>
                                 )}
+                                <button
+                                  onClick={() => handleDeleteClick(payment)}
+                                  className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </button>
                               </div>
                             </div>
                           </>
@@ -504,6 +539,62 @@ const PaymentList = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && paymentToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={handleCancelDelete} />
+          <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-4 dark:bg-gray-800">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 bg-red-100 rounded-full dark:bg-red-900/30">
+                  <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Delete Payment
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    #{paymentToDelete.payment_number || paymentToDelete.id?.toString().slice(-8)}
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                Are you sure you want to delete this payment?
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                This will also remove any invoice allocations associated with this payment. This action cannot be undone.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={handleCancelDelete}
+                  disabled={deletingPaymentId}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={deletingPaymentId}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {deletingPaymentId ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Delete Payment
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -40,17 +40,17 @@ const BulkUpdateModal = ({
     >
       <div className="space-y-4">
         <div>
-          <p className="text-sm design-text-secondary mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
             Update the category for {selectedCount} selected expense{selectedCount > 1 ? 's' : ''}?
           </p>
 
-          <label className="block text-sm font-medium design-text-primary mb-2">
+          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
             New Category
           </label>
           <select
             value={selectedCategoryId}
             onChange={(e) => setSelectedCategoryId(e.target.value)}
-            className="w-full px-3 py-2 design-input rounded-md"
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             disabled={loading}
           >
             <option value="">Select a category</option>
@@ -66,7 +66,7 @@ const BulkUpdateModal = ({
           <button
             onClick={handleCancel}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium design-text-primary design-bg-secondary rounded-md hover:design-bg-tertiary disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
           >
             Cancel
           </button>

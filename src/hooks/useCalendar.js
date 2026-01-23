@@ -5,9 +5,15 @@ export function useCalendar() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [googleConnected, setGoogleConnected] = useState(false);
-  const [googleCalendarId, setGoogleCalendarId] = useState(null);
-  const [lastSync, setLastSync] = useState(null);
+
+  // Multi-account Google Calendar state
+  const [googleAccounts, setGoogleAccounts] = useState([]);
+  const [primaryAccount, setPrimaryAccount] = useState(null);
+
+  // Derived state for backward compatibility
+  const googleConnected = googleAccounts.length > 0;
+  const googleCalendarId = primaryAccount?.primary_calendar_id || null;
+  const lastSync = primaryAccount?.last_sync_at || null;
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -144,13 +150,12 @@ export function useCalendar() {
 
   // ========== Google Calendar Integration ==========
 
-  // Check Google Calendar connection status
+  // Check Google Calendar connection status (multi-account)
   const checkGoogleConnection = async () => {
     try {
       const status = await appointmentsAPI.getGoogleStatus();
-      setGoogleConnected(status.is_connected);
-      setGoogleCalendarId(status.primary_calendar_id);
-      setLastSync(status.last_sync_at);
+      setGoogleAccounts(status.accounts || []);
+      setPrimaryAccount(status.primary_account);
       return status;
     } catch (err) {
       console.error('Failed to check Google connection:', err);
@@ -158,11 +163,11 @@ export function useCalendar() {
     }
   };
 
-  // Initiate Google OAuth flow
-  const connectGoogleCalendar = async () => {
+  // Initiate Google OAuth flow (add new account)
+  const connectGoogleCalendar = async (setAsPrimary = false) => {
     setError(null);
     try {
-      const response = await appointmentsAPI.initiateGoogleOAuth();
+      const response = await appointmentsAPI.initiateGoogleOAuth(setAsPrimary);
       // CSRF Protection: Store state for validation in callback
       sessionStorage.setItem('google_calendar_oauth_state', response.state);
       // Redirect to Google OAuth
@@ -174,14 +179,12 @@ export function useCalendar() {
     }
   };
 
-  // Disconnect Google Calendar
+  // Disconnect Google Calendar (legacy - disconnects primary)
   const disconnectGoogleCalendar = async () => {
     setError(null);
     try {
       await appointmentsAPI.disconnectGoogle();
-      setGoogleConnected(false);
-      setGoogleCalendarId(null);
-      setLastSync(null);
+      await checkGoogleConnection();
       return { success: true };
     } catch (err) {
       setError(err.message);
@@ -189,7 +192,7 @@ export function useCalendar() {
     }
   };
 
-  // Manual sync with Google Calendar
+  // Manual sync with Google Calendar (legacy - syncs primary)
   const syncGoogleCalendar = async () => {
     setError(null);
     try {
@@ -203,6 +206,97 @@ export function useCalendar() {
         created: result.created || 0,
         updated: result.updated || 0,
         deleted: result.deleted || 0
+      };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // ========== Multi-Account Management ==========
+
+  // Set a specific account as primary
+  const setAccountAsPrimary = async (accountId) => {
+    setError(null);
+    try {
+      const result = await appointmentsAPI.setAccountPrimary(accountId);
+      await checkGoogleConnection();
+      return { success: true, ...result };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Disconnect a specific account
+  const disconnectAccount = async (accountId) => {
+    setError(null);
+    try {
+      const result = await appointmentsAPI.disconnectAccount(accountId);
+      await checkGoogleConnection();
+      // Refresh appointments to remove any from disconnected account
+      await fetchAppointments();
+      return { success: true, ...result };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Rename an account
+  const renameAccount = async (accountId, name) => {
+    setError(null);
+    try {
+      const result = await appointmentsAPI.updateAccount(accountId, { name });
+      await checkGoogleConnection();
+      return { success: true, ...result };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Update account color
+  const updateAccountColor = async (accountId, color) => {
+    setError(null);
+    try {
+      const result = await appointmentsAPI.updateAccount(accountId, { color });
+      await checkGoogleConnection();
+      return { success: true, ...result };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Toggle account read-only status
+  const toggleAccountReadOnly = async (accountId, isReadOnly) => {
+    setError(null);
+    try {
+      const result = await appointmentsAPI.updateAccount(accountId, { is_read_only: isReadOnly });
+      await checkGoogleConnection();
+      await fetchAppointments();
+      return { success: true, ...result };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Sync a specific account
+  const syncAccount = async (accountId) => {
+    setError(null);
+    try {
+      const result = await appointmentsAPI.syncAccount(accountId);
+      await checkGoogleConnection();
+      await fetchAppointments();
+      return {
+        success: true,
+        syncType: result.sync_type,
+        created: result.created || 0,
+        updated: result.updated || 0,
+        deleted: result.deleted || 0,
+        skipped: result.skipped || 0
       };
     } catch (err) {
       setError(err.message);
@@ -228,11 +322,6 @@ export function useCalendar() {
     setCurrentPage(1);
   };
 
-  // Load appointments on mount and when filters/page change
-  useEffect(() => {
-    fetchAppointments();
-  }, [fetchAppointments]);
-
   // Check Google connection on mount
   useEffect(() => {
     checkGoogleConnection();
@@ -251,6 +340,10 @@ export function useCalendar() {
     totalAppointments,
     filters,
 
+    // Multi-account Google Calendar state
+    googleAccounts,
+    primaryAccount,
+
     // Actions
     fetchAppointments,
     fetchAppointmentsForDateRange,
@@ -262,10 +355,18 @@ export function useCalendar() {
     clearFilters,
     setCurrentPage,
 
-    // Google Calendar
+    // Google Calendar (legacy)
     checkGoogleConnection,
     connectGoogleCalendar,
     disconnectGoogleCalendar,
     syncGoogleCalendar,
+
+    // Multi-account Google Calendar actions
+    setAccountAsPrimary,
+    disconnectAccount,
+    renameAccount,
+    updateAccountColor,
+    toggleAccountReadOnly,
+    syncAccount,
   };
 }

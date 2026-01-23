@@ -49,7 +49,10 @@ const DepositModal = ({
     onClose();
   };
 
-  const previewAmount = calculateDepositAmount(total, depositType, depositValue);
+  // Calculate preview amount based on deposit type
+  const previewAmount = depositType === 'percentage'
+    ? calculateDepositAmount(total, depositValue, null)
+    : calculateDepositAmount(total, 0, depositValue);
   const balanceDue = total - previewAmount;
 
   return isOpen ? (

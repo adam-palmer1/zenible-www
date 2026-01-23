@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCRMReferenceData } from '../../../../contexts/CRMReferenceDataContext';
 import companiesAPI from '../../../../services/api/crm/companies';
 import { useNotification } from '../../../../contexts/NotificationContext';
+import TaxesSection from './TaxesSection';
 
 /**
  * Profile Tab - Company profile and business information
@@ -12,6 +13,8 @@ const ProfileTab = ({ onUnsavedChanges }) => {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoUrl, setLogoUrl] = useState(null);
 
   const { industries, employeeRanges, loading: refDataLoading } = useCRMReferenceData();
   const { showSuccess, showError } = useNotification();
@@ -22,6 +25,7 @@ const ProfileTab = ({ onUnsavedChanges }) => {
       try {
         const data = await companiesAPI.getCurrent();
         setCompany(data);
+        setLogoUrl(data.logo_url || null);
         setFormData({
           name: data.name || '',
           email: data.email || '',
@@ -36,11 +40,16 @@ const ProfileTab = ({ onUnsavedChanges }) => {
           registration_number: data.registration_number || '',
           // Invoice defaults
           default_invoice_payment_terms: data.default_invoice_payment_terms || 7,
-          default_tax_rate: data.default_tax_rate || 0,
-          default_tax_name: data.default_tax_name || '',
+          default_hourly_rate: data.default_hourly_rate || null,
+          default_payment_instructions: data.default_payment_instructions || '',
           invoice_reminder_frequency_days: data.invoice_reminder_frequency_days || 7,
           invoice_reminders_enabled: data.invoice_reminders_enabled ?? true,
           max_invoice_reminders: data.max_invoice_reminders || 3,
+          // Company taxes (managed separately by TaxesSection)
+          company_taxes: data.company_taxes || [],
+          // Branding
+          primary_color: data.primary_color || '',
+          secondary_color: data.secondary_color || '',
         });
       } catch (error) {
         showError('Failed to load company settings');
@@ -60,6 +69,54 @@ const ProfileTab = ({ onUnsavedChanges }) => {
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
+  };
+
+  // Logo upload handler
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      showError('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      showError('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const result = await companiesAPI.uploadLogo(file);
+      setLogoUrl(result.logo_url);
+      showSuccess('Logo uploaded successfully');
+    } catch (error) {
+      showError('Failed to upload logo');
+      console.error('Logo upload failed:', error);
+    } finally {
+      setUploadingLogo(false);
+      // Reset file input
+      e.target.value = '';
+    }
+  };
+
+  // Logo delete handler
+  const handleLogoDelete = async () => {
+    if (!logoUrl) return;
+
+    try {
+      await companiesAPI.deleteLogo();
+      setLogoUrl(null);
+      showSuccess('Logo removed successfully');
+    } catch (error) {
+      showError('Failed to remove logo');
+      console.error('Logo delete failed:', error);
+    }
   };
 
   const handleSave = async () => {
@@ -212,6 +269,150 @@ const ProfileTab = ({ onUnsavedChanges }) => {
         </div>
       </div>
 
+      {/* Branding Section */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Branding
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Customize your company branding for invoices and customer-facing documents.
+        </p>
+
+        {/* Company Logo */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Company Logo
+          </label>
+          <div className="flex items-start gap-4">
+            {/* Logo Preview */}
+            <div className="w-32 h-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center bg-gray-50 dark:bg-gray-800 overflow-hidden">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Company logo"
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : (
+                <span className="text-gray-400 dark:text-gray-500 text-xs text-center px-2">
+                  No logo
+                </span>
+              )}
+            </div>
+
+            {/* Upload Controls */}
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <label className="relative cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={handleLogoUpload}
+                    disabled={uploadingLogo}
+                    className="sr-only"
+                  />
+                  <span className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors cursor-pointer">
+                    {uploadingLogo ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Uploading...
+                      </>
+                    ) : (
+                      'Choose File'
+                    )}
+                  </span>
+                </label>
+                {logoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleLogoDelete}
+                    className="px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                PNG, JPG, GIF or WebP (max 5MB). Recommended: 200x80px
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Theme Colors */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Primary Color */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Primary Color
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={formData.primary_color || '#8e51ff'}
+                onChange={(e) => handleChange('primary_color', e.target.value)}
+                className="w-10 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600 bg-transparent p-0.5"
+              />
+              <input
+                type="text"
+                value={formData.primary_color || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Allow typing and auto-add # if missing
+                  if (value && !value.startsWith('#')) {
+                    handleChange('primary_color', '#' + value);
+                  } else {
+                    handleChange('primary_color', value);
+                  }
+                }}
+                placeholder="#8e51ff"
+                maxLength={7}
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Main brand color for buttons and accents
+            </p>
+          </div>
+
+          {/* Secondary Color */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Secondary Color
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={formData.secondary_color || '#00007f'}
+                onChange={(e) => handleChange('secondary_color', e.target.value)}
+                className="w-10 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600 bg-transparent p-0.5"
+              />
+              <input
+                type="text"
+                value={formData.secondary_color || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Allow typing and auto-add # if missing
+                  if (value && !value.startsWith('#')) {
+                    handleChange('secondary_color', '#' + value);
+                  } else {
+                    handleChange('secondary_color', value);
+                  }
+                }}
+                placeholder="#00007f"
+                maxLength={7}
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Secondary brand color for headers and links
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Business Information */}
       <div>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -262,35 +463,60 @@ const ProfileTab = ({ onUnsavedChanges }) => {
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Tax Rate (%)
+              Default Hourly Rate
             </label>
-            <input
-              type="number"
-              value={formData.default_tax_rate}
-              onChange={(e) => handleChange('default_tax_rate', parseFloat(e.target.value))}
-              min="0"
-              max="100"
-              step="0.01"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Tax Name
-            </label>
-            <input
-              type="text"
-              value={formData.default_tax_name}
-              onChange={(e) => handleChange('default_tax_name', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="VAT, GST, Sales Tax, etc."
-            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              Default hourly rate for all contacts (can be overridden per contact)
+            </p>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">
+                £
+              </span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.default_hourly_rate || ''}
+                onChange={(e) => handleChange('default_hourly_rate', e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Not set"
+                className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
           </div>
         </div>
+
+        {/* Default Payment Instructions */}
+        <div className="mt-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Default Payment Instructions
+          </label>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            These instructions will appear on invoices by default. You can override them per invoice.
+          </p>
+          <textarea
+            value={formData.default_payment_instructions || ''}
+            onChange={(e) => handleChange('default_payment_instructions', e.target.value)}
+            rows={4}
+            placeholder="e.g., Please make payment via bank transfer to Account: 12345678, Sort Code: 00-00-00"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white resize-y"
+          />
+        </div>
+      </div>
+
+      {/* Applicable Taxes */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Applicable Taxes
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Configure tax rates that can be applied to invoices. Drag to reorder.
+        </p>
+        <TaxesSection
+          initialTaxes={formData.company_taxes}
+          onTaxesChange={(taxes) => handleChange('company_taxes', taxes)}
+        />
       </div>
 
       {/* Save Button */}
@@ -310,11 +536,14 @@ const ProfileTab = ({ onUnsavedChanges }) => {
               tax_id: company.tax_id || '',
               registration_number: company.registration_number || '',
               default_invoice_payment_terms: company.default_invoice_payment_terms || 7,
-              default_tax_rate: company.default_tax_rate || 0,
-              default_tax_name: company.default_tax_name || '',
+              default_hourly_rate: company.default_hourly_rate || null,
+              default_payment_instructions: company.default_payment_instructions || '',
               invoice_reminder_frequency_days: company.invoice_reminder_frequency_days || 7,
               invoice_reminders_enabled: company.invoice_reminders_enabled ?? true,
               max_invoice_reminders: company.max_invoice_reminders || 3,
+              company_taxes: company.company_taxes || [],
+              primary_color: company.primary_color || '',
+              secondary_color: company.secondary_color || '',
             });
             setHasChanges(false);
           }}

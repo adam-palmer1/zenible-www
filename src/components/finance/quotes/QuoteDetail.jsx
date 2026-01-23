@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Send, Download, Copy, Trash2, FileText, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit, Send, Download, Copy, Trash2, FileText, CheckCircle, XCircle, Loader2, FolderKanban } from 'lucide-react';
 import { useQuotes } from '../../../contexts/QuoteContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { QUOTE_STATUS, QUOTE_STATUS_COLORS } from '../../../constants/finance';
@@ -9,6 +9,7 @@ import InvoiceLineItems from '../invoices/InvoiceLineItems';
 import InvoiceTotals from '../invoices/InvoiceTotals';
 import SendQuoteModal from './SendQuoteModal';
 import ConvertToInvoiceModal from './ConvertToInvoiceModal';
+import { AllocationSummaryBar, ProjectAllocationModal } from '../allocations';
 
 const QuoteDetail = () => {
   const { id } = useParams();
@@ -21,6 +22,7 @@ const QuoteDetail = () => {
   const [showSendModal, setShowSendModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
 
   useEffect(() => {
     loadQuote();
@@ -130,6 +132,10 @@ const QuoteDetail = () => {
             <Copy className="h-4 w-4 mr-2" />
             Clone
           </button>
+          <button onClick={() => setShowProjectModal(true)} className="inline-flex items-center px-4 py-2 text-sm font-medium design-text-primary design-bg-secondary rounded-md hover:design-bg-tertiary">
+            <FolderKanban className="h-4 w-4 mr-2" />
+            Projects
+          </button>
           <button onClick={handleDelete} className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-600 design-bg-secondary rounded-md hover:design-bg-tertiary dark:text-red-400">
             <Trash2 className="h-4 w-4 mr-2" />
             Delete
@@ -194,6 +200,17 @@ const QuoteDetail = () => {
           </div>
         </div>
 
+        {/* Project Allocations */}
+        <div className="mb-8">
+          <AllocationSummaryBar
+            allocations={quote.project_allocations || []}
+            totalAmount={parseFloat(quote.total) || 0}
+            currency={quote.currency?.code || quote.currency || 'GBP'}
+            onManageClick={() => setShowProjectModal(true)}
+            showManageButton={true}
+          />
+        </div>
+
         {(quote.notes || quote.terms) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8 border-t design-border">
             {quote.notes && (
@@ -214,6 +231,17 @@ const QuoteDetail = () => {
 
       <SendQuoteModal isOpen={showSendModal} onClose={() => setShowSendModal(false)} quote={quote} />
       <ConvertToInvoiceModal isOpen={showConvertModal} onClose={() => setShowConvertModal(false)} quote={quote} />
+      <ProjectAllocationModal
+        open={showProjectModal}
+        onOpenChange={setShowProjectModal}
+        entityType="quote"
+        entityId={quote.id}
+        entityName={`Quote #${quote.quote_number}`}
+        entityAmount={parseFloat(quote.total) || 0}
+        currency={quote.currency?.code || quote.currency || 'GBP'}
+        currentAllocations={quote.project_allocations || []}
+        onUpdate={loadQuote}
+      />
     </div>
   );
 };

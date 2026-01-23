@@ -63,6 +63,76 @@ class CompaniesAPI {
       body: JSON.stringify(data),
     });
   }
+
+  // Tax CRUD operations
+  async listTaxes() {
+    return this.request('/crm/companies/current/taxes/', { method: 'GET' });
+  }
+
+  async createTax(data) {
+    return this.request('/crm/companies/current/taxes/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateTax(taxId, data) {
+    return this.request(`/crm/companies/current/taxes/${taxId}/`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTax(taxId) {
+    return this.request(`/crm/companies/current/taxes/${taxId}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderTaxes(taxes) {
+    return this.request('/crm/companies/current/taxes/reorder/', {
+      method: 'PUT',
+      body: JSON.stringify({ taxes }),
+    });
+  }
+
+  // Logo upload (uses FormData, not JSON)
+  async uploadLogo(file) {
+    const url = `${API_BASE_URL}/crm/companies/current/logo`;
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const token = localStorage.getItem('access_token');
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+        throw new Error(error.detail || 'Failed to upload logo');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Logo upload failed:', error);
+      throw error;
+    }
+  }
+
+  // Delete logo
+  async deleteLogo() {
+    return this.request('/crm/companies/current/logo', {
+      method: 'DELETE',
+    });
+  }
 }
 
 export default new CompaniesAPI();

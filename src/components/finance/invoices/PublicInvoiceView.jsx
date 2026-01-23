@@ -35,18 +35,251 @@ const CARD_ELEMENT_OPTIONS = {
       color: '#ef4444',
     },
   },
-  hidePostalCode: false,
+  hidePostalCode: true, // We use a custom postal code field to support international formats
 };
 
 /**
- * Stripe Card Form Component
+ * Stripe Card Setup Form Component - For saving card for recurring payments
  */
-const StripeCardForm = ({ clientSecret, amount, currency, onSuccess, onError, onBack }) => {
+const StripeCardSetupForm = ({ clientSecret, setupIntentId, shareCode, onSuccess, onError, onBack }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [email, setEmail] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      // Confirm the SetupIntent to save the card
+      const { error: stripeError, setupIntent } = await stripe.confirmCardSetup(
+        clientSecret,
+        {
+          payment_method: {
+            card: elements.getElement(CardElement),
+            billing_details: {
+              email: email || undefined,
+              address: {
+                postal_code: postalCode || undefined,
+              },
+            },
+          },
+        }
+      );
+
+      if (stripeError) {
+        throw new Error(stripeError.message);
+      }
+
+      if (setupIntent.status === 'succeeded') {
+        // Optionally verify with backend
+        try {
+          await invoicesAPI.confirmCardSetup(shareCode, setupIntentId);
+        } catch (confirmErr) {
+          console.warn('[StripeCardSetupForm] Backend confirmation failed:', confirmErr);
+          // Continue anyway - card was saved successfully with Stripe
+        }
+        onSuccess();
+      } else {
+        throw new Error('Card setup did not complete. Please try again.');
+      }
+    } catch (err) {
+      console.error('[StripeCardSetupForm] Setup error:', err);
+      setError(err.message || 'Failed to save card. Please try again.');
+      onError?.(err);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex items-center gap-2 text-sm text-[#8e51ff] hover:text-[#7a44db] mb-4"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to payment options
+      </button>
+
+      <div className="p-3 bg-[#f0fdf4] border border-green-200 rounded-lg">
+        <p className="text-sm text-green-800">
+          Your card will be saved securely for automatic payments on this recurring invoice.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-[#09090b] mb-1">
+          Email (for receipts)
+        </label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full px-3 py-2 border border-[#e5e5e5] rounded-lg bg-white text-[#09090b] focus:outline-none focus:ring-2 focus:ring-[#8e51ff]"
+          placeholder="your@email.com"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-[#09090b] mb-1">
+          Card Details
+        </label>
+        <div className="p-3 border border-[#e5e5e5] rounded-lg bg-white">
+          <CardElement options={CARD_ELEMENT_OPTIONS} />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-[#09090b] mb-1">
+          Postal Code
+        </label>
+        <input
+          type="text"
+          value={postalCode}
+          onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
+          className="w-full px-3 py-2 border border-[#e5e5e5] rounded-lg bg-white text-[#09090b] focus:outline-none focus:ring-2 focus:ring-[#8e51ff]"
+          placeholder="Postal / ZIP code"
+        />
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={!stripe || processing}
+        className="w-full px-4 py-3 bg-[#635bff] hover:bg-[#5851db] text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {processing ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Saving card...
+          </>
+        ) : (
+          <>
+            <CreditCard className="h-5 w-5" />
+            Save Card for Automatic Payments
+          </>
+        )}
+      </button>
+
+      <div className="flex items-center justify-center gap-2 text-xs text-[#71717a]">
+        <span>Secured by</span>
+        <StripeLogo className="h-4 w-4 text-[#635bff]" />
+        <span className="font-semibold text-[#635bff]">Stripe</span>
+      </div>
+    </form>
+  );
+};
+
+/**
+ * Stripe Card Setup Wrapper with Elements - For recurring payments
+ */
+const StripeCardSetupSection = ({ shareCode, onSuccess, onError, onBack }) => {
+  const [stripePromise, setStripePromise] = useState(null);
+  const [clientSecret, setClientSecret] = useState(null);
+  const [setupIntentId, setSetupIntentId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (initialized) return;
+
+    const initStripeSetup = async () => {
+      try {
+        setInitialized(true);
+        // Create setup intent for saving card
+        const setupData = await invoicesAPI.createStripeSetupIntent(shareCode);
+        setClientSecret(setupData.client_secret);
+        setSetupIntentId(setupData.setup_intent_id);
+
+        // Initialize Stripe with connected account if provided
+        const stripeOptions = setupData.stripe_account_id
+          ? { stripeAccount: setupData.stripe_account_id }
+          : undefined;
+        setStripePromise(loadStripe(setupData.publishable_key, stripeOptions));
+      } catch (err) {
+        console.error('[StripeCardSetup] Init error:', err);
+        setError(err.message || 'Failed to initialize card setup');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initStripeSetup();
+  }, [shareCode, initialized]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-[#8e51ff]" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+        <p className="text-sm text-red-600">{error}</p>
+        <button
+          onClick={onBack}
+          className="mt-2 text-sm text-[#8e51ff] hover:text-[#7a44db]"
+        >
+          Back to payment options
+        </button>
+      </div>
+    );
+  }
+
+  if (!stripePromise || !clientSecret) {
+    return (
+      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <p className="text-sm text-yellow-800">
+          Card setup is not available for this invoice.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <Elements stripe={stripePromise}>
+      <StripeCardSetupForm
+        clientSecret={clientSecret}
+        setupIntentId={setupIntentId}
+        shareCode={shareCode}
+        onSuccess={onSuccess}
+        onError={onError}
+        onBack={onBack}
+      />
+    </Elements>
+  );
+};
+
+/**
+ * Stripe Card Form Component
+ */
+const StripeCardForm = ({ clientSecret, paymentId, shareCode, amount, currency, onSuccess, onError, onBack }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+  const [email, setEmail] = useState('');
+  const [postalCode, setPostalCode] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -67,6 +300,9 @@ const StripeCardForm = ({ clientSecret, amount, currency, onSuccess, onError, on
             card: elements.getElement(CardElement),
             billing_details: {
               email: email || undefined,
+              address: {
+                postal_code: postalCode || undefined,
+              },
             },
           },
         }
@@ -77,7 +313,13 @@ const StripeCardForm = ({ clientSecret, amount, currency, onSuccess, onError, on
       }
 
       if (paymentIntent.status === 'succeeded') {
-        onSuccess();
+        // Verify payment status with backend
+        const statusResponse = await invoicesAPI.getStripePaymentStatus(shareCode, paymentId);
+        if (statusResponse.status === 'succeeded' || statusResponse.status === 'completed') {
+          onSuccess();
+        } else {
+          throw new Error('Payment verification failed. Please contact support.');
+        }
       }
     } catch (err) {
       console.error('[StripeCardForm] Payment error:', err);
@@ -93,37 +335,50 @@ const StripeCardForm = ({ clientSecret, amount, currency, onSuccess, onError, on
       <button
         type="button"
         onClick={onBack}
-        className="flex items-center gap-2 text-sm text-zenible-primary hover:text-zenible-primary/80 mb-4"
+        className="flex items-center gap-2 text-sm text-[#8e51ff] hover:text-[#7a44db] mb-4"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to payment methods
       </button>
 
       <div>
-        <label className="block text-sm font-medium design-text-primary mb-1">
+        <label className="block text-sm font-medium text-[#09090b] mb-1">
           Email (for receipt)
         </label>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 design-text-primary focus:outline-none focus:ring-2 focus:ring-zenible-primary"
+          className="w-full px-3 py-2 border border-[#e5e5e5] rounded-lg bg-white text-[#09090b] focus:outline-none focus:ring-2 focus:ring-[#8e51ff]"
           placeholder="your@email.com"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium design-text-primary mb-1">
+        <label className="block text-sm font-medium text-[#09090b] mb-1">
           Card Details
         </label>
-        <div className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white">
+        <div className="p-3 border border-[#e5e5e5] rounded-lg bg-white">
           <CardElement options={CARD_ELEMENT_OPTIONS} />
         </div>
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-[#09090b] mb-1">
+          Postal Code
+        </label>
+        <input
+          type="text"
+          value={postalCode}
+          onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
+          className="w-full px-3 py-2 border border-[#e5e5e5] rounded-lg bg-white text-[#09090b] focus:outline-none focus:ring-2 focus:ring-[#8e51ff]"
+          placeholder="Postal / ZIP code"
+        />
+      </div>
+
       {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-600">{error}</p>
         </div>
       )}
 
@@ -145,7 +400,7 @@ const StripeCardForm = ({ clientSecret, amount, currency, onSuccess, onError, on
         )}
       </button>
 
-      <div className="flex items-center justify-center gap-2 text-xs design-text-muted">
+      <div className="flex items-center justify-center gap-2 text-xs text-[#71717a]">
         <span>Secured by</span>
         <StripeLogo className="h-4 w-4 text-[#635bff]" />
         <span className="font-semibold text-[#635bff]">Stripe</span>
@@ -160,6 +415,7 @@ const StripeCardForm = ({ clientSecret, amount, currency, onSuccess, onError, on
 const StripePaymentSection = ({ shareCode, amount, currency, onSuccess, onError, onBack }) => {
   const [stripePromise, setStripePromise] = useState(null);
   const [clientSecret, setClientSecret] = useState(null);
+  const [paymentId, setPaymentId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
@@ -175,7 +431,15 @@ const StripePaymentSection = ({ shareCode, amount, currency, onSuccess, onError,
           amount,
         });
         setClientSecret(paymentData.client_secret);
-        setStripePromise(loadStripe(paymentData.publishable_key));
+        setPaymentId(paymentData.payment_id);
+
+        // Initialize Stripe with connected account for Direct Charges
+        // This ensures the payment is processed on the connected account
+        // and the business name appears on customer bank statements
+        const stripeOptions = paymentData.stripe_account_id
+          ? { stripeAccount: paymentData.stripe_account_id }
+          : undefined;
+        setStripePromise(loadStripe(paymentData.publishable_key, stripeOptions));
       } catch (err) {
         console.error('[StripePayment] Init error:', err);
         setError(err.message || 'Failed to initialize payment');
@@ -190,18 +454,18 @@ const StripePaymentSection = ({ shareCode, amount, currency, onSuccess, onError,
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-zenible-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#8e51ff]" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+        <p className="text-sm text-red-600">{error}</p>
         <button
           onClick={onBack}
-          className="mt-2 text-sm text-zenible-primary hover:text-zenible-primary/80"
+          className="mt-2 text-sm text-[#8e51ff] hover:text-[#7a44db]"
         >
           Back to payment methods
         </button>
@@ -211,8 +475,8 @@ const StripePaymentSection = ({ shareCode, amount, currency, onSuccess, onError,
 
   if (!stripePromise || !clientSecret) {
     return (
-      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-        <p className="text-sm text-yellow-800 dark:text-yellow-300">
+      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <p className="text-sm text-yellow-800">
           Card payments are not available for this invoice.
         </p>
       </div>
@@ -223,6 +487,8 @@ const StripePaymentSection = ({ shareCode, amount, currency, onSuccess, onError,
     <Elements stripe={stripePromise}>
       <StripeCardForm
         clientSecret={clientSecret}
+        paymentId={paymentId}
+        shareCode={shareCode}
         amount={amount}
         currency={currency}
         onSuccess={onSuccess}
@@ -272,15 +538,15 @@ const PayPalPaymentSection = ({ shareCode, amount, currency, onBack }) => {
       <button
         type="button"
         onClick={onBack}
-        className="flex items-center gap-2 text-sm text-zenible-primary hover:text-zenible-primary/80"
+        className="flex items-center gap-2 text-sm text-[#8e51ff] hover:text-[#7a44db]"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to payment methods
       </button>
 
       {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-600">{error}</p>
         </div>
       )}
 
@@ -302,39 +568,11 @@ const PayPalPaymentSection = ({ shareCode, amount, currency, onBack }) => {
         )}
       </button>
 
-      <p className="text-xs text-center design-text-muted">
+      <p className="text-xs text-center text-[#71717a]">
         You will be redirected to PayPal to complete your payment securely.
       </p>
     </div>
   );
-};
-
-/**
- * Poll for payment status
- */
-const pollPaymentStatus = async (shareCode, paymentId, gateway, maxAttempts = 10) => {
-  for (let i = 0; i < maxAttempts; i++) {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    try {
-      const status =
-        gateway === 'stripe'
-          ? await invoicesAPI.getStripePaymentStatus(shareCode, paymentId)
-          : await invoicesAPI.getPayPalOrderStatus(shareCode, paymentId);
-
-      if (status.status === 'succeeded' || status.status === 'captured') {
-        return { success: true, status };
-      }
-
-      if (status.status === 'failed' || status.status === 'canceled') {
-        return { success: false, status };
-      }
-    } catch (err) {
-      console.error('[pollPaymentStatus] Error:', err);
-    }
-  }
-
-  return { success: false, timeout: true };
 };
 
 /**
@@ -348,10 +586,21 @@ const PublicInvoiceView = () => {
   const [error, setError] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [cardSetupSuccess, setCardSetupSuccess] = useState(false);
   const [capturingPayPal, setCapturingPayPal] = useState(false);
 
   // Use shareCode from URL or fall back to token for backwards compatibility
   const invoiceCode = shareCode || token;
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric',
+    });
+  };
 
   // Load invoice
   const loadInvoice = useCallback(async () => {
@@ -442,13 +691,27 @@ const PublicInvoiceView = () => {
     loadInvoice();
   };
 
+  // Status badge colors matching InvoiceDetail design
+  const getStatusBadgeClasses = (status) => {
+    const statusColors = {
+      draft: 'bg-[#f4f4f5] text-[#09090b]',
+      sent: 'bg-[#dff2fe] text-[#09090b]',
+      viewed: 'bg-[#e0f2fe] text-[#09090b]',
+      partial: 'bg-[#fef3c7] text-[#09090b]',
+      paid: 'bg-[#dcfce7] text-[#09090b]',
+      overdue: 'bg-[#fee2e2] text-[#09090b]',
+      cancelled: 'bg-[#f4f4f5] text-[#71717a]',
+    };
+    return statusColors[status] || 'bg-[#f4f4f5] text-[#09090b]';
+  };
+
   // Loading state
   if (loading || capturingPayPal) {
     return (
-      <div className="min-h-screen flex items-center justify-center design-bg-secondary">
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-zenible-primary mx-auto" />
-          <p className="mt-4 text-lg design-text-secondary">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]"></div>
+          <p className="mt-2 text-sm text-[#71717a]">
             {capturingPayPal ? 'Processing PayPal payment...' : 'Loading invoice...'}
           </p>
         </div>
@@ -459,11 +722,11 @@ const PublicInvoiceView = () => {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center design-bg-secondary">
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
         <div className="text-center max-w-md px-4">
           <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold design-text-primary mb-2">Error</h1>
-          <p className="design-text-secondary">{error}</p>
+          <h1 className="text-2xl font-bold text-[#09090b] mb-2">Error</h1>
+          <p className="text-[#71717a]">{error}</p>
         </div>
       </div>
     );
@@ -479,18 +742,34 @@ const PublicInvoiceView = () => {
   const canPayStripe = invoice.allow_stripe_payments && invoice.stripe_connected;
   const canPayPayPal = invoice.allow_paypal_payments && invoice.paypal_connected;
   const canPay = !isPaid && !isCancelled && amountDue > 0 && (canPayStripe || canPayPayPal);
+  const items = invoice.invoice_items || invoice.items || [];
+
+  // Recurring invoice detection
+  const isRecurring = invoice.pricing_type === 'Recurring' || invoice.recurring_type;
+  const automaticPaymentEnabled = invoice.automatic_payment_enabled === true;
+  const canSetupAutomaticPayments = isRecurring && automaticPaymentEnabled && canPayStripe;
+  const hasCardOnFile = invoice.has_saved_payment_method === true;
+
+  // Calculate totals
+  const subtotal = items.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+  const itemLevelTax = items.reduce((sum, item) => {
+    const itemTax = item.taxes?.reduce((t, tax) => t + (tax.tax_amount || 0), 0) || 0;
+    return sum + itemTax;
+  }, 0);
+  const hasTax = itemLevelTax > 0 || (invoice.tax_total && invoice.tax_total > 0);
 
   return (
-    <div className="min-h-screen design-bg-secondary py-8 md:py-12">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className="min-h-screen bg-[#fafafa]">
+      {/* Content Section */}
+      <div className="px-4 md:px-8 py-4">
         {/* Success Message */}
         {paymentSuccess && (
-          <div className="mb-6 design-bg-primary rounded-lg shadow-lg p-6 border-l-4 border-green-500">
+          <div className="max-w-[1200px] mx-auto mb-4 bg-white border-2 border-green-500 rounded-[12px] p-6">
             <div className="flex items-center gap-3">
               <CheckCircle className="h-8 w-8 text-green-500 flex-shrink-0" />
               <div>
-                <h3 className="text-lg font-semibold design-text-primary">Payment Successful!</h3>
-                <p className="text-sm design-text-secondary mt-1">
+                <h3 className="text-lg font-semibold text-[#09090b]">Payment Successful!</h3>
+                <p className="text-sm text-[#71717a] mt-1">
                   Thank you for your payment. A confirmation email will be sent shortly.
                 </p>
               </div>
@@ -498,273 +777,509 @@ const PublicInvoiceView = () => {
           </div>
         )}
 
-        {/* Invoice Card */}
-        <div className="design-bg-primary rounded-lg shadow-lg p-6 md:p-8">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8 pb-8 border-b design-border">
-            <div>
+        {/* Main Content - Invoice and Payment side by side */}
+        <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row gap-4">
+          {/* Main Invoice Card */}
+          <div className="flex-1 bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6 flex flex-col gap-6">
+          {/* Header: Logo + Invoice Number | Dates + Status */}
+          <div className="flex items-start justify-between">
+            <div className="flex flex-col">
+              {/* Company Logo */}
               {invoice.company_logo_url && (
                 <img
                   src={invoice.company_logo_url}
-                  alt={invoice.company_name}
-                  className="h-12 mb-4 object-contain"
+                  alt={invoice.company_name || 'Company Logo'}
+                  className="max-h-16 max-w-[200px] object-contain mb-4"
                 />
               )}
-              <h1 className="text-2xl md:text-3xl font-bold design-text-primary mb-2">
-                Invoice {invoice.invoice_number}
-              </h1>
-              <span
-                className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${
-                  isPaid
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                    : isCancelled
-                    ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                }`}
-              >
-                {invoice.status?.charAt(0).toUpperCase() + invoice.status?.slice(1)}
-              </span>
+              <h2 className="text-[32px] font-semibold leading-[40px] text-[#09090b]">
+                {invoice.invoice_number}
+              </h2>
             </div>
-            <div className="text-left md:text-right">
-              <div className="text-sm design-text-secondary">Issue Date</div>
-              <div className="text-lg font-medium design-text-primary">
-                {new Date(invoice.issue_date).toLocaleDateString()}
+            <div className="flex flex-col gap-3 items-end">
+              <div className="text-right">
+                <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">Invoice Date</p>
+                <p className="text-[16px] font-semibold leading-[24px] text-[#09090b]">
+                  {formatDate(invoice.issue_date || invoice.invoice_date)}
+                </p>
               </div>
               {invoice.due_date && (
-                <>
-                  <div className="text-sm design-text-secondary mt-2">Due Date</div>
-                  <div className="text-lg font-medium design-text-primary">
-                    {new Date(invoice.due_date).toLocaleDateString()}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* From/To */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-8">
-            <div>
-              <div className="text-sm design-text-secondary mb-2">From</div>
-              <div className="text-lg font-medium design-text-primary">
-                {invoice.company_name || 'Company'}
-              </div>
-              {invoice.company_email && (
-                <div className="design-text-secondary">{invoice.company_email}</div>
-              )}
-              {invoice.company_phone && (
-                <div className="design-text-secondary">{invoice.company_phone}</div>
-              )}
-              {invoice.company_address && (
-                <div className="design-text-secondary whitespace-pre-line">
-                  {invoice.company_address}
+                <div className="text-right">
+                  <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">Due Date</p>
+                  <p className="text-[16px] font-semibold leading-[24px] text-[#09090b]">
+                    {formatDate(invoice.due_date)}
+                  </p>
                 </div>
               )}
             </div>
-            <div>
-              <div className="text-sm design-text-secondary mb-2">Bill To</div>
-              <div className="text-lg font-medium design-text-primary">
-                {invoice.client_name || 'Client'}
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-[#e5e5e5] w-full" />
+
+          {/* From / Billed To */}
+          <div className="flex gap-8">
+            {/* From */}
+            <div className="flex-1 flex flex-col gap-[6px]">
+              <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">From</p>
+              <div className="flex flex-col gap-[2px]">
+                {/* Company Name */}
+                <p className="text-[16px] font-semibold leading-[24px] text-[#09090b]">
+                  {invoice.company_name || 'Company'}
+                </p>
+                {/* Company Address */}
+                {invoice.company_address && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a] whitespace-pre-line">
+                    {invoice.company_address}
+                  </p>
+                )}
+                {/* Company Email */}
+                {invoice.company_email && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {invoice.company_email}
+                  </p>
+                )}
+                {/* Company Phone */}
+                {invoice.company_phone && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {invoice.company_phone}
+                  </p>
+                )}
               </div>
-              {invoice.client_email && (
-                <div className="design-text-secondary">{invoice.client_email}</div>
-              )}
+            </div>
+
+            {/* Billed To */}
+            <div className="flex-1 flex flex-col gap-[6px]">
+              <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">Billed to</p>
+              <div className="flex flex-col gap-[2px]">
+                <p className="text-[16px] font-semibold leading-[24px] text-[#09090b]">
+                  {invoice.client_name || 'Client'}
+                </p>
+                {invoice.client_email && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {invoice.client_email}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Line Items */}
-          {invoice.items && invoice.items.length > 0 && (
-            <div className="mb-8 overflow-x-auto">
-              <table className="w-full min-w-[500px]">
+          {/* Divider */}
+          <div className="h-px bg-[#e5e5e5] w-full" />
+
+          {/* Lists of Items */}
+          <div className="flex flex-col gap-3">
+            <p className="text-[16px] font-bold leading-[24px] text-[#09090b]">
+              Lists of Items
+            </p>
+
+            {/* Table */}
+            <div className="w-full overflow-x-auto">
+              <table className="w-full">
                 <thead>
-                  <tr className="border-b design-border">
-                    <th className="text-left py-3 text-sm font-medium design-text-secondary">
-                      Item
+                  <tr className="border-y border-[#e5e5e5]">
+                    <th className="px-3 py-4 text-left text-[14px] font-medium leading-[22px] text-[#71717a]">
+                      Description
                     </th>
-                    <th className="text-right py-3 text-sm font-medium design-text-secondary">
-                      Qty
+                    <th className="px-3 py-4 text-left text-[14px] font-medium leading-[22px] text-[#71717a] w-[98px]">
+                      Quantity
                     </th>
-                    <th className="text-right py-3 text-sm font-medium design-text-secondary">
+                    <th className="px-3 py-4 text-left text-[14px] font-medium leading-[22px] text-[#71717a] w-[98px]">
                       Price
                     </th>
-                    <th className="text-right py-3 text-sm font-medium design-text-secondary">
+                    <th className="px-3 py-4 text-left text-[14px] font-medium leading-[22px] text-[#71717a] w-[95px]">
                       Amount
+                    </th>
+                    {hasTax && (
+                      <th className="px-3 py-4 text-left text-[14px] font-medium leading-[22px] text-[#71717a] w-[98px]">
+                        Tax
+                      </th>
+                    )}
+                    <th className="px-3 py-4 text-left text-[14px] font-medium leading-[22px] text-[#71717a] w-[95px]">
+                      Total
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {invoice.items.map((item, index) => (
-                    <tr key={index} className="border-b design-border">
-                      <td className="py-3">
-                        <div className="font-medium design-text-primary">{item.name}</div>
-                        {item.description && (
-                          <div className="text-sm design-text-secondary">{item.description}</div>
-                        )}
-                      </td>
-                      <td className="text-right py-3 design-text-primary">{item.quantity}</td>
-                      <td className="text-right py-3 design-text-primary">
-                        {formatCurrency(item.price, invoice.currency_code)}
-                      </td>
-                      <td className="text-right py-3 font-medium design-text-primary">
-                        {formatCurrency(item.amount, invoice.currency_code)}
+                  {items.length === 0 ? (
+                    <tr>
+                      <td colSpan={hasTax ? 6 : 5} className="px-3 py-8 text-center text-[14px] text-[#71717a]">
+                        No items
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    items.map((item, index) => {
+                      const itemAmount = parseFloat(item.amount || 0);
+                      const itemTaxAmount = item.taxes?.reduce((sum, t) => sum + (t.tax_amount || 0), 0) || 0;
+                      const itemTotal = itemAmount + itemTaxAmount;
+
+                      return (
+                        <tr key={index} className="border-b border-[#e5e5e5] bg-white">
+                          <td className="px-3 py-4">
+                            <div>
+                              <span className="text-[14px] font-normal leading-[22px] text-[#09090b]">
+                                {item.description || item.name}
+                              </span>
+                              {item.subtext && (
+                                <p className="text-[12px] text-[#71717a] mt-0.5">{item.subtext}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-4 text-[14px] font-normal leading-[22px] text-[#09090b]">
+                            {parseFloat(item.quantity || 0)}
+                          </td>
+                          <td className="px-3 py-4 text-[14px] font-normal leading-[22px] text-[#09090b]">
+                            {formatCurrency(parseFloat(item.price || item.unit_price || 0), invoice.currency_code)}
+                          </td>
+                          <td className="px-3 py-4 text-[14px] font-normal leading-[22px] text-[#09090b]">
+                            {formatCurrency(itemAmount, invoice.currency_code)}
+                          </td>
+                          {hasTax && (
+                            <td className="px-3 py-4 text-[14px] font-normal leading-[22px] text-[#09090b]">
+                              {formatCurrency(itemTaxAmount, invoice.currency_code)}
+                            </td>
+                          )}
+                          <td className="px-3 py-4 text-[14px] font-normal leading-[22px] text-[#09090b]">
+                            {formatCurrency(itemTotal, invoice.currency_code)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
-          )}
+          </div>
 
-          {/* Totals */}
-          <div className="flex justify-end mb-8">
-            <div className="w-full md:w-80 space-y-2">
-              <div className="flex justify-between design-text-secondary">
-                <span>Subtotal</span>
-                <span>{formatCurrency(invoice.subtotal, invoice.currency_code)}</span>
+          {/* Summary Details */}
+          <div className="flex flex-col items-end">
+            {/* Sub Total */}
+            <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] text-right">
+              <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b]">
+                Sub Total:
+              </span>
+              <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b]">
+                {formatCurrency(invoice.subtotal || subtotal, invoice.currency_code)}
+              </span>
+            </div>
+
+            {/* Discount */}
+            {invoice.discount_amount > 0 && (
+              <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] text-right">
+                <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b]">
+                  Discount:
+                </span>
+                <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b]">
+                  - {formatCurrency(invoice.discount_amount, invoice.currency_code)}
+                </span>
               </div>
-              {invoice.tax_total > 0 && (
-                <div className="flex justify-between design-text-secondary">
-                  <span>Tax</span>
-                  <span>{formatCurrency(invoice.tax_total, invoice.currency_code)}</span>
-                </div>
-              )}
-              {invoice.discount_amount > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Discount</span>
-                  <span>-{formatCurrency(invoice.discount_amount, invoice.currency_code)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-lg font-bold design-text-primary pt-2 border-t design-border">
-                <span>Total</span>
-                <span>{formatCurrency(invoice.total, invoice.currency_code)}</span>
+            )}
+
+            {/* Tax */}
+            {(invoice.tax_total > 0 || itemLevelTax > 0) && (
+              <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] text-right">
+                <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b]">
+                  Tax:
+                </span>
+                <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b]">
+                  + {formatCurrency(invoice.tax_total || itemLevelTax, invoice.currency_code)}
+                </span>
               </div>
-              {invoice.paid_amount > 0 && (
-                <div className="flex justify-between design-text-secondary">
-                  <span>Paid</span>
-                  <span>{formatCurrency(invoice.paid_amount, invoice.currency_code)}</span>
-                </div>
-              )}
-              {amountDue > 0 && !isPaid && (
-                <div className="flex justify-between text-lg font-bold text-zenible-primary pt-2 border-t design-border">
-                  <span>Amount Due</span>
-                  <span>{formatCurrency(amountDue, invoice.currency_code)}</span>
-                </div>
-              )}
+            )}
+
+            {/* Total Amount */}
+            <div className="flex items-center gap-4 px-4 py-2 bg-[#ddd6ff] text-right">
+              <span className="w-[150px] text-[16px] font-bold leading-[24px] text-[#09090b]">
+                Total Amount:
+              </span>
+              <span className="w-[216px] text-[16px] font-bold leading-[24px] text-[#09090b]">
+                {formatCurrency(invoice.total, invoice.currency_code)}
+              </span>
             </div>
           </div>
 
-          {/* Notes */}
-          {invoice.notes && (
-            <div className="pt-6 border-t design-border">
-              <h3 className="text-sm font-medium design-text-primary mb-2">Notes</h3>
-              <p className="text-sm design-text-secondary whitespace-pre-wrap">{invoice.notes}</p>
-            </div>
-          )}
+          {/* Payment Summary Card */}
+          <div className="border-[1.5px] border-[#e5e5e5] rounded-[8px] p-4 flex flex-col gap-4">
+            <p className="text-[14px] font-medium leading-[22px] text-[#09090b]">
+              Payment Summary
+            </p>
 
-          {/* Payment Instructions */}
-          {invoice.payment_instructions && (
-            <div className="pt-6 border-t design-border">
-              <h3 className="text-sm font-medium design-text-primary mb-2">Payment Instructions</h3>
-              <p className="text-sm design-text-secondary whitespace-pre-wrap">
-                {invoice.payment_instructions}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Payment Section */}
-        {canPay && !paymentSuccess && (
-          <div className="mt-6 design-bg-primary rounded-lg shadow-lg p-6 md:p-8">
-            <h2 className="text-xl md:text-2xl font-bold design-text-primary mb-6">
-              Make a Payment
-            </h2>
-
-            {/* Amount Due Banner */}
-            <div className="mb-6 p-4 design-bg-secondary rounded-lg">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <span className="text-lg design-text-secondary">Amount Due:</span>
-                <span className="text-2xl font-bold design-text-primary">
-                  {formatCurrency(amountDue, invoice.currency_code)}
+                <span className="text-[14px] font-normal leading-[22px] text-[#71717a]">Total Amount</span>
+                <span className="text-[16px] font-normal leading-[24px] text-[#09090b]">
+                  {formatCurrency(invoice.total, invoice.currency_code)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[14px] font-normal leading-[22px] text-[#71717a]">Amount Paid</span>
+                <span className="text-[16px] font-normal leading-[24px] text-[#09090b]">
+                  {formatCurrency(invoice.paid_amount || 0, invoice.currency_code)}
                 </span>
               </div>
             </div>
 
-            {/* Payment Method Selection */}
-            {!paymentMethod && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold design-text-primary">Select Payment Method</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {canPayStripe && (
-                    <button
-                      onClick={() => setPaymentMethod('stripe')}
-                      className="p-6 design-bg-secondary rounded-lg border-2 border-transparent hover:border-zenible-primary transition-all hover:shadow-md"
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-[#635bff]/10 rounded-lg">
-                          <StripeLogo className="h-6 w-6 text-[#635bff]" />
-                        </div>
-                        <span className="text-lg font-semibold design-text-primary">
-                          Credit Card
-                        </span>
-                      </div>
-                      <p className="text-sm design-text-secondary text-left">
-                        Pay securely with Visa, Mastercard, or American Express
+            {/* Divider */}
+            <div className="h-px bg-[#e5e5e5] w-full" />
+
+            {/* Outstanding Balance */}
+            <div className="flex items-center justify-between">
+              <span className="text-[14px] font-medium leading-[22px] text-[#09090b]">
+                Outstanding Balance
+              </span>
+              <span className={`text-[16px] font-bold leading-[24px] text-right w-[216px] ${
+                amountDue > 0
+                  ? 'text-[#fb2c36]'
+                  : amountDue < 0
+                    ? 'text-green-600'
+                    : 'text-[#09090b]'
+              }`}>
+                {amountDue > 0
+                  ? formatCurrency(amountDue, invoice.currency_code)
+                  : amountDue < 0
+                    ? `${formatCurrency(Math.abs(amountDue), invoice.currency_code)} Credit`
+                    : 'Paid in Full'}
+              </span>
+            </div>
+          </div>
+
+          {/* Payment Instructions & Notes - Side by Side */}
+          {(invoice.payment_instructions || invoice.notes) && (
+            <div className="flex gap-8 pt-4 border-t border-[#e5e5e5]">
+              {/* Payment Instructions */}
+              {invoice.payment_instructions && (
+                <div className="flex-1 flex flex-col gap-4">
+                  <p className="text-[14px] font-medium leading-[22px] text-[#09090b]">
+                    Payment Instructions
+                  </p>
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a] whitespace-pre-wrap">
+                    {invoice.payment_instructions}
+                  </p>
+                </div>
+              )}
+
+              {/* Notes Section */}
+              {invoice.notes && (
+                <div className="flex-1 flex flex-col gap-4">
+                  <p className="text-[14px] font-medium leading-[22px] text-[#09090b]">
+                    Notes
+                  </p>
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a] whitespace-pre-wrap">
+                    {invoice.notes}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+          {/* Payment Section - Right Side */}
+          {canPay && !paymentSuccess && !cardSetupSuccess && (
+            <div className="lg:w-[340px] lg:flex-shrink-0 bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6 flex flex-col gap-6 h-fit lg:sticky lg:top-4">
+              <p className="text-[16px] font-bold leading-[24px] text-[#09090b]">
+                {isRecurring ? 'Recurring Invoice' : 'Make a Payment'}
+              </p>
+
+              {/* Recurring Invoice Banner */}
+              {isRecurring && (
+                <div className="p-3 bg-[#f0f9ff] border border-[#bae6fd] rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <RefreshCw className="h-4 w-4 text-[#0284c7] mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-[13px] font-medium text-[#0c4a6e]">
+                        This is a recurring invoice
                       </p>
-                    </button>
-                  )}
-                  {canPayPayPal && (
-                    <button
-                      onClick={() => setPaymentMethod('paypal')}
-                      className="p-6 design-bg-secondary rounded-lg border-2 border-transparent hover:border-zenible-primary transition-all hover:shadow-md"
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-[#003087]/10 rounded-lg">
-                          <PayPalLogo className="h-6 w-6 text-[#003087]" />
-                        </div>
-                        <span className="text-lg font-semibold design-text-primary">PayPal</span>
-                      </div>
-                      <p className="text-sm design-text-secondary text-left">
-                        Pay with your PayPal account or debit card
-                      </p>
-                    </button>
-                  )}
+                      {invoice.recurring_type && (
+                        <p className="text-[12px] text-[#0369a1] mt-0.5">
+                          Billed {invoice.recurring_type.toLowerCase()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Amount Due Banner */}
+              <div className="p-4 bg-[#f4f4f5] rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-[14px] text-[#71717a]">Amount Due:</span>
+                  <span className="text-[20px] font-bold text-[#09090b]">
+                    {formatCurrency(amountDue, invoice.currency_code)}
+                  </span>
                 </div>
               </div>
-            )}
 
-            {/* Stripe Payment Form */}
-            {paymentMethod === 'stripe' && canPayStripe && (
-              <StripePaymentSection
-                shareCode={invoiceCode}
-                amount={amountDue}
-                currency={invoice.currency_code}
-                onSuccess={handlePaymentSuccess}
-                onError={(err) => console.error(err)}
-                onBack={() => setPaymentMethod(null)}
-              />
-            )}
+              {/* Card on File Indicator */}
+              {hasCardOnFile && (
+                <div className="p-3 bg-[#f0fdf4] border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <p className="text-[13px] text-green-800">
+                      Card saved for automatic payments
+                    </p>
+                  </div>
+                </div>
+              )}
 
-            {/* PayPal Payment */}
-            {paymentMethod === 'paypal' && canPayPayPal && (
-              <PayPalPaymentSection
-                shareCode={invoiceCode}
-                amount={amountDue}
-                currency={invoice.currency_code}
-                onBack={() => setPaymentMethod(null)}
-              />
-            )}
-          </div>
-        )}
+              {/* Payment Method Selection */}
+              {!paymentMethod && (
+                <div className="space-y-4">
+                  <p className="text-[14px] font-medium text-[#09090b]">
+                    {canSetupAutomaticPayments ? 'Payment Options' : 'Select Payment Method'}
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    {/* Save Card for Automatic Payments - Only for recurring with auto-pay enabled */}
+                    {canSetupAutomaticPayments && !hasCardOnFile && (
+                      <button
+                        onClick={() => setPaymentMethod('setup_card')}
+                        className="p-4 bg-[#f0fdf4] rounded-lg border-2 border-green-200 hover:border-green-400 transition-all hover:shadow-md"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-green-100 rounded-lg">
+                            <CreditCard className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div className="text-left flex-1">
+                            <span className="text-[14px] font-semibold text-[#09090b] block">
+                              Set Up Automatic Payments
+                            </span>
+                            <p className="text-[11px] text-[#71717a]">
+                              Save card for future recurring charges
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded">
+                            Recommended
+                          </span>
+                        </div>
+                      </button>
+                    )}
 
-        {/* No payment methods available */}
-        {!canPay && !isPaid && !isCancelled && amountDue > 0 && (
-          <div className="mt-6 design-bg-primary rounded-lg shadow-lg p-6 md:p-8">
-            <h2 className="text-xl font-bold design-text-primary mb-4">Payment</h2>
-            <p className="design-text-secondary">
-              Online payments are not available for this invoice. Please contact{' '}
-              {invoice.company_email || 'the sender'} for payment instructions.
-            </p>
-          </div>
-        )}
+                    {canPayStripe && (
+                      <button
+                        onClick={() => setPaymentMethod('stripe')}
+                        className="p-4 bg-[#f4f4f5] rounded-lg border-2 border-transparent hover:border-[#8e51ff] transition-all hover:shadow-md"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-[#635bff]/10 rounded-lg">
+                            <StripeLogo className="h-5 w-5 text-[#635bff]" />
+                          </div>
+                          <div className="text-left">
+                            <span className="text-[14px] font-semibold text-[#09090b] block">
+                              {isRecurring ? 'Pay This Invoice Only' : 'Credit Card'}
+                            </span>
+                            <p className="text-[11px] text-[#71717a]">
+                              {isRecurring ? 'One-time payment' : 'Visa, Mastercard, Amex'}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                    {canPayPayPal && (
+                      <button
+                        onClick={() => setPaymentMethod('paypal')}
+                        className="p-4 bg-[#f4f4f5] rounded-lg border-2 border-transparent hover:border-[#8e51ff] transition-all hover:shadow-md"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-[#003087]/10 rounded-lg">
+                            <PayPalLogo className="h-5 w-5 text-[#003087]" />
+                          </div>
+                          <div className="text-left">
+                            <span className="text-[14px] font-semibold text-[#09090b] block">PayPal</span>
+                            <p className="text-[11px] text-[#71717a]">
+                              Pay with PayPal account
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Stripe Card Setup Form - For recurring automatic payments */}
+              {paymentMethod === 'setup_card' && canSetupAutomaticPayments && (
+                <StripeCardSetupSection
+                  shareCode={invoiceCode}
+                  onSuccess={() => {
+                    setCardSetupSuccess(true);
+                    loadInvoice(); // Reload to get updated has_saved_payment_method
+                  }}
+                  onError={(err) => console.error(err)}
+                  onBack={() => setPaymentMethod(null)}
+                />
+              )}
+
+              {/* Stripe Payment Form */}
+              {paymentMethod === 'stripe' && canPayStripe && (
+                <StripePaymentSection
+                  shareCode={invoiceCode}
+                  amount={amountDue}
+                  currency={invoice.currency_code}
+                  onSuccess={handlePaymentSuccess}
+                  onError={(err) => console.error(err)}
+                  onBack={() => setPaymentMethod(null)}
+                />
+              )}
+
+              {/* PayPal Payment */}
+              {paymentMethod === 'paypal' && canPayPayPal && (
+                <PayPalPaymentSection
+                  shareCode={invoiceCode}
+                  amount={amountDue}
+                  currency={invoice.currency_code}
+                  onBack={() => setPaymentMethod(null)}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Card Setup Success - Right Side */}
+          {cardSetupSuccess && !paymentSuccess && (
+            <div className="lg:w-[340px] lg:flex-shrink-0 bg-white border-2 border-green-500 rounded-[12px] p-6 h-fit">
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className="p-3 bg-green-100 rounded-full">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-[#09090b]">Card Saved Successfully</h3>
+                  <p className="text-sm text-[#71717a] mt-1">
+                    Your card has been saved for automatic payments on this recurring invoice.
+                  </p>
+                </div>
+                {amountDue > 0 && (
+                  <button
+                    onClick={() => {
+                      setCardSetupSuccess(false);
+                      setPaymentMethod('stripe');
+                    }}
+                    className="w-full px-4 py-2 bg-[#8e51ff] hover:bg-[#7a44db] text-white font-medium rounded-lg transition-colors"
+                  >
+                    Pay {formatCurrency(amountDue, invoice.currency_code)} Now
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* No payment methods available - Right Side */}
+          {!canPay && !isPaid && !isCancelled && amountDue > 0 && !cardSetupSuccess && (
+            <div className="lg:w-[340px] lg:flex-shrink-0 bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6 h-fit">
+              <p className="text-[16px] font-bold leading-[24px] text-[#09090b] mb-4">Payment</p>
+              {isRecurring && (
+                <div className="p-3 bg-[#f0f9ff] border border-[#bae6fd] rounded-lg mb-4">
+                  <div className="flex items-start gap-2">
+                    <RefreshCw className="h-4 w-4 text-[#0284c7] mt-0.5" />
+                    <p className="text-[12px] text-[#0369a1]">
+                      This is a recurring invoice
+                    </p>
+                  </div>
+                </div>
+              )}
+              <p className="text-[14px] text-[#71717a]">
+                Online payments are not available for this invoice.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

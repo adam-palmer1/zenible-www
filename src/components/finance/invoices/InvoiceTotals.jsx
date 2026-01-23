@@ -16,7 +16,20 @@ const InvoiceTotals = ({
   onEditDeposit,
   readOnly = false,
 }) => {
-  const totals = calculateInvoiceTotal(items, taxRate, discountType, discountValue, depositType, depositValue);
+  const totals = calculateInvoiceTotal(items, taxRate, discountType, discountValue);
+  const hasItemLevelTaxes = totals.itemLevelTax > 0;
+  const hasDocumentTax = taxRate > 0 && totals.documentTax > 0;
+
+  // Calculate deposit amount
+  let depositAmount = 0;
+  if (depositValue > 0) {
+    if (depositType === 'percentage') {
+      depositAmount = (totals.total * parseFloat(depositValue)) / 100;
+    } else {
+      depositAmount = parseFloat(depositValue) || 0;
+    }
+  }
+  const balanceDue = Math.max(0, totals.total - depositAmount);
 
   return (
     <div className="space-y-3 design-bg-secondary rounded-lg p-6">
@@ -47,7 +60,7 @@ const InvoiceTotals = ({
             )}
           </div>
           <span className="design-text-primary font-medium text-red-600 dark:text-red-400">
-            -{formatCurrency(totals.discountAmount, currency)}
+            -{formatCurrency(totals.discount, currency)}
           </span>
         </div>
       )}
@@ -62,8 +75,24 @@ const InvoiceTotals = ({
         </div>
       )}
 
-      {/* Tax */}
-      {taxRate > 0 && (
+      {/* Item-level taxes breakdown */}
+      {hasItemLevelTaxes && totals.taxBreakdown && totals.taxBreakdown.length > 0 && (
+        <div className="space-y-1">
+          {totals.taxBreakdown.map((tax, index) => (
+            <div key={index} className="flex justify-between items-center">
+              <span className="design-text-secondary text-sm">
+                {tax.tax_name} ({tax.tax_rate}%):
+              </span>
+              <span className="design-text-primary font-medium text-sm">
+                {formatCurrency(tax.tax_amount, currency)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Document-level Tax */}
+      {hasDocumentTax && (
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <span className="design-text-secondary">
@@ -80,7 +109,7 @@ const InvoiceTotals = ({
             )}
           </div>
           <span className="design-text-primary font-medium">
-            {formatCurrency(totals.taxAmount, currency)}
+            {formatCurrency(totals.documentTax, currency)}
           </span>
         </div>
       )}
@@ -113,14 +142,14 @@ const InvoiceTotals = ({
               )}
             </div>
             <span className="design-text-primary font-semibold text-zenible-primary">
-              {formatCurrency(totals.depositAmount, currency)}
+              {formatCurrency(depositAmount, currency)}
             </span>
           </div>
 
           <div className="flex justify-between items-center pt-2 border-t design-border">
             <span className="design-text-secondary">Balance Due:</span>
             <span className="design-text-primary font-semibold">
-              {formatCurrency(totals.balanceDue, currency)}
+              {formatCurrency(balanceDue, currency)}
             </span>
           </div>
         </>

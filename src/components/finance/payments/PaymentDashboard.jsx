@@ -5,6 +5,7 @@ import PaymentList from './PaymentList';
 import PaymentDetailModal from './PaymentDetailModal';
 import RefundModal from './RefundModal';
 import CreatePaymentModal from './CreatePaymentModal';
+import EditPaymentModal from './EditPaymentModal';
 import PaymentMethodsManager from './PaymentMethodsManager';
 import NewSidebar from '../../sidebar/NewSidebar';
 
@@ -13,10 +14,12 @@ const PaymentDashboard = () => {
     showDetailModal,
     showRefundModal,
     showCreateModal,
+    showEditModal,
     selectedPayment,
     closeDetailModal,
     closeRefundModal,
     closeCreateModal,
+    closeEditModal,
   } = usePayments();
 
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
@@ -74,6 +77,13 @@ const PaymentDashboard = () => {
       <CreatePaymentModal
         isOpen={showCreateModal}
         onClose={closeCreateModal}
+      />
+
+      {/* Edit Payment Modal */}
+      <EditPaymentModal
+        isOpen={showEditModal}
+        onClose={closeEditModal}
+        payment={selectedPayment}
       />
 
       {/* Payment Methods Manager */}

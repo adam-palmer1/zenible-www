@@ -69,6 +69,12 @@ export const contactSchema = z.object({
     return Math.min(Math.max(num, 0), 365);
   }),
   invoice_notes: z.string().optional(),
+  hourly_rate: z.any().optional().transform(val => {
+    if (val === null || val === undefined || val === '' || val === 'null') return null;
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    if (isNaN(num)) return null;
+    return Math.max(num, 0);
+  }),
 
   // Other
   notes: z.string().optional(),
@@ -132,6 +138,7 @@ export const getContactDefaultValues = (contact = null, initialStatus = null, de
       preferred_currency_id: contact.preferred_currency_id || null,
       invoice_payment_terms: contact.invoice_payment_terms || null,
       invoice_notes: contact.invoice_notes || '',
+      hourly_rate: contact.hourly_rate || null,
     };
   }
 
@@ -156,6 +163,7 @@ export const getContactDefaultValues = (contact = null, initialStatus = null, de
     preferred_currency_id: null,
     invoice_payment_terms: null,
     invoice_notes: '',
+    hourly_rate: null,
     current_global_status_id: initialStatus || null,
     current_custom_status_id: null,
     // Company/Tax information

@@ -15,17 +15,17 @@ const BulkActionBar = ({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 design-bg-primary border-t design-border shadow-lg animate-slide-up">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-[#e5e5e5] dark:border-gray-700 shadow-lg animate-slide-up">
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="design-text-primary font-medium">
+            <div className="text-[#09090b] dark:text-white font-medium">
               {selectedCount} expense{selectedCount > 1 ? 's' : ''} selected
             </div>
             <button
               onClick={onClearSelection}
               disabled={loading}
-              className="text-sm design-text-secondary hover:design-text-primary disabled:opacity-50 flex items-center gap-1"
+              className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50 flex items-center gap-1"
             >
               <X className="h-4 w-4" />
               Clear
@@ -36,7 +36,7 @@ const BulkActionBar = ({
             <button
               onClick={onBulkUpdateCategory}
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium design-text-primary design-bg-secondary rounded-md hover:design-bg-tertiary disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 text-sm font-medium text-[#09090b] dark:text-white bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 flex items-center gap-2"
             >
               <Edit className="h-4 w-4" />
               Update Category

@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import NewSidebar from '../sidebar/NewSidebar';
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, Cog6ToothIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, Cog6ToothIcon, XMarkIcon, ArrowPathIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { useCalendar } from '../../hooks/useCalendar';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useCRMReferenceData } from '../../contexts/CRMReferenceDataContext';
 import AppointmentModal from './AppointmentModal';
 import RecurringScopeDialog from './RecurringScopeDialog';
+import ConfirmationModal from '../shared/ConfirmationModal';
 import {
   format,
   addDays,
@@ -50,6 +51,10 @@ export default function Calendar() {
   const [scopeDialogAppointment, setScopeDialogAppointment] = useState(null);
   const [selectedEditScope, setSelectedEditScope] = useState(null); // Track scope for edit operations
 
+  // Delete confirmation modal state
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [appointmentToDelete, setAppointmentToDelete] = useState(null);
+
   const {
     appointments,
     loading,
@@ -57,6 +62,8 @@ export default function Calendar() {
     googleConnected,
     googleCalendarId,
     lastSync,
+    googleAccounts,
+    primaryAccount,
     fetchAppointmentsForDateRange,
     createAppointment,
     updateAppointment,
@@ -64,6 +71,12 @@ export default function Calendar() {
     connectGoogleCalendar,
     disconnectGoogleCalendar,
     syncGoogleCalendar,
+    setAccountAsPrimary,
+    disconnectAccount,
+    renameAccount,
+    updateAccountColor,
+    toggleAccountReadOnly,
+    syncAccount,
   } = useCalendar();
 
   const { getPreference, updatePreference } = usePreferences();
@@ -159,6 +172,18 @@ export default function Calendar() {
     fetchAppointmentsForDateRange(expandedStartDate, expandedEndDate);
   }, [currentDate, viewMode, fetchAppointmentsForDateRange]);
 
+  // Poll for calendar changes every 120 seconds
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      const { startDate, endDate } = getDateRange();
+      const expandedStartDate = addMonths(startDate, -1);
+      const expandedEndDate = addMonths(endDate, 1);
+      fetchAppointmentsForDateRange(expandedStartDate, expandedEndDate);
+    }, 120000); // 120 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [currentDate, viewMode, fetchAppointmentsForDateRange]);
+
   // Get date range based on view mode
   const getDateRange = () => {
     let startDate, endDate;
@@ -184,22 +209,67 @@ export default function Calendar() {
     return { startDate, endDate };
   };
 
-  // Get color for appointment type (3-tier priority: user > backend > fallback)
-  const getAppointmentColor = (appointmentType) => {
-    // 1. Check user preference first
+  // Get color for appointment (priority: Google account color > user type preference > backend default > fallback)
+  const getAppointmentColor = useCallback((appointment) => {
+    // Handle legacy calls that pass just the type string
+    const appointmentType = typeof appointment === 'string' ? appointment : (appointment?.appointment_type || 'manual');
+    const googleTokenId = typeof appointment === 'object' ? appointment?.google_calendar_token_id : null;
+
+    // Debug logging
+    if (typeof appointment === 'object' && appointment !== null) {
+      console.log('getAppointmentColor debug:', {
+        appointmentTitle: appointment.title,
+        google_calendar_token_id: appointment.google_calendar_token_id,
+        googleTokenId,
+        googleAccountsCount: googleAccounts.length,
+        googleAccounts: googleAccounts.map(acc => ({ id: acc.id, color: acc.color, email: acc.email })),
+      });
+    }
+
+    // 1. If appointment is from a Google Calendar account, use that account's color
+    if (googleTokenId && googleAccounts.length > 0) {
+      // Use String() for comparison to handle string/number type mismatch
+      const account = googleAccounts.find(acc => String(acc.id) === String(googleTokenId));
+      console.log('Found account for token:', { googleTokenId, account, matchedColor: account?.color });
+      if (account?.color) {
+        return account.color;
+      }
+    }
+
+    // 2. Check user preference for appointment type
     if (typeColors[appointmentType]) {
       return typeColors[appointmentType];
     }
 
-    // 2. Check backend default
+    // 3. Check backend default
     const typeObj = appointmentTypes.find(t => t.value === appointmentType);
     if (typeObj?.color || typeObj?.default_color) {
       return typeObj.color || typeObj.default_color;
     }
 
-    // 3. Hardcoded fallback
+    // 4. Hardcoded fallback
     return '#3b82f6';
-  };
+  }, [googleAccounts, typeColors, appointmentTypes]);
+
+  // Check if appointment should be treated as read-only
+  // Either the appointment itself is read-only, or the associated Google account is marked as read-only
+  const isAppointmentReadOnly = useCallback((appointment) => {
+    // Check appointment's own flag first
+    if (appointment?.is_read_only) {
+      return true;
+    }
+
+    // Check if the associated Google account is marked as read-only
+    const googleTokenId = appointment?.google_calendar_token_id;
+    if (googleTokenId && googleAccounts.length > 0) {
+      const account = googleAccounts.find(acc => String(acc.id) === String(googleTokenId));
+      if (account?.is_read_only) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [googleAccounts]);
 
   // Filter appointments by visible types
   const filteredAppointments = appointments.filter(apt =>
@@ -364,12 +434,19 @@ export default function Calendar() {
       setScopeDialogMode('delete');
       setShowRecurringScopeDialog(true);
     } else {
-      // Simple confirm for non-recurring appointments
-      if (window.confirm('Are you sure you want to delete this appointment?')) {
-        await deleteAppointment(appointment.id);
-        setShowAppointmentModal(false);
-        setSelectedAppointment(null);
-      }
+      // Show confirmation modal for non-recurring appointments
+      setAppointmentToDelete(appointment);
+      setShowDeleteConfirmation(true);
+    }
+  };
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = async () => {
+    if (appointmentToDelete) {
+      await deleteAppointment(appointmentToDelete.id);
+      setShowAppointmentModal(false);
+      setSelectedAppointment(null);
+      setAppointmentToDelete(null);
     }
   };
 
@@ -485,8 +562,8 @@ export default function Calendar() {
                 >
                   <ChevronLeftIcon className="w-5 h-5" />
                 </button>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {viewMode === 'daily' && format(currentDate, 'MMM d, yyyy')}
+                <h2 className={`font-semibold text-gray-900 ${viewMode === 'daily' ? 'text-base' : 'text-xl'}`}>
+                  {viewMode === 'daily' && format(currentDate, 'd MMM yyyy')}
                   {viewMode === 'weekly' && format(currentDate, 'MMM yyyy')}
                   {viewMode === 'monthly' && format(currentDate, 'MMM yyyy')}
                 </h2>
@@ -573,6 +650,7 @@ export default function Calendar() {
                 dragPreview={dragPreview}
                 getAppointmentColor={getAppointmentColor}
                 isRecurringAppointment={isRecurringAppointment}
+                isAppointmentReadOnly={isAppointmentReadOnly}
               />}
               {viewMode === 'monthly' && <MonthView
                 currentDate={currentDate}
@@ -581,6 +659,7 @@ export default function Calendar() {
                 onNewAppointment={handleNewAppointment}
                 getAppointmentColor={getAppointmentColor}
                 isRecurringAppointment={isRecurringAppointment}
+                isAppointmentReadOnly={isAppointmentReadOnly}
               />}
               {viewMode === 'daily' && <DayView
                 currentDate={currentDate}
@@ -596,6 +675,7 @@ export default function Calendar() {
                 dragPreview={dragPreview}
                 getAppointmentColor={getAppointmentColor}
                 isRecurringAppointment={isRecurringAppointment}
+                isAppointmentReadOnly={isAppointmentReadOnly}
               />}
 
               {/* Drag Preview Tooltip */}
@@ -644,6 +724,7 @@ export default function Calendar() {
         onDelete={handleAppointmentDelete}
         appointment={selectedAppointment}
         initialDate={selectedDate}
+        isReadOnly={selectedAppointment ? isAppointmentReadOnly(selectedAppointment) : false}
       />
 
       {/* Recurring Scope Dialog */}
@@ -656,6 +737,21 @@ export default function Calendar() {
         onConfirm={scopeDialogMode === 'edit' ? handleEditScopeConfirm : handleDeleteScopeConfirm}
         mode={scopeDialogMode}
         appointment={scopeDialogAppointment}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirmation}
+        onClose={() => {
+          setShowDeleteConfirmation(false);
+          setAppointmentToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Appointment"
+        message={`Are you sure you want to delete "${appointmentToDelete?.title}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
       />
 
       {/* Settings Modal */}
@@ -686,11 +782,15 @@ export default function Calendar() {
                 {/* Google Calendar Integration */}
                 <GoogleCalendarConnector
                   isConnected={googleConnected}
-                  calendarId={googleCalendarId}
-                  lastSync={lastSync}
-                  onConnect={connectGoogleCalendar}
-                  onDisconnect={disconnectGoogleCalendar}
-                  onSync={syncGoogleCalendar}
+                  accounts={googleAccounts}
+                  primaryAccount={primaryAccount}
+                  onAddAccount={connectGoogleCalendar}
+                  onSetPrimary={setAccountAsPrimary}
+                  onDisconnect={disconnectAccount}
+                  onRename={renameAccount}
+                  onColorChange={updateAccountColor}
+                  onToggleReadOnly={toggleAccountReadOnly}
+                  onSync={syncAccount}
                 />
 
                 {/* Divider */}
@@ -752,15 +852,28 @@ export default function Calendar() {
 }
 
 // ========== Week View Component ==========
-function WeekView({ currentDate, appointments, timeSlots, onAppointmentClick, onNewAppointment, onDragStart, onDragOver, onDrop, onDragEnd, draggingAppointment, dragPreview, getAppointmentColor, isRecurringAppointment }) {
+function WeekView({ currentDate, appointments, timeSlots, onAppointmentClick, onNewAppointment, onDragStart, onDragOver, onDrop, onDragEnd, draggingAppointment, dragPreview, getAppointmentColor, isRecurringAppointment, isAppointmentReadOnly }) {
   const scrollContainerRef = useRef(null);
+  const [appointmentsBelow, setAppointmentsBelow] = useState([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Generate current week only (Mon-Sun)
-  const currentWeekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const days = [];
-  for (let d = 0; d < 7; d++) {
-    days.push(addDays(currentWeekStart, d));
-  }
+  // Update current time every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  // Generate current week only (Mon-Sun) - memoized
+  const days = useMemo(() => {
+    const currentWeekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const result = [];
+    for (let d = 0; d < 7; d++) {
+      result.push(addDays(currentWeekStart, d));
+    }
+    return result;
+  }, [currentDate]);
 
   // Scroll to 8 AM on mount
   useEffect(() => {
@@ -769,6 +882,50 @@ function WeekView({ currentDate, appointments, timeSlots, onAppointmentClick, on
       scrollContainerRef.current.scrollTop = scrollPosition;
     }
   }, []);
+
+  // Check if there are appointments below the visible area
+  useEffect(() => {
+    const checkAppointmentsBelow = () => {
+      if (!scrollContainerRef.current) return;
+
+      const container = scrollContainerRef.current;
+      const visibleBottom = container.scrollTop + container.clientHeight;
+      const totalHeight = container.scrollHeight;
+
+      // Get all timed appointments for the current week
+      const weekAppointments = appointments.filter(apt => {
+        const aptDate = parseISO(apt.start_datetime);
+        return days.some(day => isSameDay(aptDate, day)) && !apt.all_day;
+      });
+
+      // Also check if we're not at the bottom of the scroll
+      const notAtBottom = visibleBottom < totalHeight - 10;
+
+      if (!notAtBottom) {
+        setAppointmentsBelow([]);
+        return;
+      }
+
+      // Get appointments that start below the visible area
+      const below = weekAppointments.filter(apt => {
+        const startDate = parseISO(apt.start_datetime);
+        const startHour = getHours(startDate);
+        const startMinute = getMinutes(startDate);
+        const appointmentTop = startHour * 64 + (startMinute / 60) * 64;
+        return appointmentTop > visibleBottom - 32; // 32px buffer
+      });
+
+      setAppointmentsBelow(below);
+    };
+
+    checkAppointmentsBelow();
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', checkAppointmentsBelow);
+      return () => container.removeEventListener('scroll', checkAppointmentsBelow);
+    }
+  }, [appointments, days]);
 
   // Helper to format hour display
   const formatHour = (hour) => {
@@ -866,7 +1023,7 @@ function WeekView({ currentDate, appointments, timeSlots, onAppointmentClick, on
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* Day Headers Row - Fixed */}
       <div className="flex border-b border-gray-200 flex-shrink-0">
         {/* Empty corner for time column */}
@@ -893,15 +1050,22 @@ function WeekView({ currentDate, appointments, timeSlots, onAppointmentClick, on
                     {allDayAppts.length > 0 && (
                       <div className="w-full px-1 mt-1 space-y-1">
                         {allDayAppts.map((apt) => {
-                          const color = getAppointmentColor(apt.appointment_type || 'manual');
+                          const color = getAppointmentColor(apt);
                           const isRecurring = isRecurringAppointment(appointments, apt.id);
+                          const isReadOnly = isAppointmentReadOnly(apt);
                           return (
                             <div
                               key={getAppointmentKey(apt)}
                               onClick={() => onAppointmentClick(apt)}
-                              className="bg-opacity-90 text-white text-xs px-1 py-0.5 rounded cursor-pointer hover:bg-opacity-100 truncate flex items-center gap-0.5"
+                              className={`text-white text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5 cursor-pointer ${
+                                isReadOnly
+                                  ? 'opacity-60'
+                                  : 'bg-opacity-90 hover:bg-opacity-100'
+                              }`}
                               style={{ backgroundColor: color }}
+                              title={isReadOnly ? 'Read-only (imported from secondary calendar)' : undefined}
                             >
+                              {isReadOnly && <LockClosedIcon className="w-3 h-3 flex-shrink-0" />}
                               {isRecurring && <ArrowPathIcon className="w-3 h-3 flex-shrink-0" />}
                               <span className="truncate">{apt.title}</span>
                               {apt.status && apt.status !== 'scheduled' && (
@@ -940,7 +1104,7 @@ function WeekView({ currentDate, appointments, timeSlots, onAppointmentClick, on
           </div>
 
           {/* Days Columns */}
-          <div className="flex-1 flex">
+          <div className="flex-1 flex relative">
             {days.map((day, dayIndex) => {
               const dayAppointments = getAppointmentsForDay(day);
               const appointmentsWithLayout = calculateAppointmentLayout(dayAppointments);
@@ -977,8 +1141,9 @@ function WeekView({ currentDate, appointments, timeSlots, onAppointmentClick, on
 
                       if (startIndex === -1) return null;
 
-                      const color = getAppointmentColor(appointment.appointment_type || 'manual');
+                      const color = getAppointmentColor(appointment);
                       const isRecurring = isRecurringAppointment(appointments, appointment.id);
+                      const isReadOnly = isAppointmentReadOnly(appointment);
 
                       // Calculate width and left position based on column layout
                       const widthPercent = 100 / appointment.totalColumns;
@@ -989,38 +1154,36 @@ function WeekView({ currentDate, appointments, timeSlots, onAppointmentClick, on
                       return (
                         <div
                           key={getAppointmentKey(appointment)}
-                          draggable
-                          onDragStart={(e) => onDragStart(appointment, e)}
-                          onDragEnd={onDragEnd}
+                          draggable={!isReadOnly}
+                          onDragStart={isReadOnly ? undefined : (e) => onDragStart(appointment, e)}
+                          onDragEnd={isReadOnly ? undefined : onDragEnd}
                           onClick={() => !isDragging && onAppointmentClick(appointment)}
-                          className={`absolute ${isDragging ? 'opacity-40' : ''} rounded-lg p-2 shadow-sm cursor-move hover:brightness-110 transition-all z-10`}
+                          className={`absolute rounded-lg px-2 py-1 shadow-sm transition-all z-10 cursor-pointer overflow-hidden ${
+                            isReadOnly
+                              ? ''
+                              : 'cursor-move hover:brightness-110'
+                          } ${isDragging ? 'opacity-40' : ''}`}
                           style={{
                             backgroundColor: color,
-                            opacity: isDragging ? 0.4 : 0.9,
+                            opacity: isReadOnly ? 0.5 : (isDragging ? 0.4 : 0.9),
                             top: `${startIndex * 64 + (startMinute / 60) * 64}px`,
                             height: `${duration * 64 - 4}px`,
-                            minHeight: '30px',
+                            minHeight: '24px',
                             left: `calc(${leftPercent}% + 2px)`,
                             width: `calc(${widthPercent}% - 4px)`,
                           }}
-                          title={appointment.contact ? `Contact: ${appointment.contact.name}` : ''}
+                          title={isReadOnly ? 'Read-only (imported from secondary calendar)' : (appointment.contact ? `Contact: ${appointment.contact.name}` : '')}
                         >
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 min-w-0">
+                            {isReadOnly && <LockClosedIcon className="w-3 h-3 text-white flex-shrink-0" />}
                             {isRecurring && <ArrowPathIcon className="w-3 h-3 text-white flex-shrink-0" />}
-                            <p className="text-white text-xs font-medium truncate">{appointment.title}</p>
-                            {appointment.status && appointment.status !== 'scheduled' && (
-                              <span
-                                className="text-[10px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
-                                style={{ color: getStatusColor(appointment.status) }}
-                                title={getStatusLabel(appointment.status)}
-                              >
-                                {getStatusLabel(appointment.status)}
-                              </span>
-                            )}
+                            <p className="text-white text-[11px] font-normal truncate min-w-0">{appointment.title}</p>
                           </div>
-                          <p className="text-white text-xs opacity-90">
-                            {format(startDate, 'h:mm a')} - {format(endDate, 'h:mm a')}
-                          </p>
+                          {duration >= 0.75 && (
+                            <p className="text-white text-[10px] font-light opacity-90 truncate">
+                              {format(startDate, 'h:mm a')} - {format(endDate, 'h:mm a')}
+                            </p>
+                          )}
                         </div>
                       );
                     })}
@@ -1037,7 +1200,7 @@ function WeekView({ currentDate, appointments, timeSlots, onAppointmentClick, on
 
                         if (previewStartIndex === -1) return null;
 
-                        const color = getAppointmentColor(draggingAppointment.appointment_type || 'manual');
+                        const color = getAppointmentColor(draggingAppointment);
 
                         return (
                           <div
@@ -1061,18 +1224,70 @@ function WeekView({ currentDate, appointments, timeSlots, onAppointmentClick, on
                         );
                       })()
                     )}
+
                   </div>
                 );
               })}
+
+              {/* Current Time Indicator - spans all columns */}
+              {(() => {
+                const currentHour = getHours(currentTime);
+                const currentMinute = getMinutes(currentTime);
+                const timePosition = currentHour * 64 + (currentMinute / 60) * 64;
+                return (
+                  <div
+                    className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
+                    style={{ top: `${timePosition}px` }}
+                  >
+                    <div className="w-2 h-2 rounded-full bg-purple-600 -ml-1"></div>
+                    <div className="flex-1 h-0.5 bg-purple-600"></div>
+                  </div>
+                );
+              })()}
           </div>
         </div>
       </div>
+
+      {/* Scroll indicator for appointments below - colored bars per day */}
+      {appointmentsBelow.length > 0 && (
+        <div className="absolute bottom-0 left-24 right-0 h-2 flex pointer-events-none z-30">
+          {days.map((day, dayIndex) => {
+            // Get appointments below for this specific day
+            const dayApptsBelow = appointmentsBelow.filter(apt => {
+              const aptDate = parseISO(apt.start_datetime);
+              return isSameDay(aptDate, day);
+            });
+
+            // Get unique colors for this day's appointments
+            const colors = [...new Set(dayApptsBelow.map(apt => getAppointmentColor(apt)))];
+
+            return (
+              <div key={dayIndex} className="flex-1 min-w-[100px] flex h-full">
+                {colors.length > 0 ? (
+                  colors.map((color, colorIndex) => (
+                    <div
+                      key={colorIndex}
+                      className="flex-1 h-full"
+                      style={{ backgroundColor: color }}
+                    />
+                  ))
+                ) : (
+                  <div className="flex-1 h-full" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
 // ========== Month View Component ==========
-function MonthView({ currentDate, appointments, onAppointmentClick, onNewAppointment, getAppointmentColor, isRecurringAppointment }) {
+function MonthView({ currentDate, appointments, onAppointmentClick, onNewAppointment, getAppointmentColor, isRecurringAppointment, isAppointmentReadOnly }) {
+  const gridRef = useRef(null);
+  const [maxVisibleAppointments, setMaxVisibleAppointments] = useState(3);
+
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -1084,6 +1299,39 @@ function MonthView({ currentDate, appointments, onAppointmentClick, onNewAppoint
     days.push(day);
     day = addDays(day, 1);
   }
+
+  // Calculate number of weeks (rows) in the current month view
+  const numWeeks = Math.ceil(days.length / 7);
+
+  // Calculate how many appointments can fit based on cell height
+  useEffect(() => {
+    const calculateMaxAppointments = () => {
+      if (!gridRef.current) return;
+
+      const gridHeight = gridRef.current.clientHeight;
+      const cellHeight = gridHeight / numWeeks;
+
+      // Each appointment takes ~20px (12px text + 4px padding + 4px margin)
+      // Date number takes ~24px, "+X more" takes ~16px, cell padding is ~16px
+      const appointmentHeight = 20;
+      const reservedHeight = 56; // date + more text + padding
+
+      const availableHeight = cellHeight - reservedHeight;
+      const maxAppts = Math.max(0, Math.floor(availableHeight / appointmentHeight));
+
+      setMaxVisibleAppointments(maxAppts);
+    };
+
+    calculateMaxAppointments();
+
+    // Use ResizeObserver to recalculate on resize
+    const resizeObserver = new ResizeObserver(calculateMaxAppointments);
+    if (gridRef.current) {
+      resizeObserver.observe(gridRef.current);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, [numWeeks]);
 
   const getAppointmentsForDay = (day) => {
     return appointments.filter(apt => {
@@ -1104,18 +1352,20 @@ function MonthView({ currentDate, appointments, onAppointmentClick, onNewAppoint
       </div>
 
       {/* Calendar Grid */}
-      <div className="flex-1 overflow-y-auto scrollbar-hover">
+      <div ref={gridRef} className="flex-1 overflow-y-auto scrollbar-hover">
         <div className="grid grid-cols-7 h-full" style={{ gridTemplateRows: 'repeat(auto-fit, minmax(0, 1fr))' }}>
         {days.map((day, index) => {
           const dayAppointments = getAppointmentsForDay(day);
           const isCurrentMonth = isSameMonth(day, currentDate);
           const isToday = isSameDay(day, new Date());
+          const visibleAppointments = dayAppointments.slice(0, maxVisibleAppointments);
+          const hiddenCount = dayAppointments.length - visibleAppointments.length;
 
           return (
             <div
               key={index}
               onClick={() => onNewAppointment(day)}
-              className={`border-r border-b border-gray-200 p-2 cursor-pointer hover:bg-gray-50 ${
+              className={`border-r border-b border-gray-200 p-2 cursor-pointer hover:bg-gray-50 overflow-hidden ${
                 !isCurrentMonth ? 'bg-gray-50' : ''
               } ${isToday ? 'bg-purple-50' : ''}`}
             >
@@ -1125,9 +1375,10 @@ function MonthView({ currentDate, appointments, onAppointmentClick, onNewAppoint
                 {format(day, 'd')}
               </div>
               <div className="space-y-1">
-                {dayAppointments.slice(0, 3).map((apt) => {
-                  const color = getAppointmentColor(apt.appointment_type || 'manual');
+                {visibleAppointments.map((apt) => {
+                  const color = getAppointmentColor(apt);
                   const isRecurring = isRecurringAppointment(appointments, apt.id);
+                  const isReadOnly = isAppointmentReadOnly(apt);
 
                   return (
                     <div
@@ -1136,11 +1387,16 @@ function MonthView({ currentDate, appointments, onAppointmentClick, onNewAppoint
                         e.stopPropagation();
                         onAppointmentClick(apt);
                       }}
-                      className="text-xs text-white px-1 py-0.5 rounded cursor-pointer hover:brightness-110"
+                      className={`text-xs text-white px-1 py-0.5 rounded cursor-pointer ${
+                        isReadOnly
+                          ? 'opacity-50'
+                          : 'hover:brightness-110'
+                      }`}
                       style={{ backgroundColor: color }}
-                      title={apt.contact ? `Contact: ${apt.contact.name}` : ''}
+                      title={isReadOnly ? 'Read-only (imported from secondary calendar)' : (apt.contact ? `Contact: ${apt.contact.name}` : '')}
                     >
                       <div className="flex items-center gap-1 truncate">
+                        {isReadOnly && <LockClosedIcon className="w-3 h-3 flex-shrink-0" />}
                         {isRecurring && <ArrowPathIcon className="w-3 h-3 flex-shrink-0" />}
                         <span className="truncate">{format(parseISO(apt.start_datetime), 'h:mm a')} {apt.title}</span>
                         {apt.status && apt.status !== 'scheduled' && (
@@ -1156,8 +1412,13 @@ function MonthView({ currentDate, appointments, onAppointmentClick, onNewAppoint
                     </div>
                   );
                 })}
-                {dayAppointments.length > 3 && (
-                  <div className="text-xs text-gray-500">+{dayAppointments.length - 3} more</div>
+                {hiddenCount > 0 && (
+                  <div className="text-xs text-gray-500">
+                    {visibleAppointments.length === 0
+                      ? `${dayAppointments.length} Appointment${dayAppointments.length > 1 ? 's' : ''}`
+                      : `+${hiddenCount} more`
+                    }
+                  </div>
                 )}
               </div>
             </div>
@@ -1170,8 +1431,18 @@ function MonthView({ currentDate, appointments, onAppointmentClick, onNewAppoint
 }
 
 // ========== Day View Component ==========
-function DayView({ currentDate, appointments, timeSlots, onAppointmentClick, onNewAppointment, onDragStart, onDragOver, onDrop, onDragEnd, draggingAppointment, dragPreview, getAppointmentColor, isRecurringAppointment }) {
+function DayView({ currentDate, appointments, timeSlots, onAppointmentClick, onNewAppointment, onDragStart, onDragOver, onDrop, onDragEnd, draggingAppointment, dragPreview, getAppointmentColor, isRecurringAppointment, isAppointmentReadOnly }) {
   const scrollContainerRef = useRef(null);
+  const [appointmentsBelow, setAppointmentsBelow] = useState([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
 
   // Scroll to 8 AM on mount
   useEffect(() => {
@@ -1182,6 +1453,52 @@ function DayView({ currentDate, appointments, timeSlots, onAppointmentClick, onN
     }
   }, []);
 
+  // Get timed appointments for the current day (memoized)
+  const dayAppointments = useMemo(() => {
+    return appointments.filter(apt => {
+      const aptDate = parseISO(apt.start_datetime);
+      return isSameDay(aptDate, currentDate) && !apt.all_day;
+    });
+  }, [appointments, currentDate]);
+
+  // Check if there are appointments below the visible area
+  useEffect(() => {
+    const checkAppointmentsBelow = () => {
+      if (!scrollContainerRef.current) return;
+
+      const container = scrollContainerRef.current;
+      const visibleBottom = container.scrollTop + container.clientHeight;
+      const totalHeight = container.scrollHeight;
+
+      // Also check if we're not at the bottom of the scroll
+      const notAtBottom = visibleBottom < totalHeight - 10;
+
+      if (!notAtBottom) {
+        setAppointmentsBelow([]);
+        return;
+      }
+
+      // Get appointments that start below the visible area
+      const below = dayAppointments.filter(apt => {
+        const startDate = parseISO(apt.start_datetime);
+        const startHour = getHours(startDate);
+        const startMinute = getMinutes(startDate);
+        const appointmentTop = startHour * 64 + (startMinute / 60) * 64;
+        return appointmentTop > visibleBottom - 32; // 32px buffer
+      });
+
+      setAppointmentsBelow(below);
+    };
+
+    checkAppointmentsBelow();
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', checkAppointmentsBelow);
+      return () => container.removeEventListener('scroll', checkAppointmentsBelow);
+    }
+  }, [dayAppointments]);
+
   // Helper to format hour display
   const formatHour = (hour) => {
     if (hour === 0) return '12 AM';
@@ -1189,11 +1506,6 @@ function DayView({ currentDate, appointments, timeSlots, onAppointmentClick, onN
     if (hour > 12) return `${hour - 12} PM`;
     return `${hour} AM`;
   };
-
-  const dayAppointments = appointments.filter(apt => {
-    const aptDate = parseISO(apt.start_datetime);
-    return isSameDay(aptDate, currentDate) && !apt.all_day;
-  });
 
   const allDayAppointments = appointments.filter(apt => {
     const aptDate = parseISO(apt.start_datetime);
@@ -1270,7 +1582,7 @@ function DayView({ currentDate, appointments, timeSlots, onAppointmentClick, onN
   const appointmentsWithLayout = calculateAppointmentLayout(dayAppointments);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* Day Header - Fixed */}
       <div className="flex border-b border-gray-200 flex-shrink-0">
         <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
@@ -1283,17 +1595,23 @@ function DayView({ currentDate, appointments, timeSlots, onAppointmentClick, onN
           {allDayAppointments.length > 0 && (
             <div className="w-full px-4 mt-2 space-y-1">
               {allDayAppointments.map((apt) => {
-                const color = getAppointmentColor(apt.appointment_type || 'manual');
+                const color = getAppointmentColor(apt);
                 const isRecurring = isRecurringAppointment(appointments, apt.id);
+                const isReadOnly = isAppointmentReadOnly(apt);
                 return (
                   <div
                     key={getAppointmentKey(apt)}
                     onClick={() => onAppointmentClick(apt)}
-                    className="text-white text-sm px-2 py-1 rounded cursor-pointer hover:brightness-110"
-                    style={{ backgroundColor: color, opacity: 0.9 }}
-                    title={apt.contact ? `Contact: ${apt.contact.name}` : ''}
+                    className={`text-white text-sm px-2 py-1 rounded ${
+                      isReadOnly
+                        ? 'cursor-default'
+                        : 'cursor-pointer hover:brightness-110'
+                    }`}
+                    style={{ backgroundColor: color, opacity: isReadOnly ? 0.5 : 0.9 }}
+                    title={isReadOnly ? 'Read-only (imported from secondary calendar)' : (apt.contact ? `Contact: ${apt.contact.name}` : '')}
                   >
                     <div className="flex items-center gap-1 font-medium">
+                      {isReadOnly && <LockClosedIcon className="w-4 h-4 flex-shrink-0" />}
                       {isRecurring && <ArrowPathIcon className="w-4 h-4 flex-shrink-0" />}
                       <span>{apt.title}</span>
                       {apt.status && apt.status !== 'scheduled' && (
@@ -1355,8 +1673,9 @@ function DayView({ currentDate, appointments, timeSlots, onAppointmentClick, onN
 
               if (startIndex === -1) return null;
 
-              const color = getAppointmentColor(appointment.appointment_type || 'manual');
+              const color = getAppointmentColor(appointment);
               const isRecurring = isRecurringAppointment(appointments, appointment.id);
+              const isReadOnly = isAppointmentReadOnly(appointment);
 
               // Calculate width and left position based on column layout
               const widthPercent = 100 / appointment.totalColumns;
@@ -1367,28 +1686,33 @@ function DayView({ currentDate, appointments, timeSlots, onAppointmentClick, onN
               return (
                 <div
                   key={getAppointmentKey(appointment)}
-                  draggable
-                  onDragStart={(e) => onDragStart(appointment, e)}
-                  onDragEnd={onDragEnd}
+                  draggable={!isReadOnly}
+                  onDragStart={isReadOnly ? undefined : (e) => onDragStart(appointment, e)}
+                  onDragEnd={isReadOnly ? undefined : onDragEnd}
                   onClick={() => !isDragging && onAppointmentClick(appointment)}
-                  className={`absolute ${isDragging ? 'opacity-40' : ''} rounded-lg p-3 shadow-md cursor-move hover:brightness-110 transition-all z-10`}
+                  className={`absolute rounded-lg px-2 py-1.5 shadow-md transition-all z-10 cursor-pointer ${
+                    isReadOnly
+                      ? ''
+                      : 'cursor-move hover:brightness-110'
+                  } ${isDragging ? 'opacity-40' : ''}`}
                   style={{
                     backgroundColor: color,
-                    opacity: isDragging ? 0.4 : 0.9,
+                    opacity: isReadOnly ? 0.5 : (isDragging ? 0.4 : 0.9),
                     top: `${startIndex * 64 + (startMinute / 60) * 64}px`,
                     height: `${duration * 64 - 4}px`,
                     minHeight: '60px',
                     left: `calc(${leftPercent}% + 8px)`,
                     width: `calc(${widthPercent}% - 16px)`,
                   }}
-                  title={appointment.contact ? `Contact: ${appointment.contact.name}` : ''}
+                  title={isReadOnly ? 'Read-only (imported from secondary calendar)' : (appointment.contact ? `Contact: ${appointment.contact.name}` : '')}
                 >
                   <div className="flex items-center gap-1 mb-1">
+                    {isReadOnly && <LockClosedIcon className="w-4 h-4 text-white flex-shrink-0" />}
                     {isRecurring && <ArrowPathIcon className="w-4 h-4 text-white flex-shrink-0" />}
-                    <p className="text-white text-sm font-medium truncate">{appointment.title}</p>
+                    <p className="text-white text-xs font-normal truncate">{appointment.title}</p>
                     {appointment.status && appointment.status !== 'scheduled' && (
                       <span
-                        className="text-[10px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
+                        className="text-[9px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
                         style={{ color: getStatusColor(appointment.status) }}
                         title={getStatusLabel(appointment.status)}
                       >
@@ -1396,7 +1720,7 @@ function DayView({ currentDate, appointments, timeSlots, onAppointmentClick, onN
                       </span>
                     )}
                   </div>
-                  <p className="text-white text-xs opacity-90">
+                  <p className="text-white text-[11px] font-light opacity-90">
                     {format(startDate, 'h:mm a')} - {format(endDate, 'h:mm a')}
                   </p>
                   {appointment.location && (
@@ -1418,7 +1742,7 @@ function DayView({ currentDate, appointments, timeSlots, onAppointmentClick, onN
 
                 if (previewStartIndex === -1) return null;
 
-                const color = getAppointmentColor(draggingAppointment.appointment_type || 'manual');
+                const color = getAppointmentColor(draggingAppointment);
 
                 return (
                   <div
@@ -1445,9 +1769,38 @@ function DayView({ currentDate, appointments, timeSlots, onAppointmentClick, onN
                 );
               })()
             )}
+
+            {/* Current Time Indicator - only show if viewing today */}
+            {isSameDay(currentDate, new Date()) && (() => {
+              const currentHour = getHours(currentTime);
+              const currentMinute = getMinutes(currentTime);
+              const timePosition = currentHour * 64 + (currentMinute / 60) * 64;
+              return (
+                <div
+                  className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
+                  style={{ top: `${timePosition}px` }}
+                >
+                  <div className="w-2 h-2 rounded-full bg-purple-600 -ml-1"></div>
+                  <div className="flex-1 h-0.5 bg-purple-600"></div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
+
+      {/* Scroll indicator for appointments below - colored bars */}
+      {appointmentsBelow.length > 0 && (
+        <div className="absolute bottom-0 left-24 right-0 h-2 flex pointer-events-none z-30">
+          {[...new Set(appointmentsBelow.map(apt => getAppointmentColor(apt)))].map((color, index) => (
+            <div
+              key={index}
+              className="flex-1 h-full"
+              style={{ backgroundColor: color }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1535,110 +1888,435 @@ function MiniCalendar({ currentDate, onDateSelect, appointments }) {
   );
 }
 
-// ========== Google Calendar Connector Component ==========
-function GoogleCalendarConnector({ isConnected, calendarId, lastSync, onConnect, onDisconnect, onSync }) {
-  const [syncing, setSyncing] = useState(false);
+// ========== Google Calendar Connector Component (Multi-Account) ==========
+function GoogleCalendarConnector({ isConnected, accounts, primaryAccount, onAddAccount, onSetPrimary, onDisconnect, onRename, onColorChange, onToggleReadOnly, onSync }) {
+  const [syncingAccountId, setSyncingAccountId] = useState(null);
   const [syncResult, setSyncResult] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState(null); // { type: 'setPrimary' | 'disconnect', account }
+  const [openMenuId, setOpenMenuId] = useState(null); // For 3-dot menu
 
-  const handleSync = async () => {
-    setSyncing(true);
+  // Default color for accounts
+  const DEFAULT_ACCOUNT_COLOR = '#3b82f6';
+
+  const handleSync = async (accountId) => {
+    setSyncingAccountId(accountId);
     setSyncResult(null);
     try {
-      const result = await onSync();
+      const result = await onSync(accountId);
       if (result.success) {
         setSyncResult({
+          accountId,
           success: true,
           message: `Synced! Created: ${result.created}, Updated: ${result.updated}, Deleted: ${result.deleted}`
         });
         setTimeout(() => setSyncResult(null), 5000);
       } else {
-        setSyncResult({ success: false, message: result.error });
+        setSyncResult({ accountId, success: false, message: result.error });
       }
     } catch (error) {
-      setSyncResult({ success: false, message: 'Sync failed' });
+      setSyncResult({ accountId, success: false, message: 'Sync failed' });
     } finally {
-      setSyncing(false);
+      setSyncingAccountId(null);
     }
   };
 
-  const handleDisconnect = async () => {
-    if (window.confirm('Are you sure you want to disconnect Google Calendar?')) {
-      await onDisconnect();
+  const handleSetPrimary = async (account) => {
+    setConfirmDialog(null);
+    await onSetPrimary(account.id);
+  };
+
+  const handleDisconnect = async (account) => {
+    setConfirmDialog(null);
+    await onDisconnect(account.id);
+  };
+
+  const handleStartRename = (account) => {
+    setEditingAccountId(account.id);
+    setEditName(account.name || '');
+  };
+
+  const handleSaveRename = async (accountId) => {
+    if (editName.trim()) {
+      await onRename(accountId, editName.trim());
+    }
+    setEditingAccountId(null);
+    setEditName('');
+  };
+
+  const handleCancelRename = () => {
+    setEditingAccountId(null);
+    setEditName('');
+  };
+
+  const handleAddAccount = (setAsPrimary) => {
+    setShowAddModal(false);
+    onAddAccount(setAsPrimary);
+  };
+
+  const formatLastSync = (lastSyncAt) => {
+    if (!lastSyncAt) return null;
+    try {
+      return format(parseISO(lastSyncAt), 'MMM d, h:mm a');
+    } catch {
+      return null;
     }
   };
+
+  // Google icon SVG
+  const GoogleIcon = () => (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+  );
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-900 mb-4">Google Calendar Integration</h3>
+      <h3 className="text-sm font-semibold text-gray-900 mb-1">Google Calendar Accounts</h3>
+      <p className="text-sm text-gray-500 mb-4">
+        Connect your Google Calendar accounts. Primary account syncs bidirectionally, secondary accounts import events only.
+      </p>
 
-      {isConnected ? (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm text-green-600">
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            Connected to Google Calendar
-          </div>
-          {calendarId && (
-            <p className="text-xs text-gray-500">{calendarId}</p>
-          )}
-          {lastSync && (
-            <p className="text-xs text-gray-400">
-              Last synced: {format(parseISO(lastSync), 'MMM d, h:mm a')}
-            </p>
-          )}
+      {isConnected && accounts.length > 0 ? (
+        <div className="space-y-2">
+          {/* Account List */}
+          {accounts.map((account) => (
+            <div
+              key={account.id}
+              className="border border-gray-200 rounded-lg px-3 py-2"
+            >
+              {/* Account Row */}
+              <div className="flex items-center gap-3">
+                {/* Color Picker */}
+                <input
+                  type="color"
+                  value={account.color || DEFAULT_ACCOUNT_COLOR}
+                  onChange={(e) => onColorChange(account.id, e.target.value)}
+                  className={`w-6 h-6 rounded border border-gray-300 cursor-pointer flex-shrink-0 ${account.is_read_only ? 'opacity-50' : ''}`}
+                  title="Choose calendar color"
+                />
 
-          {/* Sync Result Message */}
-          {syncResult && (
-            <div className={`p-2 rounded text-xs ${
-              syncResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-            }`}>
-              {syncResult.message}
+                {/* Account Name/Email */}
+                <div className="min-w-0 flex-1">
+                  {editingAccountId === account.id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="text-sm border border-gray-300 rounded px-2 py-1 flex-1"
+                        placeholder="Account name"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveRename(account.id);
+                          if (e.key === 'Escape') handleCancelRename();
+                        }}
+                      />
+                      <button
+                        onClick={() => handleSaveRename(account.id)}
+                        className="text-green-600 hover:text-green-700"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={handleCancelRename}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {account.name || account.email}
+                    </p>
+                  )}
+                </div>
+
+                {/* Syncing indicator */}
+                {syncingAccountId === account.id && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 flex-shrink-0"></div>
+                )}
+
+                {/* 3-dot Menu */}
+                {editingAccountId !== account.id && (
+                  <div className="relative flex-shrink-0">
+                    <button
+                      onClick={() => setOpenMenuId(openMenuId === account.id ? null : account.id)}
+                      className="p-1 hover:bg-gray-100 rounded"
+                    >
+                      <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                      </svg>
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {openMenuId === account.id && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setOpenMenuId(null)}
+                        />
+                        <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[140px]">
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              handleSync(account.id);
+                            }}
+                            disabled={syncingAccountId === account.id}
+                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Sync Now
+                          </button>
+                          {!account.is_primary && (
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                setConfirmDialog({ type: 'setPrimary', account });
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                              </svg>
+                              Set Primary
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              handleStartRename(account);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                            Rename
+                          </button>
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              onToggleReadOnly(account.id, !account.is_read_only);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            {account.is_read_only ? (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                            )}
+                            {account.is_read_only ? 'Enable Editing' : 'Read Only'}
+                          </button>
+                          <div className="border-t border-gray-100 my-1"></div>
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              setConfirmDialog({ type: 'disconnect', account });
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Disconnect
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Second Row - Star and Last Sync Time */}
+              {editingAccountId !== account.id && (
+                <div className="flex items-center gap-1.5 mt-1 ml-9">
+                  <svg
+                    className={`w-3.5 h-3.5 flex-shrink-0 ${account.is_primary ? 'text-purple-600' : 'text-gray-300'}`}
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    title={account.is_primary ? 'Primary account' : 'Import only'}
+                  >
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                  </svg>
+                  {account.last_sync_at && (
+                    <span className="text-xs text-gray-400">
+                      Last Sync: {formatLastSync(account.last_sync_at)}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Sync Result Message */}
+              {syncResult && syncResult.accountId === account.id && (
+                <div className={`mt-2 p-2 rounded text-xs ${
+                  syncResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                }`}>
+                  {syncResult.message}
+                </div>
+              )}
             </div>
-          )}
+          ))}
 
-          {/* Sync Button */}
+          {/* Add Another Account Button */}
           <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="w-full bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-lg py-2 px-4 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            onClick={() => setShowAddModal(true)}
+            className="w-full border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg py-3 px-4 flex items-center justify-center gap-2 text-gray-500 hover:text-purple-600 transition-colors"
           >
-            {syncing ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                Syncing...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Sync Now
-              </>
-            )}
-          </button>
-
-          {/* Disconnect Button */}
-          <button
-            onClick={handleDisconnect}
-            className="w-full bg-red-50 hover:bg-red-100 text-red-600 rounded-lg py-2 px-4 text-sm font-medium transition-colors"
-          >
-            Disconnect
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Another Account
           </button>
         </div>
       ) : (
+        /* No accounts connected - show connect button */
         <button
-          onClick={onConnect}
+          onClick={() => setShowAddModal(true)}
           className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-3 px-4 flex items-center justify-center gap-2"
         >
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Google Calendar
+          <GoogleIcon />
+          Connect Google Calendar
         </button>
+      )}
+
+      {/* Add Account Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Add Google Calendar</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Choose how to connect this account:
+            </p>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => handleAddAccount(true)}
+                className="w-full text-left p-3 border-2 border-purple-200 hover:border-purple-400 rounded-lg transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-500">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    </svg>
+                  </span>
+                  <span className="font-medium text-gray-900">Add as Primary</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1 ml-7">
+                  Bidirectional sync - Zenible appointments sync to this calendar
+                </p>
+              </button>
+
+              <button
+                onClick={() => handleAddAccount(false)}
+                className="w-full text-left p-3 border-2 border-gray-200 hover:border-gray-300 rounded-lg transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                  </span>
+                  <span className="font-medium text-gray-900">Add as Secondary</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1 ml-7">
+                  Import only - View calendar events in Zenible (read-only)
+                </p>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowAddModal(false)}
+              className="w-full mt-4 text-gray-500 hover:text-gray-700 text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6">
+            {confirmDialog.type === 'setPrimary' ? (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Change Primary Account?</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  {primaryAccount && (
+                    <>Current primary: <span className="font-medium">{primaryAccount.email}</span><br /></>
+                  )}
+                  New primary: <span className="font-medium">{confirmDialog.account.email}</span>
+                </p>
+                <p className="text-sm text-gray-500 mb-4">
+                  Your Zenible appointments will now sync to {confirmDialog.account.email} instead.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setConfirmDialog(null)}
+                    className="flex-1 py-2 px-4 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleSetPrimary(confirmDialog.account)}
+                    className="flex-1 py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                  >
+                    Change Primary
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Disconnect {confirmDialog.account.is_primary ? 'Primary ' : ''}Account?
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  You're about to disconnect <span className="font-medium">{confirmDialog.account.email}</span>.
+                </p>
+                {confirmDialog.account.is_primary && accounts.length > 1 && (
+                  <p className="text-sm text-gray-500 mb-4">
+                    {accounts.find(a => a.id !== confirmDialog.account.id)?.email} will become your new primary account.
+                  </p>
+                )}
+                {accounts.length === 1 && (
+                  <p className="text-sm text-gray-500 mb-4">
+                    This is your only connected account. You will be disconnected from Google Calendar.
+                  </p>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setConfirmDialog(null)}
+                    className="flex-1 py-2 px-4 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDisconnect(confirmDialog.account)}
+                    className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

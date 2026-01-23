@@ -111,14 +111,15 @@ class AppointmentsAPI {
 
   // ========== Google Calendar Integration ==========
 
-  // Get Google Calendar connection status
+  // Get Google Calendar connection status (returns multi-account info)
   async getGoogleStatus() {
     return this.request('/crm/appointments/google/status', { method: 'GET' });
   }
 
   // Initiate Google OAuth flow
-  async initiateGoogleOAuth() {
-    return this.request('/crm/appointments/google/auth/initiate', { method: 'GET' });
+  async initiateGoogleOAuth(setAsPrimary = false) {
+    const params = setAsPrimary ? '?set_as_primary=true' : '';
+    return this.request(`/crm/appointments/google/auth/initiate${params}`, { method: 'GET' });
   }
 
   // Handle Google OAuth callback
@@ -129,14 +130,45 @@ class AppointmentsAPI {
     });
   }
 
-  // Disconnect Google Calendar
+  // Disconnect Google Calendar (legacy - disconnects primary)
   async disconnectGoogle() {
     return this.request('/crm/appointments/google/disconnect', { method: 'POST' });
   }
 
-  // Manual sync with Google Calendar
+  // Manual sync with Google Calendar (legacy - syncs primary)
   async syncGoogleCalendar() {
     return this.request('/crm/appointments/google/sync', { method: 'POST' });
+  }
+
+  // ========== Multi-Account Management ==========
+
+  // Set a Google account as primary
+  async setAccountPrimary(accountId) {
+    return this.request(`/crm/appointments/google/accounts/${accountId}/set-primary`, {
+      method: 'POST',
+    });
+  }
+
+  // Disconnect a specific Google account
+  async disconnectAccount(accountId) {
+    return this.request(`/crm/appointments/google/accounts/${accountId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Update Google account (e.g., rename)
+  async updateAccount(accountId, data) {
+    return this.request(`/crm/appointments/google/accounts/${accountId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Sync a specific Google account
+  async syncAccount(accountId) {
+    return this.request(`/crm/appointments/google/accounts/${accountId}/sync`, {
+      method: 'POST',
+    });
   }
 
   // ========== Calendar View ==========

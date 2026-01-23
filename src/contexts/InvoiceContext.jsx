@@ -11,6 +11,7 @@ export const InvoiceProvider = ({ children }) => {
 
   // State
   const [invoices, setInvoices] = useState([]);
+  const [stats, setStats] = useState(null); // Stats from backend
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
@@ -26,9 +27,11 @@ export const InvoiceProvider = ({ children }) => {
   const [filters, setFilters] = useState({
     search: '',
     status: null,
-    contact_id: null,
-    from_date: null,
-    to_date: null,
+    contact_ids: null, // comma-separated list of contact IDs
+    issue_date_from: null,
+    issue_date_to: null,
+    due_date_from: null,
+    due_date_to: null,
   });
 
   // Pagination
@@ -88,6 +91,10 @@ export const InvoiceProvider = ({ children }) => {
         ...prev,
         total: response.total || response.length,
       }));
+      // Store stats from backend if available
+      if (response.stats) {
+        setStats(response.stats);
+      }
       setInitialized(true);
     } catch (err) {
       console.error('[InvoiceContext] Error fetching invoices:', err);
@@ -140,6 +147,8 @@ export const InvoiceProvider = ({ children }) => {
       setLoading(true);
       await invoicesAPI.delete(invoiceId);
       setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
+      // Trigger refresh to update stats from backend
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       console.error('[InvoiceContext] Error deleting invoice:', err);
       throw err;
@@ -242,6 +251,7 @@ export const InvoiceProvider = ({ children }) => {
   const value = useMemo(() => ({
     // State
     invoices,
+    stats,
     loading,
     error,
     initialized,
@@ -270,6 +280,7 @@ export const InvoiceProvider = ({ children }) => {
     selectInvoice,
   }), [
     invoices,
+    stats,
     loading,
     error,
     initialized,

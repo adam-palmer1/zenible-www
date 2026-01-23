@@ -66,6 +66,18 @@ class CurrenciesAPI {
       method: 'PATCH',
     });
   }
+
+  // Get company attribute by name
+  async getCompanyAttribute(attributeName) {
+    return this.request(`/crm/companies/current/attributes/${attributeName}`, {
+      method: 'GET',
+    });
+  }
+
+  // Get number format attribute
+  async getNumberFormat() {
+    return this.getCompanyAttribute('number_format');
+  }
 }
 
 export default new CurrenciesAPI();

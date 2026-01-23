@@ -51,8 +51,8 @@ const PipelineContactCard = ({ contact, onClick, index, status }) => {
                   {/* Client/Vendor Badges - Top Left */}
                   <div className="flex gap-2 items-center">
                     {contact.is_client && (
-                      <div className="bg-[#dcfce7] px-2 py-0.5 rounded-md h-6 flex items-center justify-center">
-                        <p className="font-medium text-xs leading-5 text-[#09090b] whitespace-nowrap">Client</p>
+                      <div className="bg-zenible-primary px-2 py-0.5 rounded-md h-6 flex items-center justify-center">
+                        <p className="font-medium text-xs leading-5 text-white whitespace-nowrap">Client</p>
                       </div>
                     )}
                     {contact.is_vendor && (
@@ -118,23 +118,56 @@ const PipelineContactCard = ({ contact, onClick, index, status }) => {
             </div>
 
             {/* Services Value */}
-            {contact.services_count > 0 && (
-              <div className="px-4 pt-3 pb-3 border-t border-[#e5e5e5] dark:border-gray-700">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {contact.services_count} {contact.services_count === 1 ? 'service' : 'services'}
-                  </span>
-                  <ServiceValueDisplay
-                    oneOffTotal={contact.one_off_total}
-                    recurringTotal={contact.recurring_total}
-                    currency={contact.total_value_currency}
-                  />
-                </div>
+            {(contact.pending_services_count > 0 ||
+              (contact.confirmed_services_count > 0 && (contact.confirmed_one_off_total || contact.confirmed_recurring_total)) ||
+              (contact.active_services_count > 0 && (contact.active_one_off_total || contact.active_recurring_total))) && (
+              <div className="px-4 pt-3 pb-3 border-t border-[#e5e5e5] dark:border-gray-700 space-y-2">
+                {/* Pending Services */}
+                {contact.pending_services_count > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-amber-600 dark:text-amber-400">
+                      {contact.pending_services_count} pending {contact.pending_services_count === 1 ? 'service' : 'services'}
+                    </span>
+                    <ServiceValueDisplay
+                      oneOffTotal={contact.pending_one_off_total}
+                      recurringTotal={contact.pending_recurring_total}
+                      currency={contact.total_value_currency}
+                      variant="pending"
+                    />
+                  </div>
+                )}
+                {/* Confirmed Services - ready to start */}
+                {contact.confirmed_services_count > 0 && (contact.confirmed_one_off_total || contact.confirmed_recurring_total) && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zenible-primary">
+                      {contact.confirmed_services_count} confirmed {contact.confirmed_services_count === 1 ? 'service' : 'services'}
+                    </span>
+                    <ServiceValueDisplay
+                      oneOffTotal={contact.confirmed_one_off_total}
+                      recurringTotal={contact.confirmed_recurring_total}
+                      currency={contact.total_value_currency}
+                      variant="confirmed"
+                    />
+                  </div>
+                )}
+                {/* Active Services - being worked on */}
+                {contact.active_services_count > 0 && (contact.active_one_off_total || contact.active_recurring_total) && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {contact.active_services_count} active {contact.active_services_count === 1 ? 'service' : 'services'}
+                    </span>
+                    <ServiceValueDisplay
+                      oneOffTotal={contact.active_one_off_total}
+                      recurringTotal={contact.active_recurring_total}
+                      currency={contact.total_value_currency}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
             {/* Appointment Section - Figma Design */}
-            <div className={`flex gap-1 items-center pb-4 pt-3 px-4 border-t border-[#e5e5e5] dark:border-gray-700 ${contact.services_count > 0 ? '' : 'mt-3'}`}>
+            <div className={`flex gap-1 items-center pb-4 pt-3 px-4 border-t border-[#e5e5e5] dark:border-gray-700 ${(contact.pending_services_count > 0 || (contact.confirmed_services_count > 0 && (contact.confirmed_one_off_total || contact.confirmed_recurring_total)) || (contact.active_services_count > 0 && (contact.active_one_off_total || contact.active_recurring_total))) ? '' : 'mt-3'}`}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -145,12 +178,12 @@ const PipelineContactCard = ({ contact, onClick, index, status }) => {
                 title={nextAppointment ? `${isCallAppointment ? 'Call' : 'Appointment'}: ${new Date(nextAppointment.start_datetime).toLocaleDateString()}` : 'Add appointment'}
               >
                 {isCallAppointment ? (
-                  <PhoneIcon className={`h-4 w-4 ${nextAppointment ? 'text-green-600 dark:text-green-400' : 'text-[#71717a] dark:text-gray-400'}`} />
+                  <PhoneIcon className={`h-4 w-4 ${nextAppointment ? 'text-zenible-primary' : 'text-[#71717a] dark:text-gray-400'}`} />
                 ) : (
-                  <CalendarIcon className={`h-4 w-4 ${nextAppointment ? 'text-blue-600 dark:text-blue-400' : 'text-[#71717a] dark:text-gray-400'}`} />
+                  <CalendarIcon className={`h-4 w-4 ${nextAppointment ? 'text-zenible-primary' : 'text-[#71717a] dark:text-gray-400'}`} />
                 )}
                 {nextAppointment ? (
-                  <span className={`text-xs leading-5 font-normal ${isCallAppointment ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                  <span className="text-xs leading-5 font-normal text-zenible-primary">
                     {new Date(nextAppointment.start_datetime).toLocaleDateString()}
                     {nextAppointment.start_datetime.includes('T') && (
                       <span className="ml-1">

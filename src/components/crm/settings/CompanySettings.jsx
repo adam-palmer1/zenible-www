@@ -5,19 +5,23 @@ import {
   GlobeAltIcon,
   PuzzlePieceIcon,
   Cog6ToothIcon,
+  UserIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
+import UserProfileTab from './tabs/UserProfileTab';
 import ProfileTab from './tabs/ProfileTab';
 import CurrenciesTab from './tabs/CurrenciesTab';
 import CountriesTab from './tabs/CountriesTab';
 import IntegrationsTab from './tabs/IntegrationsTab';
 import AdvancedTab from './tabs/AdvancedTab';
+import BookingTab from './tabs/BookingTab';
 
 /**
  * Company Settings Page
  * Main container with tabbed interface for all company settings
  */
 const CompanySettings = () => {
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState('user-profile');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Prevent navigation if unsaved changes
@@ -34,7 +38,13 @@ const CompanySettings = () => {
 
   const tabs = [
     {
-      id: 'profile',
+      id: 'user-profile',
+      label: 'Profile',
+      icon: UserIcon,
+      component: UserProfileTab,
+    },
+    {
+      id: 'company-profile',
       label: 'Company Profile',
       icon: BuildingOfficeIcon,
       component: ProfileTab,
@@ -50,6 +60,12 @@ const CompanySettings = () => {
       label: 'Countries',
       icon: GlobeAltIcon,
       component: CountriesTab,
+    },
+    {
+      id: 'booking',
+      label: 'Booking',
+      icon: CalendarDaysIcon,
+      component: BookingTab,
     },
     {
       id: 'integrations',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCRMReferenceData } from '../../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../../hooks/crm/useCompanyAttributes';
 import { useNotification } from '../../../../contexts/NotificationContext';
@@ -19,10 +19,25 @@ const AdvancedTab = ({ onUnsavedChanges }) => {
 
   const { showSuccess, showError } = useNotification();
 
-  const [selectedFormat, setSelectedFormat] = useState(getNumberFormat());
-  const [selectedTimezone, setSelectedTimezone] = useState(getTimezone() || 'Europe/London');
+  const [selectedFormat, setSelectedFormat] = useState(null);
+  const [selectedTimezone, setSelectedTimezone] = useState('Europe/London');
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Update selected values when attributes finish loading
+  useEffect(() => {
+    if (!attributesLoading) {
+      const numberFormat = getNumberFormat();
+      const timezone = getTimezone();
+
+      if (numberFormat) {
+        setSelectedFormat(numberFormat);
+      }
+      if (timezone) {
+        setSelectedTimezone(timezone);
+      }
+    }
+  }, [attributesLoading, getNumberFormat, getTimezone]);
 
   // Common timezones
   const timezones = [

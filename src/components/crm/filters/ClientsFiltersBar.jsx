@@ -1,10 +1,10 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   MagnifyingGlassIcon,
   XMarkIcon,
   ChevronDownIcon,
   FunnelIcon,
-  ArrowsUpDownIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import Dropdown from '../../ui/dropdown/Dropdown';
 
@@ -17,15 +17,18 @@ const ClientsFiltersBar = ({
   onSearchChange,
   showHidden,
   onShowHiddenToggle,
-  sortOrder,
-  onSortChange,
+  showPreferredCurrency,
+  onPreferredCurrencyToggle,
   visibleColumns,
   availableColumns,
+  columnsByCategory,
   onToggleColumn,
   showColumnSelector,
   setShowColumnSelector,
   columnSelectorRef,
+  fieldsLoading,
 }) => {
+  const [hoveredField, setHoveredField] = useState(null);
   return (
     <div className="flex items-center gap-2">
       {/* Compact Search */}
@@ -68,124 +71,33 @@ const ClientsFiltersBar = ({
       >
         <div className="p-4 min-w-[280px]">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">Filters</h3>
-          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
-            <input
-              type="checkbox"
-              checked={showHidden}
-              onChange={(e) => onShowHiddenToggle(e.target.checked)}
-              className="w-4 h-4 text-zenible-primary border-gray-300 rounded focus:ring-zenible-primary"
-            />
-            <div className="flex-1">
-              <div className="text-sm font-medium text-gray-700">Show Hidden</div>
-              <div className="text-xs text-gray-500 mt-0.5">
-                Display clients that have been hidden from view
-              </div>
-            </div>
-          </label>
-        </div>
-      </Dropdown>
-
-      {/* Sort Dropdown */}
-      <Dropdown
-        trigger={
-          <button className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors">
-            <ArrowsUpDownIcon className="h-4 w-4 text-gray-600" />
-            {sortOrder !== 'newest' && (
-              <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-zenible-primary rounded-full">
-                1
-              </span>
-            )}
-            <ChevronDownIcon className="h-4 w-4 text-gray-400" />
-          </button>
-        }
-        align="start"
-        side="bottom"
-      >
-        <div className="p-4 min-w-[280px]">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Sort</h3>
           <div className="space-y-2">
             <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
               <input
-                type="radio"
-                name="sortOrder"
-                checked={sortOrder === 'newest'}
-                onChange={() => onSortChange('newest')}
-                className="w-4 h-4 text-zenible-primary border-gray-300 focus:ring-zenible-primary"
+                type="checkbox"
+                checked={showPreferredCurrency}
+                onChange={(e) => onPreferredCurrencyToggle(e.target.checked)}
+                className="w-4 h-4 text-zenible-primary border-gray-300 rounded focus:ring-zenible-primary"
               />
               <div className="flex-1">
-                <div className="text-sm font-medium text-gray-700">Newest First</div>
+                <div className="text-sm font-medium text-gray-700">Show in preferred currency</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Convert all amounts to your company's default currency
+                </div>
               </div>
             </label>
             <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
               <input
-                type="radio"
-                name="sortOrder"
-                checked={sortOrder === 'oldest'}
-                onChange={() => onSortChange('oldest')}
-                className="w-4 h-4 text-zenible-primary border-gray-300 focus:ring-zenible-primary"
+                type="checkbox"
+                checked={showHidden}
+                onChange={(e) => onShowHiddenToggle(e.target.checked)}
+                className="w-4 h-4 text-zenible-primary border-gray-300 rounded focus:ring-zenible-primary"
               />
               <div className="flex-1">
-                <div className="text-sm font-medium text-gray-700">Oldest First</div>
-              </div>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
-              <input
-                type="radio"
-                name="sortOrder"
-                checked={sortOrder === 'name'}
-                onChange={() => onSortChange('name')}
-                className="w-4 h-4 text-zenible-primary border-gray-300 focus:ring-zenible-primary"
-              />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-700">Name (A-Z)</div>
-              </div>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
-              <input
-                type="radio"
-                name="sortOrder"
-                checked={sortOrder === 'services_high'}
-                onChange={() => onSortChange('services_high')}
-                className="w-4 h-4 text-zenible-primary border-gray-300 focus:ring-zenible-primary"
-              />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-700">Services (High to Low)</div>
-              </div>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
-              <input
-                type="radio"
-                name="sortOrder"
-                checked={sortOrder === 'services_low'}
-                onChange={() => onSortChange('services_low')}
-                className="w-4 h-4 text-zenible-primary border-gray-300 focus:ring-zenible-primary"
-              />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-700">Services (Low to High)</div>
-              </div>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
-              <input
-                type="radio"
-                name="sortOrder"
-                checked={sortOrder === 'value_high'}
-                onChange={() => onSortChange('value_high')}
-                className="w-4 h-4 text-zenible-primary border-gray-300 focus:ring-zenible-primary"
-              />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-700">Value (High to Low)</div>
-              </div>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
-              <input
-                type="radio"
-                name="sortOrder"
-                checked={sortOrder === 'value_low'}
-                onChange={() => onSortChange('value_low')}
-                className="w-4 h-4 text-zenible-primary border-gray-300 focus:ring-zenible-primary"
-              />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-700">Value (Low to High)</div>
+                <div className="text-sm font-medium text-gray-700">Show Hidden</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Display clients that have been hidden from view
+                </div>
               </div>
             </label>
           </div>
@@ -205,31 +117,89 @@ const ClientsFiltersBar = ({
         </button>
 
         {showColumnSelector && (
-          <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+          <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-[70vh] overflow-y-auto">
             <div className="p-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Show/Hide Columns</h3>
-              <div className="space-y-2">
-                {availableColumns.map((column) => (
-                  <label
-                    key={column.key}
-                    className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${
-                      column.locked
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'cursor-pointer hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={visibleColumns[column.key]}
-                      onChange={() => !column.locked && onToggleColumn(column.key)}
-                      disabled={column.locked}
-                      className="w-4 h-4 text-zenible-primary border-gray-300 rounded focus:ring-zenible-primary disabled:cursor-not-allowed"
-                    />
-                    <span className="text-sm text-gray-700">{column.label}</span>
-                    {column.locked && <span className="ml-auto text-xs text-gray-400">(Required)</span>}
-                  </label>
-                ))}
-              </div>
+
+              {fieldsLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-zenible-primary"></div>
+                  <span className="ml-2 text-sm text-gray-500">Loading fields...</span>
+                </div>
+              ) : columnsByCategory && Object.keys(columnsByCategory).length > 0 ? (
+                <div className="space-y-4">
+                  {Object.entries(columnsByCategory).map(([category, { label: categoryLabel, columns }]) => (
+                    <div key={category}>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                        {categoryLabel}
+                      </h4>
+                      <div className="space-y-1">
+                        {columns.map((column) => (
+                          <label
+                            key={column.key}
+                            className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${
+                              column.locked
+                                ? 'opacity-50 cursor-not-allowed'
+                                : 'cursor-pointer hover:bg-gray-50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={visibleColumns[column.key] || false}
+                              onChange={() => !column.locked && onToggleColumn(column.key)}
+                              disabled={column.locked}
+                              className="w-4 h-4 text-zenible-primary border-gray-300 rounded focus:ring-zenible-primary disabled:cursor-not-allowed flex-shrink-0"
+                            />
+                            <span className="text-sm text-gray-700 flex-1">{column.label}</span>
+                            {column.description && (
+                              <div className="relative flex-shrink-0">
+                                <InformationCircleIcon
+                                  className="h-4 w-4 text-gray-400 hover:text-gray-600 cursor-help"
+                                  onMouseEnter={() => setHoveredField(column.key)}
+                                  onMouseLeave={() => setHoveredField(null)}
+                                />
+                                {hoveredField === column.key && (
+                                  <div className="absolute right-0 bottom-full mb-2 w-48 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
+                                    {column.description}
+                                    <div className="absolute bottom-0 right-2 transform translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {column.locked && (
+                              <span className="text-xs text-gray-400 flex-shrink-0">(Required)</span>
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                // Fallback to flat list if no categories
+                <div className="space-y-2">
+                  {availableColumns.map((column) => (
+                    <label
+                      key={column.key}
+                      className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${
+                        column.locked
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'cursor-pointer hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns[column.key] || false}
+                        onChange={() => !column.locked && onToggleColumn(column.key)}
+                        disabled={column.locked}
+                        className="w-4 h-4 text-zenible-primary border-gray-300 rounded focus:ring-zenible-primary disabled:cursor-not-allowed"
+                      />
+                      <span className="text-sm text-gray-700">{column.label}</span>
+                      {column.locked && <span className="ml-auto text-xs text-gray-400">(Required)</span>}
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

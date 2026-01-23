@@ -1,5 +1,6 @@
 // CRM hooks index
 export { useContacts } from './useContacts.js';
+export { useContactFields } from './useContactFields.js';
 export { useContactStatuses } from './useContactStatuses.js';
 export { useServices } from './useServices.js';
 export { useCurrencies } from './useCurrencies.js';
@@ -8,3 +9,10 @@ export { useContactNotes } from './useContactNotes.js';
 export { useContactActivities } from './useContactActivities.js';
 export { useContactFinancials } from './useContactFinancials.js';
 export { useProjects } from './useProjects.js';
+export { useProjectsFilters } from './useProjectsFilters.js';
+export { useVendorsFilters } from './useVendorsFilters.js';
+export { useClientsFilters } from './useClientsFilters.js';
+export { useCRMFilters } from './useCRMFilters.js';
+export { useContactServices } from './useContactServices.js';
+export { useServicesFilters } from './useServicesFilters.js';
+export { useBillableHours } from './useBillableHours.js';

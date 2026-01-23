@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, CreditCard, Calendar, User, Mail, FileText, DollarSign, Clock, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, CreditCard, Calendar, User, Mail, FileText, Clock, RotateCcw, Loader2, Receipt } from 'lucide-react';
 import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
@@ -8,11 +8,72 @@ import {
 } from '../../../constants/finance';
 import { formatCurrency } from '../../../utils/currency';
 import { usePayments } from '../../../contexts/PaymentsContext';
+import paymentsAPI from '../../../services/api/finance/payments';
+import AssignExpenseModal from '../expenses/AssignExpenseModal';
+import { AllocationSummaryBar, ProjectAllocationModal, ExpenseAllocationSummaryBar } from '../allocations';
 
-const PaymentDetailModal = ({ isOpen, onClose, payment }) => {
-  const { openRefundModal } = usePayments();
+const PaymentDetailModal = ({ isOpen, onClose, payment: paymentProp, refreshKey }) => {
+  const { openRefundModal, refresh } = usePayments();
+  const [payment, setPayment] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [showAssignExpenseModal, setShowAssignExpenseModal] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [expenseRefreshKey, setExpenseRefreshKey] = useState(0);
 
-  if (!isOpen || !payment) return null;
+  // Function to fetch payment details
+  const fetchPaymentDetails = async (showLoading = true) => {
+    if (!paymentProp?.id) return;
+
+    try {
+      if (showLoading) setLoadingDetails(true);
+      // Fetch payment details and project allocations in parallel
+      const [paymentData, allocationsData] = await Promise.all([
+        paymentsAPI.get(paymentProp.id),
+        paymentsAPI.getProjectAllocations(paymentProp.id).catch(() => ({ allocations: [] })),
+      ]);
+      // Merge allocations into payment object
+      setPayment({
+        ...paymentData,
+        project_allocations: allocationsData.allocations || [],
+      });
+    } catch (err) {
+      console.error('Error fetching payment details:', err);
+      setPayment(paymentProp);
+    } finally {
+      if (showLoading) setLoadingDetails(false);
+    }
+  };
+
+  // Fetch full payment details when modal opens
+  useEffect(() => {
+    if (isOpen && paymentProp?.id) {
+      fetchPaymentDetails(true);
+    } else if (!isOpen) {
+      setPayment(null);
+    }
+  }, [isOpen, paymentProp?.id]);
+
+  // Refetch when refreshKey changes (after linking an expense)
+  useEffect(() => {
+    if (isOpen && paymentProp?.id && refreshKey > 0) {
+      // Refetch without showing loading spinner
+      fetchPaymentDetails(false);
+    }
+  }, [refreshKey]);
+
+  if (!isOpen || !paymentProp) return null;
+
+  // Show loading state while fetching details
+  if (loadingDetails || !payment) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+        <div className="relative bg-white rounded-xl shadow-xl p-8 dark:bg-gray-800">
+          <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+        </div>
+      </div>
+    );
+  }
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -54,6 +115,7 @@ const PaymentDetailModal = ({ isOpen, onClose, payment }) => {
     onClose();
     openRefundModal(payment);
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -159,15 +221,42 @@ const PaymentDetailModal = ({ isOpen, onClose, payment }) => {
             </div>
           </div>
 
-          {/* Description */}
-          {payment.description && (
+          {/* Notes */}
+          {payment.notes && (
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 <FileText className="h-4 w-4" />
-                Description
+                Notes
               </div>
               <div className="text-sm text-gray-900 dark:text-white bg-gray-50 p-3 rounded-lg dark:bg-gray-900">
-                {payment.description}
+                {payment.notes}
+              </div>
+            </div>
+          )}
+
+          {/* Invoice Payments */}
+          {payment.invoice_payments && payment.invoice_payments.length > 0 && (
+            <div className="space-y-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                  Applied to Invoice{payment.invoice_payments.length > 1 ? 's' : ''}
+                </h3>
+              </div>
+              <div className="space-y-2">
+                {payment.invoice_payments.map((invoicePayment, index) => (
+                  <div
+                    key={invoicePayment.id || index}
+                    className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
+                  >
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
+                      {invoicePayment.invoice_number}
+                    </span>
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
+                      {formatCurrency(invoicePayment.amount_applied, getCurrencyCode())}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -194,6 +283,53 @@ const PaymentDetailModal = ({ isOpen, onClose, payment }) => {
               )}
             </div>
           )}
+
+          {/* Gateway Fee Info */}
+          {(payment.gateway_fee_amount || payment.gateway_net_amount) && (
+            <div className="space-y-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Gateway Fees</h3>
+              {payment.gateway_fee_amount && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Processing Fee</span>
+                  <span className="text-red-600 dark:text-red-400">
+                    -{formatCurrency(payment.gateway_fee_amount, getCurrencyCode())}
+                  </span>
+                </div>
+              )}
+              {payment.gateway_net_amount && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Net Amount</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {formatCurrency(payment.gateway_net_amount, getCurrencyCode())}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Expense Allocations */}
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <ExpenseAllocationSummaryBar
+              entityType="payment"
+              entityId={payment?.id}
+              totalAmount={parseFloat(payment.amount) || 0}
+              currency={getCurrencyCode()}
+              onManageClick={() => setShowAssignExpenseModal(true)}
+              showManageButton={true}
+              refreshKey={expenseRefreshKey}
+            />
+          </div>
+
+          {/* Project Allocations */}
+          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <AllocationSummaryBar
+              allocations={payment.project_allocations || []}
+              totalAmount={parseFloat(payment.amount) || 0}
+              currency={getCurrencyCode()}
+              onManageClick={() => setShowProjectModal(true)}
+              showManageButton={true}
+            />
+          </div>
 
           {/* Refund History */}
           {payment.refunds && payment.refunds.length > 0 && (
@@ -239,6 +375,37 @@ const PaymentDetailModal = ({ isOpen, onClose, payment }) => {
           )}
         </div>
       </div>
+
+      {/* Assign Expense Modal */}
+      <AssignExpenseModal
+        open={showAssignExpenseModal}
+        onOpenChange={setShowAssignExpenseModal}
+        entityType="payment"
+        entityId={payment?.id}
+        entityName={`Payment #${payment?.payment_number || payment?.id?.toString().slice(-8)}`}
+        currency={getCurrencyCode()}
+        onUpdate={() => {
+          setExpenseRefreshKey((k) => k + 1);
+          fetchPaymentDetails(false);
+          refresh();
+        }}
+      />
+
+      {/* Project Allocation Modal */}
+      <ProjectAllocationModal
+        open={showProjectModal}
+        onOpenChange={setShowProjectModal}
+        entityType="payment"
+        entityId={payment?.id}
+        entityName={`Payment #${payment?.payment_number || payment?.id?.toString().slice(-8)}`}
+        entityAmount={parseFloat(payment?.amount) || 0}
+        currency={getCurrencyCode()}
+        currentAllocations={payment?.project_allocations || []}
+        onUpdate={() => {
+          fetchPaymentDetails(false);
+          refresh();
+        }}
+      />
     </div>
   );
 };

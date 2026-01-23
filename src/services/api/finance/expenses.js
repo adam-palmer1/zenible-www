@@ -85,11 +85,11 @@ class ExpensesAPI {
   }
 
   /**
-   * Update an expense
+   * Update an expense (partial update)
    */
   async update(expenseId, expenseData) {
     return request(`${this.baseEndpoint}${expenseId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(expenseData),
     });
   }
@@ -307,6 +307,27 @@ class ExpensesAPI {
     return request(`${this.baseEndpoint}${expenseId}/attachment`, { method: 'DELETE' });
   }
 
+  /**
+   * Upload receipt (base64 encoded)
+   * @param {string} expenseId - The expense ID
+   * @param {Object} receiptData - { file_name, file_size, file_type, file_data (base64) }
+   * @returns {Promise<Object>} { receipt_url, attachment_filename, attachment_size, attachment_type }
+   */
+  async uploadReceipt(expenseId, receiptData) {
+    return request(`${this.baseEndpoint}${expenseId}/upload-receipt`, {
+      method: 'POST',
+      body: JSON.stringify(receiptData),
+    });
+  }
+
+  /**
+   * Delete receipt
+   * @param {string} expenseId - The expense ID
+   */
+  async deleteReceipt(expenseId) {
+    return request(`${this.baseEndpoint}${expenseId}/receipt`, { method: 'DELETE' });
+  }
+
   // ========== RECURRING & HISTORY OPERATIONS ==========
 
   /**
@@ -343,6 +364,54 @@ class ExpensesAPI {
       ? `${this.baseEndpoint}${expenseId}/recurring-children?${queryString}`
       : `${this.baseEndpoint}${expenseId}/recurring-children`;
     return request(endpoint, { method: 'GET' });
+  }
+
+  // ========== ALLOCATION OPERATIONS ==========
+
+  /**
+   * Get expense allocations
+   * @param {string} expenseId - The expense ID
+   * @returns {Promise<Object>} { allocations: [], total_allocated_percentage: number, total_allocated_amount: number }
+   */
+  async getAllocations(expenseId) {
+    return request(`${this.baseEndpoint}${expenseId}/allocations`, { method: 'GET' });
+  }
+
+  /**
+   * Update expense allocations (replaces all existing allocations)
+   * @param {string} expenseId - The expense ID
+   * @param {Array} allocations - Array of { entity_type, entity_id, percentage }
+   * @returns {Promise<Object>} Updated allocations
+   */
+  async updateAllocations(expenseId, allocations) {
+    return request(`${this.baseEndpoint}${expenseId}/allocations`, {
+      method: 'PUT',
+      body: JSON.stringify({ allocations }),
+    });
+  }
+
+  /**
+   * Delete all expense allocations
+   * @param {string} expenseId - The expense ID
+   */
+  async deleteAllocations(expenseId) {
+    return request(`${this.baseEndpoint}${expenseId}/allocations`, { method: 'DELETE' });
+  }
+
+  /**
+   * Get expenses allocated to a specific entity (includes allocation details in response)
+   * @param {string} entityType - Entity type (invoice, project, payment, contact)
+   * @param {string} entityId - Entity ID
+   * @param {Object} params - Query parameters
+   * @returns {Promise<Object>} List of expenses with allocations included
+   */
+  async getExpensesByEntity(entityType, entityId, params = {}) {
+    const queryString = new URLSearchParams({
+      ...params,
+      allocated_entity_type: entityType,
+      allocated_entity_id: entityId,
+    }).toString();
+    return request(`${this.baseEndpoint}?${queryString}`, { method: 'GET' });
   }
 }
 

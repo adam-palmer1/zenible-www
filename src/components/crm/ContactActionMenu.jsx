@@ -8,12 +8,14 @@ import {
   EyeIcon,
   BellSlashIcon,
   UserPlusIcon,
-  UserMinusIcon
+  UserMinusIcon,
+  ArrowsRightLeftIcon
 } from '@heroicons/react/24/outline';
 import Dropdown from '../ui/dropdown/Dropdown';
 import { useContactActions } from '../../contexts/ContactActionsContext';
 import ConfirmationModal from '../common/ConfirmationModal';
 import SuccessModal from '../common/SuccessModal';
+import ContactMergeModal from './ContactMergeModal';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
 import { getNextAppointment } from '../../utils/crm/appointmentUtils';
 
@@ -25,6 +27,7 @@ const ContactActionMenu = ({ contact, showMarkLost = true }) => {
   const [confirmationModal, setConfirmationModal] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successContactName, setSuccessContactName] = useState('');
+  const [showMergeModal, setShowMergeModal] = useState(false);
 
   const { editContact, deleteContact, markAsLost, toggleHidden, dismissFollowUp, toggleClient, refreshContacts } = useContactActions();
 
@@ -62,6 +65,14 @@ const ContactActionMenu = ({ contact, showMarkLost = true }) => {
     }
   };
 
+  // Handle merge completion
+  const handleMergeComplete = () => {
+    setShowMergeModal(false);
+    if (refreshContacts) {
+      refreshContacts();
+    }
+  };
+
   // Menu items configuration
   const menuItems = [
     {
@@ -69,6 +80,12 @@ const ContactActionMenu = ({ contact, showMarkLost = true }) => {
       label: 'Edit Contact',
       icon: PencilIcon,
       onClick: () => editContact(contact),
+    },
+    {
+      id: 'merge',
+      label: 'Merge with another contact...',
+      icon: ArrowsRightLeftIcon,
+      onClick: () => setShowMergeModal(true),
     },
     !contact.is_client && {
       id: 'add_to_client_list',
@@ -194,6 +211,14 @@ const ContactActionMenu = ({ contact, showMarkLost = true }) => {
         title="Added to Client List!"
         message={`${successContactName} has been successfully added to your client list.`}
         buttonText="OK"
+      />
+
+      {/* Contact Merge Modal */}
+      <ContactMergeModal
+        isOpen={showMergeModal}
+        onClose={() => setShowMergeModal(false)}
+        sourceContact={contact}
+        onMergeComplete={handleMergeComplete}
       />
     </>
   );

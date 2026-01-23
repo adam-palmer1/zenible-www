@@ -1,12 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { UserMinusIcon, EyeSlashIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { useContacts } from '../../hooks/crm';
+import React, { useState } from 'react';
+import { UserMinusIcon, EyeSlashIcon, EyeIcon, PencilIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { useContacts, useCompanyCurrencies } from '../../hooks/crm';
 import { useNotification } from '../../contexts/NotificationContext';
-import { formatCurrency } from '../../utils/currency';
+import { formatCurrencyWithCommas } from '../../utils/currency';
 import Dropdown from '../ui/dropdown/Dropdown';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
-import { calculateClientStatus } from '../../utils/crm/clientStatusUtils';
+
+// Sortable Column Header Component
+const SortableColumnHeader = ({ field, label, sortField, sortDirection, onSort, align = 'left' }) => {
+  const isActive = sortField === field;
+  const alignClass = align === 'right' ? 'justify-end' : 'justify-start';
+
+  // Sort icon when not active
+  const SortIcon = () => (
+    <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M8 3L12 7H4L8 3Z" />
+      <path d="M8 13L4 9H12L8 13Z" />
+    </svg>
+  );
+
+  return (
+    <th
+      className="px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 select-none"
+      onClick={() => onSort(field)}
+    >
+      <div className={`flex items-center gap-1 ${alignClass}`}>
+        <span>{label}</span>
+        <span className={`transition-colors ${isActive ? 'text-zenible-primary' : 'text-gray-300'}`}>
+          {isActive ? (
+            sortDirection === 'asc' ? (
+              <ChevronUpIcon className="h-4 w-4" />
+            ) : (
+              <ChevronDownIcon className="h-4 w-4" />
+            )
+          ) : (
+            <SortIcon />
+          )}
+        </span>
+      </div>
+    </th>
+  );
+};
 
 /**
  * VendorsView Component
@@ -14,32 +49,71 @@ import { calculateClientStatus } from '../../utils/crm/clientStatusUtils';
  * Displays a filtered view of contacts marked as vendors (is_vendor: true)
  * with financial summary data, vendor status, and management actions.
  */
-const VendorsView = ({ onVendorClick, openContactModal, refreshKey = 0 }) => {
-  const [activeTab, setActiveTab] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSort, setSelectedSort] = useState('newest');
-  const [selectedStatuses, setSelectedStatuses] = useState(['New', 'Active', 'Inactive', 'Cold']);
-  const [showHiddenVendors, setShowHiddenVendors] = useState(false);
-  const [financialSummary, setFinancialSummary] = useState({});
-  const [loadingFinancials, setLoadingFinancials] = useState(false);
+const VendorsView = ({
+  onVendorClick,
+  openContactModal,
+  refreshKey = 0,
+  // Filter props from useVendorsFilters
+  searchQuery = '',
+  sortField = 'created_at',
+  sortDirection = 'desc',
+  handleSortChange,
+  showHiddenVendors = false,
+  showPreferredCurrency = true,
+  visibleColumns = {},
+}) => {
   const [showRemoveVendorModal, setShowRemoveVendorModal] = useState(false);
   const [vendorToRemove, setVendorToRemove] = useState(null);
   const [showDeleteVendorModal, setShowDeleteVendorModal] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState(null);
 
   const { showError, showSuccess } = useNotification();
+  const { defaultCurrency, numberFormat } = useCompanyCurrencies();
+  const defaultCurrencyCode = defaultCurrency?.currency?.code || 'GBP';
 
-  // Fetch vendors (contacts with is_vendor: true)
-  const { contacts: vendors, loading: vendorsLoading, updateContact, deleteContact } = useContacts({ is_vendor: true }, refreshKey);
+  // Fetch vendors (contacts with is_vendor: true) with financial details
+  // When preserve_currencies is true, financial fields return as arrays with original currencies
+  const { contacts: vendors, loading: vendorsLoading, updateContact, deleteContact } = useContacts(
+    {
+      is_vendor: true,
+      include_financial_details: true,
+      ...(showPreferredCurrency === false && { preserve_currencies: true }),
+    },
+    refreshKey
+  );
 
-  // TODO: Implement financial summary endpoint on backend
-  // For now, financial data will be empty and UI will show defaults
-  // Backend needs: GET /api/v1/crm/vendors/financial-summary
-  // Expected response: { [vendor_id]: { last_payment_date, payment_count, has_recurring_invoice, amount_outstanding } }
-  useEffect(() => {
-    // Placeholder - financial data not available yet
-    setLoadingFinancials(false);
-  }, []);
+  // Helper to format financial values from backend
+  // Handles both single values and array format (when preserve_currencies=true)
+  const formatFinancialValue = (value, currency) => {
+    // Handle array format (multiple currencies)
+    if (Array.isArray(value)) {
+      const nonZeroValues = value.filter(v => v.amount && parseFloat(v.amount) !== 0);
+      if (nonZeroValues.length === 0) {
+        return formatCurrencyWithCommas(0, defaultCurrencyCode, numberFormat);
+      }
+      if (nonZeroValues.length > 1) {
+        // Multiple currencies - show on separate lines
+        return (
+          <div className="flex flex-col">
+            {nonZeroValues.map((v, index) => (
+              <span key={index}>
+                {formatCurrencyWithCommas(parseFloat(v.amount), v.currency_code, numberFormat)}
+              </span>
+            ))}
+          </div>
+        );
+      }
+      // Single currency in array
+      const singleValue = nonZeroValues[0];
+      return formatCurrencyWithCommas(parseFloat(singleValue.amount), singleValue.currency_code, numberFormat);
+    }
+
+    // Handle single value format
+    if (value === null || value === undefined) {
+      return formatCurrencyWithCommas(0, currency || defaultCurrencyCode, numberFormat);
+    }
+    return formatCurrencyWithCommas(parseFloat(value), currency || defaultCurrencyCode, numberFormat);
+  };
 
   // Filter and sort vendors
   const getFilteredVendors = () => {
@@ -52,16 +126,9 @@ const VendorsView = ({ onVendorClick, openContactModal, refreshKey = 0 }) => {
         vendor.first_name?.toLowerCase().includes(query) ||
         vendor.last_name?.toLowerCase().includes(query) ||
         vendor.email?.toLowerCase().includes(query) ||
-        vendor.business_name?.toLowerCase().includes(query)
+        vendor.business_name?.toLowerCase().includes(query) ||
+        vendor.display_name?.toLowerCase().includes(query)
       );
-    }
-
-    // Apply status filter
-    if (selectedStatuses.length > 0 && selectedStatuses.length < 4) {
-      filtered = filtered.filter(vendor => {
-        const { status } = calculateClientStatus(vendor, financialSummary[vendor.id]);
-        return selectedStatuses.includes(status);
-      });
     }
 
     // Apply hidden filter
@@ -69,20 +136,56 @@ const VendorsView = ({ onVendorClick, openContactModal, refreshKey = 0 }) => {
       filtered = filtered.filter(vendor => vendor.is_visible_in_vendors !== false);
     }
 
-    // Apply sorting
+    // Apply field-based sorting
     filtered.sort((a, b) => {
-      switch (selectedSort) {
-        case 'newest':
-          return new Date(b.created_at) - new Date(a.created_at);
-        case 'oldest':
-          return new Date(a.created_at) - new Date(b.created_at);
+      let comparison = 0;
+
+      switch (sortField) {
         case 'name':
-          const nameA = `${a.first_name || ''} ${a.last_name || ''}`.trim();
-          const nameB = `${b.first_name || ''} ${b.last_name || ''}`.trim();
-          return nameA.localeCompare(nameB);
-        default:
-          return 0;
+        case 'display_name': {
+          const nameA = (a.display_name || a.business_name || '').toLowerCase();
+          const nameB = (b.display_name || b.business_name || '').toLowerCase();
+          comparison = nameA.localeCompare(nameB);
+          break;
+        }
+        case 'email': {
+          const emailA = (a.email || '').toLowerCase();
+          const emailB = (b.email || '').toLowerCase();
+          comparison = emailA.localeCompare(emailB);
+          break;
+        }
+        case 'phone': {
+          const phoneA = (a.phone || '').toLowerCase();
+          const phoneB = (b.phone || '').toLowerCase();
+          comparison = phoneA.localeCompare(phoneB);
+          break;
+        }
+        case 'business_name': {
+          const bizA = (a.business_name || '').toLowerCase();
+          const bizB = (b.business_name || '').toLowerCase();
+          comparison = bizA.localeCompare(bizB);
+          break;
+        }
+        case 'expenses_paid':
+        case 'total_expenses_paid': {
+          comparison = (parseFloat(a.total_expenses_paid) || 0) - (parseFloat(b.total_expenses_paid) || 0);
+          break;
+        }
+        case 'expenses_outstanding':
+        case 'total_expenses_outstanding': {
+          comparison = (parseFloat(a.total_expenses_outstanding) || 0) - (parseFloat(b.total_expenses_outstanding) || 0);
+          break;
+        }
+        case 'vendor_since':
+        case 'created_at':
+        default: {
+          comparison = new Date(a.created_at) - new Date(b.created_at);
+          break;
+        }
       }
+
+      // Apply sort direction
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
 
     return filtered;
@@ -96,13 +199,9 @@ const VendorsView = ({ onVendorClick, openContactModal, refreshKey = 0 }) => {
 
   const handleHideVendor = async (vendor) => {
     try {
-      // Determine current visibility state (undefined/null/true = visible, false = hidden)
       const isCurrentlyVisible = vendor.is_visible_in_vendors !== false;
       const newVisibility = !isCurrentlyVisible;
-
-      // updateContact handles both API call and local state update
       await updateContact(vendor.id, { is_visible_in_vendors: newVisibility });
-
       showSuccess(newVisibility ? 'Vendor is now visible' : 'Vendor has been hidden');
     } catch (error) {
       console.error('Error updating vendor visibility:', error);
@@ -112,14 +211,10 @@ const VendorsView = ({ onVendorClick, openContactModal, refreshKey = 0 }) => {
 
   const handleRemoveFromVendorList = async () => {
     if (!vendorToRemove) return;
-
     try {
-      // updateContact handles both API call and local state update
       await updateContact(vendorToRemove.id, { is_vendor: false });
-
       const displayName = getContactDisplayName(vendorToRemove);
       showSuccess(`${displayName} removed from vendor list`);
-
       setShowRemoveVendorModal(false);
       setVendorToRemove(null);
     } catch (error) {
@@ -130,14 +225,10 @@ const VendorsView = ({ onVendorClick, openContactModal, refreshKey = 0 }) => {
 
   const handleDeleteVendor = async () => {
     if (!vendorToDelete) return;
-
     try {
-      // deleteContact handles both API call and local state update
       await deleteContact(vendorToDelete.id);
-
       const displayName = getContactDisplayName(vendorToDelete);
       showSuccess(`${displayName} deleted permanently`);
-
       setShowDeleteVendorModal(false);
       setVendorToDelete(null);
     } catch (error) {
@@ -160,18 +251,22 @@ const VendorsView = ({ onVendorClick, openContactModal, refreshKey = 0 }) => {
     }
   };
 
-  const formatAmountOutstanding = (vendor) => {
-    const clientId = vendor.id;
-    const financialData = financialSummary[clientId];
+  const filteredVendors = getFilteredVendors();
 
-    if (!financialData || !financialData.amount_outstanding) {
-      return formatCurrency(0, 'USD');
-    }
-
-    return formatCurrency(financialData.amount_outstanding, 'USD');
+  // Default visible columns if not provided
+  const columns = {
+    name: visibleColumns.name ?? true,
+    email: visibleColumns.email ?? true,
+    phone: visibleColumns.phone ?? false,
+    business_name: visibleColumns.business_name ?? false,
+    expenses_paid: visibleColumns.expenses_paid ?? true,
+    expenses_outstanding: visibleColumns.expenses_outstanding ?? true,
+    vendor_since: visibleColumns.vendor_since ?? true,
+    actions: visibleColumns.actions ?? true,
   };
 
-  const filteredVendors = getFilteredVendors();
+  // Count visible columns for colspan
+  const visibleColumnCount = Object.values(columns).filter(Boolean).length;
 
   if (vendorsLoading) {
     return (
@@ -188,25 +283,87 @@ const VendorsView = ({ onVendorClick, openContactModal, refreshKey = 0 }) => {
         <table className="w-full">
           <thead>
             <tr className="border-b border-[#e5e5e5] dark:border-gray-700">
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Client</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Client Since</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Last Payment</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Status</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Amount Outstanding</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400"></th>
+              {columns.name && (
+                <SortableColumnHeader
+                  field="name"
+                  label="Vendor"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                />
+              )}
+              {columns.email && (
+                <SortableColumnHeader
+                  field="email"
+                  label="Email"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                />
+              )}
+              {columns.phone && (
+                <SortableColumnHeader
+                  field="phone"
+                  label="Phone"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                />
+              )}
+              {columns.business_name && (
+                <SortableColumnHeader
+                  field="business_name"
+                  label="Company"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                />
+              )}
+              {columns.expenses_paid && (
+                <SortableColumnHeader
+                  field="expenses_paid"
+                  label="Expenses Paid"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {columns.expenses_outstanding && (
+                <SortableColumnHeader
+                  field="expenses_outstanding"
+                  label="Outstanding"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                  align="right"
+                />
+              )}
+              {columns.vendor_since && (
+                <SortableColumnHeader
+                  field="vendor_since"
+                  label="Vendor Since"
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSortChange}
+                />
+              )}
+              {columns.actions && (
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400"></th>
+              )}
             </tr>
           </thead>
           <tbody>
             {filteredVendors.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-4 py-12 text-center text-gray-600 dark:text-gray-400">
-                  No vendors found
+                <td colSpan={visibleColumnCount} className="px-4 py-12 text-center text-gray-600 dark:text-gray-400">
+                  {searchQuery ? 'No vendors match your search' : 'No vendors found'}
                 </td>
               </tr>
             ) : (
               filteredVendors.map((vendor, index) => {
-                const financialData = financialSummary[vendor.id] || {};
-                const { status, color } = calculateClientStatus(vendor, financialData);
+                const isHidden = vendor.is_visible_in_vendors === false;
+                const hiddenClass = isHidden ? 'line-through italic opacity-60' : '';
 
                 return (
                   <tr
@@ -214,129 +371,129 @@ const VendorsView = ({ onVendorClick, openContactModal, refreshKey = 0 }) => {
                     className={`border-b border-[#e5e5e5] dark:border-gray-700 hover:cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${index === filteredVendors.length - 1 ? 'border-b-0' : ''}`}
                     onClick={() => onVendorClick && onVendorClick(vendor)}
                   >
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                          {vendor.profile_picture ? (
-                            <img src={vendor.profile_picture} alt={`${vendor.first_name} ${vendor.last_name}`} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="font-medium text-sm text-gray-600 dark:text-gray-400">
-                              {vendor.first_name?.[0]}{vendor.last_name?.[0]}
-                            </span>
-                          )}
+                    {columns.name && (
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                            {vendor.profile_picture ? (
+                              <img src={vendor.profile_picture} alt={getContactDisplayName(vendor)} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="font-medium text-sm text-gray-600 dark:text-gray-400">
+                                {(vendor.first_name || vendor.business_name || '')?.[0]?.toUpperCase()}
+                                {(vendor.last_name || '')?.[0]?.toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <p className={`font-medium text-gray-900 dark:text-white ${hiddenClass}`}>
+                              {vendor.display_name || vendor.business_name || 'Unnamed Vendor'}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className={`font-medium text-gray-900 dark:text-white ${vendor.is_visible_in_vendors === false ? 'line-through italic opacity-60' : ''}`}>
-                            {vendor.first_name} {vendor.last_name}
-                          </p>
-                          <p className={`text-sm text-gray-600 dark:text-gray-400 ${vendor.is_visible_in_vendors === false ? 'line-through italic' : ''}`}>
-                            {vendor.email}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
-                      {formatDate(vendor.created_at)}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
-                      {formatDate(financialData.last_payment_date)}
-                    </td>
-                    <td className="px-4 py-4">
-                      {(() => {
-                        const colorClasses = {
-                          green: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-                          orange: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-                          yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-                          red: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        };
-                        const dotClasses = {
-                          green: 'bg-green-600',
-                          orange: 'bg-orange-600',
-                          yellow: 'bg-yellow-600',
-                          red: 'bg-red-600'
-                        };
-
-                        return (
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClasses[color]}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${dotClasses[color]}`}></span>
-                            {status}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
-                      {loadingFinancials ? '...' : formatAmountOutstanding(vendor)}
-                    </td>
-                    <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <Dropdown
-                        trigger={
-                          <button
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-1 rounded-full transition-colors text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                      </td>
+                    )}
+                    {columns.email && (
+                      <td className={`px-4 py-4 text-sm text-gray-600 dark:text-gray-400 ${hiddenClass}`}>
+                        {vendor.email || '-'}
+                      </td>
+                    )}
+                    {columns.phone && (
+                      <td className={`px-4 py-4 text-sm text-gray-600 dark:text-gray-400 ${hiddenClass}`}>
+                        {vendor.phone || '-'}
+                      </td>
+                    )}
+                    {columns.business_name && (
+                      <td className={`px-4 py-4 text-sm text-gray-900 dark:text-white ${hiddenClass}`}>
+                        {vendor.business_name || '-'}
+                      </td>
+                    )}
+                    {columns.expenses_paid && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
+                        {formatFinancialValue(vendor.total_expenses_paid, vendor.expenses_currency)}
+                      </td>
+                    )}
+                    {columns.expenses_outstanding && (
+                      <td className="px-4 py-4 text-sm text-right font-medium text-gray-900 dark:text-white">
+                        {formatFinancialValue(vendor.total_expenses_outstanding, vendor.expenses_currency)}
+                      </td>
+                    )}
+                    {columns.vendor_since && (
+                      <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
+                        {formatDate(vendor.created_at)}
+                      </td>
+                    )}
+                    {columns.actions && (
+                      <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <Dropdown
+                          trigger={
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1 rounded-full transition-colors text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 10.8334C10.4603 10.8334 10.8334 10.4603 10.8334 10C10.8334 9.53978 10.4603 9.16669 10 9.16669C9.53978 9.16669 9.16669 9.53978 9.16669 10C9.16669 10.4603 9.53978 10.8334 10 10.8334Z" fill="currentColor"/>
+                                <path d="M10 5.00002C10.4603 5.00002 10.8334 4.62692 10.8334 4.16669C10.8334 3.70645 10.4603 3.33335 10 3.33335C9.53978 3.33335 9.16669 3.70645 9.16669 4.16669C9.16669 4.62692 9.53978 5.00002 10 5.00002Z" fill="currentColor"/>
+                                <path d="M10 16.6667C10.4603 16.6667 10.8334 16.2936 10.8334 15.8334C10.8334 15.3731 10.4603 15 10 15C9.53978 15 9.16669 15.3731 9.16669 15.8334C9.16669 16.2936 9.53978 16.6667 10 16.6667Z" fill="currentColor"/>
+                              </svg>
+                            </button>
+                          }
+                          align="end"
+                          side="bottom"
+                        >
+                          <Dropdown.Item
+                            onSelect={(e) => {
+                              e.stopPropagation();
+                              handleEditVendor(vendor);
+                            }}
                           >
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M10 10.8334C10.4603 10.8334 10.8334 10.4603 10.8334 10C10.8334 9.53978 10.4603 9.16669 10 9.16669C9.53978 9.16669 9.16669 9.53978 9.16669 10C9.16669 10.4603 9.53978 10.8334 10 10.8334Z" fill="currentColor"/>
-                              <path d="M10 5.00002C10.4603 5.00002 10.8334 4.62692 10.8334 4.16669C10.8334 3.70645 10.4603 3.33335 10 3.33335C9.53978 3.33335 9.16669 3.70645 9.16669 4.16669C9.16669 4.62692 9.53978 5.00002 10 5.00002Z" fill="currentColor"/>
-                              <path d="M10 16.6667C10.4603 16.6667 10.8334 16.2936 10.8334 15.8334C10.8334 15.3731 10.4603 15 10 15C9.53978 15 9.16669 15.3731 9.16669 15.8334C9.16669 16.2936 9.53978 16.6667 10 16.6667Z" fill="currentColor"/>
-                            </svg>
-                          </button>
-                        }
-                        align="end"
-                        side="bottom"
-                      >
-                        <Dropdown.Item
-                          onSelect={(e) => {
-                            e.stopPropagation();
-                            handleEditVendor(vendor);
-                          }}
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                          Edit
-                        </Dropdown.Item>
+                            <PencilIcon className="h-4 w-4" />
+                            Edit
+                          </Dropdown.Item>
 
-                        <Dropdown.Item
-                          onSelect={(e) => {
-                            e.stopPropagation();
-                            setVendorToRemove(vendor);
-                            setShowRemoveVendorModal(true);
-                          }}
-                        >
-                          <UserMinusIcon className="h-4 w-4" />
-                          Remove from Vendor List
-                        </Dropdown.Item>
+                          <Dropdown.Item
+                            onSelect={(e) => {
+                              e.stopPropagation();
+                              setVendorToRemove(vendor);
+                              setShowRemoveVendorModal(true);
+                            }}
+                          >
+                            <UserMinusIcon className="h-4 w-4" />
+                            Remove from Vendor List
+                          </Dropdown.Item>
 
-                        <Dropdown.Item
-                          onSelect={(e) => {
-                            e.stopPropagation();
-                            handleHideVendor(vendor);
-                          }}
-                        >
-                          {vendor.is_visible_in_vendors !== false ? (
-                            <>
-                              <EyeSlashIcon className="h-4 w-4" />
-                              Hide Vendor
-                            </>
-                          ) : (
-                            <>
-                              <EyeIcon className="h-4 w-4" />
-                              Show Vendor
-                            </>
-                          )}
-                        </Dropdown.Item>
+                          <Dropdown.Item
+                            onSelect={(e) => {
+                              e.stopPropagation();
+                              handleHideVendor(vendor);
+                            }}
+                          >
+                            {vendor.is_visible_in_vendors !== false ? (
+                              <>
+                                <EyeSlashIcon className="h-4 w-4" />
+                                Hide Vendor
+                              </>
+                            ) : (
+                              <>
+                                <EyeIcon className="h-4 w-4" />
+                                Show Vendor
+                              </>
+                            )}
+                          </Dropdown.Item>
 
-                        <Dropdown.Item
-                          onSelect={(e) => {
-                            e.stopPropagation();
-                            setVendorToDelete(vendor);
-                            setShowDeleteVendorModal(true);
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                          Delete Vendor
-                        </Dropdown.Item>
-                      </Dropdown>
-                    </td>
+                          <Dropdown.Item
+                            onSelect={(e) => {
+                              e.stopPropagation();
+                              setVendorToDelete(vendor);
+                              setShowDeleteVendorModal(true);
+                            }}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                            Delete Vendor
+                          </Dropdown.Item>
+                        </Dropdown>
+                      </td>
+                    )}
                   </tr>
                 );
               })

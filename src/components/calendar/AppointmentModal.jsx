@@ -3,12 +3,13 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import ContactSelectorModal from './ContactSelectorModal';
 import TimePickerInput from '../shared/TimePickerInput';
 import contactsAPI from '../../services/api/crm/contacts';
+import appointmentsAPI from '../../services/api/crm/appointments';
 import { useCRMReferenceData } from '../../contexts/CRMReferenceDataContext';
 
 /**
  * Modal for creating/editing appointments
  */
-const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = null, initialDate = null }) => {
+const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = null, initialDate = null, isReadOnly = false }) => {
   // Get enum metadata from context
   const {
     appointmentTypes,
@@ -54,24 +55,73 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
   useEffect(() => {
     const initializeForm = async () => {
       if (appointment) {
+        // Fetch full appointment details to get recurrence config
+        let fullAppointment = appointment;
+        try {
+          fullAppointment = await appointmentsAPI.get(appointment.id);
+        } catch (error) {
+          console.error('Failed to fetch full appointment details:', error);
+          // Fall back to the passed appointment data
+        }
+
         setFormData({
-          title: appointment.title || '',
-          description: appointment.description || '',
-          start_datetime: formatDateTimeLocal(appointment.start_datetime),
+          title: fullAppointment.title || '',
+          description: fullAppointment.description || '',
+          start_datetime: formatDateTimeLocal(appointment.start_datetime), // Use passed datetime for recurring instances
           end_datetime: formatDateTimeLocal(appointment.end_datetime),
-          contact_id: appointment.contact_id || null,
-          timezone: appointment.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-          appointment_type: appointment.appointment_type || 'manual',
-          status: appointment.status || 'scheduled',
-          location: appointment.location || '',
-          meeting_link: appointment.meeting_link || '',
-          all_day: appointment.all_day || false,
+          contact_id: fullAppointment.contact_id || null,
+          timezone: fullAppointment.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+          appointment_type: fullAppointment.appointment_type || 'manual',
+          status: fullAppointment.status || 'scheduled',
+          location: fullAppointment.location || '',
+          meeting_link: fullAppointment.meeting_link || '',
+          all_day: fullAppointment.all_day || false,
         });
 
+        // Initialize recurrence state from full appointment
+        if (fullAppointment.recurrence || fullAppointment.recurring_type) {
+          const rec = fullAppointment.recurrence || fullAppointment;
+          setIsRecurring(true);
+          setRecurringType(rec.recurring_type || 'weekly');
+          setRecurringInterval(rec.recurring_interval || 1);
+
+          if (rec.recurring_until) {
+            setRecurringEndType('until');
+            setRecurringUntil(rec.recurring_until.split('T')[0]);
+          } else {
+            setRecurringEndType('count');
+            setRecurringCount(rec.recurring_count || 10);
+          }
+
+          if (rec.recurring_weekdays) {
+            setRecurringWeekdays(rec.recurring_weekdays);
+          }
+
+          if (rec.recurring_monthly_type) {
+            setRecurringMonthlyType(rec.recurring_monthly_type);
+            setRecurringMonthlyDay(rec.recurring_monthly_day || 1);
+            setRecurringMonthlyWeek(rec.recurring_monthly_week || 1);
+            setRecurringMonthlyWeekday(rec.recurring_monthly_weekday || 'MO');
+          }
+        } else {
+          // Reset recurring state for non-recurring appointments
+          setIsRecurring(false);
+          setRecurringType('weekly');
+          setRecurringInterval(1);
+          setRecurringEndType('count');
+          setRecurringCount(10);
+          setRecurringUntil('');
+          setRecurringWeekdays(['MO']);
+          setRecurringMonthlyType('day_of_month');
+          setRecurringMonthlyDay(1);
+          setRecurringMonthlyWeek(1);
+          setRecurringMonthlyWeekday('MO');
+        }
+
         // Fetch contact details if appointment has a contact_id
-        if (appointment.contact_id) {
+        if (fullAppointment.contact_id) {
           try {
-            const contact = await contactsAPI.get(appointment.contact_id);
+            const contact = await contactsAPI.get(fullAppointment.contact_id);
             setSelectedContact(contact);
           } catch (error) {
             console.error('Failed to fetch contact:', error);
@@ -107,6 +157,19 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
           all_day: false,
         });
         setSelectedContact(null);
+
+        // Reset recurring state for new appointments
+        setIsRecurring(false);
+        setRecurringType('weekly');
+        setRecurringInterval(1);
+        setRecurringEndType('count');
+        setRecurringCount(10);
+        setRecurringUntil('');
+        setRecurringWeekdays(['MO']);
+        setRecurringMonthlyType('day_of_month');
+        setRecurringMonthlyDay(1);
+        setRecurringMonthlyWeek(1);
+        setRecurringMonthlyWeekday('MO');
       }
       setErrors({});
     };
@@ -262,10 +325,131 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
 
   const getContactDisplayName = () => {
     if (!selectedContact) return 'Select Contact';
-    return (selectedContact.first_name && selectedContact.last_name
-      ? `${selectedContact.first_name} ${selectedContact.last_name}`
-      : selectedContact.first_name || selectedContact.last_name || selectedContact.business_name || selectedContact.email);
+    // Show full name if available, otherwise business_name, otherwise email
+    const fullName = `${selectedContact.first_name || ''} ${selectedContact.last_name || ''}`.trim();
+    if (fullName) return fullName;
+    if (selectedContact.business_name) return selectedContact.business_name;
+    if (selectedContact.email) return selectedContact.email;
+    return 'No Name';
   };
+
+  // Format date/time for display
+  const formatDateTime = (dateTimeStr, allDay = false) => {
+    if (!dateTimeStr) return '-';
+    const date = new Date(dateTimeStr);
+    if (allDay) {
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    return date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  };
+
+  // Get label for a type/status value
+  const getTypeLabel = (value) => appointmentTypes.find(t => t.value === value)?.label || value;
+  const getStatusLabel = (value) => appointmentStatuses.find(s => s.value === value)?.label || value;
+
+  // Read-only view component
+  const ReadOnlyView = () => (
+    <div className="px-6 py-4">
+      {/* Read-only Banner */}
+      <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-md flex items-start gap-3">
+        <svg className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        <div>
+          <p className="text-sm font-medium text-gray-700">Read-only appointment</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            This appointment is from a read-only calendar and cannot be edited.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {/* Title */}
+        <div>
+          <label className="block text-sm font-medium text-gray-500 mb-1">Title</label>
+          <p className="text-gray-900">{formData.title || '-'}</p>
+        </div>
+
+        {/* Description */}
+        {formData.description && (
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">Description</label>
+            <p className="text-gray-900 whitespace-pre-wrap">{formData.description}</p>
+          </div>
+        )}
+
+        {/* Type & Status Row */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">Type</label>
+            <p className="text-gray-900">{getTypeLabel(formData.appointment_type)}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">Status</label>
+            <p className="text-gray-900">{getStatusLabel(formData.status)}</p>
+          </div>
+        </div>
+
+        {/* Date & Time */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">Start</label>
+            <p className="text-gray-900">{formatDateTime(formData.start_datetime, formData.all_day)}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">End</label>
+            <p className="text-gray-900">{formatDateTime(formData.end_datetime, formData.all_day)}</p>
+          </div>
+        </div>
+
+        {/* All Day */}
+        {formData.all_day && (
+          <div>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+              All-day event
+            </span>
+          </div>
+        )}
+
+        {/* Contact */}
+        {selectedContact && (
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">Contact</label>
+            <p className="text-gray-900">{getContactDisplayName()}</p>
+          </div>
+        )}
+
+        {/* Location */}
+        {formData.location && (
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">Location</label>
+            <p className="text-gray-900">{formData.location}</p>
+          </div>
+        )}
+
+        {/* Meeting Link */}
+        {formData.meeting_link && (
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">Meeting Link</label>
+            <a href={formData.meeting_link} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-800 underline break-all">
+              {formData.meeting_link}
+            </a>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="mt-6 flex justify-end">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
 
   if (!isOpen) return null;
 
@@ -284,7 +468,7 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">
-                {appointment ? 'Edit Appointment' : 'New Appointment'}
+                {isReadOnly ? 'View Appointment' : (appointment ? 'Edit Appointment' : 'New Appointment')}
               </h3>
               <button
                 onClick={onClose}
@@ -294,7 +478,10 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
               </button>
             </div>
 
-            {/* Form */}
+            {/* Content - Read-only view or Form */}
+            {isReadOnly ? (
+              <ReadOnlyView />
+            ) : (
             <form onSubmit={handleSubmit} className="px-6 py-4">
               {/* General Error */}
               {errors.general && (
@@ -313,7 +500,8 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                    disabled={isReadOnly}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
                       errors.title ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="e.g., Client Meeting"
@@ -331,8 +519,9 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    disabled={isReadOnly}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Optional notes about this appointment"
                   />
                 </div>
@@ -345,7 +534,8 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
                   <select
                     value={formData.appointment_type || ''}
                     onChange={(e) => setFormData({ ...formData, appointment_type: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    disabled={isReadOnly}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                     required
                   >
                     {appointmentTypes.map(type => (
@@ -369,7 +559,8 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
                   <select
                     value={formData.status || 'scheduled'}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    disabled={isReadOnly}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     {appointmentStatuses.map(status => (
                       <option key={status.value} value={status.value}>
@@ -774,35 +965,46 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
               </div>
 
               {/* Footer */}
-              <div className="mt-6 flex justify-between gap-3">
-                {/* Delete button (only shown when editing) */}
-                {appointment && onDelete && (
+              <div className="mt-6 flex justify-end gap-3">
+                {/* Delete button (only shown when editing and not read-only) */}
+                {appointment && onDelete && !isReadOnly && (
                   <button
                     type="button"
                     onClick={() => onDelete(appointment)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 mr-auto"
                   >
                     Delete
                   </button>
                 )}
-                <div className={`flex gap-3 ${!appointment || !onDelete ? 'ml-auto' : ''}`}>
+                {isReadOnly ? (
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                    className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700"
                   >
-                    Cancel
+                    Close
                   </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Saving...' : appointment ? 'Update' : 'Create'}
-                  </button>
-                </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? 'Saving...' : appointment ? 'Update' : 'Create'}
+                    </button>
+                  </>
+                )}
               </div>
             </form>
+            )}
           </div>
         </div>
       </div>
