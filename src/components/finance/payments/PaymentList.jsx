@@ -5,15 +5,14 @@ import {
   MoreVertical,
   CheckCircle,
   RefreshCw,
-  Eye,
   RotateCcw,
   CreditCard,
   Plus,
-  Trash2,
-  Pencil
+  Trash2
 } from 'lucide-react';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import ActionMenu from '../../shared/ActionMenu';
 import {
   PAYMENT_STATUS,
   PAYMENT_STATUS_LABELS,
@@ -49,7 +48,6 @@ const PaymentList = () => {
   const [filterStatus, setFilterStatus] = useState(filters.status || 'all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
-  const [actionMenuPosition, setActionMenuPosition] = useState({ top: 0, left: 0 });
   const [deletingPaymentId, setDeletingPaymentId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState(null);
@@ -413,62 +411,29 @@ const PaymentList = () => {
                       </td>
                       <td className="px-4 py-3 text-sm" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setActionMenuPosition({
-                              top: rect.bottom + 4,
-                              left: rect.right - 192, // 192px = w-48
-                            });
-                            setOpenActionMenuId(openActionMenuId === payment.id ? null : payment.id);
-                          }}
+                          id={`payment-action-btn-${payment.id}`}
+                          onClick={() => setOpenActionMenuId(openActionMenuId === payment.id ? null : payment.id)}
                           className="p-1 hover:bg-gray-100 rounded-md transition-colors dark:hover:bg-gray-600"
                         >
                           <MoreVertical className="h-4 w-4 text-gray-400" />
                         </button>
                         {openActionMenuId === payment.id && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-40"
-                              onClick={() => setOpenActionMenuId(null)}
-                            />
-                            <div
-                              className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 dark:bg-gray-800 dark:border-gray-600"
-                              style={{ top: actionMenuPosition.top, left: actionMenuPosition.left }}
-                            >
-                              <div className="py-1">
-                                <button
-                                  onClick={() => handleViewPayment(payment)}
-                                  className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  View Details
-                                </button>
-                                <button
-                                  onClick={() => handleEditPayment(payment)}
-                                  className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                  Edit
-                                </button>
-                                {(payment.status === PAYMENT_STATUS.COMPLETED || payment.status === PAYMENT_STATUS.SUCCEEDED) && (
-                                  <button
-                                    onClick={() => handleRefund(payment)}
-                                    className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-900/20"
-                                  >
-                                    <RotateCcw className="h-4 w-4" />
-                                    Refund
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => handleDeleteClick(payment)}
-                                  className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          </>
+                          <ActionMenu
+                            itemId={payment.id}
+                            onClose={() => setOpenActionMenuId(null)}
+                            buttonIdPrefix="payment-action-btn"
+                            actions={[
+                              { label: 'View Details', onClick: () => handleViewPayment(payment) },
+                              { label: 'Edit', onClick: () => handleEditPayment(payment) },
+                              {
+                                label: 'Refund',
+                                onClick: () => handleRefund(payment),
+                                condition: payment.status === PAYMENT_STATUS.COMPLETED || payment.status === PAYMENT_STATUS.SUCCEEDED,
+                                variant: 'warning'
+                              },
+                              { label: 'Delete', onClick: () => handleDeleteClick(payment), variant: 'danger' },
+                            ]}
+                          />
                         )}
                       </td>
                     </tr>

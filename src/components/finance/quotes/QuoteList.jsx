@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -28,92 +27,8 @@ import KPICard from '../shared/KPICard';
 import SendQuoteModal from './SendQuoteModal';
 import ConvertToInvoiceModal from './ConvertToInvoiceModal';
 import ConfirmationModal from '../../shared/ConfirmationModal';
+import ActionMenu from '../../shared/ActionMenu';
 import quotesAPI from '../../../services/api/finance/quotes';
-
-// Action Menu Component - uses portal to escape overflow containers
-const ActionMenu = ({ quote, onClose, onView, onEdit, onSend, onDownload, onClone, onConvert, onDelete }) => {
-  const menuRef = useRef(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-
-  useEffect(() => {
-    // Get the button position to place the menu
-    const button = document.getElementById(`action-btn-${quote.id}`);
-    if (button) {
-      const rect = button.getBoundingClientRect();
-      const menuWidth = 192; // w-48 = 12rem = 192px
-
-      // Position below the button, aligned to the right
-      setPosition({
-        top: rect.bottom + 4,
-        left: Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 16),
-      });
-    }
-  }, [quote.id]);
-
-  return createPortal(
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-[9998]"
-        onClick={onClose}
-      />
-      {/* Menu */}
-      <div
-        ref={menuRef}
-        className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-[9999]"
-        style={{ top: position.top, left: position.left }}
-      >
-        <div className="py-1">
-          <button
-            onClick={onView}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            View
-          </button>
-          <button
-            onClick={onEdit}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            Edit
-          </button>
-          <button
-            onClick={onSend}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            Send
-          </button>
-          <button
-            onClick={onDownload}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            Download PDF
-          </button>
-          <button
-            onClick={onClone}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            Clone
-          </button>
-          {quote.status === QUOTE_STATUS.ACCEPTED && (
-            <button
-              onClick={onConvert}
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              Convert to Invoice
-            </button>
-          )}
-          <button
-            onClick={onDelete}
-            className="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-    </>,
-    document.body
-  );
-};
 
 const QuoteList = () => {
   const navigate = useNavigate();
@@ -1012,15 +927,17 @@ const QuoteList = () => {
                           </button>
                           {openActionMenuId === quote.id && (
                             <ActionMenu
-                              quote={quote}
+                              itemId={quote.id}
                               onClose={() => setOpenActionMenuId(null)}
-                              onView={() => handleView(quote)}
-                              onEdit={() => handleEdit(quote)}
-                              onSend={() => handleSend(quote)}
-                              onDownload={() => handleDownloadPDF(quote)}
-                              onClone={() => handleClone(quote)}
-                              onConvert={() => handleConvert(quote)}
-                              onDelete={() => handleDeleteClick(quote)}
+                              actions={[
+                                { label: 'View', onClick: () => handleView(quote) },
+                                { label: 'Edit', onClick: () => handleEdit(quote) },
+                                { label: 'Send', onClick: () => handleSend(quote) },
+                                { label: 'Download PDF', onClick: () => handleDownloadPDF(quote) },
+                                { label: 'Clone', onClick: () => handleClone(quote) },
+                                { label: 'Convert to Invoice', onClick: () => handleConvert(quote), condition: quote.status === QUOTE_STATUS.ACCEPTED },
+                                { label: 'Delete', onClick: () => handleDeleteClick(quote), variant: 'danger' },
+                              ]}
                             />
                           )}
                         </div>

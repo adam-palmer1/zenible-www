@@ -6,7 +6,6 @@ import {
   MoreVertical,
   Play,
   Pause,
-  XCircle,
   ChevronLeft,
   Repeat,
   FileText,
@@ -17,6 +16,7 @@ import { formatCurrency } from '../../../utils/currency';
 import invoicesAPI from '../../../services/api/finance/invoices';
 import NewSidebar from '../../sidebar/NewSidebar';
 import KPICard from '../shared/KPICard';
+import ActionMenu from '../../shared/ActionMenu';
 
 // Recurring status configuration
 const RECURRING_STATUS = {
@@ -382,6 +382,7 @@ const RecurringInvoices = () => {
                         <td className="px-4 py-3 text-sm relative" onClick={(e) => e.stopPropagation()}>
                           <div className="relative">
                             <button
+                              id={`recurring-invoice-action-btn-${invoice.id}`}
                               onClick={() => setOpenActionMenuId(openActionMenuId === invoice.id ? null : invoice.id)}
                               className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                               disabled={actionLoading === invoice.id}
@@ -393,54 +394,37 @@ const RecurringInvoices = () => {
                               )}
                             </button>
                             {openActionMenuId === invoice.id && (
-                              <>
-                                <div
-                                  className="fixed inset-0 z-30"
-                                  onClick={() => setOpenActionMenuId(null)}
-                                />
-                                <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-[#e5e5e5] dark:border-gray-600 z-50">
-                                  <div className="py-1">
-                                    <button
-                                      onClick={() => handleView(invoice)}
-                                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                                    >
-                                      View Details
-                                    </button>
-                                    {invoice.recurring_status === 'active' && (
-                                      <>
-                                        <button
-                                          onClick={() => handleGenerateNext(invoice)}
-                                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                                        >
-                                          Generate Next Invoice
-                                        </button>
-                                        <button
-                                          onClick={() => handlePause(invoice)}
-                                          className="block w-full text-left px-4 py-2 text-sm text-yellow-700 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
-                                        >
-                                          Pause Recurring
-                                        </button>
-                                      </>
-                                    )}
-                                    {invoice.recurring_status === 'paused' && (
-                                      <button
-                                        onClick={() => handleResume(invoice)}
-                                        className="block w-full text-left px-4 py-2 text-sm text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
-                                      >
-                                        Resume Recurring
-                                      </button>
-                                    )}
-                                    {invoice.recurring_status !== 'cancelled' && (
-                                      <button
-                                        onClick={() => handleCancel(invoice)}
-                                        className="block w-full text-left px-4 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                      >
-                                        Cancel Recurring
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              </>
+                              <ActionMenu
+                                itemId={invoice.id}
+                                onClose={() => setOpenActionMenuId(null)}
+                                buttonIdPrefix="recurring-invoice-action-btn"
+                                actions={[
+                                  { label: 'View Details', onClick: () => handleView(invoice) },
+                                  {
+                                    label: 'Generate Next Invoice',
+                                    onClick: () => handleGenerateNext(invoice),
+                                    condition: invoice.recurring_status === 'active'
+                                  },
+                                  {
+                                    label: 'Pause Recurring',
+                                    onClick: () => handlePause(invoice),
+                                    condition: invoice.recurring_status === 'active',
+                                    variant: 'warning'
+                                  },
+                                  {
+                                    label: 'Resume Recurring',
+                                    onClick: () => handleResume(invoice),
+                                    condition: invoice.recurring_status === 'paused',
+                                    variant: 'success'
+                                  },
+                                  {
+                                    label: 'Cancel Recurring',
+                                    onClick: () => handleCancel(invoice),
+                                    condition: invoice.recurring_status !== 'cancelled',
+                                    variant: 'danger'
+                                  },
+                                ]}
+                              />
                             )}
                           </div>
                         </td>

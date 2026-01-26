@@ -57,12 +57,12 @@ const PublicUserPage = () => {
               ? "The booking page you're looking for doesn't exist."
               : error}
           </p>
-          <Link
-            to="/"
+          <a
+            href={import.meta.env.VITE_HOME_URL || '/'}
             className="inline-flex items-center px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 transition-colors"
           >
             Go Home
-          </Link>
+          </a>
         </div>
       </div>
     );
@@ -148,7 +148,7 @@ const PublicUserPage = () => {
         <div className="mt-12 text-center">
           <p className="text-sm text-gray-400 dark:text-gray-500">
             Powered by{' '}
-            <a href="/" className="hover:text-zenible-primary transition-colors">
+            <a href={import.meta.env.VITE_HOME_URL || '/'} className="hover:text-zenible-primary transition-colors">
               Zenible
             </a>
           </p>

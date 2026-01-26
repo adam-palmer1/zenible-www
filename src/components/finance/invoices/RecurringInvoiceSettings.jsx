@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, XCircle, ChevronDown, Check, Calendar } from 'lucide-react';
+import { Play, Pause, XCircle, ChevronDown, Check, Calendar, Mail, Paperclip } from 'lucide-react';
 import { RECURRING_TYPE, RECURRING_TYPE_LABELS } from '../../../constants/finance';
 import { getRecurringFrequencyLabel, calculateNextBillingDate } from '../../../utils/recurringBilling';
 
@@ -20,11 +20,13 @@ const FREQUENCY_OPTIONS = [
 const RecurringInvoiceSettings = ({
   isRecurring,
   recurringType,
-  recurringEvery,
-  recurringPeriod,
+  customEvery,
+  customPeriod,
   recurringEndDate,
   recurringOccurrences,
   recurringStatus = 'active',
+  automaticEmail = true,
+  attachPdfToEmail = true,
   startDate,
   onChange,
   readOnly = false,
@@ -39,7 +41,7 @@ const RecurringInvoiceSettings = ({
   };
 
   const nextBillingDate = isRecurring && startDate
-    ? calculateNextBillingDate(startDate, recurringType, recurringEvery, recurringPeriod)
+    ? calculateNextBillingDate(startDate, recurringType, customEvery, customPeriod)
     : null;
 
   const selectedFrequency = FREQUENCY_OPTIONS.find(f => f.value === recurringType) || FREQUENCY_OPTIONS[1];
@@ -103,7 +105,7 @@ const RecurringInvoiceSettings = ({
             </label>
             {readOnly ? (
               <div className="design-text-secondary">
-                {getRecurringFrequencyLabel(recurringType, recurringEvery, recurringPeriod)}
+                {getRecurringFrequencyLabel(recurringType, customEvery, customPeriod)}
               </div>
             ) : (
               <div className="relative">
@@ -180,8 +182,8 @@ const RecurringInvoiceSettings = ({
                 </label>
                 <input
                   type="number"
-                  value={recurringEvery}
-                  onChange={(e) => handleChange('recurringEvery', parseInt(e.target.value))}
+                  value={customEvery}
+                  onChange={(e) => handleChange('customEvery', parseInt(e.target.value))}
                   min="1"
                   className="w-full px-3 py-2 design-input rounded-md"
                 />
@@ -191,8 +193,8 @@ const RecurringInvoiceSettings = ({
                   Period
                 </label>
                 <select
-                  value={recurringPeriod}
-                  onChange={(e) => handleChange('recurringPeriod', e.target.value)}
+                  value={customPeriod}
+                  onChange={(e) => handleChange('customPeriod', e.target.value)}
                   className="w-full px-3 py-2 design-input rounded-md"
                 >
                   <option value="days">Days</option>
@@ -346,6 +348,67 @@ const RecurringInvoiceSettings = ({
               </p>
             </div>
           )}
+
+          {/* Automatic Email Settings */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium design-text-primary">
+              Email Settings
+            </label>
+            {readOnly ? (
+              <div className="space-y-2 text-sm design-text-secondary">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <span>{automaticEmail ? 'Automatic emails enabled' : 'Automatic emails disabled'}</span>
+                </div>
+                {automaticEmail && (
+                  <div className="flex items-center gap-2 ml-6">
+                    <Paperclip className="h-4 w-4" />
+                    <span>{attachPdfToEmail ? 'PDF attachment included' : 'No PDF attachment'}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={automaticEmail}
+                    onChange={(e) => handleChange('automaticEmail', e.target.checked)}
+                    className="mt-0.5 h-4 w-4 text-zenible-primary focus:ring-zenible-primary border-gray-300 rounded"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium design-text-primary">Send automatic emails</span>
+                    </div>
+                    <p className="text-xs design-text-secondary mt-0.5">
+                      Automatically send invoice emails when new invoices are generated
+                    </p>
+                  </div>
+                </label>
+
+                {automaticEmail && (
+                  <label className="flex items-start gap-3 cursor-pointer ml-7">
+                    <input
+                      type="checkbox"
+                      checked={attachPdfToEmail}
+                      onChange={(e) => handleChange('attachPdfToEmail', e.target.checked)}
+                      className="mt-0.5 h-4 w-4 text-zenible-primary focus:ring-zenible-primary border-gray-300 rounded"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Paperclip className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm font-medium design-text-primary">Attach PDF to email</span>
+                      </div>
+                      <p className="text-xs design-text-secondary mt-0.5">
+                        Include the invoice PDF as an attachment
+                      </p>
+                    </div>
+                  </label>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Next Billing Preview */}
           {nextBillingDate && recurringStatus === RECURRING_STATUS.ACTIVE && (

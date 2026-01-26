@@ -7,8 +7,8 @@ const InvoiceSettingsModal = ({
   onClose,
   isRecurring,
   recurringType,
-  recurringEvery,
-  recurringPeriod,
+  customEvery,
+  customPeriod,
   recurringEndDate,
   recurringOccurrences,
   recurringStatus = 'active',
@@ -17,7 +17,10 @@ const InvoiceSettingsModal = ({
   allowPaypalPayments,
   allowPartialPayments,
   automaticPaymentEnabled,
-  automaticEmail,
+  automaticEmail = true,
+  attachPdfToEmail = true,
+  sendPaymentReceipt = true,
+  receivePaymentNotifications = true,
   invoiceStatus = 'draft',
   onChange,
   isEditing = false,
@@ -51,11 +54,13 @@ const InvoiceSettingsModal = ({
               <RecurringInvoiceSettings
                 isRecurring={isRecurring}
                 recurringType={recurringType}
-                recurringEvery={recurringEvery}
-                recurringPeriod={recurringPeriod}
+                customEvery={customEvery}
+                customPeriod={customPeriod}
                 recurringEndDate={recurringEndDate}
                 recurringOccurrences={recurringOccurrences}
                 recurringStatus={recurringStatus}
+                automaticEmail={automaticEmail}
+                attachPdfToEmail={attachPdfToEmail}
                 startDate={startDate}
                 onChange={onChange}
                 isEditing={isEditing}
@@ -121,17 +126,53 @@ const InvoiceSettingsModal = ({
                     </div>
                   </label>
 
-                  {/* Automatic Email */}
+                  {/* Automatic Email - only show when not recurring (recurring has its own email settings) */}
+                  {!isRecurring && (
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={automaticEmail}
+                        onChange={(e) => onChange({ automaticEmail: e.target.checked })}
+                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">Automatic Email Notifications</span>
+                        <p className="text-xs text-gray-600 dark:text-gray-300">Send automatic email updates to client</p>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Notification Settings */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Notification Settings</h4>
+                <div className="space-y-3">
+                  {/* Send Payment Receipt */}
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={automaticEmail}
-                      onChange={(e) => onChange({ automaticEmail: e.target.checked })}
+                      checked={sendPaymentReceipt}
+                      onChange={(e) => onChange({ sendPaymentReceipt: e.target.checked })}
                       className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                     />
                     <div>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">Automatic Email Notifications</span>
-                      <p className="text-xs text-gray-600 dark:text-gray-300">Send automatic email updates to client</p>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">Send Payment Receipt</span>
+                      <p className="text-xs text-gray-600 dark:text-gray-300">Send receipt to client when payment is received</p>
+                    </div>
+                  </label>
+
+                  {/* Receive Payment Notifications */}
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={receivePaymentNotifications}
+                      onChange={(e) => onChange({ receivePaymentNotifications: e.target.checked })}
+                      className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">Receive Payment Notifications</span>
+                      <p className="text-xs text-gray-600 dark:text-gray-300">Get notified when payments are received</p>
                     </div>
                   </label>
                 </div>

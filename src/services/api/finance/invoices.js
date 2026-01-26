@@ -35,7 +35,18 @@ const request = async (endpoint, options = {}) => {
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      const error = new Error(data?.detail || data?.message || `Request failed with status ${response.status}`);
+      // Handle Pydantic validation errors (detail is an array)
+      let errorMessage;
+      if (Array.isArray(data?.detail)) {
+        // Format validation errors nicely
+        errorMessage = data.detail.map(err => {
+          const field = err.loc?.slice(-1)[0] || 'field';
+          return `${field}: ${err.msg}`;
+        }).join(', ');
+      } else {
+        errorMessage = data?.detail || data?.message || `Request failed with status ${response.status}`;
+      }
+      const error = new Error(errorMessage);
       error.status = response.status;
       error.data = data;
       throw error;
@@ -331,6 +342,44 @@ class InvoicesAPI {
   }
 
   /**
+   * Pay with saved card (for recurring invoices with saved payment method)
+   * @param {string} shareCode - Public share link code
+   * @param {Object} options - Payment options
+   * @param {string} [options.payment_method_id] - Specific payment method ID (optional, uses default if not provided)
+   * @param {number} [options.amount] - Amount to pay (optional, pays full balance if not provided)
+   * @returns {Promise<Object>} Payment result { payment_id, payment_intent_id, status, amount, currency }
+   */
+  async payWithSavedCard(shareCode, options = {}) {
+    return request(`/invoices/${shareCode}/stripe/pay-with-saved-card`, {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+  }
+
+  /**
+   * Get saved cards for a public invoice
+   * @param {string} shareCode - Public share link code
+   * @returns {Promise<Object>} Saved cards { payment_methods: [{ id, brand, last4, exp_month, exp_year, ... }] }
+   */
+  async getSavedCards(shareCode) {
+    return request(`/invoices/${shareCode}/stripe/saved-cards`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Delete a saved card
+   * @param {string} shareCode - Public share link code
+   * @param {string} paymentMethodId - Stripe payment method ID to delete
+   * @returns {Promise<Object>} Result { status: 'deleted', payment_method_id }
+   */
+  async deleteSavedCard(shareCode, paymentMethodId) {
+    return request(`/invoices/${shareCode}/stripe/saved-cards/${paymentMethodId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
    * Get payment history for an invoice
    * @param {string|number} invoiceId - Invoice ID
    * @returns {Promise<Array>} Payment history
@@ -349,6 +398,24 @@ class InvoicesAPI {
    */
   async getHistory(invoiceId, limit = 100) {
     return request(`${this.baseEndpoint}/${invoiceId}/history?limit=${limit}`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Get view history for an invoice
+   * @param {string|number} invoiceId - Invoice ID
+   * @param {Object} params - Query parameters
+   * @param {number} [params.skip=0] - Records to skip (pagination)
+   * @param {number} [params.limit=100] - Max records to return (1-500)
+   * @returns {Promise<Object>} View history with views array, total count, and unique IP count
+   */
+  async getViewHistory(invoiceId, params = {}) {
+    const queryParams = new URLSearchParams({
+      skip: params.skip || 0,
+      limit: params.limit || 100,
+    }).toString();
+    return request(`${this.baseEndpoint}/${invoiceId}/views?${queryParams}`, {
       method: 'GET',
     });
   }
@@ -463,6 +530,22 @@ class InvoicesAPI {
   async deleteAllocations(invoiceId) {
     return request(`${this.baseEndpoint}/${invoiceId}/allocations`, {
       method: 'DELETE',
+    });
+  }
+
+  // ========== Admin Card Charging Endpoints ==========
+
+  /**
+   * Charge the customer's saved card (admin-initiated)
+   * @param {string} invoiceId - Invoice UUID
+   * @param {Object} options - Charge options
+   * @param {number} [options.amount] - Amount to charge (optional, charges full balance if not provided)
+   * @returns {Promise<Object>} Payment result { payment_id, status, amount, currency }
+   */
+  async chargeSavedCard(invoiceId, options = {}) {
+    return request(`${this.baseEndpoint}/${invoiceId}/charge-saved-card`, {
+      method: 'POST',
+      body: JSON.stringify(options),
     });
   }
 }

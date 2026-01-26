@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../../../contexts/AuthContext';
 import bookingSettingsAPI from '../../../../services/api/crm/bookingSettings';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import BookingGeneralSettings from './booking/BookingGeneralSettings';
 import AvailabilityEditor from './booking/AvailabilityEditor';
 import CallTypesList from './booking/CallTypesList';
+import CalendarSourcesEditor from './booking/CalendarSourcesEditor';
 
 /**
  * Booking Tab - Call booking settings and configuration
@@ -13,9 +15,21 @@ const BookingTab = ({ onUnsavedChanges }) => {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('general');
+  const [copied, setCopied] = useState(false);
 
   const { user } = useAuth();
   const { showError } = useNotification();
+
+  const handleCopyUrl = async () => {
+    const url = `${window.location.origin}/book/${user.username}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   // Load booking settings
   useEffect(() => {
@@ -49,6 +63,7 @@ const BookingTab = ({ onUnsavedChanges }) => {
     { id: 'general', label: 'General Settings' },
     { id: 'availability', label: 'Availability' },
     { id: 'call-types', label: 'Call Types' },
+    { id: 'calendars', label: 'Calendar Sources' },
   ];
 
   return (
@@ -76,18 +91,37 @@ const BookingTab = ({ onUnsavedChanges }) => {
 
       {/* Public Booking URL */}
       {settings?.booking_page_enabled && user?.username && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <p className="text-sm text-blue-800 dark:text-blue-200">
-            Your public booking page:{' '}
-            <a
-              href={`${window.location.origin}/book/${user.username}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium underline hover:no-underline"
+        <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm text-purple-800 dark:text-purple-200">
+              Your public booking page:{' '}
+              <a
+                href={`${window.location.origin}/book/${user.username}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-zenible-primary hover:underline"
+              >
+                {window.location.origin}/book/{user.username}
+              </a>
+            </p>
+            <button
+              onClick={handleCopyUrl}
+              className="flex items-center gap-1 px-2 py-1 text-sm text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-800/30 rounded transition-colors"
+              title="Copy URL"
             >
-              {window.location.origin}/book/{user.username}
-            </a>
-          </p>
+              {copied ? (
+                <>
+                  <CheckIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <span className="text-green-600 dark:text-green-400">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <ClipboardDocumentIcon className="h-4 w-4" />
+                  <span>Copy</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
@@ -105,6 +139,9 @@ const BookingTab = ({ onUnsavedChanges }) => {
         )}
         {activeSection === 'call-types' && (
           <CallTypesList />
+        )}
+        {activeSection === 'calendars' && (
+          <CalendarSourcesEditor />
         )}
       </div>
     </div>

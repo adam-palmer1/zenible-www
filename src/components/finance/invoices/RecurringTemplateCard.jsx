@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Repeat, Play, Eye } from 'lucide-react';
+import { Repeat, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import invoicesAPI from '../../../services/api/finance/invoices';
-import { useNotification } from '../../../contexts/NotificationContext';
 
-const RecurringTemplateCard = ({ invoice, onUpdate }) => {
+const RecurringTemplateCard = ({ invoice }) => {
   const navigate = useNavigate();
   const [children, setChildren] = useState([]);
   const [childrenLoading, setChildrenLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const { showSuccess, showError } = useNotification();
 
   useEffect(() => {
     if (invoice.pricing_type === 'recurring' || invoice.is_recurring) {
@@ -30,22 +27,9 @@ const RecurringTemplateCard = ({ invoice, onUpdate }) => {
     }
   };
 
-  const handleGenerateNext = async () => {
-    try {
-      setGenerating(true);
-      const newInvoice = await invoicesAPI.generateNext(invoice.id);
-      showSuccess(`Generated invoice ${newInvoice.invoice_number}`);
-      loadChildren();
-      if (onUpdate) onUpdate();
-    } catch (error) {
-      showError(error.message || 'Failed to generate invoice');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  // Check if this is a recurring template (new format or old format)
-  const isRecurringTemplate = invoice.pricing_type === 'recurring' || invoice.is_recurring;
+  // Check if this is a recurring template (not a child invoice)
+  // A template has no parent_invoice_id; a child invoice has parent_invoice_id set
+  const isRecurringTemplate = (invoice.pricing_type === 'recurring' || invoice.is_recurring) && !invoice.parent_invoice_id;
 
   if (!isRecurringTemplate) {
     return null;
@@ -54,13 +38,10 @@ const RecurringTemplateCard = ({ invoice, onUpdate }) => {
   // Get recurring status (new field or default to active if using old format)
   const recurringStatus = invoice.recurring_status || 'active';
 
-  // Get recurring number (new field or default to -1 for infinite)
-  const recurringNumber = invoice.recurring_number !== undefined ? invoice.recurring_number : -1;
-
-  const totalGenerated = children.length;
-  const limit = recurringNumber === -1 ? '∞' : recurringNumber;
-  const canGenerate = recurringStatus === 'active'
-    && (recurringNumber === -1 || totalGenerated < recurringNumber);
+  // Use series_position and series_total from backend
+  // series_position is 0-indexed, so add 1 for display
+  const totalGenerated = invoice.series_position != null ? invoice.series_position + 1 : children.length;
+  const limit = invoice.series_total != null ? invoice.series_total : '∞';
 
   // Format frequency display
   const getFrequencyDisplay = () => {
@@ -115,39 +96,19 @@ const RecurringTemplateCard = ({ invoice, onUpdate }) => {
         <div>
           <div className="text-sm design-text-secondary">Status</div>
           <div className="text-sm font-medium design-text-primary">
-            {canGenerate ? 'Ready to generate' : recurringStatus === 'paused' ? 'Paused' : 'Limit reached'}
+            {recurringStatus === 'active' ? 'Active' : recurringStatus === 'paused' ? 'Paused' : 'Completed'}
           </div>
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={handleGenerateNext}
-          disabled={!canGenerate || generating}
-          className="flex-1 inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {generating ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Generating...
-            </>
-          ) : (
-            <>
-              <Play className="h-4 w-4 mr-2" />
-              Generate Next Invoice
-            </>
-          )}
-        </button>
-
-        <button
-          onClick={() => navigate(`/finance/invoices?parent_id=${invoice.id}`)}
-          className="inline-flex items-center px-4 py-2 text-sm font-medium design-text-primary design-bg-primary rounded-md hover:design-bg-tertiary border design-border transition-colors"
-          disabled={childrenLoading}
-        >
-          <Eye className="h-4 w-4 mr-2" />
-          View All ({totalGenerated})
-        </button>
-      </div>
+      <button
+        onClick={() => navigate(`/finance/invoices?parent_id=${invoice.id}`)}
+        className="w-full inline-flex items-center justify-center px-4 py-2 text-sm font-medium design-text-primary design-bg-primary rounded-md hover:design-bg-tertiary border design-border transition-colors"
+        disabled={childrenLoading}
+      >
+        <Eye className="h-4 w-4 mr-2" />
+        View All ({totalGenerated})
+      </button>
     </div>
   );
 };

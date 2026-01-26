@@ -14,6 +14,7 @@ import contactsAPI from '../../services/api/crm/contacts';
 import ContactSelectorModal from '../calendar/ContactSelectorModal';
 import ServiceSelectorModal from './ServiceSelectorModal';
 import StatusSelectorModal from './StatusSelectorModal';
+import CurrencySelectorModal from './CurrencySelectorModal';
 
 /**
  * Modal for adding/editing projects
@@ -22,7 +23,7 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
   const { refresh } = useCRM();
   const { createProject, updateProject, refresh: refreshProjects } = useProjects();
   const { showSuccess, showError } = useNotification();
-  const { companyCurrencies } = useCompanyCurrencies();
+  const { companyCurrencies, defaultCurrency } = useCompanyCurrencies();
 
   // Client selector state
   const [selectedContact, setSelectedContact] = useState(null);
@@ -31,6 +32,10 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
 
   // Status selector state
   const [showStatusModal, setShowStatusModal] = useState(false);
+
+  // Currency selector state
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const currencyButtonRef = useRef(null);
 
   // Service selector state
   const [showServiceSelector, setShowServiceSelector] = useState(false);
@@ -77,11 +82,19 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
     loadProjectDetails();
   }, [project, showError]);
 
-  // Initialize form data when full project details are loaded
+  // Initialize form data when modal opens or project details are loaded
   useEffect(() => {
+    if (!isOpen) return;
+
     const projectData = fullProject || project;
 
     if (projectData) {
+      // Use project's currency or fall back to default
+      const currencyId = projectData.default_currency_id ||
+        defaultCurrency?.currency_id ||
+        defaultCurrency?.currency?.id ||
+        '';
+
       setFormData({
         name: projectData.name || '',
         description: projectData.description || '',
@@ -91,7 +104,7 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
         end_date: projectData.end_date || '',
         notes: projectData.notes || '',
         default_hourly_rate: projectData.default_hourly_rate || '',
-        default_currency_id: projectData.default_currency_id || '',
+        default_currency_id: currencyId,
       });
 
       // Set selected contact for display
@@ -115,6 +128,9 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
       const startDate = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
       const endDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 7 days from today
 
+      // Use default currency from hook
+      const defaultCurrencyId = defaultCurrency?.currency_id || defaultCurrency?.currency?.id || '';
+
       setFormData({
         name: '',
         description: '',
@@ -124,13 +140,13 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
         end_date: endDate,
         notes: '',
         default_hourly_rate: '',
-        default_currency_id: '',
+        default_currency_id: defaultCurrencyId,
       });
       setSelectedContact(null);
       setSelectedServices([]);
       setClientServices([]);
     }
-  }, [fullProject, project]);
+  }, [isOpen, fullProject, project, defaultCurrency]);
 
   // Load client's services when contact is selected
   const loadClientServices = async (contactId) => {
@@ -195,10 +211,6 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
     }
     if (formData.start_date && formData.end_date && formData.end_date < formData.start_date) {
       newErrors.end_date = 'End date must be after start date';
-    }
-    // Validate that start/end dates are both specified or both empty
-    if ((formData.start_date && !formData.end_date) || (!formData.start_date && formData.end_date)) {
-      newErrors.end_date = 'Both start date and end date must be specified, or leave both empty';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -430,29 +442,42 @@ const AddProjectModal = ({ isOpen, onClose, project = null }) => {
                 </div>
 
                 {/* Default Currency */}
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Currency
                   </label>
-                  <select
-                    name="default_currency_id"
-                    value={formData.default_currency_id}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  <button
+                    ref={currencyButtonRef}
+                    type="button"
+                    onClick={() => setShowCurrencyModal(true)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-left hover:border-zenible-primary focus:ring-2 focus:ring-zenible-primary focus:border-transparent transition-colors bg-white dark:bg-gray-700"
                   >
-                    <option value="">Use contact/company default</option>
-                    {companyCurrencies.map(c => (
-                      <option key={c.currency_id} value={c.currency_id}>
-                        {c.currency?.code || 'Unknown'} - {c.currency?.name || 'Unknown'}
-                      </option>
-                    ))}
-                  </select>
+                    {(() => {
+                      const selectedCurrency = companyCurrencies.find(
+                        c => (c.currency_id || c.currency?.id) === formData.default_currency_id
+                      );
+                      if (selectedCurrency) {
+                        return (
+                          <span className="text-sm text-gray-900 dark:text-gray-100">
+                            {selectedCurrency.currency?.symbol || '$'} {selectedCurrency.currency?.code || 'Unknown'} - {selectedCurrency.currency?.name || ''}
+                          </span>
+                        );
+                      }
+                      return <span className="text-gray-400">Select currency...</span>;
+                    })()}
+                  </button>
+
+                  {/* Currency Selector Dropdown */}
+                  <CurrencySelectorModal
+                    isOpen={showCurrencyModal}
+                    onClose={() => setShowCurrencyModal(false)}
+                    onSelect={(currencyId) => setFormData(prev => ({ ...prev, default_currency_id: currencyId }))}
+                    selectedCurrencyId={formData.default_currency_id}
+                    currencies={companyCurrencies}
+                    anchorRef={currencyButtonRef}
+                  />
                 </div>
               </div>
-
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                If not set, billable hours will use contact or company defaults
-              </p>
             </div>
 
             {/* Service Assignment Section */}

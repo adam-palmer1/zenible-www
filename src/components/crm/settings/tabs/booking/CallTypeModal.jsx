@@ -40,6 +40,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
     location: '',
     conferencing_type: 'none',
     custom_meeting_link: '',
+    max_display_slots_per_day: null,
     is_active: true,
   });
   const [saving, setSaving] = useState(false);
@@ -60,6 +61,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
           location: callType.location || '',
           conferencing_type: callType.conferencing_type || 'none',
           custom_meeting_link: callType.custom_meeting_link || '',
+          max_display_slots_per_day: callType.max_display_slots_per_day || null,
           is_active: callType.is_active ?? true,
         });
       } else {
@@ -72,6 +74,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
           location: '',
           conferencing_type: 'none',
           custom_meeting_link: '',
+          max_display_slots_per_day: null,
           is_active: true,
         });
       }
@@ -256,6 +259,25 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Max Display Slots Per Day */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Max display slots per day
+              </label>
+              <input
+                type="number"
+                value={formData.max_display_slots_per_day || ''}
+                onChange={(e) => handleChange('max_display_slots_per_day', e.target.value ? parseInt(e.target.value) : null)}
+                min="1"
+                max="50"
+                placeholder="No limit"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Limit time slots shown per day (leave empty for no limit)
+              </p>
             </div>
 
             {/* Color */}

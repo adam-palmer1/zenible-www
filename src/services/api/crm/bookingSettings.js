@@ -93,12 +93,12 @@ class BookingSettingsAPI {
     });
   }
 
-  // List calendar sources
+  // List calendar sources (legacy)
   async listCalendarSources() {
     return this.request('/crm/booking-settings/calendar-sources', { method: 'GET' });
   }
 
-  // Add calendar source
+  // Add calendar source (legacy)
   async addCalendarSource(data) {
     return this.request('/crm/booking-settings/calendar-sources', {
       method: 'POST',
@@ -106,7 +106,7 @@ class BookingSettingsAPI {
     });
   }
 
-  // Update calendar source
+  // Update calendar source (legacy)
   async updateCalendarSource(sourceId, data) {
     return this.request(`/crm/booking-settings/calendar-sources/${sourceId}`, {
       method: 'PUT',
@@ -114,9 +114,30 @@ class BookingSettingsAPI {
     });
   }
 
-  // Delete calendar source
+  // Delete calendar source (legacy)
   async deleteCalendarSource(sourceId) {
     return this.request(`/crm/booking-settings/calendar-sources/${sourceId}`, { method: 'DELETE' });
+  }
+
+  // ========== Google Account Conflict Checking ==========
+
+  // List connected Google accounts with conflict status
+  async listGoogleAccounts() {
+    return this.request('/crm/booking-settings/google-accounts', { method: 'GET' });
+  }
+
+  // Enable conflict checking for a Google account
+  async enableAccountConflicts(tokenId) {
+    return this.request(`/crm/booking-settings/google-accounts/${tokenId}/enable-conflicts`, {
+      method: 'POST',
+    });
+  }
+
+  // Disable conflict checking for a Google account
+  async disableAccountConflicts(tokenId) {
+    return this.request(`/crm/booking-settings/google-accounts/${tokenId}/disable-conflicts`, {
+      method: 'POST',
+    });
   }
 }
 

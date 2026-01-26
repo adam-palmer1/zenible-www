@@ -1,28 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Calendar, Plus, Trash2, Loader2, ArrowLeft, ChevronDown, Settings } from 'lucide-react';
+import { Calendar, Loader2, ArrowLeft, ChevronDown, Settings } from 'lucide-react';
 import { useInvoices } from '../../../contexts/InvoiceContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
-import { INVOICE_STATUS } from '../../../constants/finance';
+import { INVOICE_STATUS, RECURRING_TYPE } from '../../../constants/finance';
 import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
-import { getCurrencySymbol } from '../../../utils/currencyUtils';
-import { applyNumberFormat } from '../../../utils/numberFormatUtils';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import companiesAPI from '../../../services/api/crm/companies';
 import invoicesAPI from '../../../services/api/finance/invoices';
 import TaxModal from './TaxModal';
 import DiscountModal from './DiscountModal';
 import DepositModal from './DepositModal';
-import LineItemTaxModal from '../shared/LineItemTaxModal';
+import { DocumentLineItems, DocumentTotals, LineItemTaxModal } from '../shared';
 import ClientSelectModal from './ClientSelectModal';
 import CurrencySelectModal from './CurrencySelectModal';
 import SendInvoiceDialog from './SendInvoiceDialog';
 import InvoiceSettingsModal from './InvoiceSettingsModal';
 import FinanceLayout from '../layout/FinanceLayout';
-import { RECURRING_TYPE } from '../../../constants/finance';
 
 const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false }) => {
   const navigate = useNavigate();
@@ -41,11 +38,6 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
     }
     return null; // Will use default US format
   }, [getNumberFormat, numberFormats]);
-
-  // Helper function to format numbers
-  const formatNumber = (num) => {
-    return applyNumberFormat(num, numberFormat);
-  };
 
   // Refs for dropdown positioning
   const clientButtonRef = React.useRef(null);
@@ -72,8 +64,7 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
   const [items, setItems] = useState([]);
 
   // Totals
-  const [taxRate, setTaxRate] = useState(0);
-  const [taxLabel, setTaxLabel] = useState('Tax');
+  const [documentTaxes, setDocumentTaxes] = useState([]); // Array of { tax_name, tax_rate }
   const [discountType, setDiscountType] = useState('percentage');
   const [discountValue, setDiscountValue] = useState(0);
   const [depositType, setDepositType] = useState(null);
@@ -84,20 +75,16 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
   const [paymentInstructions, setPaymentInstructions] = useState('');
   const [companyDefaultPaymentInstructions, setCompanyDefaultPaymentInstructions] = useState('');
 
-  // Recurring (Old format - keeping for backward compatibility)
+  // Recurring settings
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringType, setRecurringType] = useState(RECURRING_TYPE.MONTHLY);
-  const [recurringEvery, setRecurringEvery] = useState(1);
-  const [recurringPeriod, setRecurringPeriod] = useState('months');
   const [recurringEndDate, setRecurringEndDate] = useState(null);
   const [recurringOccurrences, setRecurringOccurrences] = useState(null);
-
-  // Recurring (New format)
   const [pricingType, setPricingType] = useState('fixed'); // 'fixed' | 'recurring'
   const [recurringStatus, setRecurringStatus] = useState('active'); // 'active' | 'paused' | 'cancelled'
   const [recurringNumber, setRecurringNumber] = useState(-1); // -1 = infinite
-  const [customEvery, setCustomEvery] = useState(1);
-  const [customPeriod, setCustomPeriod] = useState('months'); // 'weeks' | 'months' | 'years'
+  const [customEvery, setCustomEvery] = useState(1); // API field for custom frequency
+  const [customPeriod, setCustomPeriod] = useState('months'); // API field: 'days' | 'weeks' | 'months' | 'years'
 
   // Payment Options
   const [allowStripePayments, setAllowStripePayments] = useState(false);
@@ -105,6 +92,9 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
   const [allowPartialPayments, setAllowPartialPayments] = useState(false);
   const [automaticPaymentEnabled, setAutomaticPaymentEnabled] = useState(false);
   const [automaticEmail, setAutomaticEmail] = useState(true);
+  const [attachPdfToEmail, setAttachPdfToEmail] = useState(true);
+  const [sendPaymentReceipt, setSendPaymentReceipt] = useState(true);
+  const [receivePaymentNotifications, setReceivePaymentNotifications] = useState(true);
 
   // Change tracking
   const [changeReason, setChangeReason] = useState('');
@@ -187,8 +177,8 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         });
       }, 50);
 
-      setTaxRate(parseFloat(invoice.tax_rate || 0));
-      setTaxLabel(invoice.tax_label || 'Tax');
+      // Document-level taxes (applied after discount)
+      setDocumentTaxes(invoice.document_taxes || []);
       setDiscountType(invoice.discount_type || 'percentage');
       setDiscountValue(parseFloat(invoice.discount_value || invoice.discount_percentage || 0));
 
@@ -207,15 +197,11 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
       setNotes(invoice.notes || '');
       setPaymentInstructions(invoice.payment_instructions || '');
 
-      // Recurring (Old format - for backward compatibility)
+      // Recurring settings
       setIsRecurring(invoice.is_recurring || invoice.pricing_type === 'recurring' || false);
       setRecurringType(invoice.recurring_type || RECURRING_TYPE.MONTHLY);
-      setRecurringEvery(invoice.recurring_every || invoice.custom_every || 1);
-      setRecurringPeriod(invoice.recurring_period || invoice.custom_period || 'months');
       setRecurringEndDate(invoice.recurring_end_date || null);
       setRecurringOccurrences(invoice.recurring_occurrences || invoice.recurring_number || null);
-
-      // Recurring (New format)
       setPricingType(invoice.pricing_type || (invoice.is_recurring ? 'recurring' : 'fixed'));
       setRecurringStatus(invoice.recurring_status || 'active');
       setRecurringNumber(invoice.recurring_number !== undefined ? invoice.recurring_number : -1);
@@ -228,6 +214,9 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
       setAllowPartialPayments(invoice.allow_partial_payments || false);
       setAutomaticPaymentEnabled(invoice.automatic_payment_enabled || false);
       setAutomaticEmail(invoice.automatic_email !== undefined ? invoice.automatic_email : true);
+      setAttachPdfToEmail(invoice.attach_pdf_to_email !== undefined ? invoice.attach_pdf_to_email : true);
+      setSendPaymentReceipt(invoice.send_payment_receipt !== undefined ? invoice.send_payment_receipt : true);
+      setReceivePaymentNotifications(invoice.receive_payment_notifications !== undefined ? invoice.receive_payment_notifications : true);
     }
   }, [invoice]);
 
@@ -311,7 +300,7 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
   }, [paymentTerms, invoice, invoiceDate]);
 
   // Calculate totals
-  const totals = calculateInvoiceTotal(items, taxRate, discountType, discountValue);
+  const totals = calculateInvoiceTotal(items, documentTaxes, discountType, discountValue);
   const getCurrencyCode = () => {
     if (!currency || !currencies.length) return 'USD';
     const currencyAssoc = currencies.find(cc => cc.currency.id === currency);
@@ -436,33 +425,40 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
           quantity: parseFloat(item.quantity),
           price: parseFloat(item.price),
           amount: parseFloat(item.amount),
+          tax_rate: parseFloat(item.tax_rate || 0), // Always send 0 instead of null
+          taxes: item.taxes || [], // Include item-level taxes
         })),
-        tax_rate: parseFloat(taxRate) || 0,
-        tax_label: taxLabel,
-        discount_type: discountValue > 0 ? discountType : undefined,
-        discount_value: discountValue > 0 ? parseFloat(discountValue) : undefined,
-        deposit_type: depositValue > 0 ? depositType : undefined,
-        deposit_value: depositValue > 0 ? parseFloat(depositValue) : undefined,
+        // Always send document_taxes array (empty if none)
+        document_taxes: documentTaxes || [],
+        // Discount - always send numeric fields with 0 default instead of null
+        discount_type: discountValue > 0 ? discountType : null,
+        discount_percentage: discountType === 'percentage' && discountValue > 0 ? parseFloat(discountValue) : 0,
+        discount_value: discountType === 'fixed' && discountValue > 0 ? parseFloat(discountValue) : null,
+        // Deposit - always send numeric fields with 0 default instead of null
+        deposit_type: depositValue > 0 ? depositType : null,
+        deposit_percentage: depositType === 'percentage' && depositValue > 0 ? parseFloat(depositValue) : 0,
+        deposit_value: depositType === 'fixed' && depositValue > 0 ? parseFloat(depositValue) : null,
         notes: notes || null,
         payment_instructions: paymentInstructions || companyDefaultPaymentInstructions || null,
-        // Old recurring format (keeping for backward compatibility)
+        // Recurring settings
         is_recurring: isRecurring,
-        recurring_type: isRecurring ? recurringType : undefined,
-        recurring_every: isRecurring && recurringType === RECURRING_TYPE.CUSTOM ? recurringEvery : undefined,
-        recurring_period: isRecurring && recurringType === RECURRING_TYPE.CUSTOM ? recurringPeriod : undefined,
-        recurring_end_date: isRecurring && recurringEndDate ? recurringEndDate : undefined,
-        recurring_occurrences: isRecurring && recurringOccurrences ? recurringOccurrences : undefined,
-        // New recurring format
         pricing_type: pricingType,
+        recurring_type: isRecurring ? recurringType : undefined,
         recurring_status: pricingType === 'recurring' ? recurringStatus : undefined,
         recurring_number: pricingType === 'recurring' ? recurringNumber : undefined,
+        recurring_end_date: isRecurring && recurringEndDate ? recurringEndDate : undefined,
+        recurring_occurrences: isRecurring && recurringOccurrences ? recurringOccurrences : undefined,
         custom_every: pricingType === 'recurring' && recurringType === RECURRING_TYPE.CUSTOM ? customEvery : undefined,
         custom_period: pricingType === 'recurring' && recurringType === RECURRING_TYPE.CUSTOM ? customPeriod : undefined,
-        allow_stripe_payments: allowStripePayments,
-        allow_paypal_payments: allowPaypalPayments,
-        allow_partial_payments: allowPartialPayments,
-        automatic_payment_enabled: automaticPaymentEnabled,
-        automatic_email: automaticEmail,
+        // Boolean fields - always send true/false instead of null
+        allow_stripe_payments: Boolean(allowStripePayments),
+        allow_paypal_payments: Boolean(allowPaypalPayments),
+        allow_partial_payments: Boolean(allowPartialPayments),
+        automatic_payment_enabled: Boolean(automaticPaymentEnabled),
+        automatic_email: automaticEmail !== false, // Default true
+        attach_pdf_to_email: attachPdfToEmail !== false, // Default true
+        send_payment_receipt: sendPaymentReceipt !== false, // Default true
+        receive_payment_notifications: receivePaymentNotifications !== false, // Default true
       };
 
       let result;
@@ -529,7 +525,13 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
                   (() => {
                     const client = allContacts.find(c => c.id === contactId);
                     if (!client) return 'Select a Client';
-                    return `${client.first_name} ${client.last_name}${client.business_name ? ` (${client.business_name})` : ''}`;
+                    const firstName = client.first_name?.trim() || '';
+                    const lastName = client.last_name?.trim() || '';
+                    const fullName = `${firstName} ${lastName}`.trim();
+                    if (fullName && client.business_name) {
+                      return `${fullName} (${client.business_name})`;
+                    }
+                    return fullName || client.business_name || 'Unnamed Client';
                   })()
                   : 'Select a Client'
                 }
@@ -634,273 +636,35 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         </div>
       </div>
 
-      {/* Lists of Items */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900">Lists of Items</h3>
-          <button
-            onClick={addLineItem}
-            className="inline-flex items-center gap-1 text-sm font-medium text-purple-600 hover:text-purple-700"
-          >
-            <Plus className="h-4 w-4" />
-            Add Items
-          </button>
-        </div>
-
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">Price</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">Qty</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">Amount</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Total</th>
-                <th className="px-4 py-3 w-12"></th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-4 py-8 text-center text-sm text-gray-500">
-                    No items added yet. Click "+ Add Items" to get started.
-                  </td>
-                </tr>
-              ) : (
-                items.map((item, index) => (
-                  <tr key={item.id || index}>
-                    <td className="px-4 py-3 align-top">
-                      <div className="space-y-1">
-                        <textarea
-                          value={item.description}
-                          onChange={(e) => {
-                            updateLineItem(index, 'description', e.target.value);
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                            }
-                          }}
-                          placeholder="Item description"
-                          rows={1}
-                          className="auto-grow-textarea w-full px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none bg-transparent"
-                          style={{ minHeight: '24px' }}
-                        />
-                        <textarea
-                          value={item.subtext || ''}
-                          onChange={(e) => {
-                            updateLineItem(index, 'subtext', e.target.value);
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                            }
-                          }}
-                          placeholder="Additional details (optional)"
-                          maxLength={500}
-                          rows={1}
-                          className="auto-grow-textarea w-full px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none bg-transparent"
-                          style={{ minHeight: '20px' }}
-                        />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <input
-                        type="number"
-                        value={item.price}
-                        onChange={(e) => updateLineItem(index, 'price', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
-                        className="w-full px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-purple-500 bg-transparent"
-                      />
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
-                        min="0"
-                        step="1"
-                        className="w-full px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500 bg-transparent"
-                      />
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <div className="pt-1">
-                        <div className="text-sm font-medium text-gray-900">
-                          {getCurrencySymbol(currencyCode)}{formatNumber(item.amount)}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => openLineItemTaxModal(index)}
-                          className="text-xs text-purple-600 hover:text-purple-700 font-medium"
-                        >
-                          {item.taxes && item.taxes.length > 0 ? 'Edit Tax' : '+ Tax'}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <div className="pt-1">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {getCurrencySymbol(currencyCode)}{formatNumber(calculateItemTotal(item))}
-                        </div>
-                        {item.taxes && item.taxes.length > 0 && (
-                          <div className="mt-0.5">
-                            {item.taxes.map((tax, taxIndex) => (
-                              <div key={taxIndex} className="text-xs text-gray-500">
-                                {tax.tax_name}: {getCurrencySymbol(currencyCode)}{formatNumber(tax.tax_amount)}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <div className="pt-1">
-                        <button
-                          onClick={() => removeLineItem(index)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Line Items */}
+      <DocumentLineItems
+        items={items}
+        currencyCode={currencyCode}
+        numberFormat={numberFormat}
+        onAddItem={addLineItem}
+        onUpdateItem={updateLineItem}
+        onRemoveItem={removeLineItem}
+        onOpenTaxModal={openLineItemTaxModal}
+        calculateItemTotal={calculateItemTotal}
+      />
 
       {/* Totals Section */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between py-2">
-          <span className="text-sm text-gray-600">Sub Total:</span>
-          <span className="text-sm font-medium text-gray-900">{getCurrencySymbol(currencyCode)}{formatNumber(totals.subtotal)}</span>
-        </div>
-
-        {/* Discount */}
-        {discountValue > 0 && (
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                Discount {discountType === 'percentage' ? `(${discountValue}%)` : ''}:
-              </span>
-              <button
-                onClick={() => setShowDiscountModal(true)}
-                className="text-xs text-purple-600 hover:text-purple-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => setDiscountValue(0)}
-                className="text-xs text-red-600 hover:text-red-700"
-              >
-                Remove
-              </button>
-            </div>
-            <span className="text-sm font-medium text-red-600">
-              -{getCurrencySymbol(currencyCode)}{formatNumber(totals.discount || 0)}
-            </span>
-          </div>
-        )}
-
-        {/* Tax */}
-        {taxRate > 0 && (
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {taxLabel} ({taxRate}%):
-              </span>
-              <button
-                onClick={() => setShowTaxModal(true)}
-                className="text-xs text-purple-600 hover:text-purple-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => setTaxRate(0)}
-                className="text-xs text-red-600 hover:text-red-700"
-              >
-                Remove
-              </button>
-            </div>
-            <span className="text-sm font-medium text-gray-900">
-              {getCurrencySymbol(currencyCode)}{formatNumber(totals.tax || 0)}
-            </span>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between py-3 px-4 bg-purple-100 rounded-lg">
-          <span className="text-sm font-semibold text-gray-900">Total Amount:</span>
-          <span className="text-lg font-bold text-gray-900">{getCurrencySymbol(currencyCode)}{formatNumber(totals.total)}</span>
-        </div>
-
-        {/* Deposit */}
-        {depositValue > 0 && depositType && (
-          <div className="flex items-center justify-between py-2 px-4 bg-blue-50 rounded-lg">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-blue-700">
-                Deposit Required {depositType === 'percentage' ? `(${depositValue}%)` : ''}:
-              </span>
-              <button
-                onClick={() => setShowDepositModal(true)}
-                className="text-xs text-purple-600 hover:text-purple-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => { setDepositValue(0); setDepositType(null); }}
-                className="text-xs text-red-600 hover:text-red-700"
-              >
-                Remove
-              </button>
-            </div>
-            <span className="text-sm font-medium text-blue-700">
-              {getCurrencySymbol(currencyCode)}{formatNumber(
-                depositType === 'percentage'
-                  ? (totals.total * depositValue / 100)
-                  : depositValue
-              )}
-            </span>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3 pt-2">
-          {taxRate === 0 && (
-            <button
-              onClick={() => setShowTaxModal(true)}
-              className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              <Plus className="h-4 w-4" />
-              Add Tax
-            </button>
-          )}
-          {discountValue === 0 && (
-            <button
-              onClick={() => setShowDiscountModal(true)}
-              className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              <Plus className="h-4 w-4" />
-              Add Discount
-            </button>
-          )}
-          {(!depositValue || depositValue === 0) && (
-            <button
-              onClick={() => setShowDepositModal(true)}
-              className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              <Plus className="h-4 w-4" />
-              Add Deposit
-            </button>
-          )}
-        </div>
-      </div>
+      <DocumentTotals
+        totals={totals}
+        currencyCode={currencyCode}
+        numberFormat={numberFormat}
+        documentTaxes={documentTaxes}
+        onEditTax={() => setShowTaxModal(true)}
+        onRemoveTax={() => setDocumentTaxes([])}
+        discountType={discountType}
+        discountValue={discountValue}
+        onEditDiscount={() => setShowDiscountModal(true)}
+        onRemoveDiscount={() => setDiscountValue(0)}
+        depositType={depositType}
+        depositValue={depositValue}
+        onEditDeposit={() => setShowDepositModal(true)}
+        onRemoveDeposit={() => { setDepositValue(0); setDepositType(null); }}
+      />
 
       {/* Notes and Terms */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -985,12 +749,8 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
       <TaxModal
         isOpen={showTaxModal}
         onClose={() => setShowTaxModal(false)}
-        onSave={(rate, label) => {
-          setTaxRate(rate);
-          setTaxLabel(label);
-        }}
-        initialTaxRate={taxRate}
-        initialTaxLabel={taxLabel}
+        onSave={(taxes) => setDocumentTaxes(taxes)}
+        initialDocumentTaxes={documentTaxes}
       />
 
       <DiscountModal
@@ -1012,6 +772,10 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         onSave={(type, value) => {
           setDepositType(type);
           setDepositValue(value);
+          // Auto-enable partial payments when deposit is requested
+          if (value > 0) {
+            setAllowPartialPayments(true);
+          }
         }}
         initialDepositType={depositType}
         initialDepositValue={depositValue}
@@ -1036,51 +800,48 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         onClose={() => setShowSettingsModal(false)}
         isRecurring={isRecurring}
         recurringType={recurringType}
-        recurringEvery={recurringEvery}
-        recurringPeriod={recurringPeriod}
+        customEvery={customEvery}
+        customPeriod={customPeriod}
         recurringEndDate={recurringEndDate}
         recurringOccurrences={recurringOccurrences}
         recurringStatus={recurringStatus}
         startDate={invoiceDate}
         pricingType={pricingType}
         recurringNumber={recurringNumber}
-        customEvery={customEvery}
-        customPeriod={customPeriod}
         allowStripePayments={allowStripePayments}
         allowPaypalPayments={allowPaypalPayments}
         allowPartialPayments={allowPartialPayments}
         automaticPaymentEnabled={automaticPaymentEnabled}
         automaticEmail={automaticEmail}
+        attachPdfToEmail={attachPdfToEmail}
+        sendPaymentReceipt={sendPaymentReceipt}
+        receivePaymentNotifications={receivePaymentNotifications}
         invoiceStatus={invoice?.status || 'draft'}
         isEditing={isEditing && isRecurring}
         onChange={(updates) => {
-          // Old format (for backward compatibility)
           if ('isRecurring' in updates) {
             setIsRecurring(updates.isRecurring);
-            // Sync with new format
             setPricingType(updates.isRecurring ? 'recurring' : 'fixed');
           }
-          if ('recurringType' in updates) setRecurringType(updates.recurringType);
-          if ('recurringEvery' in updates) setRecurringEvery(updates.recurringEvery);
-          if ('recurringPeriod' in updates) setRecurringPeriod(updates.recurringPeriod);
-          if ('recurringEndDate' in updates) setRecurringEndDate(updates.recurringEndDate);
-          if ('recurringOccurrences' in updates) setRecurringOccurrences(updates.recurringOccurrences);
-          // New format
           if ('pricingType' in updates) {
             setPricingType(updates.pricingType);
-            // Sync with old format
             setIsRecurring(updates.pricingType === 'recurring');
           }
-          if ('recurringStatus' in updates) setRecurringStatus(updates.recurringStatus);
-          if ('recurringNumber' in updates) setRecurringNumber(updates.recurringNumber);
+          if ('recurringType' in updates) setRecurringType(updates.recurringType);
           if ('customEvery' in updates) setCustomEvery(updates.customEvery);
           if ('customPeriod' in updates) setCustomPeriod(updates.customPeriod);
-          // Payment options
+          if ('recurringEndDate' in updates) setRecurringEndDate(updates.recurringEndDate);
+          if ('recurringOccurrences' in updates) setRecurringOccurrences(updates.recurringOccurrences);
+          if ('recurringStatus' in updates) setRecurringStatus(updates.recurringStatus);
+          if ('recurringNumber' in updates) setRecurringNumber(updates.recurringNumber);
           if ('allowStripePayments' in updates) setAllowStripePayments(updates.allowStripePayments);
           if ('allowPaypalPayments' in updates) setAllowPaypalPayments(updates.allowPaypalPayments);
           if ('allowPartialPayments' in updates) setAllowPartialPayments(updates.allowPartialPayments);
           if ('automaticPaymentEnabled' in updates) setAutomaticPaymentEnabled(updates.automaticPaymentEnabled);
           if ('automaticEmail' in updates) setAutomaticEmail(updates.automaticEmail);
+          if ('attachPdfToEmail' in updates) setAttachPdfToEmail(updates.attachPdfToEmail);
+          if ('sendPaymentReceipt' in updates) setSendPaymentReceipt(updates.sendPaymentReceipt);
+          if ('receivePaymentNotifications' in updates) setReceivePaymentNotifications(updates.receivePaymentNotifications);
         }}
       />
 

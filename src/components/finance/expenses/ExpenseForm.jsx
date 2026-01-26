@@ -71,7 +71,7 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
     expense?.expense_date ? new Date(expense.expense_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
   );
   const [status, setStatus] = useState(expense?.status || 'paid'); // Default to 'paid' for new expenses
-  const [categoryId, setCategoryId] = useState(expense?.category_id || '');
+  const [categoryId, setCategoryId] = useState(expense?.expense_category_id || expense?.category_id || '');
   const [vendorId, setVendorId] = useState(expense?.vendor_id || '');
   const [contactId, setContactId] = useState(expense?.contact_id || '');
   const [projectId, setProjectId] = useState(expense?.project_id || '');
@@ -924,8 +924,8 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
                 <RecurringExpenseSettings
                   isRecurring={isRecurring}
                   recurringType={recurringType}
-                  recurringEvery={customEvery}
-                  recurringPeriod={customPeriod}
+                  customEvery={customEvery}
+                  customPeriod={customPeriod}
                   recurringNumber={recurringNumber}
                   recurringStatus={recurringStatus}
                   startDate={expenseDate}
@@ -933,8 +933,8 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
                   onChange={(updates) => {
                     if ('isRecurring' in updates) setIsRecurring(updates.isRecurring);
                     if ('recurringType' in updates) setRecurringType(updates.recurringType);
-                    if ('recurringEvery' in updates) setCustomEvery(updates.recurringEvery);
-                    if ('recurringPeriod' in updates) setCustomPeriod(updates.recurringPeriod);
+                    if ('customEvery' in updates) setCustomEvery(updates.customEvery);
+                    if ('customPeriod' in updates) setCustomPeriod(updates.customPeriod);
                     if ('recurringNumber' in updates) setRecurringNumber(updates.recurringNumber);
                     if ('recurringStatus' in updates) setRecurringStatus(updates.recurringStatus);
                   }}

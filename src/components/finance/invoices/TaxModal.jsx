@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Check, Loader2 } from 'lucide-react';
 import companiesAPI from '../../../services/api/crm/companies';
 
-const TaxModal = ({ isOpen, onClose, onSave, initialTaxRate = 0, initialTaxLabel = 'Tax' }) => {
-  const [taxRate, setTaxRate] = useState(initialTaxRate);
-  const [taxLabel, setTaxLabel] = useState(initialTaxLabel);
+const TaxModal = ({ isOpen, onClose, onSave, initialDocumentTaxes = [] }) => {
+  // Extract first tax from array for backwards compatibility
+  const initialTax = initialDocumentTaxes[0] || {};
+  const [taxRate, setTaxRate] = useState(parseFloat(initialTax.tax_rate) || 0);
+  const [taxLabel, setTaxLabel] = useState(initialTax.tax_name || 'Tax');
   const [companyTaxes, setCompanyTaxes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -15,14 +17,15 @@ const TaxModal = ({ isOpen, onClose, onSave, initialTaxRate = 0, initialTaxLabel
   // Fetch company taxes when modal opens
   useEffect(() => {
     if (isOpen) {
-      setTaxRate(initialTaxRate);
-      setTaxLabel(initialTaxLabel);
+      const tax = initialDocumentTaxes[0] || {};
+      setTaxRate(parseFloat(tax.tax_rate) || 0);
+      setTaxLabel(tax.tax_name || 'Tax');
       setShowAddForm(false);
       setNewTaxName('');
       setNewTaxRate('');
       loadCompanyTaxes();
     }
-  }, [isOpen, initialTaxRate, initialTaxLabel]);
+  }, [isOpen, initialDocumentTaxes]);
 
   const loadCompanyTaxes = async () => {
     try {
@@ -48,12 +51,14 @@ const TaxModal = ({ isOpen, onClose, onSave, initialTaxRate = 0, initialTaxLabel
       alert('Tax rate must be between 0 and 100');
       return;
     }
-    onSave(taxRate, taxLabel);
+    // Return as document_taxes array format
+    onSave([{ tax_name: taxLabel, tax_rate: taxRate }]);
     onClose();
   };
 
   const handleRemove = () => {
-    onSave(0, 'Tax');
+    // Return empty array to remove all document taxes
+    onSave([]);
     onClose();
   };
 
@@ -101,7 +106,7 @@ const TaxModal = ({ isOpen, onClose, onSave, initialTaxRate = 0, initialTaxLabel
           <div className="bg-white dark:bg-gray-800 px-6 pt-6 pb-4">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {initialTaxRate > 0 ? 'Edit Tax' : 'Add Tax'}
+                {initialDocumentTaxes.length > 0 ? 'Edit Tax' : 'Add Tax'}
               </h3>
               <button
                 onClick={onClose}
@@ -274,7 +279,7 @@ const TaxModal = ({ isOpen, onClose, onSave, initialTaxRate = 0, initialTaxLabel
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-900 px-6 py-4 flex justify-between gap-3">
-            {initialTaxRate > 0 && (
+            {initialDocumentTaxes.length > 0 && (
               <button
                 type="button"
                 onClick={handleRemove}

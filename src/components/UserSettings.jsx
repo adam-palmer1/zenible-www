@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePreferences } from '../contexts/PreferencesContext';
-import { authAPI } from '../utils/auth';
+import { authAPI, userAPI } from '../utils/auth';
 import planAPI from '../services/planAPI';
 import UpdatePaymentModal from './UpdatePaymentModal';
 import PaymentHistory from './PaymentHistory';
@@ -12,6 +12,7 @@ import CurrenciesTab from './crm/settings/tabs/CurrenciesTab';
 import CountriesTab from './crm/settings/tabs/CountriesTab';
 import IntegrationsTab from './crm/settings/tabs/IntegrationsTab';
 import AdvancedTab from './crm/settings/tabs/AdvancedTab';
+import BookingTab from './crm/settings/tabs/BookingTab';
 import EmailTemplates from './settings/EmailTemplates';
 import NewSidebar from './sidebar/NewSidebar';
 import {
@@ -25,6 +26,7 @@ import {
   PuzzlePieceIcon,
   Cog6ToothIcon,
   EnvelopeIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
 export default function UserSettings() {
@@ -47,6 +49,15 @@ export default function UserSettings() {
   });
   const [showUpdatePaymentModal, setShowUpdatePaymentModal] = useState(false);
 
+  // Username state
+  const [username, setUsername] = useState('');
+  const [newUsername, setNewUsername] = useState('');
+  const [isUsernameAvailable, setIsUsernameAvailable] = useState(null);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [isSavingUsername, setIsSavingUsername] = useState(false);
+  const [usernameError, setUsernameError] = useState('');
+  const checkUsernameTimeoutRef = useRef(null);
+
   const accountSettings = [
     { id: 'profile', label: 'Profile', icon: UserIcon },
     { id: 'subscription', label: 'Subscription', icon: CreditCardIcon },
@@ -59,6 +70,7 @@ export default function UserSettings() {
     { id: 'currencies', label: 'Currencies', icon: CurrencyDollarIcon },
     { id: 'countries', label: 'Countries', icon: GlobeAltIcon },
     { id: 'email-templates', label: 'Email Templates', icon: EnvelopeIcon },
+    { id: 'booking', label: 'Booking', icon: CalendarDaysIcon },
     { id: 'integrations', label: 'Integrations', icon: PuzzlePieceIcon },
     { id: 'advanced', label: 'Advanced', icon: Cog6ToothIcon },
   ];
@@ -67,6 +79,16 @@ export default function UserSettings() {
 
   useEffect(() => {
     fetchUserProfile();
+    loadUsername();
+  }, []);
+
+  // Cleanup username check timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (checkUsernameTimeoutRef.current) {
+        clearTimeout(checkUsernameTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Handle OAuth callback indicators (Stripe connect success/error)
@@ -111,6 +133,61 @@ export default function UserSettings() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Load current username
+  const loadUsername = async () => {
+    try {
+      const data = await userAPI.getCurrentUsername();
+      setUsername(data.username || '');
+      setNewUsername(data.username || '');
+    } catch (error) {
+      console.error('Failed to load username:', error);
+    }
+  };
+
+  // Check username availability with debounce
+  const checkUsernameAvailability = useCallback((value) => {
+    if (checkUsernameTimeoutRef.current) {
+      clearTimeout(checkUsernameTimeoutRef.current);
+    }
+
+    if (value.length < 3 || value === username) {
+      setIsUsernameAvailable(null);
+      return;
+    }
+
+    setIsCheckingUsername(true);
+    checkUsernameTimeoutRef.current = setTimeout(async () => {
+      try {
+        const data = await userAPI.checkUsernameAvailability(value);
+        setIsUsernameAvailable(data.available);
+      } catch (error) {
+        setIsUsernameAvailable(null);
+      }
+      setIsCheckingUsername(false);
+    }, 300);
+  }, [username]);
+
+  const handleUsernameInputChange = (value) => {
+    const sanitized = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+    setNewUsername(sanitized);
+    setUsernameError('');
+    checkUsernameAvailability(sanitized);
+  };
+
+  const handleSaveUsername = async () => {
+    if (!isUsernameAvailable || newUsername === username) return;
+    setIsSavingUsername(true);
+    try {
+      const data = await userAPI.updateUsername(newUsername);
+      setUsername(data.username);
+      updateUser({ username: data.username });
+      setSuccessMessage('Username updated successfully');
+    } catch (error) {
+      setUsernameError(error.message || 'Failed to update username');
+    }
+    setIsSavingUsername(false);
   };
 
   const handlePasswordReset = async () => {
@@ -330,6 +407,53 @@ export default function UserSettings() {
               />
               <p className={`mt-1 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                 Name is automatically synced from your Google account
+              </p>
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                Username
+              </label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={newUsername}
+                    onChange={(e) => handleUsernameInputChange(e.target.value)}
+                    maxLength={32}
+                    placeholder="Enter username"
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      darkMode
+                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } focus:ring-2 focus:ring-zenible-primary focus:border-transparent`}
+                  />
+                  {newUsername.length > 0 && newUsername.length < 3 && (
+                    <p className="text-sm text-yellow-600 dark:text-yellow-500 mt-1">Min 3 characters</p>
+                  )}
+                  {isCheckingUsername && (
+                    <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Checking...</p>
+                  )}
+                  {!isCheckingUsername && isUsernameAvailable === true && newUsername !== username && (
+                    <p className="text-sm text-green-600 dark:text-green-500 mt-1">Available</p>
+                  )}
+                  {!isCheckingUsername && isUsernameAvailable === false && (
+                    <p className="text-sm text-red-600 dark:text-red-500 mt-1">Taken</p>
+                  )}
+                  {usernameError && (
+                    <p className="text-sm text-red-600 dark:text-red-500 mt-1">{usernameError}</p>
+                  )}
+                </div>
+                <button
+                  onClick={handleSaveUsername}
+                  disabled={!isUsernameAvailable || newUsername === username || isSavingUsername}
+                  className="px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors h-fit"
+                >
+                  {isSavingUsername ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+              <p className={`mt-1 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                Used for your public booking page URL
               </p>
             </div>
 
@@ -665,6 +789,8 @@ export default function UserSettings() {
           <CountriesTab />
         ) : activeTab === 'email-templates' ? (
           <EmailTemplates />
+        ) : activeTab === 'booking' ? (
+          <BookingTab />
         ) : activeTab === 'integrations' ? (
           <IntegrationsTab />
             ) : activeTab === 'advanced' ? (

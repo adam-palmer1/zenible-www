@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, MoreVertical, Eye, Edit, Trash2, Download, History, Repeat, ArrowUpDown, ArrowUp, ArrowDown, PieChart, Users, X, Check } from 'lucide-react';
+import { Search, Filter, MoreVertical, Repeat, ArrowUpDown, ArrowUp, ArrowDown, PieChart, Users, X, Check } from 'lucide-react';
 import { useExpenses } from '../../../contexts/ExpenseContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { useNotification } from '../../../contexts/NotificationContext';
@@ -15,6 +15,7 @@ import BulkActionBar from './BulkActionBar';
 import BulkUpdateModal from './BulkUpdateModal';
 import ExpenseAllocationBar, { ExpenseAllocationBadge } from './ExpenseAllocationBar';
 import ExpenseAllocationModal from './ExpenseAllocationModal';
+import ActionMenu from '../../shared/ActionMenu';
 
 // Expense status configuration (matches backend ExpenseStatusEnum)
 const EXPENSE_STATUS = {
@@ -126,8 +127,6 @@ const ExpenseList = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editExpenseId, setEditExpenseId] = useState(null);
   const [dateField, setDateField] = useState(filters.date_field || 'entry'); // 'entry' (expense_date) or 'paid' (paid_at)
-  const [actionMenuPosition, setActionMenuPosition] = useState({ top: 0, left: 0 });
-  const actionButtonRefs = useRef({});
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [allocationExpense, setAllocationExpense] = useState(null);
   const [selectedVendorIds, setSelectedVendorIds] = useState(
@@ -212,27 +211,6 @@ const ExpenseList = () => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
   };
-
-  // Handle opening action menu with position calculation
-  const handleOpenActionMenu = (expenseId, event) => {
-    if (openActionMenuId === expenseId) {
-      setOpenActionMenuId(null);
-      return;
-    }
-
-    const button = actionButtonRefs.current[expenseId];
-    if (button) {
-      const rect = button.getBoundingClientRect();
-      setActionMenuPosition({
-        top: rect.bottom + 4,
-        left: rect.right - 192, // 192px = w-48 (12rem)
-      });
-    }
-    setOpenActionMenuId(expenseId);
-  };
-
-  // Search is now handled client-side in filteredExpenses useMemo
-  // This allows searching by vendor name which backend might not support
 
   // Handlers
   const handleSearch = (e) => {
@@ -816,8 +794,8 @@ const ExpenseList = () => {
                     </td>
                     <td className="px-4 py-3 text-sm" onClick={(e) => e.stopPropagation()}>
                       <button
-                        ref={(el) => actionButtonRefs.current[expense.id] = el}
-                        onClick={(e) => handleOpenActionMenu(expense.id, e)}
+                        id={`expense-action-btn-${expense.id}`}
+                        onClick={() => setOpenActionMenuId(openActionMenuId === expense.id ? null : expense.id)}
                         className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                       >
                         <MoreVertical className="h-4 w-4 text-gray-400" />
@@ -893,79 +871,28 @@ const ExpenseList = () => {
       </div>
 
       {/* Fixed Action Menu Dropdown */}
-      {openActionMenuId && (
-        <>
-          <div
-            className="fixed inset-0 z-[60]"
-            onClick={() => setOpenActionMenuId(null)}
+      {openActionMenuId && (() => {
+        const expense = filteredExpenses.find(e => e.id === openActionMenuId);
+        if (!expense) return null;
+        return (
+          <ActionMenu
+            itemId={expense.id}
+            onClose={() => setOpenActionMenuId(null)}
+            buttonIdPrefix="expense-action-btn"
+            actions={[
+              { label: 'View', onClick: () => handleView(expense) },
+              { label: 'Edit', onClick: () => handleEdit(expense) },
+              { label: 'View History', onClick: () => handleViewHistory(expense) },
+              { label: 'Allocate', onClick: () => handleOpenAllocation(expense) },
+              {
+                label: expense.status === EXPENSE_STATUS.PAID ? 'Mark as Pending' : 'Mark as Paid',
+                onClick: () => handleToggleStatus(expense)
+              },
+              { label: 'Delete', onClick: () => handleDelete(expense), variant: 'danger' },
+            ]}
           />
-          <div
-            className="fixed w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-[#e5e5e5] dark:border-gray-600 z-[70]"
-            style={{ top: actionMenuPosition.top, left: actionMenuPosition.left }}
-          >
-            <div className="py-1">
-              <button
-                onClick={() => {
-                  const expense = filteredExpenses.find(e => e.id === openActionMenuId);
-                  if (expense) handleView(expense);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                View
-              </button>
-              <button
-                onClick={() => {
-                  const expense = filteredExpenses.find(e => e.id === openActionMenuId);
-                  if (expense) handleEdit(expense);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => {
-                  const expense = filteredExpenses.find(e => e.id === openActionMenuId);
-                  if (expense) handleViewHistory(expense);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                View History
-              </button>
-              <button
-                onClick={() => {
-                  const expense = filteredExpenses.find(e => e.id === openActionMenuId);
-                  if (expense) handleOpenAllocation(expense);
-                }}
-                className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <PieChart className="h-4 w-4" />
-                Allocate
-              </button>
-              <button
-                onClick={() => {
-                  const expense = filteredExpenses.find(e => e.id === openActionMenuId);
-                  if (expense) handleToggleStatus(expense);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                {(() => {
-                  const expense = filteredExpenses.find(e => e.id === openActionMenuId);
-                  return expense?.status === EXPENSE_STATUS.PAID ? 'Mark as Pending' : 'Mark as Paid';
-                })()}
-              </button>
-              <button
-                onClick={() => {
-                  const expense = filteredExpenses.find(e => e.id === openActionMenuId);
-                  if (expense) handleDelete(expense);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+        );
+      })()}
 
       {/* Expense History Modal */}
       <ExpenseHistoryModal

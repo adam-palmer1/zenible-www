@@ -1,4 +1,4 @@
-import React, { createContext, useState, useCallback, useMemo, useContext, useEffect } from 'react';
+import React, { createContext, useState, useCallback, useMemo, useContext, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { usePreferences } from './PreferencesContext';
 import invoicesAPI from '../services/api/finance/invoices';
@@ -8,6 +8,9 @@ export const InvoiceContext = createContext(null);
 export const InvoiceProvider = ({ children }) => {
   const { user } = useAuth();
   const { getPreference, updatePreference } = usePreferences();
+
+  // Ref to prevent duplicate in-flight requests
+  const fetchingRef = useRef(false);
 
   // State
   const [invoices, setInvoices] = useState([]);
@@ -32,6 +35,7 @@ export const InvoiceProvider = ({ children }) => {
     issue_date_to: null,
     due_date_from: null,
     due_date_to: null,
+    parent_invoice_id: null, // Filter by parent template ID
   });
 
   // Pagination
@@ -62,9 +66,16 @@ export const InvoiceProvider = ({ children }) => {
     }
   }, [user, getPreference]);
 
+  // Serialize filters for stable dependency comparison
+  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
+
   // Fetch invoices
   const fetchInvoices = useCallback(async () => {
     if (!user) return;
+
+    // Prevent duplicate in-flight requests (React StrictMode can cause double-renders)
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
 
     try {
       setLoading(true);
@@ -101,8 +112,10 @@ export const InvoiceProvider = ({ children }) => {
       setError(err.message);
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
-  }, [user, pagination.page, pagination.limit, sortBy, sortOrder, filters]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, pagination.page, pagination.limit, sortBy, sortOrder, filtersKey]);
 
   // Auto-fetch on dependencies change (only after preferences are loaded)
   useEffect(() => {

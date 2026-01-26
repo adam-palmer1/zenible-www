@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PencilIcon, TrashIcon, ReceiptPercentIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
 import { useProjects } from '../../hooks/crm';
 import { useCRM } from '../../contexts/CRMContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -112,14 +112,15 @@ export default function ProjectsTable({ selectedStatuses = [] }) {
             </thead>
             <tbody>
               {projects.map((project, index) => (
-                <tr key={project.id} className={`border-b border-[#e5e5e5] dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${index === projects.length - 1 ? 'border-b-0' : ''}`}>
+                <tr
+                  key={project.id}
+                  onClick={() => handleViewProject(project)}
+                  className={`border-b border-[#e5e5e5] dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${index === projects.length - 1 ? 'border-b-0' : ''}`}
+                >
                   <td className="px-4 py-4">
-                    <button
-                      onClick={() => handleViewProject(project)}
-                      className="text-sm font-medium text-zenible-primary hover:text-purple-700 dark:hover:text-purple-400 text-left"
-                    >
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
                       {project.name}
-                    </button>
+                    </div>
                     {project.description && (
                       <div className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-md">
                         {project.description}
@@ -149,14 +150,7 @@ export default function ProjectsTable({ selectedStatuses = [] }) {
                   <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
                     {project.end_date ? new Date(project.end_date).toLocaleDateString() : '-'}
                   </td>
-                  <td className="px-4 py-4 text-right text-sm">
-                    <button
-                      onClick={() => handleViewProject(project)}
-                      className="text-blue-600 hover:text-blue-700 dark:hover:text-blue-400 mr-3 transition-colors"
-                      title="View Details"
-                    >
-                      <EyeIcon className="h-4 w-4" />
-                    </button>
+                  <td className="px-4 py-4 text-right text-sm" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => handleExpensesClick(project)}
                       className="text-green-600 hover:text-green-700 dark:hover:text-green-400 mr-3 transition-colors"

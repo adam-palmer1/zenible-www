@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeftIcon, ClockIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import publicBookingAPI from '../../services/api/public/booking';
@@ -23,6 +23,10 @@ const PublicBookingPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [bookingResult, setBookingResult] = useState(null);
   const [submitError, setSubmitError] = useState(null);
+
+  // Availability data for the visible calendar range (keyed by date)
+  const [availabilityData, setAvailabilityData] = useState({});
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
 
   // Fetch call type page data
   useEffect(() => {
@@ -51,39 +55,55 @@ const PublicBookingPage = () => {
     }
   }, [username, shortcode]);
 
-  // Fetch available slots when date changes
-  const fetchSlots = useCallback(async (date) => {
-    if (!date) return;
+  // Fetch availability for the visible calendar range
+  const fetchCalendarAvailability = useCallback(async (startDate, endDate) => {
+    if (!username || !shortcode) return;
 
     try {
-      setSlotsLoading(true);
-      setAvailableSlots([]);
+      setAvailabilityLoading(true);
 
-      // Fetch slots for the selected date (start and end same date)
       const data = await publicBookingAPI.getAvailableSlots(
         username,
         shortcode,
-        date,
-        date
+        startDate,
+        endDate
       );
 
-      // Extract slots for the selected date
-      const dateSlots = data.available_slots?.[date] || [];
-      setAvailableSlots(dateSlots);
+      // Convert days array to object keyed by date
+      const newAvailability = {};
+      data.days?.forEach((day) => {
+        if (day.slots && day.slots.length > 0) {
+          newAvailability[day.date] = day.slots;
+        }
+      });
+
+      setAvailabilityData(newAvailability);
     } catch (err) {
-      console.error('Error fetching slots:', err);
-      setAvailableSlots([]);
+      console.error('Error fetching calendar availability:', err);
+      setAvailabilityData({});
     } finally {
-      setSlotsLoading(false);
+      setAvailabilityLoading(false);
     }
   }, [username, shortcode]);
 
-  // Handle date selection
+  // Handle calendar month change
+  const handleMonthChange = useCallback((startDate, endDate) => {
+    fetchCalendarAvailability(startDate, endDate);
+  }, [fetchCalendarAvailability]);
+
+  // Handle date selection - use cached availability data
   const handleDateSelect = (date) => {
     setSelectedDate(date);
     setSelectedTime(null);
-    fetchSlots(date);
+    // Use cached slots from availabilityData
+    const slots = availabilityData[date] || [];
+    setAvailableSlots(slots);
   };
+
+  // Get list of dates that have availability (for calendar green dots)
+  const availableDates = useMemo(() => {
+    return Object.keys(availabilityData);
+  }, [availabilityData]);
 
   // Handle time selection
   const handleTimeSelect = (time) => {
@@ -116,7 +136,19 @@ const PublicBookingPage = () => {
         setSubmitError('This time slot is no longer available. Please select another time.');
         setStep('calendar');
         setSelectedTime(null);
-        fetchSlots(selectedDate);
+        // Refetch single date to get updated slots
+        setSlotsLoading(true);
+        try {
+          const data = await publicBookingAPI.getAvailableSlots(username, shortcode, selectedDate, selectedDate);
+          const dayData = data.days?.find((d) => d.date === selectedDate);
+          const slots = dayData?.slots || [];
+          setAvailabilityData((prev) => ({ ...prev, [selectedDate]: slots }));
+          setAvailableSlots(slots);
+        } catch (refetchErr) {
+          console.error('Error refetching slots:', refetchErr);
+        } finally {
+          setSlotsLoading(false);
+        }
       } else {
         setSubmitError(err.message || 'Failed to create booking. Please try again.');
       }
@@ -171,14 +203,6 @@ const PublicBookingPage = () => {
   minDate.setDate(minDate.getDate() + (settings?.min_notice_hours ? Math.ceil(settings.min_notice_hours / 24) : 0));
   const maxDate = new Date(today);
   maxDate.setDate(maxDate.getDate() + (settings?.max_days_ahead || 60));
-
-  // For now, mark all dates as potentially available - the time slot API will filter
-  const availableDates = [];
-  const current = new Date(minDate);
-  while (current <= maxDate) {
-    availableDates.push(current.toISOString().split('T')[0]);
-    current.setDate(current.getDate() + 1);
-  }
 
   // Confirmed state
   if (step === 'confirmed' && bookingResult) {
@@ -311,6 +335,7 @@ const PublicBookingPage = () => {
                   availableDates={availableDates}
                   selectedDate={selectedDate}
                   onSelect={handleDateSelect}
+                  onMonthChange={handleMonthChange}
                   minDate={minDate}
                   maxDate={maxDate}
                 />
@@ -357,7 +382,7 @@ const PublicBookingPage = () => {
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-400 dark:text-gray-500">
             Powered by{' '}
-            <a href="/" className="hover:text-zenible-primary transition-colors">
+            <a href={import.meta.env.VITE_HOME_URL || '/'} className="hover:text-zenible-primary transition-colors">
               Zenible
             </a>
           </p>

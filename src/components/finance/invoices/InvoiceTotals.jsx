@@ -5,8 +5,9 @@ import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
 const InvoiceTotals = ({
   items = [],
   currency = 'USD',
-  taxRate = 0,
-  taxLabel = 'Tax',
+  documentTaxes = [], // New format: array of { tax_name, tax_rate }
+  taxRate = 0, // Legacy: single tax rate
+  taxLabel = 'Tax', // Legacy: single tax label
   discountType = 'percentage',
   discountValue = 0,
   depositType = null,
@@ -16,9 +17,14 @@ const InvoiceTotals = ({
   onEditDeposit,
   readOnly = false,
 }) => {
-  const totals = calculateInvoiceTotal(items, taxRate, discountType, discountValue);
+  // Support both new documentTaxes array and legacy taxRate/taxLabel
+  const effectiveDocumentTaxes = documentTaxes.length > 0
+    ? documentTaxes
+    : (taxRate > 0 ? [{ tax_name: taxLabel, tax_rate: taxRate }] : []);
+
+  const totals = calculateInvoiceTotal(items, effectiveDocumentTaxes, discountType, discountValue);
   const hasItemLevelTaxes = totals.itemLevelTax > 0;
-  const hasDocumentTax = taxRate > 0 && totals.documentTax > 0;
+  const hasDocumentTax = totals.documentTax > 0;
 
   // Calculate deposit amount
   let depositAmount = 0;
@@ -91,27 +97,31 @@ const InvoiceTotals = ({
         </div>
       )}
 
-      {/* Document-level Tax */}
-      {hasDocumentTax && (
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className="design-text-secondary">
-              {taxLabel} ({taxRate}%):
-            </span>
-            {!readOnly && onEditTax && (
-              <button
-                type="button"
-                onClick={onEditTax}
-                className="text-xs text-zenible-primary hover:text-zenible-primary/80"
-              >
-                Edit
-              </button>
-            )}
-          </div>
-          <span className="design-text-primary font-medium">
-            {formatCurrency(totals.documentTax, currency)}
-          </span>
-        </div>
+      {/* Document-level Taxes */}
+      {hasDocumentTax && totals.documentTaxBreakdown && totals.documentTaxBreakdown.length > 0 && (
+        <>
+          {totals.documentTaxBreakdown.map((tax, index) => (
+            <div key={index} className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="design-text-secondary">
+                  {tax.tax_name} ({tax.tax_rate}%):
+                </span>
+                {!readOnly && onEditTax && index === 0 && (
+                  <button
+                    type="button"
+                    onClick={onEditTax}
+                    className="text-xs text-zenible-primary hover:text-zenible-primary/80"
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+              <span className="design-text-primary font-medium">
+                {formatCurrency(tax.tax_amount, currency)}
+              </span>
+            </div>
+          ))}
+        </>
       )}
 
       {/* Total */}
@@ -158,7 +168,7 @@ const InvoiceTotals = ({
       {/* Add buttons for tax/discount/deposit if not set */}
       {!readOnly && (
         <div className="pt-3 border-t design-border flex gap-2">
-          {taxRate === 0 && onEditTax && (
+          {effectiveDocumentTaxes.length === 0 && onEditTax && (
             <button
               type="button"
               onClick={onEditTax}

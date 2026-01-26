@@ -96,12 +96,12 @@ const BookingCancellation = () => {
               ? 'This cancellation link is invalid or has expired.'
               : error}
           </p>
-          <Link
-            to="/"
+          <a
+            href={import.meta.env.VITE_HOME_URL || '/'}
             className="inline-flex items-center px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 transition-colors"
           >
             Go Home
-          </Link>
+          </a>
         </div>
       </div>
     );
@@ -165,12 +165,12 @@ const BookingCancellation = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             This booking has already passed and cannot be cancelled.
           </p>
-          <Link
-            to="/"
+          <a
+            href={import.meta.env.VITE_HOME_URL || '/'}
             className="inline-flex items-center px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 transition-colors"
           >
             Go Home
-          </Link>
+          </a>
         </div>
       </div>
     );
@@ -278,7 +278,7 @@ const BookingCancellation = () => {
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-400 dark:text-gray-500">
             Powered by{' '}
-            <a href="/" className="hover:text-zenible-primary transition-colors">
+            <a href={import.meta.env.VITE_HOME_URL || '/'} className="hover:text-zenible-primary transition-colors">
               Zenible
             </a>
           </p>

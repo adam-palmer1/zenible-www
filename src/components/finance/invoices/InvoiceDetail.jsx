@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Loader2, Repeat, Plus } from 'lucide-react';
+import { ChevronLeft, Loader2, Repeat, Plus, AlertTriangle, Clock, Eye, ChevronDown, ChevronUp, Monitor, Smartphone } from 'lucide-react';
 import { useInvoices } from '../../../contexts/InvoiceContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { INVOICE_STATUS, INVOICE_STATUS_COLORS, INVOICE_STATUS_LABELS } from '../../../constants/finance';
@@ -34,6 +34,16 @@ const InvoiceDetail = () => {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  // Charge card modal state
+  const [showChargeCardModal, setShowChargeCardModal] = useState(false);
+  const [chargeAmount, setChargeAmount] = useState('full'); // 'full' or 'deposit'
+  const [chargingCard, setChargingCard] = useState(false);
+
+  // View history state
+  const [viewHistory, setViewHistory] = useState(null);
+  const [loadingViewHistory, setLoadingViewHistory] = useState(false);
+  const [viewHistoryExpanded, setViewHistoryExpanded] = useState(false);
 
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({
@@ -91,6 +101,26 @@ const InvoiceDetail = () => {
       setLoading(false);
     }
   };
+
+  const loadViewHistory = async () => {
+    try {
+      setLoadingViewHistory(true);
+      const data = await invoicesAPI.getViewHistory(id);
+      setViewHistory(data);
+    } catch (error) {
+      console.error('Error loading view history:', error);
+      // Non-critical, don't show error to user
+    } finally {
+      setLoadingViewHistory(false);
+    }
+  };
+
+  // Load view history when expanded
+  useEffect(() => {
+    if (viewHistoryExpanded && !viewHistory && !loadingViewHistory) {
+      loadViewHistory();
+    }
+  }, [viewHistoryExpanded]);
 
   const handleDownloadPdf = async () => {
     try {
@@ -188,6 +218,66 @@ const InvoiceDetail = () => {
     });
   };
 
+  const handleChargeCard = () => {
+    const depositAmount = parseFloat(invoice.deposit_amount || 0);
+    const paidAmount = parseFloat(invoice.paid_amount || 0);
+    const hasUnpaidDeposit = depositAmount > 0 && paidAmount < depositAmount;
+
+    if (hasUnpaidDeposit) {
+      // Show modal with deposit vs full amount options
+      setChargeAmount('deposit');
+      setShowChargeCardModal(true);
+    } else {
+      // No deposit or deposit already paid - charge full outstanding balance
+      const outstandingBalance = parseFloat(invoice.outstanding_balance || 0);
+      showConfirmation({
+        title: 'Charge Saved Card',
+        message: `Charge ${formatCurrency(outstandingBalance, invoice.currency?.code)} to the customer's saved card for invoice ${invoice.invoice_number}? This will process the payment immediately.`,
+        variant: 'primary',
+        confirmText: 'Charge Saved Card',
+        onConfirm: async () => {
+          try {
+            const result = await invoicesAPI.chargeSavedCard(invoice.id);
+            if (result.success) {
+              showSuccess(`${formatCurrency(parseFloat(result.amount_charged || outstandingBalance), invoice.currency?.code)} charged successfully`);
+              loadInvoice();
+              refresh();
+            } else {
+              showError(result.error_message || result.error || 'Payment was not successful');
+            }
+          } catch (error) {
+            console.error('Error charging card:', error);
+            showError(error.message || 'Failed to charge card');
+          }
+        }
+      });
+    }
+  };
+
+  const handleConfirmChargeCard = async () => {
+    const depositAmount = parseFloat(invoice.deposit_amount || 0);
+    const outstandingBalance = parseFloat(invoice.outstanding_balance || 0);
+    const amountToCharge = chargeAmount === 'deposit' ? depositAmount : outstandingBalance;
+
+    try {
+      setChargingCard(true);
+      const result = await invoicesAPI.chargeSavedCard(invoice.id, { amount: amountToCharge });
+      if (result.success) {
+        showSuccess(`${formatCurrency(parseFloat(result.amount_charged || amountToCharge), invoice.currency?.code)} charged successfully`);
+        setShowChargeCardModal(false);
+        loadInvoice();
+        refresh();
+      } else {
+        showError(result.error_message || result.error || 'Payment was not successful');
+      }
+    } catch (error) {
+      console.error('Error charging card:', error);
+      showError(error.message || 'Failed to charge card');
+    } finally {
+      setChargingCard(false);
+    }
+  };
+
   // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -217,6 +307,8 @@ const InvoiceDetail = () => {
   const items = invoice.invoice_items || invoice.items || [];
   const totals = calculateInvoiceTotal(items, invoice.tax_rate || 0, invoice.discount_type, invoice.discount_value || 0);
   const hasOutstandingBalance = parseFloat(invoice.outstanding_balance || 0) > 0 && status !== INVOICE_STATUS.CANCELLED;
+  const hasSavedCard = invoice.has_saved_payment_method === true;
+  const canChargeCard = hasOutstandingBalance && hasSavedCard;
 
   // Check if invoice has any tax (item-level or document-level)
   const hasTax = totals.itemLevelTax > 0 || totals.documentTax > 0 || (invoice.tax_rate && invoice.tax_rate > 0);
@@ -295,9 +387,11 @@ const InvoiceDetail = () => {
           onProjects={() => setShowProjectModal(true)}
           onMarkAsSent={handleMarkAsSent}
           onRevertToDraft={handleRevertToDraft}
+          onChargeCard={handleChargeCard}
           showLinkPayment={hasOutstandingBalance}
           showMarkAsSent={status === INVOICE_STATUS.DRAFT}
           showRevertToDraft={status === INVOICE_STATUS.SENT}
+          showChargeCard={canChargeCard}
         />
       </div>
 
@@ -504,30 +598,48 @@ const InvoiceDetail = () => {
                 Sub Total:
               </span>
               <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b] dark:text-white">
-                {formatCurrency(totals.subtotal, invoice.currency?.code)}
+                {formatCurrency(invoice.subtotal || totals.subtotal, invoice.currency?.code)}
               </span>
             </div>
 
             {/* Discount */}
-            {invoice.discount_value > 0 && (
+            {(parseFloat(invoice.discount_amount || 0) > 0 || invoice.discount_value > 0) && (
               <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] dark:bg-gray-700 text-right">
                 <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b] dark:text-white">
-                  Discount ({invoice.discount_type === 'percentage' ? `${invoice.discount_value}%` : 'Fixed'}):
+                  Discount{invoice.discount_type === 'percentage' && invoice.discount_value ? ` (${invoice.discount_value}%)` : ''}:
                 </span>
-                <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b] dark:text-white">
-                  - {formatCurrency(totals.discount, invoice.currency?.code)}
+                <span className="w-[216px] text-[16px] font-medium leading-[24px] text-red-600 dark:text-red-400">
+                  - {formatCurrency(parseFloat(invoice.discount_amount || 0) || totals.discount, invoice.currency?.code)}
                 </span>
               </div>
             )}
 
-            {/* VAT Tax */}
-            {(totals.itemLevelTax > 0 || totals.documentTax > 0) && (
-              <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] dark:bg-gray-700 text-right">
+            {/* Document Taxes - show each tax line */}
+            {invoice.document_taxes?.length > 0 && invoice.document_taxes.map((tax, index) => (
+              <div key={tax.id || index} className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] dark:bg-gray-700 text-right">
                 <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b] dark:text-white">
-                  {invoice.tax_label || 'VAT'} Tax:
+                  {tax.tax_name || 'Tax'} ({parseFloat(tax.tax_rate)}%):
                 </span>
                 <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b] dark:text-white">
-                  + {formatCurrency(totals.itemLevelTax + totals.documentTax, invoice.currency?.code)}
+                  + {formatCurrency(parseFloat(tax.tax_amount || 0), invoice.currency?.code)}
+                </span>
+              </div>
+            ))}
+
+            {/* Fallback Tax display if no document_taxes but has tax_total or document_tax_total */}
+            {(!invoice.document_taxes || invoice.document_taxes.length === 0) &&
+             (parseFloat(invoice.document_tax_total || 0) > 0 || parseFloat(invoice.tax_total || 0) > 0 || totals.itemLevelTax > 0 || totals.documentTax > 0) && (
+              <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] dark:bg-gray-700 text-right">
+                <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b] dark:text-white">
+                  {invoice.tax_label || 'Tax'}:
+                </span>
+                <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b] dark:text-white">
+                  + {formatCurrency(
+                    parseFloat(invoice.document_tax_total || 0) ||
+                    parseFloat(invoice.tax_total || 0) ||
+                    (totals.itemLevelTax + totals.documentTax),
+                    invoice.currency?.code
+                  )}
                 </span>
               </div>
             )}
@@ -541,9 +653,21 @@ const InvoiceDetail = () => {
                 Total Amount:
               </span>
               <span className="w-[216px] text-[16px] font-bold leading-[24px] text-[#09090b] dark:text-white">
-                {formatCurrency(totals.total, invoice.currency?.code)}
+                {formatCurrency(parseFloat(invoice.total) || totals.total, invoice.currency?.code)}
               </span>
             </div>
+
+            {/* Deposit Requested - shown underneath Total Amount */}
+            {parseFloat(invoice.deposit_amount || invoice.deposit || 0) > 0 && (
+              <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] dark:bg-gray-700 text-right">
+                <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b] dark:text-white">
+                  Deposit Requested{invoice.deposit_percentage && parseFloat(invoice.deposit_percentage) > 0 ? ` (${parseFloat(invoice.deposit_percentage)}%)` : ''}:
+                </span>
+                <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b] dark:text-white">
+                  {formatCurrency(parseFloat(invoice.deposit_amount || invoice.deposit || 0), invoice.currency?.code)}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Payment Summary Card */}
@@ -609,31 +733,81 @@ const InvoiceDetail = () => {
             )}
           </div>
 
-          {/* Preserved: Recurring Template Management */}
-          {(invoice.pricing_type === 'recurring' || invoice.is_recurring) && (
+          {/* Auto-billing Failed Warning */}
+          {invoice.auto_billing_failed && (
+            <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-red-800 dark:text-red-300">
+                    Automatic Payment Failed
+                  </h4>
+                  <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                    {invoice.auto_billing_failure_reason || 'All automatic payment retry attempts have been exhausted.'}
+                  </p>
+                  {invoice.auto_billing_attempts > 0 && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                      {invoice.auto_billing_attempts} attempt{invoice.auto_billing_attempts !== 1 ? 's' : ''} made
+                      {invoice.last_auto_billing_attempt_at && (
+                        <span> • Last attempt: {formatDate(invoice.last_auto_billing_attempt_at)}</span>
+                      )}
+                    </p>
+                  )}
+                  <p className="text-sm text-red-700 dark:text-red-400 mt-2">
+                    Customer action required to update payment method.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Auto-billing Retry Scheduled Warning */}
+          {!invoice.auto_billing_failed && invoice.next_auto_billing_retry_at && (
+            <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+              <div className="flex items-start gap-3">
+                <Clock className="h-5 w-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-300">
+                    Payment Retry Scheduled
+                  </h4>
+                  <p className="text-sm text-orange-700 dark:text-orange-400 mt-1">
+                    {invoice.auto_billing_failure_reason && (
+                      <span className="block mb-1">Previous attempt: {invoice.auto_billing_failure_reason}</span>
+                    )}
+                    Next automatic payment retry: <strong>{formatDate(invoice.next_auto_billing_retry_at)}</strong>
+                  </p>
+                  {invoice.auto_billing_attempts > 0 && (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                      Attempt {invoice.auto_billing_attempts} of 3
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Recurring Template Management - Only show for parent templates (no parent_invoice_id) */}
+          {(invoice.pricing_type === 'recurring' || invoice.is_recurring) && !invoice.parent_invoice_id && (
             <RecurringTemplateCard invoice={invoice} onUpdate={loadInvoice} />
           )}
 
-          {/* Preserved: Generated Invoice Badge */}
-          {invoice.generated_from_template && (
-            <div className="p-4 rounded-lg bg-[#f4f4f5] dark:bg-gray-700 border border-[#e5e5e5] dark:border-gray-600">
-              <div className="flex items-center gap-2">
-                <Repeat className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                <span className="text-sm text-[#71717a]">
-                  Generated from template (Invoice #{invoice.recurrence_sequence_number || 'N/A'})
-                </span>
-                {invoice.parent_invoice_id && (
-                  <a
-                    href={`/finance/invoices/${invoice.parent_invoice_id}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigate(`/finance/invoices/${invoice.parent_invoice_id}`);
-                    }}
-                    className="text-sm text-purple-600 dark:text-purple-400 hover:underline ml-2"
-                  >
-                    View Template
-                  </a>
-                )}
+          {/* Auto-Generated Invoice Badge - Show for child invoices with parent_invoice_id */}
+          {invoice.parent_invoice_id && (
+            <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Repeat className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                    Auto-Generated Invoice
+                    {invoice.recurrence_sequence_number && ` #${invoice.recurrence_sequence_number}`}
+                  </span>
+                </div>
+                <button
+                  onClick={() => navigate(`/finance/invoices/${invoice.parent_invoice_id}`)}
+                  className="text-sm text-purple-600 dark:text-purple-400 hover:underline font-medium"
+                >
+                  View Template
+                </button>
               </div>
             </div>
           )}
@@ -643,8 +817,8 @@ const InvoiceDetail = () => {
             <RecurringInvoiceSettings
               isRecurring={invoice.is_recurring}
               recurringType={invoice.recurring_type}
-              recurringEvery={invoice.recurring_every}
-              recurringPeriod={invoice.recurring_period}
+              customEvery={invoice.custom_every}
+              customPeriod={invoice.custom_period}
               recurringEndDate={invoice.recurring_end_date}
               recurringOccurrences={invoice.recurring_occurrences}
               startDate={invoice.issue_date || invoice.invoice_date}
@@ -691,6 +865,91 @@ const InvoiceDetail = () => {
           <div className="p-3">
             <InvoiceHistory invoiceId={invoice.id} />
           </div>
+        </div>
+
+        {/* View History Card */}
+        <div className="w-full max-w-[840px] bg-white dark:bg-gray-800 border-2 border-[#e5e5e5] dark:border-gray-700 rounded-[12px] overflow-hidden">
+          {/* Header - Clickable to expand/collapse */}
+          <button
+            onClick={() => setViewHistoryExpanded(!viewHistoryExpanded)}
+            className="w-full border-b border-[#e5e5e5] dark:border-gray-700 p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-[#71717a]" />
+              <h3 className="text-[16px] font-semibold leading-[24px] text-[#09090b] dark:text-white">
+                View History
+              </h3>
+              {viewHistory && (
+                <span className="text-sm text-[#71717a]">
+                  ({viewHistory.total} view{viewHistory.total !== 1 ? 's' : ''}, {viewHistory.unique_ip_count} unique)
+                </span>
+              )}
+            </div>
+            {viewHistoryExpanded ? (
+              <ChevronUp className="h-5 w-5 text-[#71717a]" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-[#71717a]" />
+            )}
+          </button>
+
+          {/* Content - Collapsible */}
+          {viewHistoryExpanded && (
+            <div className="p-4">
+              {loadingViewHistory ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
+                </div>
+              ) : viewHistory && viewHistory.views?.length > 0 ? (
+                <div className="space-y-3">
+                  {viewHistory.views.map((view) => {
+                    // Parse user agent to determine device type
+                    const ua = view.user_agent || '';
+                    const isMobile = /iPhone|iPad|iPod|Android|Mobile/i.test(ua);
+                    const DeviceIcon = isMobile ? Smartphone : Monitor;
+
+                    // Extract browser info
+                    let browser = 'Unknown Browser';
+                    if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+                    else if (ua.includes('Chrome')) browser = 'Chrome';
+                    else if (ua.includes('Firefox')) browser = 'Firefox';
+                    else if (ua.includes('Edge')) browser = 'Edge';
+
+                    return (
+                      <div
+                        key={view.id}
+                        className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                      >
+                        <DeviceIcon className="h-5 w-5 text-[#71717a] mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium text-[#09090b] dark:text-white">
+                              {new Date(view.viewed_at).toLocaleString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                            <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded text-[#71717a] dark:text-gray-300">
+                              {browser}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-xs text-[#71717a]">
+                            <p>IP: {view.ip_address}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-[#71717a] text-center py-4">
+                  No views recorded yet
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -748,6 +1007,110 @@ const InvoiceDetail = () => {
         currentAllocations={invoice.project_allocations || []}
         onUpdate={loadInvoice}
       />
+
+      {/* Charge Card Amount Selection Modal */}
+      {showChargeCardModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75" onClick={() => !chargingCard && setShowChargeCardModal(false)}></div>
+
+            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full relative z-10">
+              <div className="bg-white dark:bg-gray-800 px-6 pt-6 pb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Charge Saved Card
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                  This invoice has a deposit requested. How much would you like to charge?
+                </p>
+
+                <div className="space-y-3">
+                  {/* Deposit Only Option */}
+                  <label className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                    chargeAmount === 'deposit'
+                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-purple-300'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="chargeAmount"
+                      value="deposit"
+                      checked={chargeAmount === 'deposit'}
+                      onChange={() => setChargeAmount('deposit')}
+                      className="h-4 w-4 text-purple-600 focus:ring-purple-500"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white block">
+                        Deposit Only
+                      </span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {formatCurrency(parseFloat(invoice.deposit_amount || 0), invoice.currency?.code)}
+                        {invoice.deposit_percentage && parseFloat(invoice.deposit_percentage) > 0 &&
+                          ` (${parseFloat(invoice.deposit_percentage)}%)`
+                        }
+                      </span>
+                    </div>
+                  </label>
+
+                  {/* Full Amount Option */}
+                  <label className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                    chargeAmount === 'full'
+                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-purple-300'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="chargeAmount"
+                      value="full"
+                      checked={chargeAmount === 'full'}
+                      onChange={() => setChargeAmount('full')}
+                      className="h-4 w-4 text-purple-600 focus:ring-purple-500"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white block">
+                        Full Outstanding Balance
+                      </span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {formatCurrency(parseFloat(invoice.outstanding_balance || 0), invoice.currency?.code)}
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-900 px-6 py-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowChargeCardModal(false)}
+                  disabled={chargingCard}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmChargeCard}
+                  disabled={chargingCard}
+                  className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {chargingCard ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    `Charge ${formatCurrency(
+                      chargeAmount === 'deposit'
+                        ? parseFloat(invoice.deposit_amount || 0)
+                        : parseFloat(invoice.outstanding_balance || 0),
+                      invoice.currency?.code
+                    )}`
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

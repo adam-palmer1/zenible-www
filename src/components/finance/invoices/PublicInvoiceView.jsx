@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { CheckCircle, AlertCircle, CreditCard, Loader2, ArrowLeft, RefreshCw } from 'lucide-react';
+import { CheckCircle, AlertCircle, CreditCard, Loader2, ArrowLeft, RefreshCw, Trash2, AlertTriangle, Clock } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { formatCurrency } from '../../../utils/currency';
@@ -46,7 +46,6 @@ const StripeCardSetupForm = ({ clientSecret, setupIntentId, shareCode, onSuccess
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
-  const [email, setEmail] = useState('');
   const [postalCode, setPostalCode] = useState('');
 
   const handleSubmit = async (e) => {
@@ -67,7 +66,6 @@ const StripeCardSetupForm = ({ clientSecret, setupIntentId, shareCode, onSuccess
           payment_method: {
             card: elements.getElement(CardElement),
             billing_details: {
-              email: email || undefined,
               address: {
                 postal_code: postalCode || undefined,
               },
@@ -112,23 +110,10 @@ const StripeCardSetupForm = ({ clientSecret, setupIntentId, shareCode, onSuccess
         Back to payment options
       </button>
 
-      <div className="p-3 bg-[#f0fdf4] border border-green-200 rounded-lg">
-        <p className="text-sm text-green-800">
+      <div className="p-3 bg-[#f5f0ff] border border-[#d4bfff] rounded-lg">
+        <p className="text-sm text-[#5b21b6]">
           Your card will be saved securely for automatic payments on this recurring invoice.
         </p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-[#09090b] mb-1">
-          Email (for receipts)
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-2 border border-[#e5e5e5] rounded-lg bg-white text-[#09090b] focus:outline-none focus:ring-2 focus:ring-[#8e51ff]"
-          placeholder="your@email.com"
-        />
       </div>
 
       <div>
@@ -278,7 +263,6 @@ const StripeCardForm = ({ clientSecret, paymentId, shareCode, amount, currency, 
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
-  const [email, setEmail] = useState('');
   const [postalCode, setPostalCode] = useState('');
 
   const handleSubmit = async (e) => {
@@ -299,7 +283,6 @@ const StripeCardForm = ({ clientSecret, paymentId, shareCode, amount, currency, 
           payment_method: {
             card: elements.getElement(CardElement),
             billing_details: {
-              email: email || undefined,
               address: {
                 postal_code: postalCode || undefined,
               },
@@ -340,19 +323,6 @@ const StripeCardForm = ({ clientSecret, paymentId, shareCode, amount, currency, 
         <ArrowLeft className="h-4 w-4" />
         Back to payment methods
       </button>
-
-      <div>
-        <label className="block text-sm font-medium text-[#09090b] mb-1">
-          Email (for receipt)
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-2 border border-[#e5e5e5] rounded-lg bg-white text-[#09090b] focus:outline-none focus:ring-2 focus:ring-[#8e51ff]"
-          placeholder="your@email.com"
-        />
-      </div>
 
       <div>
         <label className="block text-sm font-medium text-[#09090b] mb-1">
@@ -576,6 +546,173 @@ const PayPalPaymentSection = ({ shareCode, amount, currency, onBack }) => {
 };
 
 /**
+ * Saved Card Payment Inline - For payment method selection flow
+ */
+const SavedCardPaymentInline = ({ shareCode, amountDue, currency, savedCard, onSuccess, onBack }) => {
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handlePayWithSavedCard = async () => {
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const result = await invoicesAPI.payWithSavedCard(shareCode, {});
+
+      if (result.status === 'succeeded') {
+        onSuccess();
+      } else {
+        throw new Error('Payment was not successful. Please try again.');
+      }
+    } catch (err) {
+      console.error('[SavedCardPayment] Error:', err);
+      setError(err.message || 'Failed to process payment. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Format card brand for display
+  const formatBrand = (brand) => {
+    if (!brand) return 'Card';
+    return brand.charAt(0).toUpperCase() + brand.slice(1);
+  };
+
+  return (
+    <div className="space-y-4">
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex items-center gap-2 text-sm text-[#8e51ff] hover:text-[#7a44db]"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to payment options
+      </button>
+
+      <div className="p-3 bg-[#f0fdf4] border border-green-200 rounded-lg">
+        <div className="flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <div>
+            <p className="text-sm text-green-800">
+              Pay using your saved card
+            </p>
+            {savedCard && (
+              <p className="text-xs text-green-600 mt-0.5">
+                {formatBrand(savedCard.brand)} •••• {savedCard.last4}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
+      <button
+        onClick={handlePayWithSavedCard}
+        disabled={processing}
+        className="w-full px-4 py-3 bg-[#8e51ff] hover:bg-[#7a44db] text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {processing ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          <>
+            <CreditCard className="h-5 w-5" />
+            Pay {formatCurrency(amountDue, currency)}
+          </>
+        )}
+      </button>
+
+      <p className="text-xs text-center text-[#71717a]">
+        {savedCard
+          ? `Payment will be charged to ${formatBrand(savedCard.brand)} •••• ${savedCard.last4}`
+          : 'Payment will be charged to your saved card'}
+      </p>
+    </div>
+  );
+};
+
+/**
+ * Saved Card Payment Section - Pay with previously saved card (after card setup success)
+ */
+const SavedCardPaymentSection = ({ shareCode, amountDue, currency, onSuccess }) => {
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handlePayWithSavedCard = async () => {
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const result = await invoicesAPI.payWithSavedCard(shareCode, {});
+
+      if (result.status === 'succeeded') {
+        onSuccess();
+      } else {
+        throw new Error('Payment was not successful. Please try again.');
+      }
+    } catch (err) {
+      console.error('[SavedCardPayment] Error:', err);
+      setError(err.message || 'Failed to process payment. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="lg:w-[340px] lg:flex-shrink-0 bg-white border-2 border-green-500 rounded-[12px] p-6 h-fit">
+      <div className="flex flex-col items-center text-center gap-4">
+        <div className="p-3 bg-green-100 rounded-full">
+          <CheckCircle className="h-8 w-8 text-green-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-[#09090b]">Card Saved Successfully</h3>
+          <p className="text-sm text-[#71717a] mt-1">
+            Your card has been saved for automatic payments on this recurring invoice.
+          </p>
+        </div>
+
+        {error && (
+          <div className="w-full p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        {amountDue > 0 && (
+          <button
+            onClick={handlePayWithSavedCard}
+            disabled={processing}
+            className="w-full px-4 py-3 bg-[#8e51ff] hover:bg-[#7a44db] text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {processing ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <CreditCard className="h-5 w-5" />
+                Pay {formatCurrency(amountDue, currency)} Now
+              </>
+            )}
+          </button>
+        )}
+
+        <p className="text-xs text-[#71717a]">
+          Payment will be charged to your saved card
+        </p>
+      </div>
+    </div>
+  );
+};
+
+/**
  * Public Invoice View Component
  */
 const PublicInvoiceView = () => {
@@ -588,6 +725,12 @@ const PublicInvoiceView = () => {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [cardSetupSuccess, setCardSetupSuccess] = useState(false);
   const [capturingPayPal, setCapturingPayPal] = useState(false);
+  const [savedCards, setSavedCards] = useState([]);
+  const [loadingSavedCards, setLoadingSavedCards] = useState(false);
+  const [deletingCard, setDeletingCard] = useState(null);
+  const [showDeleteCardModal, setShowDeleteCardModal] = useState(false);
+  const [cardToDelete, setCardToDelete] = useState(null);
+  const [deleteCardError, setDeleteCardError] = useState(null);
 
   // Use shareCode from URL or fall back to token for backwards compatibility
   const invoiceCode = shareCode || token;
@@ -630,6 +773,59 @@ const PublicInvoiceView = () => {
       setLoading(false);
     }
   }, [invoiceCode]);
+
+  // Load saved cards
+  const loadSavedCards = useCallback(async () => {
+    if (!invoiceCode) return;
+
+    try {
+      setLoadingSavedCards(true);
+      const data = await invoicesAPI.getSavedCards(invoiceCode);
+      setSavedCards(data.payment_methods || []);
+    } catch (err) {
+      console.error('[PublicInvoiceView] Error loading saved cards:', err);
+      // Don't show error to user - just means no cards saved
+      setSavedCards([]);
+    } finally {
+      setLoadingSavedCards(false);
+    }
+  }, [invoiceCode]);
+
+  // Show delete card confirmation modal
+  const handleDeleteCard = (paymentMethodId) => {
+    if (!invoiceCode || !paymentMethodId) return;
+    const card = savedCards.find(c => c.id === paymentMethodId);
+    setCardToDelete(card || { id: paymentMethodId });
+    setDeleteCardError(null);
+    setShowDeleteCardModal(true);
+  };
+
+  // Confirm delete card
+  const confirmDeleteCard = async () => {
+    if (!cardToDelete?.id) return;
+
+    try {
+      setDeletingCard(cardToDelete.id);
+      setDeleteCardError(null);
+      await invoicesAPI.deleteSavedCard(invoiceCode, cardToDelete.id);
+      // Reload both saved cards and invoice to get updated has_saved_payment_method
+      await Promise.all([loadSavedCards(), loadInvoice()]);
+      setShowDeleteCardModal(false);
+      setCardToDelete(null);
+    } catch (err) {
+      console.error('[PublicInvoiceView] Error deleting card:', err);
+      setDeleteCardError(err.message || 'Failed to remove card. Please try again.');
+    } finally {
+      setDeletingCard(null);
+    }
+  };
+
+  // Cancel delete card
+  const cancelDeleteCard = () => {
+    setShowDeleteCardModal(false);
+    setCardToDelete(null);
+    setDeleteCardError(null);
+  };
 
   // Handle PayPal return - run once on mount
   useEffect(() => {
@@ -686,10 +882,25 @@ const PublicInvoiceView = () => {
     loadInvoice();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePaymentSuccess = () => {
+  // Load saved cards when invoice has card on file
+  useEffect(() => {
+    if (invoice?.has_saved_payment_method) {
+      loadSavedCards();
+    }
+  }, [invoice?.has_saved_payment_method, loadSavedCards]);
+
+  const handlePaymentSuccess = useCallback(async () => {
+    // Refresh invoice data silently (without showing loading spinner)
+    // so the updated amounts are displayed with the success message
+    try {
+      const data = await invoicesAPI.getPublicByShareCode(invoiceCode);
+      setInvoice(data);
+    } catch (err) {
+      console.error('[PublicInvoiceView] Error refreshing invoice after payment:', err);
+    }
+    // Show success message after invoice data is updated
     setPaymentSuccess(true);
-    loadInvoice();
-  };
+  }, [invoiceCode]);
 
   // Status badge colors matching InvoiceDetail design
   const getStatusBadgeClasses = (status) => {
@@ -828,9 +1039,13 @@ const PublicInvoiceView = () => {
                   {invoice.company_name || 'Company'}
                 </p>
                 {/* Company Address */}
-                {invoice.company_address && (
-                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a] whitespace-pre-line">
-                    {invoice.company_address}
+                {(invoice.company_address || invoice.company_city || invoice.company_state || invoice.company_postal_code || invoice.company_country) && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {[
+                      invoice.company_address,
+                      [invoice.company_city, invoice.company_state, invoice.company_postal_code].filter(Boolean).join(', '),
+                      invoice.company_country
+                    ].filter(Boolean).join('\n')}
                   </p>
                 )}
                 {/* Company Email */}
@@ -852,12 +1067,30 @@ const PublicInvoiceView = () => {
             <div className="flex-1 flex flex-col gap-[6px]">
               <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">Billed to</p>
               <div className="flex flex-col gap-[2px]">
+                {/* Contact Name */}
                 <p className="text-[16px] font-semibold leading-[24px] text-[#09090b]">
-                  {invoice.client_name || 'Client'}
+                  {invoice.contact_name || invoice.client_name || 'Client'}
                 </p>
-                {invoice.client_email && (
+                {/* Business Name (if different from contact name) */}
+                {invoice.contact_business_name && (
                   <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
-                    {invoice.client_email}
+                    {invoice.contact_business_name}
+                  </p>
+                )}
+                {/* Contact Address */}
+                {(invoice.contact_address || invoice.contact_city || invoice.contact_state || invoice.contact_postcode || invoice.contact_country) && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {[
+                      invoice.contact_address,
+                      [invoice.contact_city, invoice.contact_state, invoice.contact_postcode].filter(Boolean).join(', '),
+                      invoice.contact_country
+                    ].filter(Boolean).join('\n')}
+                  </p>
+                )}
+                {/* Contact Email */}
+                {(invoice.contact_email || invoice.client_email) && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {invoice.contact_email || invoice.client_email}
                   </p>
                 )}
               </div>
@@ -964,25 +1197,43 @@ const PublicInvoiceView = () => {
             </div>
 
             {/* Discount */}
-            {invoice.discount_amount > 0 && (
+            {parseFloat(invoice.discount_amount || 0) > 0 && (
               <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] text-right">
                 <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b]">
-                  Discount:
+                  Discount{invoice.discount_percentage && parseFloat(invoice.discount_percentage) > 0 ? ` (${parseFloat(invoice.discount_percentage)}%)` : ''}:
                 </span>
-                <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b]">
-                  - {formatCurrency(invoice.discount_amount, invoice.currency_code)}
+                <span className="w-[216px] text-[16px] font-medium leading-[24px] text-red-600">
+                  - {formatCurrency(parseFloat(invoice.discount_amount), invoice.currency_code)}
                 </span>
               </div>
             )}
 
-            {/* Tax */}
-            {(invoice.tax_total > 0 || itemLevelTax > 0) && (
+            {/* Document Taxes - show each tax line */}
+            {invoice.document_taxes?.length > 0 && invoice.document_taxes.map((tax, index) => (
+              <div key={tax.id || index} className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] text-right">
+                <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b]">
+                  {tax.tax_name || 'Tax'} ({parseFloat(tax.tax_rate)}%):
+                </span>
+                <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b]">
+                  + {formatCurrency(parseFloat(tax.tax_amount || 0), invoice.currency_code)}
+                </span>
+              </div>
+            ))}
+
+            {/* Fallback Tax display if no document_taxes but has tax totals */}
+            {(!invoice.document_taxes || invoice.document_taxes.length === 0) &&
+             (parseFloat(invoice.document_tax_total || 0) > 0 || parseFloat(invoice.tax_total || 0) > 0 || itemLevelTax > 0) && (
               <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] text-right">
                 <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b]">
                   Tax:
                 </span>
                 <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b]">
-                  + {formatCurrency(invoice.tax_total || itemLevelTax, invoice.currency_code)}
+                  + {formatCurrency(
+                    parseFloat(invoice.document_tax_total || 0) ||
+                    parseFloat(invoice.tax_total || 0) ||
+                    itemLevelTax,
+                    invoice.currency_code
+                  )}
                 </span>
               </div>
             )}
@@ -996,6 +1247,18 @@ const PublicInvoiceView = () => {
                 {formatCurrency(invoice.total, invoice.currency_code)}
               </span>
             </div>
+
+            {/* Deposit Requested - shown underneath Total Amount */}
+            {parseFloat(invoice.deposit_amount || 0) > 0 && (
+              <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] text-right">
+                <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b]">
+                  Deposit Requested{invoice.deposit_percentage && parseFloat(invoice.deposit_percentage) > 0 ? ` (${parseFloat(invoice.deposit_percentage)}%)` : ''}:
+                </span>
+                <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b]">
+                  {formatCurrency(parseFloat(invoice.deposit_amount), invoice.currency_code)}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Payment Summary Card */}
@@ -1082,18 +1345,60 @@ const PublicInvoiceView = () => {
 
               {/* Recurring Invoice Banner */}
               {isRecurring && (
-                <div className="p-3 bg-[#f0f9ff] border border-[#bae6fd] rounded-lg">
+                <div className="p-3 bg-[#f5f0ff] border border-[#d4bfff] rounded-lg">
                   <div className="flex items-start gap-2">
-                    <RefreshCw className="h-4 w-4 text-[#0284c7] mt-0.5 flex-shrink-0" />
+                    <RefreshCw className="h-4 w-4 text-[#8e51ff] mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-[13px] font-medium text-[#0c4a6e]">
+                      <p className="text-[13px] font-medium text-[#5b21b6]">
                         This is a recurring invoice
                       </p>
                       {invoice.recurring_type && (
-                        <p className="text-[12px] text-[#0369a1] mt-0.5">
+                        <p className="text-[12px] text-[#7c3aed] mt-0.5">
                           Billed {invoice.recurring_type.toLowerCase()}
                         </p>
                       )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Auto-billing Failed Warning */}
+              {invoice.auto_billing_failed && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-[13px] font-semibold text-red-800">
+                        Automatic Payment Failed
+                      </p>
+                      <p className="text-[12px] text-red-700 mt-0.5">
+                        {invoice.auto_billing_failure_reason || 'Your payment could not be processed.'}
+                      </p>
+                      <p className="text-[11px] text-red-600 mt-1">
+                        Please update your payment method or pay manually below.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Auto-billing Retry Scheduled Warning */}
+              {!invoice.auto_billing_failed && invoice.next_auto_billing_retry_at && (
+                <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Clock className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-[13px] font-semibold text-orange-800">
+                        Payment Retry Scheduled
+                      </p>
+                      {invoice.auto_billing_failure_reason && (
+                        <p className="text-[12px] text-orange-700 mt-0.5">
+                          {invoice.auto_billing_failure_reason}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-orange-600 mt-1">
+                        We'll automatically retry your payment. You can also pay manually below.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1112,11 +1417,41 @@ const PublicInvoiceView = () => {
               {/* Card on File Indicator */}
               {hasCardOnFile && (
                 <div className="p-3 bg-[#f0fdf4] border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <p className="text-[13px] text-green-800">
-                      Card saved for automatic payments
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-[13px] text-green-800">
+                          Card saved for automatic payments
+                        </p>
+                        {loadingSavedCards ? (
+                          <p className="text-[11px] text-green-600 mt-0.5">Loading card details...</p>
+                        ) : savedCards.length > 0 && (
+                          <p className="text-[11px] text-green-600 mt-0.5">
+                            {savedCards[0].brand?.charAt(0).toUpperCase() + savedCards[0].brand?.slice(1) || 'Card'} •••• {savedCards[0].last4}
+                            {savedCards[0].exp_month && savedCards[0].exp_year && (
+                              <span className="ml-1">
+                                (expires {savedCards[0].exp_month}/{savedCards[0].exp_year.toString().slice(-2)})
+                              </span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {savedCards.length > 0 && (
+                      <button
+                        onClick={() => handleDeleteCard(savedCards[0].id)}
+                        disabled={deletingCard === savedCards[0].id}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                        title="Remove card"
+                      >
+                        {deletingCard === savedCards[0].id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1125,18 +1460,45 @@ const PublicInvoiceView = () => {
               {!paymentMethod && (
                 <div className="space-y-4">
                   <p className="text-[14px] font-medium text-[#09090b]">
-                    {canSetupAutomaticPayments ? 'Payment Options' : 'Select Payment Method'}
+                    {hasCardOnFile ? 'Pay Now' : canSetupAutomaticPayments ? 'Payment Options' : 'Select Payment Method'}
                   </p>
                   <div className="flex flex-col gap-3">
-                    {/* Save Card for Automatic Payments - Only for recurring with auto-pay enabled */}
-                    {canSetupAutomaticPayments && !hasCardOnFile && (
+                    {/* Pay with Saved Card - When card is already on file */}
+                    {hasCardOnFile && canPayStripe && (
                       <button
-                        onClick={() => setPaymentMethod('setup_card')}
-                        className="p-4 bg-[#f0fdf4] rounded-lg border-2 border-green-200 hover:border-green-400 transition-all hover:shadow-md"
+                        onClick={() => setPaymentMethod('saved_card')}
+                        className="p-4 bg-[#f0fdf4] rounded-lg border-2 border-green-300 hover:border-green-500 transition-all hover:shadow-md"
                       >
                         <div className="flex items-center gap-3">
                           <div className="p-2 bg-green-100 rounded-lg">
                             <CreditCard className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div className="text-left flex-1">
+                            <span className="text-[14px] font-semibold text-[#09090b] block">
+                              Pay with Saved Card
+                            </span>
+                            <p className="text-[11px] text-[#71717a]">
+                              {savedCards.length > 0
+                                ? `${savedCards[0].brand?.charAt(0).toUpperCase() + savedCards[0].brand?.slice(1) || 'Card'} •••• ${savedCards[0].last4}`
+                                : 'Use your card on file'}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded">
+                            Recommended
+                          </span>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Save Card for Automatic Payments - Only for recurring with auto-pay enabled */}
+                    {canSetupAutomaticPayments && !hasCardOnFile && (
+                      <button
+                        onClick={() => setPaymentMethod('setup_card')}
+                        className="p-4 bg-[#f5f0ff] rounded-lg border-2 border-[#d4bfff] hover:border-[#8e51ff] transition-all hover:shadow-md"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-[#ede9fe] rounded-lg">
+                            <CreditCard className="h-5 w-5 text-[#8e51ff]" />
                           </div>
                           <div className="text-left flex-1">
                             <span className="text-[14px] font-semibold text-[#09090b] block">
@@ -1146,7 +1508,7 @@ const PublicInvoiceView = () => {
                               Save card for future recurring charges
                             </p>
                           </div>
-                          <span className="text-[10px] font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded">
+                          <span className="text-[10px] font-medium text-[#5b21b6] bg-[#ede9fe] px-2 py-0.5 rounded">
                             Recommended
                           </span>
                         </div>
@@ -1208,6 +1570,18 @@ const PublicInvoiceView = () => {
                 />
               )}
 
+              {/* Pay with Saved Card */}
+              {paymentMethod === 'saved_card' && hasCardOnFile && (
+                <SavedCardPaymentInline
+                  shareCode={invoiceCode}
+                  amountDue={amountDue}
+                  currency={invoice.currency_code}
+                  savedCard={savedCards[0]}
+                  onSuccess={handlePaymentSuccess}
+                  onBack={() => setPaymentMethod(null)}
+                />
+              )}
+
               {/* Stripe Payment Form */}
               {paymentMethod === 'stripe' && canPayStripe && (
                 <StripePaymentSection
@@ -1234,30 +1608,12 @@ const PublicInvoiceView = () => {
 
           {/* Card Setup Success - Right Side */}
           {cardSetupSuccess && !paymentSuccess && (
-            <div className="lg:w-[340px] lg:flex-shrink-0 bg-white border-2 border-green-500 rounded-[12px] p-6 h-fit">
-              <div className="flex flex-col items-center text-center gap-4">
-                <div className="p-3 bg-green-100 rounded-full">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-[#09090b]">Card Saved Successfully</h3>
-                  <p className="text-sm text-[#71717a] mt-1">
-                    Your card has been saved for automatic payments on this recurring invoice.
-                  </p>
-                </div>
-                {amountDue > 0 && (
-                  <button
-                    onClick={() => {
-                      setCardSetupSuccess(false);
-                      setPaymentMethod('stripe');
-                    }}
-                    className="w-full px-4 py-2 bg-[#8e51ff] hover:bg-[#7a44db] text-white font-medium rounded-lg transition-colors"
-                  >
-                    Pay {formatCurrency(amountDue, invoice.currency_code)} Now
-                  </button>
-                )}
-              </div>
-            </div>
+            <SavedCardPaymentSection
+              shareCode={invoiceCode}
+              amountDue={amountDue}
+              currency={invoice.currency_code}
+              onSuccess={handlePaymentSuccess}
+            />
           )}
 
           {/* No payment methods available - Right Side */}
@@ -1265,10 +1621,10 @@ const PublicInvoiceView = () => {
             <div className="lg:w-[340px] lg:flex-shrink-0 bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6 h-fit">
               <p className="text-[16px] font-bold leading-[24px] text-[#09090b] mb-4">Payment</p>
               {isRecurring && (
-                <div className="p-3 bg-[#f0f9ff] border border-[#bae6fd] rounded-lg mb-4">
+                <div className="p-3 bg-[#f5f0ff] border border-[#d4bfff] rounded-lg mb-4">
                   <div className="flex items-start gap-2">
-                    <RefreshCw className="h-4 w-4 text-[#0284c7] mt-0.5" />
-                    <p className="text-[12px] text-[#0369a1]">
+                    <RefreshCw className="h-4 w-4 text-[#8e51ff] mt-0.5" />
+                    <p className="text-[12px] text-[#7c3aed]">
                       This is a recurring invoice
                     </p>
                   </div>
@@ -1281,6 +1637,73 @@ const PublicInvoiceView = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Card Confirmation Modal */}
+      {showDeleteCardModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={cancelDeleteCard}></div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full relative z-10">
+              <div className="bg-white px-6 pt-6 pb-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-red-100">
+                    <Trash2 className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Remove Saved Card
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-600">
+                        Are you sure you want to remove this card?
+                      </p>
+                      {cardToDelete && (cardToDelete.brand || cardToDelete.last4) && (
+                        <p className="mt-2 text-sm font-medium text-gray-900">
+                          {cardToDelete.brand?.charAt(0).toUpperCase() + cardToDelete.brand?.slice(1) || 'Card'} •••• {cardToDelete.last4}
+                        </p>
+                      )}
+                      <p className="mt-2 text-sm text-gray-500">
+                        You will need to add a new card for future automatic payments.
+                      </p>
+                      {deleteCardError && (
+                        <p className="mt-3 text-sm text-red-600 bg-red-50 p-2 rounded">
+                          {deleteCardError}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={cancelDeleteCard}
+                  disabled={deletingCard}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteCard}
+                  disabled={deletingCard}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {deletingCard ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Removing...
+                    </>
+                  ) : (
+                    'Remove Card'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

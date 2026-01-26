@@ -11,6 +11,7 @@ const BookingCalendar = ({
   availableDates = [],
   selectedDate,
   onSelect,
+  onMonthChange,
   minDate,
   maxDate,
 }) => {
@@ -18,6 +19,30 @@ const BookingCalendar = ({
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+
+  // Notify parent of visible date range when month changes
+  React.useEffect(() => {
+    if (onMonthChange) {
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+
+      // First day of the month
+      const firstDay = new Date(year, month, 1);
+      // Last day of the month
+      const lastDay = new Date(year, month + 1, 0);
+
+      // Start from the Sunday of the first week
+      const startDate = new Date(firstDay);
+      startDate.setDate(startDate.getDate() - startDate.getDay());
+
+      // End on the Saturday of the last week
+      const endDate = new Date(lastDay);
+      endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+
+      const formatDate = (d) => d.toISOString().split('T')[0];
+      onMonthChange(formatDate(startDate), formatDate(endDate));
+    }
+  }, [currentMonth, onMonthChange]);
 
   // Convert available dates to Set for fast lookup
   const availableDateSet = useMemo(() => {

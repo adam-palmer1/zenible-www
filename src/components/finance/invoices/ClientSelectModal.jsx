@@ -27,8 +27,14 @@ const ClientSelectModal = ({ isOpen, onClose, clients, selectedClientId, onSelec
   };
 
   const getClientDisplay = (client) => {
-    const name = `${client.first_name} ${client.last_name}`;
-    return client.business_name ? `${name} (${client.business_name})` : name;
+    const firstName = client.first_name?.trim() || '';
+    const lastName = client.last_name?.trim() || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    if (fullName && client.business_name) {
+      return `${fullName} (${client.business_name})`;
+    }
+    return fullName || client.business_name || 'Unnamed Client';
   };
 
   // Close on click outside

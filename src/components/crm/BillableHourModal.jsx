@@ -25,7 +25,6 @@ const BillableHourModal = ({
     description: '',
     notes: '',
     start_time: '',
-    end_time: '',
     is_billable: true,
     hourly_rate: '',
     currency_id: '',

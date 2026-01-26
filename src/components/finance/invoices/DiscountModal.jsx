@@ -49,7 +49,10 @@ const DiscountModal = ({
     onClose();
   };
 
-  const previewAmount = calculateDiscountAmount(subtotal, discountType, discountValue);
+  // Calculate preview amount based on discount type
+  const previewAmount = discountType === 'percentage'
+    ? calculateDiscountAmount(subtotal, parseFloat(discountValue) || 0, null)
+    : calculateDiscountAmount(subtotal, 0, parseFloat(discountValue) || 0);
 
   return isOpen ? (
     <div className="fixed inset-0 z-50 overflow-y-auto">

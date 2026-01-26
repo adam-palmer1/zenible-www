@@ -3,16 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Plus,
-  Play,
-  Pause,
-  XCircle,
   MoreVertical,
-  RefreshCw,
-  Eye,
-  Edit,
   Loader2,
   Repeat,
-  Calendar
 } from 'lucide-react';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
@@ -22,6 +15,7 @@ import { calculateNextBillingDate } from '../../../utils/recurringBilling';
 import expensesAPI from '../../../services/api/finance/expenses';
 import NewSidebar from '../../sidebar/NewSidebar';
 import Modal from '../../ui/modal/Modal';
+import ActionMenu from '../../shared/ActionMenu';
 
 /**
  * Format recurring frequency for display
@@ -69,26 +63,8 @@ const getVendorName = (vendor) => {
 /**
  * Recurring expense row with actions dropdown
  */
-const RecurringExpenseRow = ({ expense, onAction, actionLoading, onOpenMenu, menuPosition, isMenuOpen, numberFormat }) => {
-  const buttonRef = React.useRef(null);
+const RecurringExpenseRow = ({ expense, onAction, actionLoading, onToggleMenu, isMenuOpen, numberFormat }) => {
   const navigate = useNavigate();
-
-  const handleAction = (action) => {
-    onOpenMenu(null); // Close menu
-    onAction(expense.id, action);
-  };
-
-  const handleToggleMenu = () => {
-    if (isMenuOpen) {
-      onOpenMenu(null);
-    } else if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      onOpenMenu(expense.id, {
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right,
-      });
-    }
-  };
 
   // Get currency code from expense
   const currencyCode = expense.currency?.code || 'USD';
@@ -141,8 +117,8 @@ const RecurringExpenseRow = ({ expense, onAction, actionLoading, onOpenMenu, men
       </td>
       <td className="px-4 py-3">
         <button
-          ref={buttonRef}
-          onClick={handleToggleMenu}
+          id={`recurring-expense-action-btn-${expense.id}`}
+          onClick={() => onToggleMenu(expense.id)}
           disabled={actionLoading === expense.id}
           className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
         >
@@ -154,92 +130,6 @@ const RecurringExpenseRow = ({ expense, onAction, actionLoading, onOpenMenu, men
         </button>
       </td>
     </tr>
-  );
-};
-
-/**
- * Action menu dropdown (rendered at root level with fixed positioning)
- */
-const ActionMenuDropdown = ({ expense, position, onClose, onAction, navigate }) => {
-  if (!expense || !position) return null;
-
-  const handleAction = (action) => {
-    onClose();
-    onAction(expense.id, action);
-  };
-
-  return (
-    <>
-      <div className="fixed inset-0 z-[60]" onClick={onClose} />
-      <div
-        className="fixed z-[70] w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1"
-        style={{ top: position.top, right: position.right }}
-      >
-        <button
-          onClick={() => {
-            onClose();
-            navigate(`/finance/expenses/${expense.id}/edit`);
-          }}
-          className="w-full flex items-center gap-2 px-4 py-2 text-sm design-text-primary hover:bg-gray-50 dark:hover:bg-gray-700"
-        >
-          <Edit className="h-4 w-4" />
-          Edit Template
-        </button>
-        <button
-          onClick={() => handleAction('viewChildren')}
-          className="w-full flex items-center gap-2 px-4 py-2 text-sm design-text-primary hover:bg-gray-50 dark:hover:bg-gray-700"
-        >
-          <Eye className="h-4 w-4" />
-          View Generated
-        </button>
-
-        {expense.recurring_status === 'active' && (
-          <>
-            <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-            <button
-              onClick={() => handleAction('generateNext')}
-              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Generate Next Now
-            </button>
-            <button
-              onClick={() => handleAction('pause')}
-              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
-            >
-              <Pause className="h-4 w-4" />
-              Pause
-            </button>
-          </>
-        )}
-
-        {expense.recurring_status === 'paused' && (
-          <>
-            <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-            <button
-              onClick={() => handleAction('resume')}
-              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
-            >
-              <Play className="h-4 w-4" />
-              Resume
-            </button>
-          </>
-        )}
-
-        {expense.recurring_status !== 'cancelled' && (
-          <>
-            <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-            <button
-              onClick={() => handleAction('cancel')}
-              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-            >
-              <XCircle className="h-4 w-4" />
-              Cancel Permanently
-            </button>
-          </>
-        )}
-      </div>
-    </>
   );
 };
 
@@ -372,17 +262,10 @@ const RecurringExpenses = () => {
 
   // Action menu state
   const [openMenuId, setOpenMenuId] = useState(null);
-  const [menuPosition, setMenuPosition] = useState(null);
 
-  // Handle opening action menu
-  const handleOpenMenu = useCallback((expenseId, position = null) => {
-    if (expenseId === null) {
-      setOpenMenuId(null);
-      setMenuPosition(null);
-    } else {
-      setOpenMenuId(expenseId);
-      setMenuPosition(position);
-    }
+  // Handle toggling action menu
+  const handleToggleMenu = useCallback((expenseId) => {
+    setOpenMenuId(prev => prev === expenseId ? null : expenseId);
   }, []);
 
   // Load all recurring expense templates (no status filter)
@@ -607,7 +490,7 @@ const RecurringExpenses = () => {
                       expense={expense}
                       onAction={handleAction}
                       actionLoading={actionLoading}
-                      onOpenMenu={handleOpenMenu}
+                      onToggleMenu={handleToggleMenu}
                       isMenuOpen={openMenuId === expense.id}
                       numberFormat={numberFormat}
                     />
@@ -633,14 +516,45 @@ const RecurringExpenses = () => {
         numberFormat={numberFormat}
       />
 
-      {/* Action Menu Dropdown (rendered at root level for proper z-index) */}
-      <ActionMenuDropdown
-        expense={allExpenses.find(e => e.id === openMenuId)}
-        position={menuPosition}
-        onClose={() => handleOpenMenu(null)}
-        onAction={handleAction}
-        navigate={navigate}
-      />
+      {/* Action Menu */}
+      {openMenuId && (() => {
+        const expense = allExpenses.find(e => e.id === openMenuId);
+        if (!expense) return null;
+        return (
+          <ActionMenu
+            itemId={expense.id}
+            onClose={() => setOpenMenuId(null)}
+            buttonIdPrefix="recurring-expense-action-btn"
+            actions={[
+              { label: 'Edit Template', onClick: () => navigate(`/finance/expenses/${expense.id}/edit`) },
+              { label: 'View Generated', onClick: () => handleAction(expense.id, 'viewChildren') },
+              {
+                label: 'Generate Next Now',
+                onClick: () => handleAction(expense.id, 'generateNext'),
+                condition: expense.recurring_status === 'active'
+              },
+              {
+                label: 'Pause',
+                onClick: () => handleAction(expense.id, 'pause'),
+                condition: expense.recurring_status === 'active',
+                variant: 'warning'
+              },
+              {
+                label: 'Resume',
+                onClick: () => handleAction(expense.id, 'resume'),
+                condition: expense.recurring_status === 'paused',
+                variant: 'success'
+              },
+              {
+                label: 'Cancel Permanently',
+                onClick: () => handleAction(expense.id, 'cancel'),
+                condition: expense.recurring_status !== 'cancelled',
+                variant: 'danger'
+              },
+            ]}
+          />
+        );
+      })()}
     </div>
   );
 };

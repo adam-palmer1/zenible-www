@@ -123,12 +123,12 @@ export const getTaxBreakdown = (lineItems = []) => {
 /**
  * Calculate invoice/quote total
  * @param {Array} lineItems - Array of line items (may include taxes array per item)
- * @param {number} taxRate - Document-level tax rate (percentage, 0-100)
+ * @param {Array} documentTaxes - Array of document-level taxes { tax_name, tax_rate } (applied after discount)
  * @param {string} discountType - 'percentage' or 'fixed'
  * @param {number} discountValue - Discount value (percentage or fixed amount)
  * @returns {Object} Breakdown of totals
  */
-export const calculateInvoiceTotal = (lineItems = [], taxRate = 0, discountType = 'percentage', discountValue = 0) => {
+export const calculateInvoiceTotal = (lineItems = [], documentTaxes = [], discountType = 'percentage', discountValue = 0) => {
   // Calculate subtotal (before tax and discount)
   const subtotal = calculateSubtotal(lineItems);
 
@@ -148,28 +148,52 @@ export const calculateInvoiceTotal = (lineItems = [], taxRate = 0, discountType 
   // Subtotal after discount
   const subtotalAfterDiscount = Math.max(0, subtotal - discount);
 
-  // Calculate document-level tax on subtotal after discount
-  const globalTaxRate = parseFloat(taxRate) || 0;
-  const documentTax = (subtotalAfterDiscount * globalTaxRate) / 100;
+  // Calculate document-level taxes on subtotal after discount
+  // Support both array format and legacy single tax rate
+  let documentTaxTotal = 0;
+  let documentTaxBreakdown = [];
 
-  // Total tax = item-level taxes + document-level tax
-  const totalTax = itemLevelTax + documentTax;
+  if (Array.isArray(documentTaxes) && documentTaxes.length > 0) {
+    // New format: array of { tax_name, tax_rate }
+    documentTaxBreakdown = documentTaxes.map(tax => {
+      const rate = parseFloat(tax.tax_rate) || 0;
+      const amount = (subtotalAfterDiscount * rate) / 100;
+      return {
+        tax_name: tax.tax_name || 'Tax',
+        tax_rate: rate,
+        tax_amount: parseFloat(amount.toFixed(2))
+      };
+    });
+    documentTaxTotal = documentTaxBreakdown.reduce((sum, t) => sum + t.tax_amount, 0);
+  } else if (typeof documentTaxes === 'number' && documentTaxes > 0) {
+    // Legacy format: single tax rate number
+    documentTaxTotal = (subtotalAfterDiscount * documentTaxes) / 100;
+    documentTaxBreakdown = [{
+      tax_name: 'Tax',
+      tax_rate: documentTaxes,
+      tax_amount: parseFloat(documentTaxTotal.toFixed(2))
+    }];
+  }
 
-  // Total (subtotal - discount + item taxes + document tax)
+  // Total tax = item-level taxes + document-level taxes
+  const totalTax = itemLevelTax + documentTaxTotal;
+
+  // Total (subtotal - discount + item taxes + document taxes)
   const total = subtotalAfterDiscount + totalTax;
 
-  // Get tax breakdown for display
-  const taxBreakdown = getTaxBreakdown(lineItems);
+  // Get item-level tax breakdown for display
+  const itemTaxBreakdown = getTaxBreakdown(lineItems);
 
   return {
     subtotal: parseFloat(subtotal.toFixed(2)),
     discount: parseFloat(discount.toFixed(2)),
     subtotalAfterDiscount: parseFloat(subtotalAfterDiscount.toFixed(2)),
     itemLevelTax: parseFloat(itemLevelTax.toFixed(2)),
-    documentTax: parseFloat(documentTax.toFixed(2)),
+    documentTax: parseFloat(documentTaxTotal.toFixed(2)),
+    documentTaxBreakdown,
     tax: parseFloat(totalTax.toFixed(2)),
     taxTotal: parseFloat(totalTax.toFixed(2)), // Alias for backwards compatibility
-    taxBreakdown,
+    taxBreakdown: itemTaxBreakdown,
     total: parseFloat(total.toFixed(2)),
   };
 };

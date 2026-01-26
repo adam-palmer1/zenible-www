@@ -8,6 +8,7 @@ import {
   PaperAirplaneIcon,
   DocumentIcon,
   FolderIcon,
+  CreditCardIcon,
 } from '@heroicons/react/24/outline';
 import { MoreVertical } from 'lucide-react';
 import Dropdown from '../../ui/dropdown/Dropdown';
@@ -26,9 +27,11 @@ const InvoiceActionsMenu = ({
   onProjects,
   onMarkAsSent,
   onRevertToDraft,
+  onChargeCard,
   showLinkPayment = false,
   showMarkAsSent = false,
   showRevertToDraft = false,
+  showChargeCard = false,
 }) => {
   const menuItems = [
     {
@@ -42,6 +45,12 @@ const InvoiceActionsMenu = ({
       label: 'Clone Invoice',
       icon: DocumentDuplicateIcon,
       onClick: onClone,
+    },
+    showChargeCard && {
+      id: 'charge_card',
+      label: 'Charge Saved Card',
+      icon: CreditCardIcon,
+      onClick: onChargeCard,
     },
     showLinkPayment && {
       id: 'link_payment',

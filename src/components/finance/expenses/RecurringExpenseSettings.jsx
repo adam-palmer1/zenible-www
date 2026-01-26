@@ -12,8 +12,8 @@ import { calculateNextBillingDate } from '../../../utils/recurringBilling';
 const RecurringExpenseSettings = ({
   isRecurring,
   recurringType,
-  recurringEvery,
-  recurringPeriod,
+  customEvery,
+  customPeriod,
   recurringNumber,
   recurringStatus,
   startDate,
@@ -27,7 +27,7 @@ const RecurringExpenseSettings = ({
 
   // Calculate next expense date for preview
   const nextExpenseDate = isRecurring && startDate
-    ? calculateNextBillingDate(startDate, recurringType, recurringEvery, recurringPeriod)
+    ? calculateNextBillingDate(startDate, recurringType, customEvery, customPeriod)
     : null;
 
   return (
@@ -57,7 +57,7 @@ const RecurringExpenseSettings = ({
             {readOnly ? (
               <div className="design-text-secondary">
                 {recurringType === 'custom'
-                  ? `Every ${recurringEvery} ${recurringPeriod}`
+                  ? `Every ${customEvery} ${customPeriod}`
                   : recurringType.charAt(0).toUpperCase() + recurringType.slice(1)}
               </div>
             ) : (
@@ -83,8 +83,8 @@ const RecurringExpenseSettings = ({
                 </label>
                 <input
                   type="number"
-                  value={recurringEvery}
-                  onChange={(e) => handleChange('recurringEvery', parseInt(e.target.value) || 1)}
+                  value={customEvery}
+                  onChange={(e) => handleChange('customEvery', parseInt(e.target.value) || 1)}
                   min="1"
                   className="w-full px-3 py-2 design-input rounded-md"
                 />
@@ -94,8 +94,8 @@ const RecurringExpenseSettings = ({
                   Period
                 </label>
                 <select
-                  value={recurringPeriod}
-                  onChange={(e) => handleChange('recurringPeriod', e.target.value)}
+                  value={customPeriod}
+                  onChange={(e) => handleChange('customPeriod', e.target.value)}
                   className="w-full px-3 py-2 design-input rounded-md"
                 >
                   <option value="days">Days</option>

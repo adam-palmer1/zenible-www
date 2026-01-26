@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Calendar, Plus, Trash2, Loader2, ArrowLeft, ChevronDown, Settings } from 'lucide-react';
+import { Calendar, Loader2, ArrowLeft, ChevronDown, Settings } from 'lucide-react';
 import { useQuotes } from '../../../contexts/QuoteContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { useNotification } from '../../../contexts/NotificationContext';
@@ -8,14 +8,12 @@ import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { QUOTE_STATUS } from '../../../constants/finance';
 import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
-import { getCurrencySymbol } from '../../../utils/currencyUtils';
-import { applyNumberFormat } from '../../../utils/numberFormatUtils';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import quotesAPI from '../../../services/api/finance/quotes';
 import TaxSelectModal from './TaxSelectModal';
 import DiscountModal from '../invoices/DiscountModal';
 import DepositModal from '../invoices/DepositModal';
-import LineItemTaxModal from '../shared/LineItemTaxModal';
+import { DocumentLineItems, DocumentTotals, LineItemTaxModal } from '../shared';
 import ClientSelectModal from '../invoices/ClientSelectModal';
 import CurrencySelectModal from '../invoices/CurrencySelectModal';
 import SendQuoteModal from './SendQuoteModal';
@@ -39,11 +37,6 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
     }
     return null;
   }, [getNumberFormat, numberFormats]);
-
-  // Helper function to format numbers
-  const formatNumber = (num) => {
-    return applyNumberFormat(num, numberFormat);
-  };
 
   // Refs for dropdown positioning
   const clientButtonRef = React.useRef(null);
@@ -557,273 +550,36 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
         </div>
       </div>
 
-      {/* Lists of Items */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900">Lists of Items</h3>
-          <button
-            onClick={addLineItem}
-            className="inline-flex items-center gap-1 text-sm font-medium text-purple-600 hover:text-purple-700"
-          >
-            <Plus className="h-4 w-4" />
-            Add Items
-          </button>
-        </div>
-
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">Price</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">Qty</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">Amount</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Total</th>
-                <th className="px-4 py-3 w-12"></th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-4 py-8 text-center text-sm text-gray-500">
-                    No items added yet. Click "+ Add Items" to get started.
-                  </td>
-                </tr>
-              ) : (
-                items.map((item, index) => (
-                  <tr key={item.id || index}>
-                    <td className="px-4 py-3 align-top">
-                      <div className="space-y-1">
-                        <textarea
-                          value={item.description}
-                          onChange={(e) => {
-                            updateLineItem(index, 'description', e.target.value);
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                            }
-                          }}
-                          placeholder="Item description"
-                          rows={1}
-                          className="auto-grow-textarea w-full px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none bg-transparent"
-                          style={{ minHeight: '24px' }}
-                        />
-                        <textarea
-                          value={item.subtext || ''}
-                          onChange={(e) => {
-                            updateLineItem(index, 'subtext', e.target.value);
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                            }
-                          }}
-                          placeholder="Additional details (optional)"
-                          maxLength={500}
-                          rows={1}
-                          className="auto-grow-textarea w-full px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none bg-transparent"
-                          style={{ minHeight: '20px' }}
-                        />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <input
-                        type="number"
-                        value={item.price}
-                        onChange={(e) => updateLineItem(index, 'price', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
-                        className="w-full px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-purple-500 bg-transparent"
-                      />
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
-                        min="0"
-                        step="1"
-                        className="w-full px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500 bg-transparent"
-                      />
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <div className="pt-1">
-                        <div className="text-sm font-medium text-gray-900">
-                          {getCurrencySymbol(currencyCode)}{formatNumber(item.amount)}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => openLineItemTaxModal(index)}
-                          className="text-xs text-purple-600 hover:text-purple-700 font-medium"
-                        >
-                          {item.taxes && item.taxes.length > 0 ? 'Edit Tax' : '+ Tax'}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <div className="pt-1">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {getCurrencySymbol(currencyCode)}{formatNumber(calculateItemTotal(item))}
-                        </div>
-                        {item.taxes && item.taxes.length > 0 && (
-                          <div className="mt-0.5">
-                            {item.taxes.map((tax, taxIndex) => (
-                              <div key={taxIndex} className="text-xs text-gray-500">
-                                {tax.tax_name}: {getCurrencySymbol(currencyCode)}{formatNumber(tax.tax_amount)}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <div className="pt-1">
-                        <button
-                          onClick={() => removeLineItem(index)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Line Items */}
+      <DocumentLineItems
+        items={items}
+        currencyCode={currencyCode}
+        numberFormat={numberFormat}
+        onAddItem={addLineItem}
+        onUpdateItem={updateLineItem}
+        onRemoveItem={removeLineItem}
+        onOpenTaxModal={openLineItemTaxModal}
+        calculateItemTotal={calculateItemTotal}
+      />
 
       {/* Totals Section */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between py-2">
-          <span className="text-sm text-gray-600">Sub Total:</span>
-          <span className="text-sm font-medium text-gray-900">{getCurrencySymbol(currencyCode)}{formatNumber(totals.subtotal)}</span>
-        </div>
-
-        {/* Discount */}
-        {discountValue > 0 && (
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                Discount {discountType === 'percentage' ? `(${discountValue}%)` : ''}:
-              </span>
-              <button
-                onClick={() => setShowDiscountModal(true)}
-                className="text-xs text-purple-600 hover:text-purple-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => setDiscountValue(0)}
-                className="text-xs text-red-600 hover:text-red-700"
-              >
-                Remove
-              </button>
-            </div>
-            <span className="text-sm font-medium text-red-600">
-              -{getCurrencySymbol(currencyCode)}{formatNumber(totals.discount || 0)}
-            </span>
-          </div>
-        )}
-
-        {/* Tax */}
-        {taxRate > 0 && (
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {taxLabel} ({taxRate}%):
-              </span>
-              <button
-                onClick={() => setShowTaxModal(true)}
-                className="text-xs text-purple-600 hover:text-purple-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => setTaxRate(0)}
-                className="text-xs text-red-600 hover:text-red-700"
-              >
-                Remove
-              </button>
-            </div>
-            <span className="text-sm font-medium text-gray-900">
-              {getCurrencySymbol(currencyCode)}{formatNumber(totals.tax || 0)}
-            </span>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between py-3 px-4 bg-purple-100 rounded-lg">
-          <span className="text-sm font-semibold text-gray-900">Total Amount:</span>
-          <span className="text-lg font-bold text-gray-900">{getCurrencySymbol(currencyCode)}{formatNumber(totals.total)}</span>
-        </div>
-
-        {/* Deposit */}
-        {depositValue > 0 && depositType && (
-          <div className="flex items-center justify-between py-2 px-4 bg-blue-50 rounded-lg">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-blue-700">
-                Deposit Required {depositType === 'percentage' ? `(${depositValue}%)` : ''}:
-              </span>
-              <button
-                onClick={() => setShowDepositModal(true)}
-                className="text-xs text-purple-600 hover:text-purple-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => { setDepositValue(0); setDepositType(null); }}
-                className="text-xs text-red-600 hover:text-red-700"
-              >
-                Remove
-              </button>
-            </div>
-            <span className="text-sm font-medium text-blue-700">
-              {getCurrencySymbol(currencyCode)}{formatNumber(
-                depositType === 'percentage'
-                  ? (totals.total * depositValue / 100)
-                  : depositValue
-              )}
-            </span>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3 pt-2">
-          {taxRate === 0 && (
-            <button
-              onClick={() => setShowTaxModal(true)}
-              className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              <Plus className="h-4 w-4" />
-              Add Tax
-            </button>
-          )}
-          {discountValue === 0 && (
-            <button
-              onClick={() => setShowDiscountModal(true)}
-              className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              <Plus className="h-4 w-4" />
-              Add Discount
-            </button>
-          )}
-          {(!depositValue || depositValue === 0) && (
-            <button
-              onClick={() => setShowDepositModal(true)}
-              className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              <Plus className="h-4 w-4" />
-              Add Deposit
-            </button>
-          )}
-        </div>
-      </div>
+      <DocumentTotals
+        totals={totals}
+        currencyCode={currencyCode}
+        numberFormat={numberFormat}
+        taxRate={taxRate}
+        taxLabel={taxLabel}
+        onEditTax={() => setShowTaxModal(true)}
+        onRemoveTax={() => setTaxRate(0)}
+        discountType={discountType}
+        discountValue={discountValue}
+        onEditDiscount={() => setShowDiscountModal(true)}
+        onRemoveDiscount={() => setDiscountValue(0)}
+        depositType={depositType}
+        depositValue={depositValue}
+        onEditDeposit={() => setShowDepositModal(true)}
+        onRemoveDeposit={() => { setDepositValue(0); setDepositType(null); }}
+      />
 
       {/* Notes and Terms */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
