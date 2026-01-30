@@ -3,6 +3,7 @@ import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import contactsAPI from '../../services/api/crm/contacts';
 import { useNotification } from '../../contexts/NotificationContext';
 import Dropdown from '../ui/dropdown/Dropdown';
+import ConfirmationModal from '../common/ConfirmationModal';
 
 /**
  * ContactsListView Component
@@ -12,6 +13,7 @@ import Dropdown from '../ui/dropdown/Dropdown';
 const ContactsListView = ({ contacts, statuses, onContactClick, onEdit, onDelete, onUpdateStatus }) => {
   const { showError, showSuccess } = useNotification();
   const [selectedContacts, setSelectedContacts] = useState([]);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, contact: null });
 
   const handleSelectAll = () => {
     if (selectedContacts.length === contacts.length) {
@@ -35,17 +37,22 @@ const ContactsListView = ({ contacts, statuses, onContactClick, onEdit, onDelete
     }
   };
 
-  const handleDeleteContact = async (contact) => {
-    if (window.confirm(`Are you sure you want to delete ${contact.first_name} ${contact.last_name}?`)) {
-      try {
-        if (onDelete) {
-          await onDelete(contact);
-        }
-        showSuccess('Contact deleted successfully');
-      } catch (error) {
-        console.error('Error deleting contact:', error);
-        showError('Failed to delete contact');
+  const handleDeleteContact = (contact) => {
+    setDeleteConfirmModal({ isOpen: true, contact });
+  };
+
+  const confirmDeleteContact = async () => {
+    const contact = deleteConfirmModal.contact;
+    if (!contact) return;
+
+    try {
+      if (onDelete) {
+        await onDelete(contact);
       }
+      showSuccess('Contact deleted successfully');
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      showError('Failed to delete contact');
     }
   };
 
@@ -114,6 +121,7 @@ const ContactsListView = ({ contacts, statuses, onContactClick, onEdit, onDelete
   };
 
   return (
+    <>
     <div className="bg-white dark:bg-gray-900 rounded-lg border border-[#e5e5e5] dark:border-gray-700">
       {/* Table */}
       <div className="overflow-x-auto">
@@ -230,26 +238,6 @@ const ContactsListView = ({ contacts, statuses, onContactClick, onEdit, onDelete
                           Edit Contact
                         </Dropdown.Item>
 
-                        {contact.is_client && (
-                          <Dropdown.Item
-                            onSelect={(e) => {
-                              e.stopPropagation();
-                              // TODO: Implement remove from client list
-                            }}
-                          >
-                            Remove from client list
-                          </Dropdown.Item>
-                        )}
-
-                        <Dropdown.Item
-                          onSelect={(e) => {
-                            e.stopPropagation();
-                            // TODO: Implement mark as lost
-                          }}
-                        >
-                          Mark Lost
-                        </Dropdown.Item>
-
                         <Dropdown.Item
                           onSelect={(e) => {
                             e.stopPropagation();
@@ -279,6 +267,18 @@ const ContactsListView = ({ contacts, statuses, onContactClick, onEdit, onDelete
         </table>
       </div>
     </div>
+
+    <ConfirmationModal
+      isOpen={deleteConfirmModal.isOpen}
+      onClose={() => setDeleteConfirmModal({ isOpen: false, contact: null })}
+      onConfirm={confirmDeleteContact}
+      title="Delete Contact"
+      message={deleteConfirmModal.contact ? `Are you sure you want to delete ${deleteConfirmModal.contact.first_name} ${deleteConfirmModal.contact.last_name}?` : ''}
+      confirmText="Delete"
+      cancelText="Cancel"
+      confirmColor="red"
+    />
+    </>
   );
 };
 

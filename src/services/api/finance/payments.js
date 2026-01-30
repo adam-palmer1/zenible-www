@@ -3,7 +3,7 @@
  * Handles all payment-related API operations using CRM endpoints
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '@/config/api';
 
 /**
  * Base API request handler
@@ -66,8 +66,10 @@ class PaymentsAPI {
    * @returns {Promise<Object>} Paginated payments list
    */
   async list(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    const endpoint = queryString ? `${this.baseEndpoint}/?${queryString}` : `${this.baseEndpoint}/`;
+    // Add cache-busting timestamp to prevent stale cached responses
+    const paramsWithCacheBust = { ...params, _t: Date.now() };
+    const queryString = new URLSearchParams(paramsWithCacheBust).toString();
+    const endpoint = `${this.baseEndpoint}/?${queryString}`;
     return request(endpoint, { method: 'GET' });
   }
 
@@ -199,10 +201,10 @@ class PaymentsAPI {
    * @returns {Promise<Object>} Payment statistics
    */
   async getStats(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    const endpoint = queryString
-      ? `${this.baseEndpoint}/stats/overview?${queryString}`
-      : `${this.baseEndpoint}/stats/overview`;
+    // Add cache-busting timestamp to prevent stale cached responses
+    const paramsWithCacheBust = { ...params, _t: Date.now() };
+    const queryString = new URLSearchParams(paramsWithCacheBust).toString();
+    const endpoint = `${this.baseEndpoint}/stats/overview?${queryString}`;
     return request(endpoint, { method: 'GET' });
   }
 

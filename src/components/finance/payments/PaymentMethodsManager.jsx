@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, CreditCard, Plus, Trash2, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import ConfirmationModal from '../../common/ConfirmationModal';
 
 const PaymentMethodsManager = ({ isOpen, onClose }) => {
   const {
@@ -13,13 +14,17 @@ const PaymentMethodsManager = ({ isOpen, onClose }) => {
   const { showSuccess, showError } = useNotification();
 
   const [deletingId, setDeletingId] = useState(null);
+  const [removeConfirmModal, setRemoveConfirmModal] = useState({ isOpen: false, methodId: null });
 
   if (!isOpen) return null;
 
-  const handleRemoveMethod = async (methodId) => {
-    if (!window.confirm('Are you sure you want to remove this payment method?')) {
-      return;
-    }
+  const handleRemoveMethod = (methodId) => {
+    setRemoveConfirmModal({ isOpen: true, methodId });
+  };
+
+  const confirmRemoveMethod = async () => {
+    const methodId = removeConfirmModal.methodId;
+    if (!methodId) return;
 
     try {
       setDeletingId(methodId);
@@ -183,6 +188,17 @@ const PaymentMethodsManager = ({ isOpen, onClose }) => {
           </button>
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={removeConfirmModal.isOpen}
+        onClose={() => setRemoveConfirmModal({ isOpen: false, methodId: null })}
+        onConfirm={confirmRemoveMethod}
+        title="Remove Payment Method"
+        message="Are you sure you want to remove this payment method?"
+        confirmText="Remove"
+        cancelText="Cancel"
+        confirmColor="red"
+      />
     </div>
   );
 };

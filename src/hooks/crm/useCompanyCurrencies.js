@@ -1,131 +1,157 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import currenciesAPI from '../../services/api/crm/currencies';
 import numberFormatsAPI from '../../services/api/crm/numberFormats';
+import { queryKeys } from '../../lib/query-keys';
 
 /**
  * Hook for managing currencies and company-currency associations
- * @param {Object} options - Hook options
- * @param {boolean} options.skipInitialFetch - Skip the initial fetch on mount
+ * Uses React Query for automatic request deduplication and caching
  */
-export const useCompanyCurrencies = (options = {}) => {
-  const { skipInitialFetch = false } = options;
-  const [currencies, setCurrencies] = useState([]);
-  const [companyCurrencies, setCompanyCurrencies] = useState([]);
-  const [numberFormatAttribute, setNumberFormatAttribute] = useState(null);
-  const [numberFormatDetails, setNumberFormatDetails] = useState(null);
-  const [loading, setLoading] = useState(!skipInitialFetch);
-  const [error, setError] = useState(null);
-  const hasFetched = useRef(false);
+export const useCompanyCurrencies = () => {
+  const queryClient = useQueryClient();
 
   // Fetch all currencies
-  const fetchCurrencies = useCallback(async () => {
-    try {
-      const result = await currenciesAPI.list();
-      setCurrencies(result);
-    } catch (err) {
-      console.error('Failed to fetch currencies:', err);
-      setError(err.message);
-    }
-  }, []);
+  const {
+    data: currencies = [],
+    isLoading: currenciesLoading,
+    error: currenciesError,
+  } = useQuery({
+    queryKey: queryKeys.currencies.list(),
+    queryFn: () => currenciesAPI.list(),
+  });
 
   // Fetch company-enabled currencies
-  const fetchCompanyCurrencies = useCallback(async () => {
-    try {
-      const result = await currenciesAPI.getCompanyCurrencies();
-      setCompanyCurrencies(result);
-    } catch (err) {
-      console.error('Failed to fetch company currencies:', err);
-      setError(err.message);
-    }
-  }, []);
+  const {
+    data: companyCurrencies = [],
+    isLoading: companyCurrenciesLoading,
+    error: companyCurrenciesError,
+  } = useQuery({
+    queryKey: queryKeys.currencies.company(),
+    queryFn: () => currenciesAPI.getCompanyCurrencies(),
+  });
 
-  // Fetch company number format attribute and its details
-  const fetchNumberFormat = useCallback(async () => {
-    try {
-      const result = await currenciesAPI.getNumberFormat();
-      setNumberFormatAttribute(result);
-
-      // If we got a format ID, fetch the format details
-      if (result?.attribute_value) {
-        try {
-          const formatDetails = await numberFormatsAPI.get(result.attribute_value);
-          setNumberFormatDetails(formatDetails);
-        } catch (detailsErr) {
-          console.warn('Failed to fetch number format details:', detailsErr);
-          setNumberFormatDetails(null);
-        }
+  // Fetch number format attribute
+  const {
+    data: numberFormatAttribute = null,
+    isLoading: numberFormatLoading,
+    error: numberFormatError,
+  } = useQuery({
+    queryKey: queryKeys.currencies.numberFormat(),
+    queryFn: async () => {
+      try {
+        return await currenciesAPI.getNumberFormat();
+      } catch (err) {
+        // Number format might not be set, which is okay
+        console.warn('Failed to fetch number format:', err);
+        return null;
       }
-    } catch (err) {
-      // Number format might not be set, which is okay
-      console.warn('Failed to fetch number format:', err);
-      setNumberFormatAttribute(null);
-      setNumberFormatDetails(null);
-    }
-  }, []);
+    },
+  });
 
-  // Initial load (skip if skipInitialFetch is true)
-  useEffect(() => {
-    if (skipInitialFetch || hasFetched.current) return;
+  // Fetch number format details (dependent on numberFormatAttribute)
+  const formatId = numberFormatAttribute?.attribute_value;
+  const {
+    data: numberFormatDetails = null,
+    isLoading: numberFormatDetailsLoading,
+  } = useQuery({
+    queryKey: queryKeys.currencies.numberFormatDetails(formatId),
+    queryFn: async () => {
+      try {
+        return await numberFormatsAPI.get(formatId);
+      } catch (err) {
+        console.warn('Failed to fetch number format details:', err);
+        return null;
+      }
+    },
+    enabled: !!formatId,
+  });
 
-    const loadData = async () => {
-      setLoading(true);
-      hasFetched.current = true;
-      await Promise.all([fetchCurrencies(), fetchCompanyCurrencies(), fetchNumberFormat()]);
-      setLoading(false);
-    };
-    loadData();
-  }, [fetchCurrencies, fetchCompanyCurrencies, fetchNumberFormat, skipInitialFetch]);
+  // Add currency mutation
+  const addCurrencyMutation = useMutation({
+    mutationFn: (currencyId) => currenciesAPI.addCurrencyToCompany(currencyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencies.company() });
+    },
+  });
 
-  // Add currency to company
+  // Remove currency mutation
+  const removeCurrencyMutation = useMutation({
+    mutationFn: (associationId) => currenciesAPI.removeCurrencyFromCompany(associationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencies.company() });
+    },
+  });
+
+  // Set default currency mutation
+  const setDefaultCurrencyMutation = useMutation({
+    mutationFn: (associationId) => currenciesAPI.setDefaultCurrency(associationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencies.company() });
+    },
+  });
+
+  // Wrapper functions to maintain backward compatibility
   const addCurrency = useCallback(async (currencyId) => {
-    setError(null);
     try {
-      await currenciesAPI.addCurrencyToCompany(currencyId);
-      await fetchCompanyCurrencies();
+      await addCurrencyMutation.mutateAsync(currencyId);
       return { success: true };
     } catch (err) {
-      setError(err.message);
       return { success: false, error: err.message };
     }
-  }, [fetchCompanyCurrencies]);
+  }, [addCurrencyMutation]);
 
-  // Remove currency from company
   const removeCurrency = useCallback(async (associationId) => {
-    setError(null);
     try {
-      await currenciesAPI.removeCurrencyFromCompany(associationId);
-      await fetchCompanyCurrencies();
+      await removeCurrencyMutation.mutateAsync(associationId);
       return { success: true };
     } catch (err) {
-      setError(err.message);
       return { success: false, error: err.message };
     }
-  }, [fetchCompanyCurrencies]);
+  }, [removeCurrencyMutation]);
 
-  // Set currency as default
   const setDefaultCurrency = useCallback(async (associationId) => {
-    setError(null);
     try {
-      await currenciesAPI.setDefaultCurrency(associationId);
-      await fetchCompanyCurrencies();
+      await setDefaultCurrencyMutation.mutateAsync(associationId);
       return { success: true };
     } catch (err) {
-      setError(err.message);
       return { success: false, error: err.message };
     }
-  }, [fetchCompanyCurrencies]);
+  }, [setDefaultCurrencyMutation]);
+
+  // Refresh all currency data
+  const refresh = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencies.list() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencies.company() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencies.numberFormat() }),
+    ]);
+  }, [queryClient]);
+
+  // Combined loading state
+  const loading = currenciesLoading || companyCurrenciesLoading || numberFormatLoading || numberFormatDetailsLoading;
+
+  // Combined error state (first error found)
+  const error = useMemo(() => {
+    const err = currenciesError || companyCurrenciesError || numberFormatError;
+    return err?.message || null;
+  }, [currenciesError, companyCurrenciesError, numberFormatError]);
 
   // Get default currency
-  const defaultCurrency = companyCurrencies.find((cc) => cc.is_default);
+  const defaultCurrency = useMemo(
+    () => companyCurrencies.find((cc) => cc.is_default),
+    [companyCurrencies]
+  );
 
-  // Manual load function for components that skip initial fetch
+  // loadData is kept for backward compatibility but is essentially a no-op
+  // since React Query handles initial fetching automatically
   const loadData = useCallback(async () => {
-    if (hasFetched.current && companyCurrencies.length > 0) return; // Already loaded
-    setLoading(true);
-    hasFetched.current = true;
-    await Promise.all([fetchCurrencies(), fetchCompanyCurrencies(), fetchNumberFormat()]);
-    setLoading(false);
-  }, [fetchCurrencies, fetchCompanyCurrencies, fetchNumberFormat, companyCurrencies.length]);
+    // React Query handles initial fetch automatically
+    // This function exists for backward compatibility
+    if (companyCurrencies.length === 0) {
+      await refresh();
+    }
+  }, [companyCurrencies.length, refresh]);
 
   return {
     currencies,
@@ -140,10 +166,6 @@ export const useCompanyCurrencies = (options = {}) => {
     removeCurrency,
     setDefaultCurrency,
     loadData,
-    refresh: async () => {
-      setLoading(true);
-      await Promise.all([fetchCurrencies(), fetchCompanyCurrencies(), fetchNumberFormat()]);
-      setLoading(false);
-    },
+    refresh,
   };
 };

@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import companiesAPI from '../../../../services/api/crm/companies';
 import { useNotification } from '../../../../contexts/NotificationContext';
+import ConfirmationModal from '../../../common/ConfirmationModal';
 
 /**
  * TaxesSection - Manages multiple company taxes with drag-to-reorder
@@ -22,6 +23,7 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
   const [newTax, setNewTax] = useState({ tax_name: '', tax_rate: '' });
   const [loading, setLoading] = useState(false);
   const [addingTax, setAddingTax] = useState(false);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, taxId: null });
 
   const { showSuccess, showError } = useNotification();
 
@@ -99,10 +101,13 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
     }
   };
 
-  const handleDelete = async (taxId) => {
-    if (!window.confirm('Are you sure you want to delete this tax?')) {
-      return;
-    }
+  const handleDelete = (taxId) => {
+    setDeleteConfirmModal({ isOpen: true, taxId });
+  };
+
+  const confirmDeleteTax = async () => {
+    const taxId = deleteConfirmModal.taxId;
+    if (!taxId) return;
 
     setLoading(true);
     try {
@@ -317,6 +322,17 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
           {addingTax ? 'Adding...' : 'Add Tax'}
         </button>
       </div>
+
+      <ConfirmationModal
+        isOpen={deleteConfirmModal.isOpen}
+        onClose={() => setDeleteConfirmModal({ isOpen: false, taxId: null })}
+        onConfirm={confirmDeleteTax}
+        title="Delete Tax"
+        message="Are you sure you want to delete this tax?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmColor="red"
+      />
     </div>
   );
 };

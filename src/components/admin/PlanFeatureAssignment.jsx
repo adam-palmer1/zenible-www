@@ -82,8 +82,6 @@ export default function PlanFeatureAssignment({ darkMode }) {
         // Normalize feature type to uppercase for consistency
         const normalizedType = feature.feature_type?.toUpperCase() || 'BOOLEAN';
 
-        console.log('Feature:', feature.name, 'Type:', feature.feature_type, 'Normalized:', normalizedType);
-
         const assignment = {
           feature_id: feature.id,
           feature_name: feature.name,
@@ -101,7 +99,6 @@ export default function PlanFeatureAssignment({ darkMode }) {
 
         return assignment;
       });
-      console.log('System assignments:', systemAssignments);
       setSystemFeatureAssignments(systemAssignments);
 
       // Initialize character access assignments

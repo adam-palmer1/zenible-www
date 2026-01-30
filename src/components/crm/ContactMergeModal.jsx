@@ -188,9 +188,9 @@ const ContactMergeModal = ({ isOpen, onClose, sourceContact, onMergeComplete }) 
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Contact to merge (will be deleted)
                 </label>
-                <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-800 flex items-center justify-center">
-                    <UserIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <div className="flex items-center gap-3 p-3 bg-[#8e51ff]/10 dark:bg-[#a684ff]/10 border border-[#8e51ff]/30 dark:border-[#a684ff]/30 rounded-lg">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#8e51ff]/20 dark:bg-[#a684ff]/20 flex items-center justify-center">
+                    <UserIcon className="h-5 w-5 text-[#8e51ff] dark:text-[#a684ff]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 dark:text-white truncate">
@@ -202,7 +202,7 @@ const ContactMergeModal = ({ isOpen, onClose, sourceContact, onMergeComplete }) 
                       </p>
                     )}
                   </div>
-                  <span className="text-xs font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-800 px-2 py-1 rounded">
+                  <span className="text-xs font-medium text-[#8e51ff] dark:text-[#a684ff] bg-[#8e51ff]/20 dark:bg-[#a684ff]/20 px-2 py-1 rounded">
                     Source
                   </span>
                 </div>
@@ -220,9 +220,9 @@ const ContactMergeModal = ({ isOpen, onClose, sourceContact, onMergeComplete }) 
                 </label>
 
                 {selectedTarget ? (
-                  <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
-                      <UserIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div className="flex items-center gap-3 p-3 bg-[#8e51ff]/20 dark:bg-[#a684ff]/20 border border-[#8e51ff] dark:border-[#a684ff] rounded-lg">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#8e51ff] dark:bg-[#a684ff] flex items-center justify-center">
+                      <UserIcon className="h-5 w-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 dark:text-white truncate">
@@ -335,13 +335,13 @@ const ContactMergeModal = ({ isOpen, onClose, sourceContact, onMergeComplete }) 
               <div className="flex items-center justify-center gap-4 mb-6">
                 {/* Source */}
                 <div className="flex-1 text-center">
-                  <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-800 flex items-center justify-center mx-auto mb-2">
-                    <UserIcon className="h-8 w-8 text-red-600 dark:text-red-400" />
+                  <div className="w-16 h-16 rounded-full bg-[#8e51ff]/20 dark:bg-[#a684ff]/20 flex items-center justify-center mx-auto mb-2">
+                    <UserIcon className="h-8 w-8 text-[#8e51ff] dark:text-[#a684ff]" />
                   </div>
                   <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
                     {sourceDisplayName}
                   </p>
-                  <p className="text-xs text-red-600 dark:text-red-400">will be deleted</p>
+                  <p className="text-xs text-[#8e51ff] dark:text-[#a684ff]">will be deleted</p>
                 </div>
 
                 {/* Arrow */}
@@ -349,13 +349,13 @@ const ContactMergeModal = ({ isOpen, onClose, sourceContact, onMergeComplete }) 
 
                 {/* Target */}
                 <div className="flex-1 text-center">
-                  <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center mx-auto mb-2">
-                    <UserIcon className="h-8 w-8 text-green-600 dark:text-green-400" />
+                  <div className="w-16 h-16 rounded-full bg-[#8e51ff] dark:bg-[#a684ff] flex items-center justify-center mx-auto mb-2">
+                    <UserIcon className="h-8 w-8 text-white" />
                   </div>
                   <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
                     {targetDisplayName}
                   </p>
-                  <p className="text-xs text-green-600 dark:text-green-400">will be kept</p>
+                  <p className="text-xs text-[#8e51ff] dark:text-[#a684ff]">will be kept</p>
                 </div>
               </div>
 
@@ -473,7 +473,7 @@ const ContactMergeModal = ({ isOpen, onClose, sourceContact, onMergeComplete }) 
               <button
                 onClick={handleMerge}
                 disabled={merging}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium text-white bg-[#8e51ff] hover:bg-[#7a3fe6] dark:bg-[#a684ff] dark:hover:bg-[#9370ff] rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {merging ? (
                   <>

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { ModalPortalContext } from '../../../contexts/ModalPortalContext';
 
 /**
  * Base Modal component using Radix UI Dialog
@@ -12,6 +13,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
  * - Automatic focus trap
  * - Automatic ARIA attributes
  * - Eliminates 150+ lines of boilerplate per modal
+ * - Provides portal container for nested floating elements (dropdowns, tooltips)
  *
  * Usage:
  * <Modal open={isOpen} onOpenChange={setIsOpen} title="Add Contact" size="lg">
@@ -28,6 +30,9 @@ const Modal = ({
   showCloseButton = true,
   className = '',
 }) => {
+  // Ref for the portal container where nested floating elements (dropdowns) will render
+  const portalContainerRef = useRef(null);
+
   // Size mappings
   const sizeClasses = {
     sm: 'max-w-sm',
@@ -68,40 +73,57 @@ const Modal = ({
             ${className}
           `}
         >
-          {/* Header */}
-          {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-              <div>
-                {title && (
-                  <Dialog.Title className="text-xl font-semibold text-gray-900 dark:text-white">
-                    {title}
-                  </Dialog.Title>
-                )}
-                {description ? (
-                  <Dialog.Description className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {description}
-                  </Dialog.Description>
-                ) : (
-                  <Dialog.Description className="sr-only">
-                    {title || 'Modal dialog'}
-                  </Dialog.Description>
+          {/* Provide portal context to all children */}
+          <ModalPortalContext.Provider value={portalContainerRef}>
+            {/* Header */}
+            {(title || showCloseButton) && (
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                <div>
+                  {title && (
+                    <Dialog.Title className="text-xl font-semibold text-gray-900 dark:text-white">
+                      {title}
+                    </Dialog.Title>
+                  )}
+                  {description ? (
+                    <Dialog.Description className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {description}
+                    </Dialog.Description>
+                  ) : (
+                    <Dialog.Description className="sr-only">
+                      {title || 'Modal dialog'}
+                    </Dialog.Description>
+                  )}
+                </div>
+
+                {showCloseButton && (
+                  <Dialog.Close className="rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-gray-100 dark:data-[state=open]:bg-gray-700">
+                    <XMarkIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                    <span className="sr-only">Close</span>
+                  </Dialog.Close>
                 )}
               </div>
+            )}
 
-              {showCloseButton && (
-                <Dialog.Close className="rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-gray-100 dark:data-[state=open]:bg-gray-700">
-                  <XMarkIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                  <span className="sr-only">Close</span>
-                </Dialog.Close>
-              )}
+            {/* Body - Scrollable */}
+            <div className="p-6 overflow-y-auto flex-1">
+              {children}
             </div>
-          )}
-
-          {/* Body - Scrollable */}
-          <div className="p-6 overflow-y-auto flex-1">
-            {children}
-          </div>
+          </ModalPortalContext.Provider>
         </Dialog.Content>
+
+        {/*
+          Portal container for nested floating elements (dropdowns, tooltips, etc.)
+          - OUTSIDE Dialog.Content to avoid transform creating a new containing block
+          - Inside Dialog.Portal to maintain proper event propagation
+          - Fixed position to allow elements to appear anywhere on screen
+          - pointer-events-none so it doesn't block clicks on the modal
+          - Floating elements inside use pointer-events-auto on their interactive parts
+          - z-index 51 puts it above overlay (z-50) in the same stacking context
+        */}
+        <div
+          ref={portalContainerRef}
+          className="fixed inset-0 pointer-events-none overflow-visible z-[51]"
+        />
       </Dialog.Portal>
     </Dialog.Root>
   );

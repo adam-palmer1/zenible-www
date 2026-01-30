@@ -42,10 +42,10 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signup = async (email, password) => {
+  const signup = async (email, password, name) => {
     setError(null);
     try {
-      const response = await authAPI.signup(email, password);
+      const response = await authAPI.signup(email, password, name);
       tokenStorage.setTokens(response.access_token, response.refresh_token);
       setUser(response.user);
       return { success: true, user: response.user };
@@ -162,6 +162,18 @@ export function AuthProvider({ children }) {
     setUser(prev => ({ ...prev, ...updatedData }));
   };
 
+  // Allow external components to set tokens (e.g., after email verification)
+  const setTokensAndFetchUser = async (accessToken, refreshToken) => {
+    tokenStorage.setTokens(accessToken, refreshToken);
+    // Fetch user data with new tokens
+    try {
+      const userData = await authAPI.getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      console.error('Failed to fetch user after setting tokens:', error);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -177,7 +189,8 @@ export function AuthProvider({ children }) {
     googleLogin,
     handleGoogleCallback,
     checkAuth,
-    updateUser
+    updateUser,
+    setTokens: setTokensAndFetchUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

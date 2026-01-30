@@ -215,22 +215,10 @@ export default function Calendar() {
     const appointmentType = typeof appointment === 'string' ? appointment : (appointment?.appointment_type || 'manual');
     const googleTokenId = typeof appointment === 'object' ? appointment?.google_calendar_token_id : null;
 
-    // Debug logging
-    if (typeof appointment === 'object' && appointment !== null) {
-      console.log('getAppointmentColor debug:', {
-        appointmentTitle: appointment.title,
-        google_calendar_token_id: appointment.google_calendar_token_id,
-        googleTokenId,
-        googleAccountsCount: googleAccounts.length,
-        googleAccounts: googleAccounts.map(acc => ({ id: acc.id, color: acc.color, email: acc.email })),
-      });
-    }
-
     // 1. If appointment is from a Google Calendar account, use that account's color
     if (googleTokenId && googleAccounts.length > 0) {
       // Use String() for comparison to handle string/number type mismatch
       const account = googleAccounts.find(acc => String(acc.id) === String(googleTokenId));
-      console.log('Found account for token:', { googleTokenId, account, matchedColor: account?.color });
       if (account?.color) {
         return account.color;
       }
@@ -2105,24 +2093,26 @@ function GoogleCalendarConnector({ isConnected, accounts, primaryAccount, onAddA
                             </svg>
                             Rename
                           </button>
-                          <button
-                            onClick={() => {
-                              setOpenMenuId(null);
-                              onToggleReadOnly(account.id, !account.is_read_only);
-                            }}
-                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            {account.is_read_only ? (
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                              </svg>
-                            ) : (
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                              </svg>
-                            )}
-                            {account.is_read_only ? 'Enable Editing' : 'Read Only'}
-                          </button>
+                          {!account.is_primary && (
+                            <button
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                onToggleReadOnly(account.id, !account.is_read_only);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              {account.is_read_only ? (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                              )}
+                              {account.is_read_only ? 'Enable Editing' : 'Read Only'}
+                            </button>
+                          )}
                           <div className="border-t border-gray-100 my-1"></div>
                           <button
                             onClick={() => {

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { DragDropContext } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import PipelineColumn from './PipelineColumn';
 import { useCRM } from '../../contexts/CRMContext';
 import { useChangeContactStatusMutation } from '../../hooks/mutations/useContactMutations';
@@ -29,12 +29,13 @@ const calculateContactValue = (contact) => {
  * - No complex sync logic with refs
  * - React Query handles all caching and updates automatically
  */
-const SalesPipelineNew = ({ contacts = [], statuses = [], globalStatuses = [], customStatuses = [], onAddContact, onContactClick, sortOrder = null, onStatusUpdate }) => {
+const SalesPipelineNew = ({ contacts = [], statuses = [], globalStatuses = [], customStatuses = [], onAddContact, onContactClick, sortOrder = null, onStatusUpdate, onColumnReorder }) => {
   const { openContactModal } = useCRM();
   const { showError } = useNotification();
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragSourceColumnId, setDragSourceColumnId] = useState(null);
+  const [draggingContact, setDraggingContact] = useState(null);
 
   // Use React Query mutation for status changes
   const changeStatusMutation = useChangeContactStatusMutation({
@@ -98,23 +99,49 @@ const SalesPipelineNew = ({ contacts = [], statuses = [], globalStatuses = [], c
 
   // Handle drag start
   const handleDragStart = (result) => {
-    setIsDragging(true);
-    setDragSourceColumnId(result.source.droppableId);
+    // Only set contact drag state for CONTACT type drags
+    if (result.type === 'CONTACT') {
+      setIsDragging(true);
+      setDragSourceColumnId(result.source.droppableId);
+      // Find and store the dragging contact for portal rendering in renderClone
+      const contact = contacts.find(c => c.id === result.draggableId);
+      setDraggingContact(contact);
+    }
   };
 
-  // Handle drag end - simplified with React Query
+  // Handle drag end - handles both contact moves and column reordering
   const handleDragEnd = async (result) => {
-    const { destination, source, draggableId } = result;
+    const { destination, source, draggableId, type } = result;
 
-    // Clear drag source
+    // Clear drag state
     setDragSourceColumnId(null);
     setIsDragging(false);
+    setDraggingContact(null);
 
     // Dropped outside the list
     if (!destination) {
       return;
     }
 
+    // Handle column reordering
+    if (type === 'COLUMN') {
+      if (destination.index === source.index) {
+        return; // No change
+      }
+
+      // Create new order array
+      const newOrder = statuses.map(s => s.id);
+      const [movedId] = newOrder.splice(source.index, 1);
+      newOrder.splice(destination.index, 0, movedId);
+
+      // Call the reorder handler
+      if (onColumnReorder) {
+        onColumnReorder(newOrder);
+      }
+      return;
+    }
+
+    // Handle contact move between columns (type === 'CONTACT')
     // Prevent reordering within the same column
     if (destination.droppableId === source.droppableId) {
       return;
@@ -152,22 +179,45 @@ const SalesPipelineNew = ({ contacts = [], statuses = [], globalStatuses = [], c
 
   return (
     <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex gap-2 sm:gap-3 lg:gap-4 items-start overflow-x-auto pb-4 -mx-3 px-3 md:mx-0 md:px-0">
-        {statuses.map((status) => (
-          <PipelineColumn
-            key={status.id}
-            status={status}
-            contacts={contactsByStatus[status.id] || []}
-            onAddContact={() => openContactModal(null, status.id)}
-            onContactClick={onContactClick}
-            totalVisibleColumns={statuses.length}
-            globalStatuses={globalStatuses}
-            customStatuses={customStatuses}
-            onStatusUpdate={onStatusUpdate}
-            dragSourceColumnId={dragSourceColumnId}
-          />
-        ))}
-      </div>
+      <Droppable droppableId="columns" type="COLUMN" direction="horizontal">
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className="flex gap-2 sm:gap-3 lg:gap-4 items-start overflow-x-auto pb-4 -mx-3 px-3 md:mx-0 md:px-0"
+          >
+            {statuses.map((status, index) => (
+              <Draggable key={status.id} draggableId={`column-${status.id}`} index={index}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    className={`flex-1 min-w-[252px] sm:min-w-[288px] lg:min-w-0 transition-all duration-200 ${
+                      snapshot.isDragging ? 'opacity-90 shadow-lg z-50' : ''
+                    }`}
+                  >
+                    <PipelineColumn
+                      status={status}
+                      contacts={contactsByStatus[status.id] || []}
+                      onAddContact={() => openContactModal(null, status.id)}
+                      onContactClick={onContactClick}
+                      totalVisibleColumns={statuses.length}
+                      globalStatuses={globalStatuses}
+                      customStatuses={customStatuses}
+                      onStatusUpdate={onStatusUpdate}
+                      dragSourceColumnId={dragSourceColumnId}
+                      draggingContact={draggingContact}
+                      columnDragHandleProps={provided.dragHandleProps}
+                      isColumnDragging={snapshot.isDragging}
+                    />
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
     </DragDropContext>
   );
 };

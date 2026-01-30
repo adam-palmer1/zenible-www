@@ -61,22 +61,8 @@ export default function ProfileInput({ darkMode, profile, setProfile, profileUrl
       <div className="p-3 sm:p-4 flex justify-end flex-shrink-0">
         <button
           onClick={() => {
-            console.log('[ProfileInput] Button clicked:', {
-              hasProfile: !!profile,
-              analyzing,
-              isPanelReady,
-              isConnected,
-              disabled: analyzing || !isPanelReady || !isConnected,
-              disabledReasons: {
-                analyzing,
-                panelNotReady: !isPanelReady,
-                notConnected: !isConnected
-              }
-            });
             if (onAnalyze) {
               onAnalyze();
-            } else {
-              console.error('[ProfileInput] onAnalyze callback is not defined!');
             }
           }}
           disabled={analyzing || !isPanelReady || !isConnected}

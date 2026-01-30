@@ -6,7 +6,7 @@ import {
   useDeleteEmailTemplate
 } from '../../hooks/queries/useEmailTemplatesQuery';
 import { useNotification } from '../../contexts/NotificationContext';
-import { TEMPLATE_TYPE_LABELS, EmailTemplateType } from '../../types/emailTemplate';
+import { TEMPLATE_TYPE_LABELS, EmailTemplateType, TEMPLATE_CATEGORIES } from '../../types/emailTemplate';
 
 /**
  * EmailTemplates Management Page
@@ -79,8 +79,7 @@ const EmailTemplates = () => {
   };
 
   // Group templates by type
-  const templatesByType = {};
-  Object.values(EmailTemplateType).forEach(type => {
+  const getTemplateData = (type) => {
     const userTemplate = templates.find(
       t => t.template_type === type && !t.is_system_default
     );
@@ -88,12 +87,12 @@ const EmailTemplates = () => {
       t => t.template_type === type && t.is_system_default
     );
 
-    templatesByType[type] = {
+    return {
       userTemplate,
       systemTemplate,
       label: TEMPLATE_TYPE_LABELS[type] || type
     };
-  });
+  };
 
   if (showEditor) {
     return (
@@ -136,84 +135,97 @@ const EmailTemplates = () => {
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          {Object.entries(templatesByType).map(([type, { userTemplate, systemTemplate, label }]) => (
-            <div
-              key={type}
-              className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 hover:border-zenible-primary transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                    {label}
-                  </h3>
+        <div className="space-y-8">
+          {Object.entries(TEMPLATE_CATEGORIES).map(([categoryKey, category]) => (
+            <div key={categoryKey}>
+              {/* Category Header */}
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                {category.label}
+              </h3>
 
-                  {userTemplate ? (
-                    <div className="mt-3">
-                      <p className="text-sm text-gray-700 dark:text-gray-300">
-                        <span className="font-medium">Name:</span> {userTemplate.name}
-                      </p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
-                        <span className="font-medium">Subject:</span> {userTemplate.subject}
-                      </p>
-                      {userTemplate.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          {userTemplate.description}
-                        </p>
-                      )}
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                          Customized
-                        </span>
-                        {userTemplate.is_active && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                            Active
-                          </span>
-                        )}
+              {/* Templates in this category */}
+              <div className="space-y-3">
+                {category.types.map((type) => {
+                  const { userTemplate, systemTemplate, label } = getTemplateData(type);
+
+                  return (
+                    <div
+                      key={type}
+                      className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 hover:border-zenible-primary transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="text-base font-medium text-gray-900 dark:text-white">
+                            {label}
+                          </h4>
+
+                          {userTemplate ? (
+                            <div className="mt-2">
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
+                                <span className="font-medium">Subject:</span> {userTemplate.subject}
+                              </p>
+                              {userTemplate.description && (
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                  {userTemplate.description}
+                                </p>
+                              )}
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                                  Customized
+                                </span>
+                                {userTemplate.is_active && (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                                    Active
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-2">
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Using system default template
+                              </p>
+                              {systemTemplate && (
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                  <span className="font-medium">Subject:</span> {systemTemplate.subject}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="ml-4 flex items-center gap-2">
+                          <button
+                            onClick={() => handleCreateOrEditTemplate(type)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-zenible-primary bg-white dark:bg-gray-800 border border-zenible-primary rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                          >
+                            {userTemplate ? (
+                              <>
+                                <Edit2 className="h-4 w-4" />
+                                Edit
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-4 w-4" />
+                                Customize
+                              </>
+                            )}
+                          </button>
+
+                          {userTemplate && (
+                            <button
+                              onClick={() => setDeleteModal({ isOpen: true, template: userTemplate })}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  ) : (
-                    <div className="mt-3">
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Using system default template
-                      </p>
-                      {systemTemplate && (
-                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                          <span className="font-medium">Subject:</span> {systemTemplate.subject}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="ml-4 flex items-center gap-2">
-                  <button
-                    onClick={() => handleCreateOrEditTemplate(type)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-zenible-primary bg-white dark:bg-gray-800 border border-zenible-primary rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-                  >
-                    {userTemplate ? (
-                      <>
-                        <Edit2 className="h-4 w-4" />
-                        Edit
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4" />
-                        Customize
-                      </>
-                    )}
-                  </button>
-
-                  {userTemplate && (
-                    <button
-                      onClick={() => setDeleteModal({ isOpen: true, template: userTemplate })}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </button>
-                  )}
-                </div>
+                  );
+                })}
               </div>
             </div>
           ))}

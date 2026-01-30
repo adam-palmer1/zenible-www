@@ -3,7 +3,7 @@
  * Handles all credit note-related API operations
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '@/config/api';
 
 /**
  * Base API request handler
@@ -157,6 +157,52 @@ class CreditNotesAPI {
     return request(`${this.baseEndpoint}${creditNoteId}/void`, {
       method: 'POST',
     });
+  }
+
+  /**
+   * Send a credit note via email
+   * @param {string} creditNoteId - Credit note ID
+   * @param {Object} sendData - Send options { email?: string, message?: string }
+   * @returns {Promise<Object>} Updated credit note
+   */
+  async send(creditNoteId, sendData = {}) {
+    return request(`${this.baseEndpoint}${creditNoteId}/send`, {
+      method: 'POST',
+      body: JSON.stringify(sendData),
+    });
+  }
+
+  /**
+   * Download credit note PDF
+   * @param {string} creditNoteId - Credit note ID
+   * @param {string} creditNoteNumber - Credit note number for filename
+   * @returns {Promise<void>}
+   */
+  async downloadPdf(creditNoteId, creditNoteNumber = '') {
+    const url = `${API_BASE_URL}${this.baseEndpoint}${creditNoteId}/pdf`;
+    const token = localStorage.getItem('access_token');
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.detail || 'Failed to download PDF');
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `CreditNote-${creditNoteNumber || creditNoteId}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
   }
 
   // ========== Project Allocation Endpoints ==========

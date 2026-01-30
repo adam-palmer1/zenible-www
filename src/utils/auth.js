@@ -1,6 +1,5 @@
 // Auth utility functions for token management and API calls
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+import { API_BASE_URL } from '@/config/api';
 
 // Token storage
 export const tokenStorage = {
@@ -82,11 +81,11 @@ export async function makeAuthenticatedRequest(url, options = {}) {
 
 // Auth API calls
 export const authAPI = {
-  async signup(email, password) {
-    const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+  async signup(email, password, name) {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, full_name: name })
     });
     
     if (!response.ok) {
@@ -355,6 +354,59 @@ export const userAPI = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Failed to update username');
+    }
+
+    return response.json();
+  },
+
+  async uploadAvatar(file) {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const accessToken = tokenStorage.getAccessToken();
+    if (!accessToken) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/users/avatar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to upload avatar');
+    }
+
+    return response.json();
+  },
+
+  async deleteAvatar() {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/users/avatar`, {
+      method: 'DELETE'
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to delete avatar');
+    }
+
+    return response.json();
+  },
+
+  async updateProfile(data) {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/users/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to update profile');
     }
 
     return response.json();

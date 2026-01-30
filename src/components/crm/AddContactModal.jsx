@@ -34,11 +34,7 @@ const AddContactModal = ({ isOpen, onClose, contact = null }) => {
       if (isOpen && contact?.id) {
         try {
           setFetchingContact(true);
-          console.log('Fetching full contact details for:', contact.id);
           const fullData = await getContact(contact.id);
-          console.log('Full contact data received:', fullData);
-          console.log('Address Line 1:', fullData.address_line_1);
-          console.log('Currency ID:', fullData.currency_id);
           setFullContact(fullData);
         } catch (error) {
           console.error('Failed to fetch full contact:', error);

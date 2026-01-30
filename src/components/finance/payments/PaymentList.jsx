@@ -29,6 +29,7 @@ const PaymentList = () => {
   const {
     payments,
     loading,
+    statsLoading,
     filters,
     pagination,
     stats,
@@ -41,6 +42,9 @@ const PaymentList = () => {
     deletePayment,
     refresh
   } = usePayments();
+
+  // Combined loading state for UI - show loading until both payments and stats are ready
+  const isLoading = loading || statsLoading;
   const { showSuccess, showError } = useNotification();
 
   // Local state
@@ -215,21 +219,21 @@ const PaymentList = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
         <KPICard
           title="Total Payments"
-          value={loading ? '...' : (stats?.total_count || payments.length).toString()}
+          value={isLoading ? '...' : (stats?.total_count || payments.length).toString()}
           icon={CreditCard}
           iconColor="blue"
         />
         <KPICard
           title="Total Received"
-          value={loading ? '...' : getConvertedDisplay(stats?.converted_total)}
-          subtitle={!loading && stats?.total_by_currency?.length > 0 ? getCurrencySubtitle(stats.total_by_currency) : undefined}
+          value={isLoading ? '...' : getConvertedDisplay(stats?.converted_total)}
+          subtitle={!isLoading && stats?.total_by_currency?.length > 0 ? getCurrencySubtitle(stats.total_by_currency) : undefined}
           icon={CheckCircle}
           iconColor="green"
         />
         <KPICard
           title="Refunded"
-          value={loading ? '...' : getConvertedDisplay(stats?.converted_refunded)}
-          subtitle={!loading && stats?.refunded_by_currency?.length > 0 ? getCurrencySubtitle(stats.refunded_by_currency) : undefined}
+          value={isLoading ? '...' : getConvertedDisplay(stats?.converted_refunded)}
+          subtitle={!isLoading && stats?.refunded_by_currency?.length > 0 ? getCurrencySubtitle(stats.refunded_by_currency) : undefined}
           icon={RotateCcw}
           iconColor="orange"
         />

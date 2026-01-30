@@ -78,8 +78,6 @@ export function useBaseAIAnalysis({
   useEffect(() => {
     if (!conversationId || !conversationManager) return;
 
-    console.log('[useBaseAIAnalysis] Setting up event handlers for conversation:', conversationId);
-
     // Clear previous handlers
     unsubscribersRef.current.forEach(unsub => unsub());
     unsubscribersRef.current = [];
@@ -88,12 +86,6 @@ export function useBaseAIAnalysis({
     const handlers = [
       // Handle streaming chunks
       onConversationEvent(conversationId, 'chunk', (data) => {
-        console.log('[useBaseAIAnalysis] Received chunk:', {
-          toolName: data.toolName,
-          chunkLength: data.chunk?.length,
-          chunkIndex: data.chunkIndex
-        });
-
         // Only handle chunks from supported tools
         if (supportedTools.includes(data.toolName)) {
           setIsStreaming(true);
@@ -116,12 +108,6 @@ export function useBaseAIAnalysis({
 
       // Handle completion
       onConversationEvent(conversationId, 'complete', (data) => {
-        console.log('[useBaseAIAnalysis] Analysis complete:', {
-          toolName: data.toolName,
-          hasStructured: !!data.structuredAnalysis,
-          contentType: data.contentType
-        });
-
         // Check if this is a response from one of our supported tools
         if (supportedTools.includes(data.toolName)) {
           setIsAnalyzing(false);
@@ -239,7 +225,6 @@ export function useBaseAIAnalysis({
     }
 
     if (isAnalyzing) {
-      console.log('[useBaseAIAnalysis] Already analyzing');
       return null;
     }
 
@@ -250,7 +235,6 @@ export function useBaseAIAnalysis({
     }
 
     // Reset analysis state
-    console.log('[useBaseAIAnalysis] Resetting analysis state for new analysis');
     setError(null);
     setAnalysis(null);
     setStructuredAnalysis(null);
@@ -262,21 +246,17 @@ export function useBaseAIAnalysis({
     streamingContentRef.current = '';
 
     try {
-      console.log('[useBaseAIAnalysis] Starting analysis with tool:', toolName);
       setIsAnalyzing(true);
       isAnalyzingRef.current = true;
 
       // Step 1: Create conversation if needed
       let convId = conversationId;
       if (!convId) {
-        console.log('[useBaseAIAnalysis] Creating new conversation...');
         convId = await createConversation(characterId, panelId, {});
         setConversationId(convId);
-        console.log('[useBaseAIAnalysis] Conversation created:', convId);
       }
 
       // Step 2: Invoke the tool
-      console.log('[useBaseAIAnalysis] Invoking tool:', toolName);
 
       if (callbacksRef.current.onAnalysisStarted) {
         callbacksRef.current.onAnalysisStarted({ conversationId: convId, toolName });
@@ -293,8 +273,6 @@ export function useBaseAIAnalysis({
         toolName,
         toolArguments
       );
-
-      console.log('[useBaseAIAnalysis] Tool invoked successfully');
 
       if (callbacksRef.current.onStreamingStarted) {
         callbacksRef.current.onStreamingStarted({ conversationId: convId, toolName });
@@ -328,11 +306,9 @@ export function useBaseAIAnalysis({
     }
 
     try {
-      console.log('[useBaseAIAnalysis] Sending follow-up message...');
       await sendMessage(conversationId, characterId, message);
       return conversationId;
     } catch (error) {
-      console.error('[useBaseAIAnalysis] Failed to send message:', error);
       setError(error.message || 'Failed to send message');
       return null;
     }

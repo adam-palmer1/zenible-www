@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useContactNotes } from '../../hooks/crm';
+import ConfirmationModal from '../common/ConfirmationModal';
 
 const NotesSection = ({ contactId }) => {
   const { notes, loading, fetchNotes, createNote, updateNote, deleteNote } = useContactNotes(contactId);
@@ -8,6 +9,7 @@ const NotesSection = ({ contactId }) => {
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [formData, setFormData] = useState({ title: '', content: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, noteId: null });
 
   // Fetch notes on mount
   useEffect(() => {
@@ -51,10 +53,13 @@ const NotesSection = ({ contactId }) => {
     setIsAddingNote(true);
   };
 
-  const handleDelete = async (noteId) => {
-    if (!window.confirm('Are you sure you want to delete this note?')) {
-      return;
-    }
+  const handleDelete = (noteId) => {
+    setDeleteConfirmModal({ isOpen: true, noteId });
+  };
+
+  const confirmDeleteNote = async () => {
+    const noteId = deleteConfirmModal.noteId;
+    if (!noteId) return;
 
     try {
       await deleteNote(noteId);
@@ -195,6 +200,17 @@ const NotesSection = ({ contactId }) => {
           ))}
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={deleteConfirmModal.isOpen}
+        onClose={() => setDeleteConfirmModal({ isOpen: false, noteId: null })}
+        onConfirm={confirmDeleteNote}
+        title="Delete Note"
+        message="Are you sure you want to delete this note?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmColor="red"
+      />
     </div>
   );
 };

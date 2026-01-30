@@ -147,11 +147,14 @@ const Combobox = ({
         className={`
           w-full flex items-center justify-between gap-2
           px-3 py-2 text-left
-          design-input rounded-md
+          bg-white dark:bg-gray-800
+          border border-gray-300 dark:border-gray-600
+          rounded-md
           transition-colors
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-gray-400 dark:hover:border-gray-500'}
           ${error ? 'border-red-500 focus:ring-red-500' : ''}
-          ${isOpen ? 'ring-2 ring-purple-500' : ''}
+          ${isOpen ? 'ring-2 ring-purple-500 border-transparent' : ''}
         `}
       >
         <span className={selectedOption ? 'design-text-primary' : 'design-text-secondary'}>

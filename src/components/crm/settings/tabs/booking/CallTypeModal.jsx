@@ -12,6 +12,18 @@ const DURATION_OPTIONS = [
   { value: 120, label: '2 hours' },
 ];
 
+const CANCELLATION_NOTICE_OPTIONS = [
+  { value: 0, label: 'No minimum (anytime)' },
+  { value: 1, label: '1 hour' },
+  { value: 2, label: '2 hours' },
+  { value: 4, label: '4 hours' },
+  { value: 12, label: '12 hours' },
+  { value: 24, label: '24 hours (default)' },
+  { value: 48, label: '48 hours' },
+  { value: 72, label: '3 days' },
+  { value: 168, label: '1 week' },
+];
+
 const COLOR_OPTIONS = [
   '#3b82f6', // Blue
   '#10b981', // Green
@@ -41,6 +53,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
     conferencing_type: 'none',
     custom_meeting_link: '',
     max_display_slots_per_day: null,
+    min_cancellation_notice_hours: 24,
     is_active: true,
   });
   const [saving, setSaving] = useState(false);
@@ -62,6 +75,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
           conferencing_type: callType.conferencing_type || 'none',
           custom_meeting_link: callType.custom_meeting_link || '',
           max_display_slots_per_day: callType.max_display_slots_per_day || null,
+          min_cancellation_notice_hours: callType.min_cancellation_notice_hours ?? 24,
           is_active: callType.is_active ?? true,
         });
       } else {
@@ -75,6 +89,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
           conferencing_type: 'none',
           custom_meeting_link: '',
           max_display_slots_per_day: null,
+          min_cancellation_notice_hours: 24,
           is_active: true,
         });
       }
@@ -277,6 +292,29 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Limit time slots shown per day (leave empty for no limit)
+              </p>
+            </div>
+
+            {/* Cancellation Policy */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Cancellation Policy
+              </label>
+              <select
+                value={formData.min_cancellation_notice_hours}
+                onChange={(e) => handleChange('min_cancellation_notice_hours', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                {CANCELLATION_NOTICE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {formData.min_cancellation_notice_hours === 0
+                  ? 'Guests can cancel or reschedule at any time before the appointment'
+                  : `Guests must cancel or reschedule at least ${formData.min_cancellation_notice_hours} hours before`}
               </p>
             </div>
 

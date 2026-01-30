@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   EllipsisVerticalIcon,
   PencilIcon,
@@ -8,6 +9,7 @@ import {
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../utils/currencyUtils';
+import { useModalPortal } from '../../contexts/ModalPortalContext';
 
 /**
  * Individual billable hour entry card
@@ -22,15 +24,33 @@ const BillableHourEntry = ({
   onUnlinkInvoice,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef(null);
   const menuRef = useRef(null);
+
+  // Get modal portal for proper z-index stacking
+  const modalPortalRef = useModalPortal();
+  const portalTarget = modalPortalRef?.current || document.body;
 
   const isInvoiced = !!entry.invoice_id;
   const isBillable = entry.is_billable;
 
+  // Calculate menu position when opening
+  useEffect(() => {
+    if (showMenu && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY,
+        left: rect.right - 192 + window.scrollX, // 192px = w-48 menu width
+      });
+    }
+  }, [showMenu]);
+
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (menuRef.current && !menuRef.current.contains(event.target) &&
+          buttonRef.current && !buttonRef.current.contains(event.target)) {
         setShowMenu(false);
       }
     };
@@ -88,7 +108,7 @@ const BillableHourEntry = ({
       );
     }
     return (
-      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
         Uninvoiced
       </span>
     );
@@ -141,8 +161,9 @@ const BillableHourEntry = ({
         </div>
 
         {/* Actions Menu */}
-        <div className="relative" ref={menuRef}>
+        <div className="relative">
           <button
+            ref={buttonRef}
             onClick={() => setShowMenu(!showMenu)}
             className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded transition-colors"
             title="Actions"
@@ -154,87 +175,109 @@ const BillableHourEntry = ({
             )}
           </button>
 
-          {showMenu && (
-            <div className="absolute right-0 top-8 z-10 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1">
-              {/* Edit */}
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  onEdit?.(entry);
+          {showMenu && createPortal(
+            <div
+              style={{ pointerEvents: 'auto', zIndex: 9999 }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0"
+                onClick={() => setShowMenu(false)}
+              />
+
+              {/* Menu */}
+              <div
+                ref={menuRef}
+                className="fixed w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1"
+                style={{
+                  top: menuPosition.top,
+                  left: menuPosition.left,
+                  zIndex: 9999,
                 }}
-                disabled={isInvoiced}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left ${
-                  isInvoiced
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-                title={isInvoiced ? 'Unlink from invoice to edit' : 'Edit entry'}
               >
-                <PencilIcon className="h-4 w-4" />
-                Edit
-                {isInvoiced && <LockClosedIcon className="h-3 w-3 ml-auto" />}
-              </button>
-
-              {/* Duplicate */}
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  onDuplicate?.(entry);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <DocumentDuplicateIcon className="h-4 w-4" />
-                Duplicate
-              </button>
-
-              <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-
-              {/* Link/Unlink Invoice */}
-              {isInvoiced ? (
+                {/* Edit */}
                 <button
                   onClick={() => {
                     setShowMenu(false);
-                    onUnlinkInvoice?.(entry);
+                    onEdit?.(entry);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  disabled={isInvoiced}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left ${
+                    isInvoiced
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  title={isInvoiced ? 'Unlink from invoice to edit' : 'Edit entry'}
                 >
-                  <LinkIcon className="h-4 w-4" />
-                  Unlink from Invoice
+                  <PencilIcon className="h-4 w-4" />
+                  Edit
+                  {isInvoiced && <LockClosedIcon className="h-3 w-3 ml-auto" />}
                 </button>
-              ) : isBillable ? (
+
+                {/* Duplicate */}
                 <button
                   onClick={() => {
                     setShowMenu(false);
-                    onLinkInvoice?.(entry);
+                    onDuplicate?.(entry);
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <LinkIcon className="h-4 w-4" />
-                  Link to Invoice
+                  <DocumentDuplicateIcon className="h-4 w-4" />
+                  Duplicate
                 </button>
-              ) : null}
 
-              <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
 
-              {/* Delete */}
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  onDelete?.(entry);
-                }}
-                disabled={isInvoiced}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left ${
-                  isInvoiced
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
-                }`}
-                title={isInvoiced ? 'Unlink from invoice to delete' : 'Delete entry'}
-              >
-                <TrashIcon className="h-4 w-4" />
-                Delete
-                {isInvoiced && <LockClosedIcon className="h-3 w-3 ml-auto" />}
-              </button>
-            </div>
+                {/* Link/Unlink Invoice */}
+                {isInvoiced ? (
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      onUnlinkInvoice?.(entry);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <LinkIcon className="h-4 w-4" />
+                    Unlink from Invoice
+                  </button>
+                ) : isBillable ? (
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      onLinkInvoice?.(entry);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <LinkIcon className="h-4 w-4" />
+                    Link to Invoice
+                  </button>
+                ) : null}
+
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+
+                {/* Delete */}
+                <button
+                  onClick={() => {
+                    setShowMenu(false);
+                    onDelete?.(entry);
+                  }}
+                  disabled={isInvoiced}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left ${
+                    isInvoiced
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                  }`}
+                  title={isInvoiced ? 'Unlink from invoice to delete' : 'Delete entry'}
+                >
+                  <TrashIcon className="h-4 w-4" />
+                  Delete
+                  {isInvoiced && <LockClosedIcon className="h-3 w-3 ml-auto" />}
+                </button>
+              </div>
+            </div>,
+            portalTarget
           )}
         </div>
       </div>

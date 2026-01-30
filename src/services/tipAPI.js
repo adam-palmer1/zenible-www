@@ -1,8 +1,6 @@
 // API service for Tip of the Day endpoints
-
+import { API_BASE_URL } from '@/config/api';
 import aiCharacterAPI from './aiCharacterAPI';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.zenible.com/api/v1';
 
 class TipAPI {
   async request(endpoint, options = {}) {

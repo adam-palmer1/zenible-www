@@ -11,7 +11,7 @@ export const PaymentsProvider = ({ children }) => {
 
   // State
   const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start true until initial fetch completes
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
@@ -19,6 +19,7 @@ export const PaymentsProvider = ({ children }) => {
 
   // Stats from API
   const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true); // Track stats loading separately
 
   // Modal state
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -55,6 +56,10 @@ export const PaymentsProvider = ({ children }) => {
 
       setFilters(prev => ({ ...prev, ...savedFilters }));
       setPreferencesLoaded(true);
+    } else {
+      // No user - not loading
+      setLoading(false);
+      setStatsLoading(false);
     }
   }, [user, getPreference]);
 
@@ -107,14 +112,20 @@ export const PaymentsProvider = ({ children }) => {
 
   // Fetch stats
   const fetchStats = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setStatsLoading(false);
+      return;
+    }
 
     try {
+      setStatsLoading(true);
       const statsData = await paymentsAPI.getStats();
       setStats(statsData);
     } catch (err) {
       console.error('[PaymentsContext] Error fetching stats:', err);
       // Don't set error for stats failure, it's not critical
+    } finally {
+      setStatsLoading(false);
     }
   }, [user]);
 
@@ -321,6 +332,7 @@ export const PaymentsProvider = ({ children }) => {
     // State
     payments,
     loading,
+    statsLoading,
     error,
     initialized,
     filters,
@@ -359,6 +371,7 @@ export const PaymentsProvider = ({ children }) => {
   }), [
     payments,
     loading,
+    statsLoading,
     error,
     initialized,
     filters,

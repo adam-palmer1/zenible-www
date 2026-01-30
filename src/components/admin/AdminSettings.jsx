@@ -10,7 +10,8 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState(null);
   const [formData, setFormData] = useState({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     profile_image_url: ''
   });
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
@@ -28,7 +29,8 @@ export default function AdminSettings() {
       const data = await adminAPI.getUserProfile();
       setProfile(data);
       setFormData({
-        full_name: data.full_name || '',
+        first_name: data.first_name || '',
+        last_name: data.last_name || '',
         profile_image_url: data.profile_image_url || ''
       });
     } catch (err) {
@@ -49,7 +51,7 @@ export default function AdminSettings() {
       await adminAPI.updateUserProfile(formData);
       setSuccessMessage('Profile updated successfully');
       // Update the user context immediately
-      updateUser({ full_name: formData.full_name });
+      updateUser({ first_name: formData.first_name, last_name: formData.last_name });
       // Refresh profile to get updated data
       await fetchUserProfile();
     } catch (err) {
@@ -156,21 +158,39 @@ export default function AdminSettings() {
               </p>
             </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className={`w-full px-3 py-2 rounded-lg border ${
-                  darkMode
-                    ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-                placeholder="Enter your full name"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                  className={`w-full px-3 py-2 rounded-lg border ${
+                    darkMode
+                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                  placeholder="Enter first name"
+                />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                  className={`w-full px-3 py-2 rounded-lg border ${
+                    darkMode
+                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                  placeholder="Enter last name"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

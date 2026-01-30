@@ -70,15 +70,12 @@ export default function ViralPostGenerator() {
     characterId: selectedCharacterId,
     panelId: 'viral_post_generator',
     onAnalysisStarted: (data) => {
-      console.log('[ViralPostGenerator] Analysis started:', data);
       setFeedback({
         isProcessing: true,
         analysis: null
       });
     },
     onAnalysisComplete: (data) => {
-      console.log('[ViralPostGenerator] Analysis complete:', data);
-
       // Set current feedback
       setFeedback({
         isProcessing: false,
@@ -117,8 +114,6 @@ export default function ViralPostGenerator() {
   // Setup follow-up message event handlers
   useEffect(() => {
     if (!conversationId || !onConversationEvent) return;
-
-    console.log('[ViralPostGenerator] Setting up follow-up message handlers for conversation:', conversationId);
 
     const unsubscribers = [];
 
@@ -298,15 +293,11 @@ export default function ViralPostGenerator() {
 
   // Handle analysis
   const handleAnalyze = async () => {
-    console.log('[ViralPostGenerator] handleAnalyze called for tab:', activeTab);
-
     if (!selectedCharacterId) {
-      console.error('[ViralPostGenerator] No character selected');
       return;
     }
 
     if (!isConnected) {
-      console.error('[ViralPostGenerator] Not connected to WebSocket');
       setFeedback({
         isProcessing: false,
         error: 'Not connected to server. Please refresh the page.'
@@ -338,23 +329,18 @@ export default function ViralPostGenerator() {
 
       if (activeTab === 'polish') {
         if (!draftPost) {
-          console.error('[ViralPostGenerator] Missing draft post');
           return;
         }
 
-        console.log('[ViralPostGenerator] Starting draft analysis...');
         await analyzeFromDraft(draftPost);
       } else {
         if (!topic || !goal || !audience) {
-          console.error('[ViralPostGenerator] Missing strategy fields');
           return;
         }
 
-        console.log('[ViralPostGenerator] Starting strategy analysis...');
         await analyzeFromStrategy(topic, goal, audience);
       }
     } catch (error) {
-      console.error('[ViralPostGenerator] Error starting analysis:', error);
       setFeedback({
         isProcessing: false,
         error: 'Failed to analyze. Please try again.'
@@ -365,21 +351,16 @@ export default function ViralPostGenerator() {
   // Handle follow-up message sending
   const handleSendFollowUpMessage = async (message) => {
     if (!conversationId || !selectedCharacterId) {
-      console.error('[ViralPostGenerator] Cannot send message - missing conversation or character');
       throw new Error('Cannot send message - missing required data');
     }
 
     if (!isConnected) {
-      console.error('[ViralPostGenerator] Not connected to WebSocket');
       throw new Error('Not connected to server');
     }
 
     try {
-      console.log('[ViralPostGenerator] Sending follow-up message in conversation:', conversationId);
       await sendFollowUp(message);
-      console.log('[ViralPostGenerator] Follow-up message sent successfully');
     } catch (error) {
-      console.error('[ViralPostGenerator] Error sending follow-up message:', error);
       throw error;
     }
   };

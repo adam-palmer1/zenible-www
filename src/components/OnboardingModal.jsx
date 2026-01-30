@@ -216,16 +216,12 @@ export default function OnboardingModal({ isOpen, onClose }) {
     const reminderDate = new Date();
     reminderDate.setHours(reminderDate.getHours() + 24);
 
-    console.log('Setting reminder for:', reminderDate.toISOString());
-
     try {
       await updatePreference('onboarding_status', 'deferred', 'user');
       await updatePreference('onboarding_reminder_date', reminderDate.toISOString(), 'user');
-      console.log('Preferences updated successfully');
 
       // Reload preferences to ensure they're synced
       await reloadPreferences();
-      console.log('Preferences reloaded');
     } catch (error) {
       console.error('Error updating preferences:', error);
     }

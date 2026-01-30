@@ -12,7 +12,6 @@ let fieldsCachePromise = null;
  * @returns {Object} Fields state and methods
  */
 export function useContactFields() {
-  console.log('[useContactFields] Hook initializing...');
   const [fields, setFields] = useState(fieldsCache?.fields || []);
   const [defaultFields, setDefaultFields] = useState(fieldsCache?.default_fields || []);
   const [allFieldNames, setAllFieldNames] = useState(fieldsCache?.all_field_names || []);
@@ -21,11 +20,8 @@ export function useContactFields() {
 
   // Fetch fields from API
   const fetchFields = useCallback(async (forceRefresh = false) => {
-    console.log('[useContactFields] fetchFields called, forceRefresh:', forceRefresh, 'cache:', !!fieldsCache);
-
     // Return cached data if available and not forcing refresh
     if (fieldsCache && !forceRefresh) {
-      console.log('[useContactFields] Using cached data');
       setFields(fieldsCache.fields);
       setDefaultFields(fieldsCache.default_fields);
       setAllFieldNames(fieldsCache.all_field_names);
@@ -35,7 +31,6 @@ export function useContactFields() {
 
     // If a fetch is already in progress, wait for it
     if (fieldsCachePromise && !forceRefresh) {
-      console.log('[useContactFields] Waiting for in-progress fetch');
       try {
         const data = await fieldsCachePromise;
         setFields(data.fields);
@@ -54,11 +49,9 @@ export function useContactFields() {
       setLoading(true);
       setError(null);
 
-      console.log('[useContactFields] Making API request to /contacts/fields');
       // Create a promise that can be shared across components
       fieldsCachePromise = contactsAPI.getFields();
       const data = await fieldsCachePromise;
-      console.log('[useContactFields] API response:', data);
 
       // Cache the result
       fieldsCache = data;
@@ -80,7 +73,6 @@ export function useContactFields() {
 
   // Fetch on mount
   useEffect(() => {
-    console.log('[useContactFields] Hook mounted, fetching fields...');
     fetchFields().catch(err => {
       console.error('[useContactFields] Error fetching fields:', err);
     });

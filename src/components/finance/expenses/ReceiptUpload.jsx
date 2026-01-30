@@ -289,6 +289,7 @@ const ReceiptUpload = ({
         className={`
           relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
           transition-colors
+          bg-white dark:bg-gray-800
           ${isDragging
             ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
             : 'border-gray-300 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500'

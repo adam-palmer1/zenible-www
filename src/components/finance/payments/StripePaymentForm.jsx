@@ -62,7 +62,6 @@ const StripePaymentFormInner = ({
 
     try {
       // Step 1: Create payment intent on backend
-      // TODO: Replace with actual API call once backend is ready
       const paymentIntentResponse = await fetch('/api/v1/invoices/payment-intent/stripe', {
         method: 'POST',
         headers: {

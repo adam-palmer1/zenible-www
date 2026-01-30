@@ -1,6 +1,6 @@
 // API service for Billable Hours endpoints
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://demo-api.zenible.com/api/v1';
+import { API_BASE_URL } from '@/config/api';
 
 class BillableHoursAPI {
   async request(endpoint, options = {}) {
@@ -162,6 +162,51 @@ class BillableHoursAPI {
    */
   async unlinkFromInvoice(projectId, entryId) {
     return this.update(projectId, entryId, { invoice_id: null });
+  }
+
+  /**
+   * Get billable hours for a contact (across all their projects)
+   * @param {string} contactId - Contact UUID
+   * @param {Object} params - Query parameters
+   * @param {boolean} params.uninvoiced_only - Show only unbilled entries (default: false)
+   * @param {boolean} params.is_billable - Filter by billable status
+   * @param {string} params.invoice_id - Filter by linked invoice
+   * @param {string} params.project_id - Filter by specific project
+   * @returns {Promise<Object>} { items, total, total_hours, total_amount, uninvoiced_hours, uninvoiced_amount }
+   */
+  async getByContact(contactId, params = {}) {
+    const queryParts = [];
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === '' || value === 'null') {
+        return;
+      }
+      queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+    });
+
+    const queryString = queryParts.join('&');
+    const endpoint = queryString
+      ? `/crm/contacts/${contactId}/billable-hours?${queryString}`
+      : `/crm/contacts/${contactId}/billable-hours`;
+
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  /**
+   * Bulk update billable hours for a contact (link/unlink from invoice)
+   * @param {string} contactId - Contact UUID
+   * @param {Array<string>} entryIds - Array of billable hour entry UUIDs (max 100)
+   * @param {string|null} invoiceId - Invoice UUID to link, or null to unlink
+   * @returns {Promise<Object>} { updated_count, entry_ids, invoice_id }
+   */
+  async bulkUpdateByContact(contactId, entryIds, invoiceId) {
+    return this.request(`/crm/contacts/${contactId}/billable-hours/bulk`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        entry_ids: entryIds,
+        invoice_id: invoiceId,
+      }),
+    });
   }
 }
 

@@ -50,9 +50,7 @@ export const PreferencesProvider = ({ children }) => {
   const loadPreferences = async () => {
     try {
       setLoading(true);
-      console.log('[PreferencesContext] Fetching preferences from API...');
       const data = await adminAPI.getPreferencesDict();
-      console.log('[PreferencesContext] Preferences fetched:', data);
       setPreferences(data || {});
       setInitialized(true);
     } catch (error) {
@@ -64,7 +62,6 @@ export const PreferencesProvider = ({ children }) => {
       setInitialized(true); // Still mark as initialized even on error
     } finally {
       setLoading(false);
-      console.log('[PreferencesContext] Preferences loading complete');
     }
   };
 
@@ -172,6 +169,7 @@ export const PreferencesProvider = ({ children }) => {
 
   const value = {
     preferences,
+    setPreferences,  // Needed by useDebouncedPreference for optimistic updates
     loading,
     initialized,
     darkMode,

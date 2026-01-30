@@ -1,11 +1,138 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, CreditCard, Loader2, User, DollarSign, Calendar, FileText } from 'lucide-react';
+import { X, CreditCard, Loader2, User, DollarSign, Calendar, FileText, ChevronDown, Check, Search } from 'lucide-react';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { PAYMENT_METHOD, PAYMENT_METHOD_LABELS } from '../../../constants/finance';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import ContactSelectorModal from '../../calendar/ContactSelectorModal';
 import paymentsAPI from '../../../services/api/finance/payments';
+
+/**
+ * Currency Select Dropdown for CreatePaymentModal
+ */
+const CurrencyDropdown = ({ isOpen, onClose, currencies, selectedCurrencyId, onSelect, loading, triggerRef }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = useRef(null);
+
+  const filteredCurrencies = currencies.filter(cc => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return cc.currency.code.toLowerCase().includes(query) ||
+           cc.currency.name.toLowerCase().includes(query);
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
+          triggerRef?.current && !triggerRef.current.contains(event.target)) {
+        onClose();
+      }
+    };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, onClose, triggerRef]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      ref={dropdownRef}
+      className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+    >
+      <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+            autoFocus
+          />
+        </div>
+      </div>
+      <div className="max-h-48 overflow-y-auto">
+        {loading ? (
+          <div className="px-4 py-6 text-center text-sm text-gray-500">Loading...</div>
+        ) : filteredCurrencies.length === 0 ? (
+          <div className="px-4 py-6 text-center text-sm text-gray-500">No currencies found</div>
+        ) : (
+          filteredCurrencies.map((cc) => (
+            <button
+              key={cc.currency.id}
+              onClick={() => { onSelect(cc.currency.id); setSearchQuery(''); onClose(); }}
+              className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between ${
+                cc.currency.id === selectedCurrencyId ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+              }`}
+            >
+              <span className="text-gray-900 dark:text-white">{cc.currency.code} - {cc.currency.name}</span>
+              {cc.currency.id === selectedCurrencyId && <Check className="h-4 w-4 text-purple-600" />}
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Payment Method Select Dropdown
+ */
+const PaymentMethodDropdown = ({ isOpen, onClose, selectedMethod, onSelect, triggerRef }) => {
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
+          triggerRef?.current && !triggerRef.current.contains(event.target)) {
+        onClose();
+      }
+    };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, onClose, triggerRef]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      ref={dropdownRef}
+      className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+    >
+      <div className="max-h-48 overflow-y-auto py-1">
+        {Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => { onSelect(key); onClose(); }}
+            className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between ${
+              key === selectedMethod ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+            }`}
+          >
+            <span className="text-gray-900 dark:text-white">{label}</span>
+            {key === selectedMethod && <Check className="h-4 w-4 text-purple-600" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const CreatePaymentModal = ({ isOpen, onClose }) => {
   const { createPayment, refresh } = usePayments();
@@ -16,7 +143,11 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
   const [nextNumber, setNextNumber] = useState('');
   const [selectedContact, setSelectedContact] = useState(null);
   const [showContactSelector, setShowContactSelector] = useState(false);
+  const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
+  const [showPaymentMethodDropdown, setShowPaymentMethodDropdown] = useState(false);
   const contactButtonRef = useRef(null);
+  const currencyButtonRef = useRef(null);
+  const paymentMethodButtonRef = useRef(null);
 
   const [formData, setFormData] = useState({
     contact_id: null,
@@ -196,8 +327,8 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
           </div>
 
           {/* Amount and Currency */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="col-span-2 space-y-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 <DollarSign className="h-4 w-4" />
                 Amount <span className="text-red-500">*</span>
@@ -214,24 +345,33 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
-            <div className="space-y-2">
+            <div className="relative space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Currency <span className="text-red-500">*</span>
               </label>
-              <select
-                name="currency_id"
-                value={formData.currency_id || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, currency_id: parseInt(e.target.value) }))}
+              <button
+                ref={currencyButtonRef}
+                type="button"
+                onClick={() => setShowCurrencyDropdown(true)}
                 disabled={currenciesLoading}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-left rounded-md hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 flex items-center justify-between"
               >
-                <option value="">Select</option>
-                {companyCurrencies.map(cc => (
-                  <option key={cc.currency.id} value={cc.currency.id}>
-                    {cc.currency.code} - {cc.currency.name}
-                  </option>
-                ))}
-              </select>
+                <span className={formData.currency_id ? 'text-gray-900 dark:text-white' : 'text-gray-400'}>
+                  {formData.currency_id
+                    ? companyCurrencies.find(cc => cc.currency.id === formData.currency_id)?.currency.code || 'Select'
+                    : 'Select'}
+                </span>
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </button>
+              <CurrencyDropdown
+                isOpen={showCurrencyDropdown}
+                onClose={() => setShowCurrencyDropdown(false)}
+                currencies={companyCurrencies}
+                selectedCurrencyId={formData.currency_id}
+                onSelect={(id) => setFormData(prev => ({ ...prev, currency_id: id }))}
+                loading={currenciesLoading}
+                triggerRef={currencyButtonRef}
+              />
             </div>
           </div>
 
@@ -250,21 +390,29 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
-            <div className="space-y-2">
+            <div className="relative space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 <CreditCard className="h-4 w-4" />
                 Payment Method
               </label>
-              <select
-                name="payment_method"
-                value={formData.payment_method}
-                onChange={handleChange}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              <button
+                ref={paymentMethodButtonRef}
+                type="button"
+                onClick={() => setShowPaymentMethodDropdown(true)}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-left rounded-md hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent flex items-center justify-between"
               >
-                {Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
+                <span className="text-gray-900 dark:text-white">
+                  {PAYMENT_METHOD_LABELS[formData.payment_method] || 'Select'}
+                </span>
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </button>
+              <PaymentMethodDropdown
+                isOpen={showPaymentMethodDropdown}
+                onClose={() => setShowPaymentMethodDropdown(false)}
+                selectedMethod={formData.payment_method}
+                onSelect={(method) => setFormData(prev => ({ ...prev, payment_method: method }))}
+                triggerRef={paymentMethodButtonRef}
+              />
             </div>
           </div>
 

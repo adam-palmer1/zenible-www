@@ -25,7 +25,8 @@
       "mcp__gpt-researcher__quick_search",
       "Bash(xargs cat:*)",
       "Bash(jq:*)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": []

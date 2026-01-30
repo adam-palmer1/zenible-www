@@ -20,7 +20,7 @@ export default function ProfileAnalyzer() {
   // State
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [profile, setProfile] = useState('');
-  const [profileUrl, setProfileUrl] = useState(''); // TODO: Enable URL input in future
+  const [profileUrl, setProfileUrl] = useState(''); // Reserved for future URL input feature
   const [feedback, setFeedback] = useState(null);
   const [availableCharacters, setAvailableCharacters] = useState([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState(null);
@@ -80,7 +80,6 @@ export default function ProfileAnalyzer() {
     characterId: selectedCharacterId,
     panelId: 'profile_analyzer',
     onAnalysisStarted: (data) => {
-      console.log('[ProfileAnalyzer] Analysis started:', data);
       setFeedback({
         isProcessing: true,
         score: null,
@@ -88,8 +87,6 @@ export default function ProfileAnalyzer() {
       });
     },
     onAnalysisComplete: (data) => {
-      console.log('[ProfileAnalyzer] Analysis complete:', data);
-
       // Set current feedback
       setFeedback({
         isProcessing: false,
@@ -111,15 +108,8 @@ export default function ProfileAnalyzer() {
         usage: data.usage,
         timestamp: new Date().toISOString()
       };
-      console.log('[ProfileAnalyzer] Adding analysis to history:', {
-        messageId: newAnalysis.messageId,
-        timestamp: newAnalysis.timestamp,
-        hasStructured: !!newAnalysis.structured
-      });
       setAnalysisHistory(prev => {
-        console.log('[ProfileAnalyzer] Previous history length:', prev.length);
         const newHistory = [...prev, newAnalysis];
-        console.log('[ProfileAnalyzer] New history length:', newHistory.length);
         return newHistory;
       });
     },
@@ -138,8 +128,6 @@ export default function ProfileAnalyzer() {
   // Setup follow-up message event handlers
   useEffect(() => {
     if (!conversationId || !onConversationEvent) return;
-
-    console.log('[ProfileAnalyzer] Setting up follow-up message handlers for conversation:', conversationId);
 
     const unsubscribers = [];
 
@@ -312,31 +300,17 @@ export default function ProfileAnalyzer() {
 
   // Handle profile analysis
   const handleAnalyze = async () => {
-    console.log('[ProfileAnalyzer] handleAnalyze called with:', {
-      hasProfile: !!profile,
-      profileLength: profile?.length || 0,
-      selectedCharacterId,
-      selectedPlatform,
-      isConnected
-    });
-
     if (!selectedCharacterId) {
-      console.error('[ProfileAnalyzer] Missing required data for analysis:', {
-        selectedCharacterId: selectedCharacterId ? 'present' : 'MISSING'
-      });
       return;
     }
 
     if (!isConnected) {
-      console.error('[ProfileAnalyzer] Not connected to WebSocket');
       setFeedback({
         isProcessing: false,
         error: 'Not connected to server. Please refresh the page.'
       });
       return;
     }
-
-    console.log('[ProfileAnalyzer] Starting profile analysis...');
 
     try {
       // Clear previous analysis (keep follow-up messages - they're part of conversation)
@@ -347,27 +321,18 @@ export default function ProfileAnalyzer() {
       let convId;
       if (profile && profile.trim()) {
         // Analyze existing profile
-        console.log('[ProfileAnalyzer] Analyzing existing profile...');
         convId = await sendAnalysis(
           profile,
           selectedPlatform || 'linkedin'
         );
       } else {
         // Generate profile suggestions
-        console.log('[ProfileAnalyzer] Generating profile suggestions...');
         convId = await sendGeneration(
           '',
           selectedPlatform || 'linkedin'
         );
       }
-
-      if (!convId) {
-        console.error('[ProfileAnalyzer] Failed to start - no conversation ID returned');
-      } else {
-        console.log('[ProfileAnalyzer] Started with conversation:', convId);
-      }
     } catch (error) {
-      console.error('[ProfileAnalyzer] Error starting:', error);
       setFeedback({
         isProcessing: false,
         error: 'Failed to process request. Please try again.'
@@ -378,25 +343,18 @@ export default function ProfileAnalyzer() {
   // Handle follow-up message sending
   const handleSendFollowUpMessage = async (message) => {
     if (!conversationId || !selectedCharacterId) {
-      console.error('[ProfileAnalyzer] Cannot send message - missing conversation or character');
       throw new Error('Cannot send message - missing required data');
     }
 
     if (!isConnected) {
-      console.error('[ProfileAnalyzer] Not connected to WebSocket');
       throw new Error('Not connected to server');
     }
 
     try {
-      console.log('[ProfileAnalyzer] Sending follow-up message in conversation:', conversationId);
-
       // Send message using the hook
       // Note: User message is added to conversationHistory in AIFeedbackSection
       await sendFollowUp(message);
-
-      console.log('[ProfileAnalyzer] Follow-up message sent successfully');
     } catch (error) {
-      console.error('[ProfileAnalyzer] Error sending follow-up message:', error);
       throw error;
     }
   };

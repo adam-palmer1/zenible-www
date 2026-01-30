@@ -223,9 +223,6 @@ export default function EventsManagement() {
 
   const handleSaveEvent = async () => {
     try {
-      console.log('[handleSaveEvent] Form state rating:', eventForm.rating);
-      console.log('[handleSaveEvent] editingEvent:', editingEvent);
-
       const data = {
         title: eventForm.title,
         description: eventForm.description,
@@ -240,14 +237,10 @@ export default function EventsManagement() {
       if (editingEvent) {
         // When editing, always include rating field (null clears it)
         data.rating = eventForm.rating || null;
-        console.log('[handleSaveEvent] EDITING - data.rating set to:', data.rating);
       } else {
         // When creating, only include if provided
         if (eventForm.rating) {
           data.rating = eventForm.rating;
-          console.log('[handleSaveEvent] CREATING - data.rating set to:', data.rating);
-        } else {
-          console.log('[handleSaveEvent] CREATING - rating omitted (empty)');
         }
       }
 
@@ -272,13 +265,9 @@ export default function EventsManagement() {
         data.past_summary = eventForm.past_summary;
       }
 
-      console.log('[handleSaveEvent] Final data object being sent:', data);
-
       if (editingEvent) {
-        console.log('[handleSaveEvent] Calling updateEvent with ID:', editingEvent.id);
         await eventsAPI.updateEvent(editingEvent.id, data);
       } else {
-        console.log('[handleSaveEvent] Calling createEvent');
         await eventsAPI.createEvent(data);
       }
 
@@ -900,7 +889,6 @@ export default function EventsManagement() {
                     type="text"
                     value={eventForm.rating}
                     onChange={(e) => {
-                      console.log('[Rating Input] onChange fired, new value:', e.target.value);
                       setEventForm({ ...eventForm, rating: e.target.value });
                     }}
                     className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import WebSocketService from '../services/WebSocketService';
 import ConversationStreamingManager from '../services/ConversationStreamingManager';
 import StableWebSocketConnection from '../services/StableWebSocketConnection';
+import { WS_URL } from '@/config/api';
 
 export const WebSocketContext = createContext(null);
 
@@ -26,21 +27,13 @@ export const WebSocketProvider = ({ children }) => {
   const initializationRef = useRef(false);
 
   const initWebSocket = useCallback(async () => {
-    console.log('[WebSocketContext] initWebSocket CALLED:', {
-      isAlreadyInitialized: initializationRef.current,
-      hasToken: !!localStorage.getItem('access_token'),
-      timestamp: new Date().toISOString()
-    });
-
     if (initializationRef.current) {
-      console.log('[WebSocketContext] Already initialized, skipping');
       return;
     }
 
     // Check if we have an access token
     const token = localStorage.getItem('access_token');
     if (!token) {
-      console.log('[WebSocketContext] No access token found');
       setConnectionError('Not authenticated');
       return;
     }
@@ -49,9 +42,7 @@ export const WebSocketProvider = ({ children }) => {
     setConnectionError(null);
 
     try {
-      const wsUrl = import.meta.env.VITE_WS_URL || 'https://demo-api.zenible.com';
-
-      console.log('[WebSocketContext] Creating WebSocketService:', { wsUrl });
+      const wsUrl = import.meta.env.VITE_WS_URL || WS_URL;
 
       const wsService = new WebSocketService({
         baseUrl: wsUrl,
@@ -62,10 +53,8 @@ export const WebSocketProvider = ({ children }) => {
 
       await wsService.connect();
 
-      console.log('[WebSocketContext] Creating ConversationStreamingManager');
       const conversationManager = new ConversationStreamingManager(wsService);
 
-      console.log('[WebSocketContext] Creating support services');
       const stableConnection = new StableWebSocketConnection(wsService);
 
       // Set callbacks
@@ -81,11 +70,6 @@ export const WebSocketProvider = ({ children }) => {
       wsServiceRef.current = wsService;
       conversationManagerRef.current = conversationManager;
       stableConnectionRef.current = stableConnection;
-
-      console.log('[WebSocketContext] All services initialized and stored in refs:', {
-        hasWsService: !!wsServiceRef.current,
-        hasConversationManager: !!conversationManagerRef.current
-      });
 
       // Monitor connection health
       healthIntervalRef.current = setInterval(() => {
@@ -108,10 +92,8 @@ export const WebSocketProvider = ({ children }) => {
         setAccessToken(newToken);
 
         if (newToken && !initializationRef.current) {
-          console.log('[WebSocketContext] Token detected via storage event, initializing WebSocket');
           initWebSocket();
         } else if (!newToken && initializationRef.current) {
-          console.log('[WebSocketContext] Token removed via storage event, disconnecting WebSocket');
           // Cleanup WebSocket when token is removed
           if (healthIntervalRef.current) {
             clearInterval(healthIntervalRef.current);
@@ -145,23 +127,13 @@ export const WebSocketProvider = ({ children }) => {
   }, [accessToken]);
 
   useEffect(() => {
-    console.log('[WebSocketContext] Main effect running');
-
     // Only initialize if we have an access token
     if (accessToken) {
-      console.log('[WebSocketContext] Access token found, initializing WebSocket');
       initWebSocket();
-    } else {
-      console.log('[WebSocketContext] No access token, skipping WebSocket initialization');
     }
 
     // Cleanup on unmount
     return () => {
-      console.log('[WebSocketContext] CLEANUP RUNNING - DESTROYING ALL SERVICES:', {
-        hasConversationManager: !!conversationManagerRef.current,
-        stackTrace: new Error().stack
-      });
-
       if (healthIntervalRef.current) {
         clearInterval(healthIntervalRef.current);
       }

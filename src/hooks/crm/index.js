@@ -16,3 +16,4 @@ export { useCRMFilters } from './useCRMFilters.js';
 export { useContactServices } from './useContactServices.js';
 export { useServicesFilters } from './useServicesFilters.js';
 export { useBillableHours } from './useBillableHours.js';
+export { useServiceEnums } from './useServiceEnums.js';

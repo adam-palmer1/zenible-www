@@ -53,7 +53,7 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError, onCan
         card: cardNumber,
         billing_details: {
           email: user?.email,
-          name: user?.full_name || user?.name,
+          name: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.name,
         },
       });
 

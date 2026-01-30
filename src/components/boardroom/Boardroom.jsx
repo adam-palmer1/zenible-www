@@ -25,7 +25,6 @@ export default function Boardroom() {
         per_page: 50 // Get more characters for variety
       });
 
-      console.log('[Boardroom] Loaded characters:', data);
       setCharacters(data || []);
     } catch (error) {
       console.error('[Boardroom] Failed to load characters:', error);
@@ -42,14 +41,12 @@ export default function Boardroom() {
 
     if (!isAlreadySelected) {
       setSelectedExperts(prev => [...prev, expert]);
-      console.log('[Boardroom] Expert added:', expert.name || expert.character_name);
     }
   };
 
   // Handle expert removal
   const handleExpertRemove = (expertId) => {
     setSelectedExperts(prev => prev.filter(e => e.id !== expertId));
-    console.log('[Boardroom] Expert removed:', expertId);
   };
 
   return (

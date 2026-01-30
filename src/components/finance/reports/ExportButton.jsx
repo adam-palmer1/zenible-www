@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Download, ChevronDown, FileText, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { useReports } from '../../../contexts/ReportsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import ConfirmationModal from '../../common/ConfirmationModal';
 
 /**
  * Export Button with dropdown for CSV/PDF options
@@ -12,6 +13,7 @@ const ExportButton = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [exporting, setExporting] = useState(null);
   const dropdownRef = useRef(null);
+  const [pdfConfirmModal, setPdfConfirmModal] = useState({ isOpen: false });
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -27,18 +29,15 @@ const ExportButton = () => {
   const handleExport = async (format) => {
     // Warn about PDF limit
     if (format === 'pdf' && total > 500) {
-      const confirmed = window.confirm(
-        `PDF export is limited to 500 records. You have ${total} records. ` +
-          'The export will include only the first 500 records.\n\n' +
-          'For full export, consider using CSV format instead.\n\n' +
-          'Do you want to continue with PDF?'
-      );
-      if (!confirmed) {
-        setIsOpen(false);
-        return;
-      }
+      setIsOpen(false);
+      setPdfConfirmModal({ isOpen: true });
+      return;
     }
 
+    await performExport(format);
+  };
+
+  const performExport = async (format) => {
     try {
       setExporting(format);
       await exportTransactions(format, true);
@@ -50,6 +49,10 @@ const ExportButton = () => {
       setExporting(null);
       setIsOpen(false);
     }
+  };
+
+  const confirmPdfExport = () => {
+    performExport('pdf');
   };
 
   return (
@@ -101,6 +104,17 @@ const ExportButton = () => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={pdfConfirmModal.isOpen}
+        onClose={() => setPdfConfirmModal({ isOpen: false })}
+        onConfirm={confirmPdfExport}
+        title="PDF Export Limit"
+        message={`PDF export is limited to 500 records. You have ${total} records. The export will include only the first 500 records. For full export, consider using CSV format instead. Do you want to continue with PDF?`}
+        confirmText="Continue with PDF"
+        cancelText="Cancel"
+        confirmColor="orange"
+      />
     </div>
   );
 };

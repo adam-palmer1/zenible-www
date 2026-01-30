@@ -50,9 +50,3 @@ export const queryClient = new QueryClient({
  * Import this in App.jsx and wrap the app with QueryClientProvider
  */
 export { QueryClientProvider } from '@tanstack/react-query';
-
-/**
- * DevTools for debugging React Query cache
- * Import this in App.jsx and add <ReactQueryDevtools /> component
- */
-export { ReactQueryDevtools } from '@tanstack/react-query-devtools';

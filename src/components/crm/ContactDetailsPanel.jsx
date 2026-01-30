@@ -29,6 +29,31 @@ const ContactDetailsPanel = ({ contact: initialContact, onClose }) => {
   // Extract currency objects from company currencies for backward compatibility
   const currencies = companyCurrencies.map(cc => cc.currency);
 
+  // Resolve contact's default currency code
+  // Priority: contact.currency?.code > contact.currency_code > lookup by currency_id > company default
+  const getContactDefaultCurrency = () => {
+    // If contact has a nested currency object with code
+    if (contact?.currency?.code) {
+      return contact.currency.code;
+    }
+    // If contact has a currency_code field directly
+    if (contact?.currency_code) {
+      return contact.currency_code;
+    }
+    // If contact has currency_id, look it up in currencies
+    if (contact?.currency_id && currencies.length > 0) {
+      const contactCurrency = currencies.find(c => c.id === contact.currency_id);
+      if (contactCurrency?.code) {
+        return contactCurrency.code;
+      }
+    }
+    // Fall back to company default currency
+    if (defaultCurrency?.currency?.code) {
+      return defaultCurrency.currency.code;
+    }
+    return null;
+  };
+
   // Load currencies when panel opens
   useEffect(() => {
     if (initialContact?.id) {
@@ -249,7 +274,7 @@ const ContactDetailsPanel = ({ contact: initialContact, onClose }) => {
                 <InlineServiceForm
                   services={contact.services || []}
                   currencies={currencies || []}
-                  defaultCurrency={contact.currency || defaultCurrency?.code || 'GBP'}
+                  defaultCurrency={getContactDefaultCurrency()}
                   onAdd={handleAssignService}
                   onUpdate={handleUpdateService}
                   onRemove={handleRemoveService}

@@ -189,7 +189,7 @@ const BookingCalendar = ({
                 ${inCurrentMonth && !available ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed' : ''}
                 ${inCurrentMonth && available && !selected ? 'text-gray-900 dark:text-white hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer' : ''}
                 ${selected ? 'bg-zenible-primary text-white' : ''}
-                ${today && !selected ? 'ring-2 ring-zenible-primary ring-offset-2 dark:ring-offset-gray-800' : ''}
+                ${today && !selected ? 'ring-1 ring-zenible-primary' : ''}
               `}
             >
               {date.getDate()}

@@ -52,7 +52,9 @@ export default function UserProfileSection() {
       .substring(0, 2);
   };
 
-  const displayName = user?.full_name || user?.email?.split('@')[0] || 'User';
+  const displayName = user?.first_name && user?.last_name
+    ? `${user.first_name} ${user.last_name}`
+    : user?.first_name || user?.email?.split('@')[0] || 'User';
   const username = user?.email ? `@${user.email.split('@')[0]}` : '@user';
 
   return (

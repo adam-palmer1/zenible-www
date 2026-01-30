@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '@/config/api';
 
 export function useSSEStreaming(baseUrl = API_BASE_URL) {
   const [result, setResult] = useState({
@@ -65,7 +64,6 @@ export function useSSEStreaming(baseUrl = API_BASE_URL) {
       
       // Handle connection open
       eventSource.onopen = () => {
-        console.log('SSE connection established');
         if (options.onConnect) options.onConnect();
       };
       
@@ -85,7 +83,6 @@ export function useSSEStreaming(baseUrl = API_BASE_URL) {
       // Handle start event
       eventSource.addEventListener('start', (event) => {
         const data = JSON.parse(event.data);
-        console.log('Streaming started:', data);
         if (options.onStart) options.onStart(data);
       });
       

@@ -1,5 +1,5 @@
-import React from 'react';
-import SalesPipeline from '../SalesPipeline';
+import React, { useMemo } from 'react';
+import SalesPipeline from '../SalesPipelineNew';
 import ContactsListView from '../ContactsListView';
 import ClientsView from '../ClientsView';
 import VendorsView from '../VendorsView';
@@ -34,6 +34,8 @@ import contactsAPI from '../../../services/api/crm/contacts';
  * @param {Object} vendorsFilters - Vendors tab filter state and handlers
  * @param {Object} projectsFilters - Projects tab filter state and handlers
  * @param {Object} servicesFilters - Services tab filter state and handlers
+ * @param {Array} columnOrder - Saved column order (array of status IDs)
+ * @param {Function} handleColumnReorder - Handler for column reorder
  */
 const CRMTabContent = ({
   activeTab,
@@ -59,7 +61,27 @@ const CRMTabContent = ({
   vendorsFilters,
   projectsFilters,
   servicesFilters,
+  columnOrder = [],
+  handleColumnReorder,
 }) => {
+  // Apply column order to statuses
+  const orderedStatuses = useMemo(() => {
+    // First filter by selected statuses if any
+    const filteredStatuses = selectedStatuses.length > 0
+      ? allStatuses.filter((s) => selectedStatuses.includes(s.id))
+      : allStatuses;
+
+    // Then apply saved column order
+    if (columnOrder.length === 0) return filteredStatuses;
+
+    const orderMap = new Map(columnOrder.map((id, index) => [id, index]));
+    return [...filteredStatuses].sort((a, b) => {
+      const orderA = orderMap.get(a.id) ?? Infinity;
+      const orderB = orderMap.get(b.id) ?? Infinity;
+      return orderA - orderB;
+    });
+  }, [allStatuses, selectedStatuses, columnOrder]);
+
   if (activeTab === 'crm') {
     if (contactsLoading) {
       return (
@@ -87,11 +109,7 @@ const CRMTabContent = ({
           >
             <SalesPipeline
               contacts={filteredContacts}
-              statuses={
-                selectedStatuses.length > 0
-                  ? allStatuses.filter((s) => selectedStatuses.includes(s.id))
-                  : allStatuses
-              }
+              statuses={orderedStatuses}
               globalStatuses={globalStatuses}
               customStatuses={customStatuses}
               onAddContact={() => openContactModal()}
@@ -100,6 +118,7 @@ const CRMTabContent = ({
               sortOrder={sortOrder}
               onStatusUpdate={handleStatusUpdate}
               onRefresh={refreshWithScrollPreservation}
+              onColumnReorder={handleColumnReorder}
             />
           </ContactActionsProvider>
         </div>

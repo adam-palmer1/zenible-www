@@ -63,8 +63,8 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
   const [items, setItems] = useState([]);
 
   // Totals
-  const [taxRate, setTaxRate] = useState(0);
-  const [taxLabel, setTaxLabel] = useState('Tax');
+  // Document-level taxes (array format for backend)
+  const [documentTaxes, setDocumentTaxes] = useState([]);
   const [discountType, setDiscountType] = useState('percentage');
   const [discountValue, setDiscountValue] = useState(0);
   const [depositType, setDepositType] = useState(null);
@@ -88,6 +88,16 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
 
   // Saving
   const [saving, setSaving] = useState(false);
+
+  // Payment Options (transferred to invoice on conversion)
+  const [allowStripePayments, setAllowStripePayments] = useState(false);
+  const [allowPaypalPayments, setAllowPaypalPayments] = useState(false);
+  const [allowPartialPayments, setAllowPartialPayments] = useState(false);
+  const [automaticPaymentEnabled, setAutomaticPaymentEnabled] = useState(false);
+  const [attachPdfToEmail, setAttachPdfToEmail] = useState(true);
+  const [sendPaymentReceipt, setSendPaymentReceipt] = useState(true);
+  const [receivePaymentNotifications, setReceivePaymentNotifications] = useState(true);
+  const [paymentInstructions, setPaymentInstructions] = useState('');
 
   // Determine save button text based on quote status
   const getSaveButtonText = () => {
@@ -158,8 +168,23 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
         });
       }, 50);
 
-      setTaxRate(parseFloat(quote.tax_rate || 0));
-      setTaxLabel(quote.tax_label || 'Tax');
+      // Load document taxes - handle both new array format and legacy single tax
+      if (quote.document_taxes && Array.isArray(quote.document_taxes) && quote.document_taxes.length > 0) {
+        setDocumentTaxes(quote.document_taxes.map(tax => ({
+          tax_name: tax.tax_name,
+          tax_rate: parseFloat(tax.tax_rate) || 0,
+          display_order: tax.display_order || 0,
+        })));
+      } else if (quote.tax_rate && parseFloat(quote.tax_rate) > 0) {
+        // Legacy format - convert to array
+        setDocumentTaxes([{
+          tax_name: quote.tax_label || 'Tax',
+          tax_rate: parseFloat(quote.tax_rate),
+          display_order: 0,
+        }]);
+      } else {
+        setDocumentTaxes([]);
+      }
       setDiscountType(quote.discount_type || 'percentage');
       setDiscountValue(parseFloat(quote.discount_value || quote.discount_percentage || 0));
 
@@ -177,6 +202,16 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
       setDepositValue(inferredDepositValue);
       setNotes(quote.notes || '');
       setTerms(quote.terms || '');
+
+      // Payment settings
+      setAllowStripePayments(quote.allow_stripe_payments || false);
+      setAllowPaypalPayments(quote.allow_paypal_payments || false);
+      setAllowPartialPayments(quote.allow_partial_payments || false);
+      setAutomaticPaymentEnabled(quote.automatic_payment_enabled || false);
+      setAttachPdfToEmail(quote.attach_pdf_to_email !== undefined ? quote.attach_pdf_to_email : true);
+      setSendPaymentReceipt(quote.send_payment_receipt !== undefined ? quote.send_payment_receipt : true);
+      setReceivePaymentNotifications(quote.receive_payment_notifications !== undefined ? quote.receive_payment_notifications : true);
+      setPaymentInstructions(quote.payment_instructions || '');
     }
   }, [quote]);
 
@@ -239,7 +274,7 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
   }, [quote, quoteDate, validUntil]);
 
   // Calculate totals
-  const totals = calculateInvoiceTotal(items, taxRate, discountType, discountValue);
+  const totals = calculateInvoiceTotal(items, documentTaxes, discountType, discountValue);
   const getCurrencyCode = () => {
     if (!currency || !currencies.length) return 'USD';
     const currencyAssoc = currencies.find(cc => cc.currency.id === currency);
@@ -373,14 +408,27 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
 
           return itemData;
         }),
-        tax_rate: parseFloat(taxRate) || 0,
-        tax_label: taxLabel,
+        // Document-level taxes in correct format
+        document_taxes: documentTaxes.length > 0 ? documentTaxes.map((tax, index) => ({
+          tax_name: tax.tax_name,
+          tax_rate: parseFloat(tax.tax_rate),
+          display_order: tax.display_order ?? index,
+        })) : undefined,
         discount_type: discountValue > 0 ? discountType : undefined,
         discount_value: discountValue > 0 ? parseFloat(discountValue) : undefined,
         deposit_type: depositValue > 0 ? depositType : undefined,
         deposit_value: depositValue > 0 ? parseFloat(depositValue) : undefined,
         notes: notes || undefined,
         terms: terms || undefined,
+        // Payment settings (transferred to invoice on conversion)
+        allow_stripe_payments: Boolean(allowStripePayments),
+        allow_paypal_payments: Boolean(allowPaypalPayments),
+        allow_partial_payments: Boolean(allowPartialPayments),
+        automatic_payment_enabled: Boolean(automaticPaymentEnabled),
+        attach_pdf_to_email: attachPdfToEmail !== false,
+        send_payment_receipt: sendPaymentReceipt !== false,
+        receive_payment_notifications: receivePaymentNotifications !== false,
+        payment_instructions: paymentInstructions || undefined,
       };
 
       let result;
@@ -567,10 +615,9 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
         totals={totals}
         currencyCode={currencyCode}
         numberFormat={numberFormat}
-        taxRate={taxRate}
-        taxLabel={taxLabel}
+        documentTaxes={documentTaxes}
         onEditTax={() => setShowTaxModal(true)}
-        onRemoveTax={() => setTaxRate(0)}
+        onRemoveTax={() => setDocumentTaxes([])}
         discountType={discountType}
         discountValue={discountValue}
         onEditDiscount={() => setShowDiscountModal(true)}
@@ -646,11 +693,19 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
         isOpen={showTaxModal}
         onClose={() => setShowTaxModal(false)}
         onSave={(rate, label) => {
-          setTaxRate(rate);
-          setTaxLabel(label);
+          // Convert to document_taxes array format
+          if (rate > 0) {
+            setDocumentTaxes([{
+              tax_name: label,
+              tax_rate: rate,
+              display_order: 0,
+            }]);
+          } else {
+            setDocumentTaxes([]);
+          }
         }}
-        initialTaxRate={taxRate}
-        initialTaxLabel={taxLabel}
+        initialTaxRate={documentTaxes[0]?.tax_rate || 0}
+        initialTaxLabel={documentTaxes[0]?.tax_name || 'Tax'}
       />
 
       <DiscountModal
@@ -696,6 +751,24 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
           isOpen={showSettingsModal}
           onClose={() => setShowSettingsModal(false)}
           quoteStatus={quote?.status || 'draft'}
+          allowStripePayments={allowStripePayments}
+          allowPaypalPayments={allowPaypalPayments}
+          allowPartialPayments={allowPartialPayments}
+          automaticPaymentEnabled={automaticPaymentEnabled}
+          attachPdfToEmail={attachPdfToEmail}
+          sendPaymentReceipt={sendPaymentReceipt}
+          receivePaymentNotifications={receivePaymentNotifications}
+          paymentInstructions={paymentInstructions}
+          onChange={(updates) => {
+            if ('allowStripePayments' in updates) setAllowStripePayments(updates.allowStripePayments);
+            if ('allowPaypalPayments' in updates) setAllowPaypalPayments(updates.allowPaypalPayments);
+            if ('allowPartialPayments' in updates) setAllowPartialPayments(updates.allowPartialPayments);
+            if ('automaticPaymentEnabled' in updates) setAutomaticPaymentEnabled(updates.automaticPaymentEnabled);
+            if ('attachPdfToEmail' in updates) setAttachPdfToEmail(updates.attachPdfToEmail);
+            if ('sendPaymentReceipt' in updates) setSendPaymentReceipt(updates.sendPaymentReceipt);
+            if ('receivePaymentNotifications' in updates) setReceivePaymentNotifications(updates.receivePaymentNotifications);
+            if ('paymentInstructions' in updates) setPaymentInstructions(updates.paymentInstructions);
+          }}
         />
       )}
 

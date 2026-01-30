@@ -229,7 +229,6 @@ export default function QuizzesManagement() {
       // STEP 1: DELETE questions that were removed (exist in original but not in current)
       for (const originalQ of originalQuestions) {
         if (!currentQIds.has(originalQ.id)) {
-          console.log(`Deleting question ${originalQ.id}`);
           await quizAPI.deleteQuestion(originalQ.id);
         }
       }
@@ -255,11 +254,9 @@ export default function QuizzesManagement() {
 
         if (question.id && originalQMap.has(question.id)) {
           // UPDATE existing question (has ID and existed in original)
-          console.log(`Updating question ${question.id}`);
           await quizAPI.updateQuestion(question.id, questionData);
         } else {
           // CREATE new question (no ID or new question)
-          console.log(`Creating new question at index ${i}`);
           await quizAPI.addQuestion(quizId, questionData);
         }
       }

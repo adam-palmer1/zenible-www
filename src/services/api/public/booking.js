@@ -1,6 +1,6 @@
 // API service for Public Booking endpoints (unauthenticated)
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://demo-api.zenible.com/api/v1';
+import { API_BASE_URL } from '@/config/api';
 
 class PublicBookingAPI {
   async request(endpoint, options = {}) {
@@ -68,6 +68,17 @@ class PublicBookingAPI {
     return this.request(`/book/cancel/${cancelToken}`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
+    });
+  }
+
+  // Reschedule booking
+  async rescheduleBooking(cancelToken, newStartDatetime, timezone) {
+    return this.request(`/book/reschedule/${cancelToken}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        new_start_datetime: newStartDatetime,
+        timezone,
+      }),
     });
   }
 }

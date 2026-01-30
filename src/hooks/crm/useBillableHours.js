@@ -37,12 +37,13 @@ export function useBillableHours(projectId) {
       const response = await billableHoursAPI.list(projectId, filters);
 
       setEntries(response.items || []);
+      // Parse all values to numbers to avoid mixing strings and numbers in arithmetic
       setSummary({
         total: response.total || 0,
-        total_hours: response.total_hours || 0,
-        total_amount: response.total_amount || 0,
-        uninvoiced_hours: response.uninvoiced_hours || 0,
-        uninvoiced_amount: response.uninvoiced_amount || 0,
+        total_hours: parseFloat(response.total_hours) || 0,
+        total_amount: parseFloat(response.total_amount) || 0,
+        uninvoiced_hours: parseFloat(response.uninvoiced_hours) || 0,
+        uninvoiced_amount: parseFloat(response.uninvoiced_amount) || 0,
       });
 
       return response;
@@ -69,14 +70,20 @@ export function useBillableHours(projectId) {
       // Add to local state
       setEntries(prev => [newEntry, ...prev]);
 
-      // Update summary
+      // Update summary - ensure all values are numbers to avoid string concatenation
+      const hoursToAdd = parseFloat(newEntry.hours) || 0;
+      const amountToAdd = parseFloat(newEntry.amount) || 0;
       setSummary(prev => ({
         ...prev,
         total: prev.total + 1,
-        total_hours: prev.total_hours + (parseFloat(newEntry.hours) || 0),
-        total_amount: prev.total_amount + (parseFloat(newEntry.amount) || 0),
-        uninvoiced_hours: newEntry.invoice_id ? prev.uninvoiced_hours : prev.uninvoiced_hours + (parseFloat(newEntry.hours) || 0),
-        uninvoiced_amount: newEntry.invoice_id ? prev.uninvoiced_amount : prev.uninvoiced_amount + (parseFloat(newEntry.amount) || 0),
+        total_hours: (parseFloat(prev.total_hours) || 0) + hoursToAdd,
+        total_amount: (parseFloat(prev.total_amount) || 0) + amountToAdd,
+        uninvoiced_hours: newEntry.invoice_id
+          ? (parseFloat(prev.uninvoiced_hours) || 0)
+          : (parseFloat(prev.uninvoiced_hours) || 0) + hoursToAdd,
+        uninvoiced_amount: newEntry.invoice_id
+          ? (parseFloat(prev.uninvoiced_amount) || 0)
+          : (parseFloat(prev.uninvoiced_amount) || 0) + amountToAdd,
       }));
 
       return newEntry;
@@ -133,15 +140,21 @@ export function useBillableHours(projectId) {
       // Remove from local state
       setEntries(prev => prev.filter(e => e.id !== entryId));
 
-      // Update summary
+      // Update summary - ensure all values are numbers to avoid string concatenation
       if (entry) {
+        const hoursToRemove = parseFloat(entry.hours) || 0;
+        const amountToRemove = parseFloat(entry.amount) || 0;
         setSummary(prev => ({
           ...prev,
           total: prev.total - 1,
-          total_hours: prev.total_hours - (parseFloat(entry.hours) || 0),
-          total_amount: prev.total_amount - (parseFloat(entry.amount) || 0),
-          uninvoiced_hours: entry.invoice_id ? prev.uninvoiced_hours : prev.uninvoiced_hours - (parseFloat(entry.hours) || 0),
-          uninvoiced_amount: entry.invoice_id ? prev.uninvoiced_amount : prev.uninvoiced_amount - (parseFloat(entry.amount) || 0),
+          total_hours: (parseFloat(prev.total_hours) || 0) - hoursToRemove,
+          total_amount: (parseFloat(prev.total_amount) || 0) - amountToRemove,
+          uninvoiced_hours: entry.invoice_id
+            ? (parseFloat(prev.uninvoiced_hours) || 0)
+            : (parseFloat(prev.uninvoiced_hours) || 0) - hoursToRemove,
+          uninvoiced_amount: entry.invoice_id
+            ? (parseFloat(prev.uninvoiced_amount) || 0)
+            : (parseFloat(prev.uninvoiced_amount) || 0) - amountToRemove,
         }));
       }
 

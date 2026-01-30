@@ -397,6 +397,8 @@ const ProjectDetailModal = ({ isOpen, onClose, project: projectProp, onUpdate })
             defaultRate={project.default_hourly_rate}
             defaultCurrencyId={project.default_currency_id}
             currency={project.default_currency?.code || project.currency || 'USD'}
+            contactCurrencyId={project.contact?.currency_id}
+            contactCurrencyCode={project.contact?.currency?.code}
           />
         );
       case 'invoices':

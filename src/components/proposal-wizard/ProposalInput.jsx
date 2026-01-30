@@ -44,27 +44,10 @@ export default function ProposalInput({ darkMode, proposal, setProposal, jobPost
         <button
           onClick={() => {
             if (hasResults) {
-              console.log('[ProposalInput] Start Again clicked');
               if (onStartAgain) {
                 onStartAgain();
-              } else {
-                console.error('[ProposalInput] onStartAgain callback is not defined!');
               }
             } else {
-              console.log('[ProposalInput] Button clicked:', {
-                hasProposal: !!proposal,
-                hasJobPost: !!jobPost,
-                analyzing,
-                isPanelReady,
-                isConnected,
-                disabled: !jobPost || analyzing || !isPanelReady || !isConnected,
-                disabledReasons: {
-                  noJobPost: !jobPost,
-                  analyzing,
-                  panelNotReady: !isPanelReady,
-                  notConnected: !isConnected
-                }
-              });
               if (onAnalyze) {
                 onAnalyze();
               } else {

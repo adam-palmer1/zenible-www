@@ -79,7 +79,6 @@ export default function HeadlineAnalyzer() {
     characterId: selectedCharacterId,
     panelId: 'headline_analyzer',
     onAnalysisStarted: (data) => {
-      console.log('[HeadlineAnalyzer] Analysis started:', data);
       setFeedback({
         isProcessing: true,
         score: null,
@@ -87,8 +86,6 @@ export default function HeadlineAnalyzer() {
       });
     },
     onAnalysisComplete: (data) => {
-      console.log('[HeadlineAnalyzer] Analysis complete:', data);
-
       // Set current feedback
       setFeedback({
         isProcessing: false,
@@ -110,15 +107,8 @@ export default function HeadlineAnalyzer() {
         usage: data.usage,
         timestamp: new Date().toISOString()
       };
-      console.log('[HeadlineAnalyzer] Adding analysis to history:', {
-        messageId: newAnalysis.messageId,
-        timestamp: newAnalysis.timestamp,
-        hasStructured: !!newAnalysis.structured
-      });
       setAnalysisHistory(prev => {
-        console.log('[HeadlineAnalyzer] Previous history length:', prev.length);
         const newHistory = [...prev, newAnalysis];
-        console.log('[HeadlineAnalyzer] New history length:', newHistory.length);
         return newHistory;
       });
     },
@@ -137,8 +127,6 @@ export default function HeadlineAnalyzer() {
   // Setup follow-up message event handlers
   useEffect(() => {
     if (!conversationId || !onConversationEvent) return;
-
-    console.log('[HeadlineAnalyzer] Setting up follow-up message handlers for conversation:', conversationId);
 
     const unsubscribers = [];
 
@@ -311,31 +299,17 @@ export default function HeadlineAnalyzer() {
 
   // Handle headline analysis
   const handleAnalyze = async () => {
-    console.log('[HeadlineAnalyzer] handleAnalyze called with:', {
-      hasHeadline: !!headline,
-      headlineLength: headline?.length || 0,
-      selectedCharacterId,
-      selectedPlatform,
-      isConnected
-    });
-
     if (!selectedCharacterId) {
-      console.error('[HeadlineAnalyzer] Missing required data for analysis:', {
-        selectedCharacterId: selectedCharacterId ? 'present' : 'MISSING'
-      });
       return;
     }
 
     if (!isConnected) {
-      console.error('[HeadlineAnalyzer] Not connected to WebSocket');
       setFeedback({
         isProcessing: false,
         error: 'Not connected to server. Please refresh the page.'
       });
       return;
     }
-
-    console.log('[HeadlineAnalyzer] Starting headline analysis...');
 
     try {
       // Clear previous analysis (keep follow-up messages - they're part of conversation)
@@ -346,27 +320,18 @@ export default function HeadlineAnalyzer() {
       let convId;
       if (headline && headline.trim()) {
         // Analyze existing headline
-        console.log('[HeadlineAnalyzer] Analyzing existing headline...');
         convId = await sendAnalysis(
           headline,
           selectedPlatform || 'linkedin'
         );
       } else {
         // Generate headline suggestions
-        console.log('[HeadlineAnalyzer] Generating headline suggestions...');
         convId = await sendGeneration(
           '',
           selectedPlatform || 'linkedin'
         );
       }
-
-      if (!convId) {
-        console.error('[HeadlineAnalyzer] Failed to start - no conversation ID returned');
-      } else {
-        console.log('[HeadlineAnalyzer] Started with conversation:', convId);
-      }
     } catch (error) {
-      console.error('[HeadlineAnalyzer] Error starting:', error);
       setFeedback({
         isProcessing: false,
         error: 'Failed to process request. Please try again.'
@@ -377,25 +342,18 @@ export default function HeadlineAnalyzer() {
   // Handle follow-up message sending
   const handleSendFollowUpMessage = async (message) => {
     if (!conversationId || !selectedCharacterId) {
-      console.error('[HeadlineAnalyzer] Cannot send message - missing conversation or character');
       throw new Error('Cannot send message - missing required data');
     }
 
     if (!isConnected) {
-      console.error('[HeadlineAnalyzer] Not connected to WebSocket');
       throw new Error('Not connected to server');
     }
 
     try {
-      console.log('[HeadlineAnalyzer] Sending follow-up message in conversation:', conversationId);
-
       // Send message using the hook
       // Note: User message is added to conversationHistory in AIFeedbackSection
       await sendFollowUp(message);
-
-      console.log('[HeadlineAnalyzer] Follow-up message sent successfully');
     } catch (error) {
-      console.error('[HeadlineAnalyzer] Error sending follow-up message:', error);
       throw error;
     }
   };

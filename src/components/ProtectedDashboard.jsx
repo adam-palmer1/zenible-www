@@ -24,30 +24,20 @@ export default function ProtectedDashboard() {
       const onboardingStatus = getPreference('onboarding_status');
       const reminderDate = getPreference('onboarding_reminder_date');
 
-      console.log('Onboarding check:', {
-        status: onboardingStatus,
-        reminderDate: reminderDate,
-        currentTime: new Date().toISOString()
-      });
-
       if (!onboardingStatus || onboardingStatus === null) {
         // Never seen onboarding before
-        console.log('Showing onboarding: No status found');
         setShowOnboarding(true);
       } else if (onboardingStatus === 'deferred' && reminderDate) {
         // Check if it's time to show the reminder
         const now = new Date();
         const reminder = new Date(reminderDate);
         if (now >= reminder) {
-          console.log('Showing onboarding: Reminder time reached');
           setShowOnboarding(true);
         } else {
-          console.log('Not showing: Still within deferral period');
           setShowOnboarding(false);
         }
       } else {
         // If status is 'complete' or 'ignored', don't show modal
-        console.log('Not showing: Status is', onboardingStatus);
         setShowOnboarding(false);
       }
     }

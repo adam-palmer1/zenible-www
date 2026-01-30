@@ -1,5 +1,5 @@
 // Public plan API service for pricing page
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://demo-api.zenible.com/api/v1';
+import { API_BASE_URL } from '@/config/api';
 
 class PlanAPI {
   // Public endpoints (no authentication required)
@@ -99,7 +99,6 @@ class PlanAPI {
       }
 
       const data = await response.json();
-      console.log('getCurrentSubscription response:', data);
       return data;
     } catch (error) {
       console.error('Failed to fetch current subscription:', error);

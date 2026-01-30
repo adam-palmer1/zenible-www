@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Draggable } from '@hello-pangea/dnd';
-import { EnvelopeIcon, PhoneIcon, BuildingOfficeIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { PhoneIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import ServiceValueDisplay from './ServiceValueDisplay';
 import ContactActionMenu from './ContactActionMenu';
 import AppointmentsModal from './AppointmentsModal';
@@ -8,12 +8,16 @@ import { getContactDisplayName } from '../../utils/crm/contactUtils';
 import { getNextAppointment } from '../../utils/crm/appointmentUtils';
 
 /**
- * Contact card component for pipeline view
- * Now uses reusable ContactActionMenu component
+ * Card content component - extracted for use in renderClone portal
+ * This allows the dragged card to render in a portal at document.body level
+ * which fixes scroll position tracking issues
  */
-const PipelineContactCard = ({ contact, onClick, index, status }) => {
-  const [showAppointmentsModal, setShowAppointmentsModal] = useState(false);
-
+export const PipelineContactCardContent = ({
+  contact,
+  isDragging = false,
+  onClick,
+  onAppointmentClick
+}) => {
   // Get the next/closest appointment from the appointments array
   const nextAppointment = getNextAppointment(contact.appointments);
 
@@ -27,22 +31,16 @@ const PipelineContactCard = ({ contact, onClick, index, status }) => {
   const isCallAppointment = nextAppointment?.appointment_type === 'call';
 
   return (
-    <>
-      <Draggable draggableId={contact.id} index={index}>
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.draggableProps}
-            {...provided.dragHandleProps}
-            className={`w-full border rounded-[12px] shadow-sm cursor-move select-none overflow-hidden transition-all duration-200 ${
-              isAppointmentOverdue
-                ? 'bg-red-50 border-red-300 dark:bg-red-900/20 dark:border-red-700'
-                : 'bg-white dark:bg-gray-800 border-[#e5e5e5] dark:border-gray-700'
-            } ${
-              snapshot.isDragging ? 'shadow-[0_0_0_3px_rgba(138,43,225,0.5)] scale-105' : 'hover:shadow-md'
-            }`}
-            onClick={onClick}
-          >
+    <div
+      className={`w-full border rounded-[12px] shadow-sm cursor-move select-none overflow-hidden transition-all duration-200 ${
+        isAppointmentOverdue
+          ? 'bg-red-50 border-red-300 dark:bg-red-900/20 dark:border-red-700'
+          : 'bg-white dark:bg-gray-800 border-[#e5e5e5] dark:border-gray-700'
+      } ${
+        isDragging ? 'shadow-[0_0_0_3px_rgba(138,43,225,0.5)] scale-105' : 'hover:shadow-md'
+      }`}
+      onClick={onClick}
+    >
             {/* Header: Badges/Name + Action Menu - Figma Design */}
             {(contact.is_client || contact.is_vendor) ? (
               <>
@@ -166,36 +164,62 @@ const PipelineContactCard = ({ contact, onClick, index, status }) => {
               </div>
             )}
 
-            {/* Appointment Section - Figma Design */}
-            <div className={`flex gap-1 items-center pb-4 pt-3 px-4 border-t border-[#e5e5e5] dark:border-gray-700 ${(contact.pending_services_count > 0 || (contact.confirmed_services_count > 0 && (contact.confirmed_one_off_total || contact.confirmed_recurring_total)) || (contact.active_services_count > 0 && (contact.active_one_off_total || contact.active_recurring_total))) ? '' : 'mt-3'}`}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowAppointmentsModal(true);
-                }}
-                className="flex items-center gap-1 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-                aria-label={nextAppointment ? `${isCallAppointment ? 'Call' : 'Appointment'}: ${new Date(nextAppointment.start_datetime).toLocaleDateString()}` : 'Add appointment'}
-                title={nextAppointment ? `${isCallAppointment ? 'Call' : 'Appointment'}: ${new Date(nextAppointment.start_datetime).toLocaleDateString()}` : 'Add appointment'}
-              >
-                {isCallAppointment ? (
-                  <PhoneIcon className={`h-4 w-4 ${nextAppointment ? 'text-zenible-primary' : 'text-[#71717a] dark:text-gray-400'}`} />
-                ) : (
-                  <CalendarIcon className={`h-4 w-4 ${nextAppointment ? 'text-zenible-primary' : 'text-[#71717a] dark:text-gray-400'}`} />
-                )}
-                {nextAppointment ? (
-                  <span className="text-xs leading-5 font-normal text-zenible-primary">
-                    {new Date(nextAppointment.start_datetime).toLocaleDateString()}
-                    {nextAppointment.start_datetime.includes('T') && (
-                      <span className="ml-1">
-                        {new Date(nextAppointment.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
-                  </span>
-                ) : (
-                  <span className="text-xs leading-5 font-normal text-[#71717a] dark:text-gray-400">Add Appointment</span>
-                )}
-              </button>
-            </div>
+      {/* Appointment Section - Figma Design */}
+      <div className={`flex gap-1 items-center pb-4 pt-3 px-4 border-t border-[#e5e5e5] dark:border-gray-700 ${(contact.pending_services_count > 0 || (contact.confirmed_services_count > 0 && (contact.confirmed_one_off_total || contact.confirmed_recurring_total)) || (contact.active_services_count > 0 && (contact.active_one_off_total || contact.active_recurring_total))) ? '' : 'mt-3'}`}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onAppointmentClick) onAppointmentClick();
+          }}
+          className="flex items-center gap-1 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+          aria-label={nextAppointment ? `${isCallAppointment ? 'Call' : 'Appointment'}: ${new Date(nextAppointment.start_datetime).toLocaleDateString()}` : 'Add appointment'}
+          title={nextAppointment ? `${isCallAppointment ? 'Call' : 'Appointment'}: ${new Date(nextAppointment.start_datetime).toLocaleDateString()}` : 'Add appointment'}
+        >
+          {isCallAppointment ? (
+            <PhoneIcon className={`h-4 w-4 ${nextAppointment ? 'text-zenible-primary' : 'text-[#71717a] dark:text-gray-400'}`} />
+          ) : (
+            <CalendarIcon className={`h-4 w-4 ${nextAppointment ? 'text-zenible-primary' : 'text-[#71717a] dark:text-gray-400'}`} />
+          )}
+          {nextAppointment ? (
+            <span className="text-xs leading-5 font-normal text-zenible-primary">
+              {new Date(nextAppointment.start_datetime).toLocaleDateString()}
+              {nextAppointment.start_datetime.includes('T') && (
+                <span className="ml-1">
+                  {new Date(nextAppointment.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="text-xs leading-5 font-normal text-[#71717a] dark:text-gray-400">Add Appointment</span>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Contact card component for pipeline view
+ * Wraps PipelineContactCardContent in a Draggable
+ */
+const PipelineContactCard = ({ contact, onClick, index, status }) => {
+  const [showAppointmentsModal, setShowAppointmentsModal] = useState(false);
+
+  return (
+    <>
+      <Draggable draggableId={contact.id} index={index}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+          >
+            <PipelineContactCardContent
+              contact={contact}
+              isDragging={snapshot.isDragging}
+              onClick={onClick}
+              onAppointmentClick={() => setShowAppointmentsModal(true)}
+            />
           </div>
         )}
       </Draggable>

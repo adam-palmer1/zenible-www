@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import Modal from '../ui/modal/Modal';
+import GenericDropdown from './GenericDropdown';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useCompanyCurrencies } from '../../hooks/crm';
@@ -14,7 +15,10 @@ const BillableHourModal = ({
   projectId,
   entry = null, // If provided, editing; otherwise creating
   defaultRate,
-  defaultCurrency,
+  contactCurrencyId = null, // Client's default currency ID
+  contactCurrencyCode = null, // Client's default currency code
+  projectCurrencyCode = null, // Project's default currency code
+  projectCurrencyId = null, // Project's default currency ID
   onSuccess,
 }) => {
   const isEditing = !!entry;
@@ -32,7 +36,35 @@ const BillableHourModal = ({
   const [loading, setLoading] = useState(false);
 
   const { showError } = useNotification();
-  const { companyCurrencies } = useCompanyCurrencies();
+  const { companyCurrencies, defaultCurrency: companyDefaultCurrency } = useCompanyCurrencies();
+
+  // Get the effective default currency: contact's currency > project's currency > company default
+  const effectiveDefaultCurrency = useMemo(() => {
+    // First priority: contact's currency (by ID or code)
+    if (contactCurrencyId) {
+      const foundById = companyCurrencies.find(c => c.currency_id === contactCurrencyId);
+      if (foundById) return foundById;
+    }
+    if (contactCurrencyCode) {
+      const foundByCode = companyCurrencies.find(c => c.currency?.code === contactCurrencyCode);
+      if (foundByCode) return foundByCode;
+    }
+    // Second priority: project's default currency (by ID or code)
+    if (projectCurrencyId) {
+      const foundById = companyCurrencies.find(c => c.currency_id === projectCurrencyId);
+      if (foundById) return foundById;
+    }
+    if (projectCurrencyCode) {
+      const foundByCode = companyCurrencies.find(c => c.currency?.code === projectCurrencyCode);
+      if (foundByCode) return foundByCode;
+    }
+    // Third priority: company's default currency
+    if (companyDefaultCurrency) {
+      return companyDefaultCurrency;
+    }
+    // Fallback: first company currency
+    return companyCurrencies[0] || null;
+  }, [contactCurrencyId, contactCurrencyCode, projectCurrencyId, projectCurrencyCode, companyDefaultCurrency, companyCurrencies]);
 
   // Reset form when modal opens/closes or entry changes
   useEffect(() => {
@@ -46,7 +78,7 @@ const BillableHourModal = ({
           end_time: entry.end_time ? formatDateTimeLocal(entry.end_time) : '',
           is_billable: entry.is_billable ?? true,
           hourly_rate: entry.hourly_rate || '',
-          currency_id: entry.currency_id || '',
+          currency_id: entry.currency_id || effectiveDefaultCurrency?.currency_id || '',
         });
       } else {
         setFormData({
@@ -57,11 +89,11 @@ const BillableHourModal = ({
           end_time: '',
           is_billable: true,
           hourly_rate: '',
-          currency_id: '',
+          currency_id: effectiveDefaultCurrency?.currency_id || '',
         });
       }
     }
-  }, [isOpen, entry]);
+  }, [isOpen, entry, effectiveDefaultCurrency]);
 
   // Helper to format ISO datetime to datetime-local input format
   const formatDateTimeLocal = (isoString) => {
@@ -129,7 +161,19 @@ const BillableHourModal = ({
 
   const previewAmount = getPreviewAmount();
   const effectiveRate = formData.hourly_rate || defaultRate;
-  const currencyCode = defaultCurrency || 'USD';
+
+  // Get currency code for display
+  const selectedCurrencyObj = companyCurrencies.find(c => c.currency_id === formData.currency_id);
+  const currencyCode = selectedCurrencyObj?.currency?.code || effectiveDefaultCurrency?.currency?.code || 'USD';
+
+  // Currency options for dropdown
+  const currencyOptions = useMemo(() =>
+    companyCurrencies.map(c => ({
+      value: c.currency_id,
+      label: c.currency?.code || 'Unknown'
+    })),
+    [companyCurrencies]
+  );
 
   return (
     <Modal
@@ -250,19 +294,13 @@ const BillableHourModal = ({
               disabled={isInvoiced}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-zenible-primary focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800"
             />
-            <select
+            <GenericDropdown
               value={formData.currency_id}
-              onChange={(e) => handleInputChange('currency_id', e.target.value)}
+              onChange={(value) => handleInputChange('currency_id', value)}
+              options={currencyOptions}
+              placeholder={currencyCode}
               disabled={isInvoiced}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-zenible-primary focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800"
-            >
-              <option value="">Use default ({currencyCode})</option>
-              {companyCurrencies.map(c => (
-                <option key={c.currency_id} value={c.currency_id}>
-                  {c.currency?.code || 'Unknown'}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           {effectiveRate && (
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -273,14 +311,14 @@ const BillableHourModal = ({
 
         {/* Preview Amount */}
         {formData.hours && effectiveRate && formData.is_billable && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-blue-700 dark:text-blue-300">Estimated Amount</span>
-              <span className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+              <span className="text-sm text-purple-700 dark:text-purple-300">Estimated Amount</span>
+              <span className="text-lg font-semibold text-purple-900 dark:text-purple-100">
                 {formatCurrency(previewAmount, currencyCode)}
               </span>
             </div>
-            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
               {formData.hours}h × {formatCurrency(effectiveRate, currencyCode)}/hr
             </p>
           </div>

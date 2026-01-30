@@ -35,9 +35,6 @@ class WebSocketService {
       this.setupEventHandlers();
 
       this.socket.once('connected', (data) => {
-        if (this.config.debug) {
-          console.log('WebSocket connected:', data);
-        }
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
         resolve();
@@ -52,9 +49,6 @@ class WebSocketService {
 
       // Also resolve on regular connect event if 'connected' event doesn't fire
       this.socket.once('connect', () => {
-        if (this.config.debug) {
-          console.log('WebSocket connected (fallback)');
-        }
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
         resolve();
@@ -72,9 +66,6 @@ class WebSocketService {
 
     this.socket.on('disconnect', (reason) => {
       this.config.onConnectionChange?.(false);
-      if (this.config.debug) {
-        console.log('WebSocket disconnected:', reason);
-      }
     });
 
     this.socket.on('auth_error', (data) => {

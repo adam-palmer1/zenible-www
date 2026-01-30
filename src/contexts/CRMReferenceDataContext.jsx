@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import countriesAPI from '../services/api/crm/countries';
-import currenciesAPI from '../services/api/crm/currencies';
 import industriesAPI from '../services/api/crm/industries';
 import employeeRangesAPI from '../services/api/crm/employeeRanges';
 import vendorTypesAPI from '../services/api/crm/vendorTypes';
@@ -15,8 +14,6 @@ export const CRMReferenceDataProvider = ({ children }) => {
     // Static reference data
     countries: [],
     companyEnabledCountries: [],
-    currencies: [],
-    companyEnabledCurrencies: [],
     industries: [],
     employeeRanges: [],
     vendorTypes: [],
@@ -45,8 +42,6 @@ export const CRMReferenceDataProvider = ({ children }) => {
       const [
         countriesData,
         companyCountriesData,
-        currenciesData,
-        companyCurrenciesData,
         industriesData,
         employeeRangesData,
         vendorTypesData,
@@ -55,8 +50,6 @@ export const CRMReferenceDataProvider = ({ children }) => {
       ] = await Promise.all([
         countriesAPI.list().catch(() => []),
         countriesAPI.getCompanyCountries().catch(() => []),
-        currenciesAPI.list().catch(() => []),
-        currenciesAPI.getCompanyCurrencies().catch(() => []),
         industriesAPI.list().catch(() => []),
         employeeRangesAPI.list().catch(() => []),
         vendorTypesAPI.list().catch(() => []),
@@ -67,8 +60,6 @@ export const CRMReferenceDataProvider = ({ children }) => {
       setState({
         countries: countriesData || [],
         companyEnabledCountries: companyCountriesData || [],
-        currencies: currenciesData || [],
-        companyEnabledCurrencies: companyCurrenciesData || [],
         industries: industriesData || [],
         employeeRanges: employeeRangesData || [],
         vendorTypes: vendorTypesData || [],
@@ -103,10 +94,6 @@ export const CRMReferenceDataProvider = ({ children }) => {
     // Country helpers
     getCountryByCode: (code) => state.countries.find(c => c.code === code),
     getCountryById: (id) => state.countries.find(c => c.id === id),
-
-    // Currency helpers
-    getCurrencyByCode: (code) => state.currencies.find(c => c.code === code),
-    getCurrencyById: (id) => state.currencies.find(c => c.id === id),
 
     // Industry helpers
     getIndustryById: (id) => state.industries.find(i => i.id === id),

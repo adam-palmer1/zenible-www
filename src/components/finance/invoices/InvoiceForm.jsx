@@ -10,6 +10,7 @@ import { INVOICE_STATUS, RECURRING_TYPE } from '../../../constants/finance';
 import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import companiesAPI from '../../../services/api/crm/companies';
+import contactsAPI from '../../../services/api/crm/contacts';
 import invoicesAPI from '../../../services/api/finance/invoices';
 import TaxModal from './TaxModal';
 import DiscountModal from './DiscountModal';
@@ -19,7 +20,11 @@ import ClientSelectModal from './ClientSelectModal';
 import CurrencySelectModal from './CurrencySelectModal';
 import SendInvoiceDialog from './SendInvoiceDialog';
 import InvoiceSettingsModal from './InvoiceSettingsModal';
+import UnbilledHoursModal from './UnbilledHoursModal';
+import MarkHoursBilledModal from './MarkHoursBilledModal';
 import FinanceLayout from '../layout/FinanceLayout';
+import billableHoursAPI from '../../../services/api/crm/billableHours';
+import projectsAPI from '../../../services/api/crm/projects';
 
 const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false }) => {
   const navigate = useNavigate();
@@ -110,6 +115,18 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
   const [showClientModal, setShowClientModal] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  // Unbilled hours
+  const [hasCheckedUnbilledHours, setHasCheckedUnbilledHours] = useState(false);
+  const [showUnbilledHoursModal, setShowUnbilledHoursModal] = useState(false);
+  const [unbilledHoursData, setUnbilledHoursData] = useState(null);
+  const [checkingUnbilledHours, setCheckingUnbilledHours] = useState(false);
+  const [pendingBillableHourIds, setPendingBillableHourIds] = useState([]);
+  const [pendingProjectAllocations, setPendingProjectAllocations] = useState([]); // Array of { project_id, percentage }
+  const [showMarkBilledModal, setShowMarkBilledModal] = useState(false);
+  const [markingAsBilled, setMarkingAsBilled] = useState(false);
+  const [pendingInvoiceResult, setPendingInvoiceResult] = useState(null);
+  const [pendingOpenSendDialog, setPendingOpenSendDialog] = useState(false);
 
   // Saving
   const [saving, setSaving] = useState(false);
@@ -373,6 +390,201 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
     return amount + taxAmount;
   };
 
+  // Client selection handler - sets currency and checks for unbilled hours on first selection (new invoices only)
+  const handleClientSelect = async (clientId) => {
+    setContactId(clientId);
+    setShowClientModal(false);
+
+    // Only process for NEW invoices
+    if (!invoice && clientId) {
+      // Fetch full contact details to get currency (list endpoint may not include it)
+      try {
+        const fullContact = await contactsAPI.get(clientId);
+        const contactCurrencyId =
+          fullContact.preferred_currency_id ||
+          fullContact.currency_id ||
+          fullContact.default_currency_id ||
+          fullContact.currency?.id;
+
+        if (contactCurrencyId && currencies.length > 0) {
+          const currencyExists = currencies.some(cc => cc.currency.id === contactCurrencyId);
+          if (currencyExists) {
+            setCurrency(contactCurrencyId);
+          }
+        }
+        // If contact has no currency, company default is already set
+      } catch (error) {
+        console.error('Failed to fetch contact details for currency:', error);
+      }
+
+      // Check for unbilled hours only on first selection
+      if (!hasCheckedUnbilledHours) {
+        setHasCheckedUnbilledHours(true);
+
+        try {
+          setCheckingUnbilledHours(true);
+          const response = await billableHoursAPI.getByContact(clientId, {
+            uninvoiced_only: true,
+            is_billable: true,
+          });
+
+          if (response && response.items && response.items.length > 0) {
+            // Get unique project IDs from the billable hours
+            const projectIds = [...new Set(
+              response.items
+                .map(item => item.project_id)
+                .filter(Boolean)
+            )];
+
+            // Fetch project names for all unique project IDs
+            const projectNames = {};
+            if (projectIds.length > 0) {
+              const projectPromises = projectIds.map(async (projectId) => {
+                try {
+                  const project = await projectsAPI.get(projectId);
+                  return { id: projectId, name: project.name };
+                } catch (err) {
+                  console.warn(`Failed to fetch project ${projectId}:`, err);
+                  return { id: projectId, name: null };
+                }
+              });
+              const projects = await Promise.all(projectPromises);
+              projects.forEach(p => {
+                if (p.name) projectNames[p.id] = p.name;
+              });
+            }
+
+            // Enrich items with project names
+            const enrichedItems = response.items.map(item => ({
+              ...item,
+              project: item.project_id ? { name: projectNames[item.project_id] || 'Unnamed Project' } : null,
+            }));
+
+            setUnbilledHoursData({ ...response, items: enrichedItems });
+            setShowUnbilledHoursModal(true);
+          }
+        } catch (error) {
+          // Silently fail if API doesn't exist or errors - not critical
+          console.error('Failed to check unbilled hours:', error);
+        } finally {
+          setCheckingUnbilledHours(false);
+        }
+      }
+    }
+  };
+
+  // Handler for adding unbilled hours as line items
+  const handleAddUnbilledHours = (lineItems) => {
+    // Extract billable hour IDs from line items for later marking as billed
+    const allBillableHourIds = lineItems.flatMap((item) => item._billable_hour_ids || []);
+    setPendingBillableHourIds(allBillableHourIds);
+
+    // Calculate project allocations based on hours proportion
+    const totalHours = lineItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const projectAllocations = lineItems
+      .filter((item) => item._project_id != null)
+      .map((item) => ({
+        project_id: item._project_id,
+        percentage: totalHours > 0 ? Math.round((item.quantity / totalHours) * 100) : 0,
+      }));
+
+    // Ensure percentages sum to 100 (adjust the largest allocation for rounding errors)
+    const totalPercentage = projectAllocations.reduce((sum, a) => sum + a.percentage, 0);
+    if (projectAllocations.length > 0 && totalPercentage !== 100) {
+      const diff = 100 - totalPercentage;
+      const largestIdx = projectAllocations.reduce((maxIdx, curr, idx, arr) =>
+        curr.percentage > arr[maxIdx].percentage ? idx : maxIdx, 0);
+      projectAllocations[largestIdx].percentage += diff;
+    }
+    setPendingProjectAllocations(projectAllocations);
+
+    // Set invoice currency to match unbilled hours currency
+    const hoursCurrencyId = unbilledHoursData?.items?.[0]?.currency_id;
+    if (hoursCurrencyId) {
+      setCurrency(hoursCurrencyId);
+    }
+
+    // Add the new line items to existing items (strip internal tracking fields)
+    const cleanedItems = lineItems.map((item) => {
+      const cleanItem = { ...item };
+      delete cleanItem._billable_hour_ids;
+      delete cleanItem._project_id;
+      return cleanItem;
+    });
+    setItems((prevItems) => [...prevItems, ...cleanedItems]);
+    setShowUnbilledHoursModal(false);
+    setUnbilledHoursData(null);
+  };
+
+  // Continue after mark as billed modal (either confirmed or declined)
+  const continueAfterMarkBilled = () => {
+    const result = pendingInvoiceResult;
+    const openSendDialog = pendingOpenSendDialog;
+
+    // Clear the pending state
+    setPendingInvoiceResult(null);
+    setPendingOpenSendDialog(false);
+    setPendingBillableHourIds([]);
+    setPendingProjectAllocations([]);
+    setSaving(false);
+
+    // Continue with normal flow
+    if (openSendDialog) {
+      setSavedInvoice(result);
+      setShowSendDialog(true);
+    } else {
+      if (onSuccess) {
+        onSuccess(result);
+      } else {
+        navigate('/finance/invoices');
+      }
+    }
+  };
+
+  // Handler for marking hours as billed
+  const handleMarkHoursAsBilled = async () => {
+    if (!pendingInvoiceResult?.id || !pendingBillableHourIds.length) {
+      continueAfterMarkBilled();
+      return;
+    }
+
+    try {
+      setMarkingAsBilled(true);
+
+      // Mark billable hours as billed
+      await billableHoursAPI.bulkUpdateByContact(
+        contactId,
+        pendingBillableHourIds,
+        pendingInvoiceResult.id
+      );
+
+      // Link invoice to project(s)
+      if (pendingProjectAllocations.length > 0) {
+        try {
+          await invoicesAPI.updateAllocations(pendingInvoiceResult.id, pendingProjectAllocations);
+        } catch (allocError) {
+          console.error('Failed to link invoice to project:', allocError);
+          // Don't fail the whole operation for allocation errors
+        }
+      }
+
+      showSuccess('Hours marked as billed');
+    } catch (error) {
+      console.error('Failed to mark hours as billed:', error);
+      showError('Failed to mark hours as billed, but invoice was saved');
+    } finally {
+      setMarkingAsBilled(false);
+      setShowMarkBilledModal(false);
+      continueAfterMarkBilled();
+    }
+  };
+
+  // Handler for declining to mark hours as billed
+  const handleDeclineMarkBilled = () => {
+    setShowMarkBilledModal(false);
+    continueAfterMarkBilled();
+  };
+
   // Save handler
   const handleSendSuccess = () => {
     setShowSendDialog(false);
@@ -470,6 +682,18 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
       } else {
         result = await createInvoice(invoiceData);
         showSuccess('Invoice created successfully');
+        // Switch to edit mode so subsequent saves update instead of create
+        setInvoice(result);
+      }
+
+      // Check if we have pending billable hours to mark as billed
+      if (pendingBillableHourIds.length > 0 && result?.id) {
+        // Store the result and dialog flag for after marking hours
+        setPendingInvoiceResult(result);
+        setPendingOpenSendDialog(openSendDialog);
+        setShowMarkBilledModal(true);
+        // Don't continue - the modal handlers will take over
+        return;
       }
 
       // Only open send dialog if explicitly requested (via Save & Send button)
@@ -543,7 +767,7 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
               onClose={() => setShowClientModal(false)}
               clients={allContacts}
               selectedClientId={contactId}
-              onSelect={setContactId}
+              onSelect={handleClientSelect}
               loading={contactsLoading}
               triggerRef={clientButtonRef}
             />
@@ -852,6 +1076,28 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         invoice={savedInvoice}
         contact={savedInvoice && allContacts.find(c => c.id === savedInvoice.contact_id)}
         onSuccess={handleSendSuccess}
+      />
+
+      {/* Unbilled Hours Modal */}
+      <UnbilledHoursModal
+        isOpen={showUnbilledHoursModal}
+        onClose={() => {
+          setShowUnbilledHoursModal(false);
+          setUnbilledHoursData(null);
+        }}
+        onConfirm={handleAddUnbilledHours}
+        data={unbilledHoursData}
+        defaultCurrency={defaultCurrencyAssoc?.currency?.code}
+        loading={checkingUnbilledHours}
+      />
+
+      {/* Mark Hours as Billed Modal */}
+      <MarkHoursBilledModal
+        isOpen={showMarkBilledModal}
+        onClose={handleDeclineMarkBilled}
+        onConfirm={handleMarkHoursAsBilled}
+        hoursCount={pendingBillableHourIds.length}
+        loading={markingAsBilled}
       />
     </div>
   );

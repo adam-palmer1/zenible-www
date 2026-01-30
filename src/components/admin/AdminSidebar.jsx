@@ -408,13 +408,13 @@ export default function AdminSidebar() {
               {user?.avatar_url ? (
                 <img
                   src={user.avatar_url}
-                  alt={user?.full_name || 'Admin User'}
+                  alt={user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : 'Admin User'}
                   className="w-8 h-8 rounded-full object-cover"
                 />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-[#8B5CF6] flex items-center justify-center">
                   <span className="text-white text-xs font-semibold">
-                    {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'A'}
+                    {user?.first_name?.charAt(0) || user?.email?.charAt(0) || 'A'}
                   </span>
                 </div>
               )}
@@ -423,7 +423,7 @@ export default function AdminSidebar() {
             {/* User Info */}
             <div className="flex flex-col text-left">
               <span className="text-[#111827] text-sm font-semibold leading-5 truncate max-w-[140px]">
-                {user?.full_name || 'Admin User'}
+                {user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : 'Admin User'}
               </span>
               <span className="text-[#6B7280] text-xs leading-4 truncate max-w-[140px]">
                 Admin

@@ -81,7 +81,6 @@ export default function ProposalWizard() {
     characterId: selectedCharacterId,
     panelId: 'proposal_wizard',
     onAnalysisStarted: (data) => {
-      console.log('[ProposalWizard] Analysis started:', data);
       setFeedback({
         isProcessing: true,
         score: null,
@@ -89,8 +88,6 @@ export default function ProposalWizard() {
       });
     },
     onAnalysisComplete: (data) => {
-      console.log('[ProposalWizard] Analysis complete:', data);
-
       // Set current feedback
       setFeedback({
         isProcessing: false,
@@ -112,15 +109,8 @@ export default function ProposalWizard() {
         usage: data.usage,
         timestamp: new Date().toISOString()
       };
-      console.log('[ProposalWizard] Adding analysis to history:', {
-        messageId: newAnalysis.messageId,
-        timestamp: newAnalysis.timestamp,
-        hasStructured: !!newAnalysis.structured
-      });
       setAnalysisHistory(prev => {
-        console.log('[ProposalWizard] Previous history length:', prev.length);
         const newHistory = [...prev, newAnalysis];
-        console.log('[ProposalWizard] New history length:', newHistory.length);
         return newHistory;
       });
     },
@@ -139,8 +129,6 @@ export default function ProposalWizard() {
   // Setup follow-up message event handlers
   useEffect(() => {
     if (!conversationId || !onConversationEvent) return;
-
-    console.log('[ProposalWizard] Setting up follow-up message handlers for conversation:', conversationId);
 
     const unsubscribers = [];
 
@@ -313,34 +301,17 @@ export default function ProposalWizard() {
 
   // Handle proposal analysis
   const handleAnalyze = async () => {
-    console.log('[ProposalWizard] handleAnalyze called with:', {
-      hasJobPost: !!jobPost,
-      jobPostLength: jobPost?.length || 0,
-      hasProposal: !!proposal,
-      proposalLength: proposal?.length || 0,
-      selectedCharacterId,
-      selectedPlatform,
-      isConnected
-    });
-
     if (!jobPost || !selectedCharacterId) {
-      console.error('[ProposalWizard] Missing required data for analysis:', {
-        jobPost: jobPost ? 'present' : 'MISSING',
-        selectedCharacterId: selectedCharacterId ? 'present' : 'MISSING'
-      });
       return;
     }
 
     if (!isConnected) {
-      console.error('[ProposalWizard] Not connected to WebSocket');
       setFeedback({
         isProcessing: false,
         error: 'Not connected to server. Please refresh the page.'
       });
       return;
     }
-
-    console.log('[ProposalWizard] Starting proposal analysis...');
 
     try {
       // Clear previous analysis (keep follow-up messages - they're part of conversation)
@@ -351,7 +322,6 @@ export default function ProposalWizard() {
       let convId;
       if (proposal && proposal.trim()) {
         // Analyze existing proposal
-        console.log('[ProposalWizard] Analyzing existing proposal...');
         convId = await sendAnalysis(
           jobPost,
           proposal,
@@ -359,20 +329,12 @@ export default function ProposalWizard() {
         );
       } else {
         // Generate new proposal
-        console.log('[ProposalWizard] Generating new proposal...');
         convId = await sendGeneration(
           jobPost,
           selectedPlatform || 'upwork'
         );
       }
-
-      if (!convId) {
-        console.error('[ProposalWizard] Failed to start - no conversation ID returned');
-      } else {
-        console.log('[ProposalWizard] Started with conversation:', convId);
-      }
     } catch (error) {
-      console.error('[ProposalWizard] Error starting:', error);
       setFeedback({
         isProcessing: false,
         error: 'Failed to process request. Please try again.'
@@ -383,33 +345,24 @@ export default function ProposalWizard() {
   // Handle follow-up message sending
   const handleSendFollowUpMessage = async (message) => {
     if (!conversationId || !selectedCharacterId) {
-      console.error('[ProposalWizard] Cannot send message - missing conversation or character');
       throw new Error('Cannot send message - missing required data');
     }
 
     if (!isConnected) {
-      console.error('[ProposalWizard] Not connected to WebSocket');
       throw new Error('Not connected to server');
     }
 
     try {
-      console.log('[ProposalWizard] Sending follow-up message in conversation:', conversationId);
-
       // Send message using the hook
       // Note: User message is added to conversationHistory in AIFeedbackSection
       await sendFollowUp(message);
-
-      console.log('[ProposalWizard] Follow-up message sent successfully');
     } catch (error) {
-      console.error('[ProposalWizard] Error sending follow-up message:', error);
       throw error;
     }
   };
 
   // Handle start again - reset all state
   const handleStartAgain = () => {
-    console.log('[ProposalWizard] Starting again - resetting all state');
-
     // Reset all input state
     setJobPost('');
     setProposal('');

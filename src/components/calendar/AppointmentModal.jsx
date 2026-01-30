@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import ContactSelectorModal from './ContactSelectorModal';
 import TimePickerInput from '../shared/TimePickerInput';
+import Combobox from '../ui/combobox/Combobox';
 import contactsAPI from '../../services/api/crm/contacts';
 import appointmentsAPI from '../../services/api/crm/appointments';
 import { useCRMReferenceData } from '../../contexts/CRMReferenceDataContext';
@@ -13,7 +14,6 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
   // Get enum metadata from context
   const {
     appointmentTypes,
-    appointmentStatuses,
     recurringTypes,
     monthlyRecurringTypes
   } = useCRMReferenceData();
@@ -26,7 +26,6 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
     contact_id: null,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     appointment_type: 'manual',
-    status: 'scheduled',
     location: '',
     meeting_link: '',
     all_day: false,
@@ -72,7 +71,6 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
           contact_id: fullAppointment.contact_id || null,
           timezone: fullAppointment.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
           appointment_type: fullAppointment.appointment_type || 'manual',
-          status: fullAppointment.status || 'scheduled',
           location: fullAppointment.location || '',
           meeting_link: fullAppointment.meeting_link || '',
           all_day: fullAppointment.all_day || false,
@@ -151,7 +149,6 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
           contact_id: null,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           appointment_type: 'manual',
-          status: 'scheduled',
           location: '',
           meeting_link: '',
           all_day: false,
@@ -343,9 +340,8 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
     return date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
   };
 
-  // Get label for a type/status value
+  // Get label for a type value
   const getTypeLabel = (value) => appointmentTypes.find(t => t.value === value)?.label || value;
-  const getStatusLabel = (value) => appointmentStatuses.find(s => s.value === value)?.label || value;
 
   // Read-only view component
   const ReadOnlyView = () => (
@@ -378,16 +374,10 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
           </div>
         )}
 
-        {/* Type & Status Row */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">Type</label>
-            <p className="text-gray-900">{getTypeLabel(formData.appointment_type)}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">Status</label>
-            <p className="text-gray-900">{getStatusLabel(formData.status)}</p>
-          </div>
+        {/* Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-500 mb-1">Type</label>
+          <p className="text-gray-900">{getTypeLabel(formData.appointment_type)}</p>
         </div>
 
         {/* Date & Time */}
@@ -526,48 +516,54 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
                   />
                 </div>
 
-                {/* Appointment Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.appointment_type || ''}
-                    onChange={(e) => setFormData({ ...formData, appointment_type: e.target.value })}
-                    disabled={isReadOnly}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    required
-                  >
-                    {appointmentTypes.map(type => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                  {appointmentTypes.find(t => t.value === formData.appointment_type)?.description && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {appointmentTypes.find(t => t.value === formData.appointment_type).description}
-                    </p>
-                  )}
-                </div>
+                {/* Type & Contact Row */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Appointment Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Type <span className="text-red-500">*</span>
+                    </label>
+                    <Combobox
+                      options={appointmentTypes.map(type => ({ id: type.value, label: type.label }))}
+                      value={formData.appointment_type || ''}
+                      onChange={(value) => setFormData({ ...formData, appointment_type: value })}
+                      placeholder="Select type..."
+                      searchPlaceholder="Search types..."
+                      disabled={isReadOnly}
+                      allowClear={false}
+                    />
+                    {appointmentTypes.find(t => t.value === formData.appointment_type)?.description && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {appointmentTypes.find(t => t.value === formData.appointment_type).description}
+                      </p>
+                    )}
+                  </div>
 
-                {/* Status */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={formData.status || 'scheduled'}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    disabled={isReadOnly}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    {appointmentStatuses.map(status => (
-                      <option key={status.value} value={status.value}>
-                        {status.label}
-                      </option>
-                    ))}
-                  </select>
+                  {/* Contact Selection */}
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Contact
+                    </label>
+                    <button
+                      ref={contactButtonRef}
+                      type="button"
+                      onClick={() => setShowContactSelector(true)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-left hover:border-purple-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                    >
+                      <span className={selectedContact ? 'text-gray-900' : 'text-gray-400'}>
+                        {getContactDisplayName()}
+                      </span>
+                    </button>
+
+                    {/* Contact Selector Dropdown */}
+                    <ContactSelectorModal
+                      isOpen={showContactSelector}
+                      onClose={() => setShowContactSelector(false)}
+                      onSelect={handleContactSelect}
+                      selectedContactId={formData.contact_id}
+                      anchorRef={contactButtonRef}
+                    />
+                  </div>
                 </div>
 
                 {/* Date & Time Row */}
@@ -675,63 +671,40 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
                   </label>
                 </div>
 
-                {/* Contact Selection */}
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact
-                  </label>
-                  <button
-                    ref={contactButtonRef}
-                    type="button"
-                    onClick={() => setShowContactSelector(true)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-left hover:border-purple-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-                  >
-                    <span className={selectedContact ? 'text-gray-900' : 'text-gray-400'}>
-                      {getContactDisplayName()}
-                    </span>
-                  </button>
+                {/* Location & Meeting Link Row */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Location */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="e.g., Office - Room 3"
+                    />
+                  </div>
 
-                  {/* Contact Selector Dropdown */}
-                  <ContactSelectorModal
-                    isOpen={showContactSelector}
-                    onClose={() => setShowContactSelector(false)}
-                    onSelect={handleContactSelect}
-                    selectedContactId={formData.contact_id}
-                    anchorRef={contactButtonRef}
-                  />
-                </div>
-
-                {/* Location */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                    placeholder="e.g., Office - Room 3, or Online"
-                  />
-                </div>
-
-                {/* Meeting Link */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Meeting Link
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.meeting_link}
-                    onChange={(e) => setFormData({ ...formData, meeting_link: e.target.value })}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                      errors.meeting_link ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="https://meet.google.com/abc-defg-hij"
-                  />
-                  {errors.meeting_link && (
-                    <p className="mt-1 text-sm text-red-600">{errors.meeting_link}</p>
-                  )}
+                  {/* Meeting Link */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Meeting Link
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.meeting_link}
+                      onChange={(e) => setFormData({ ...formData, meeting_link: e.target.value })}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                        errors.meeting_link ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="https://meet.google.com/..."
+                    />
+                    {errors.meeting_link && (
+                      <p className="mt-1 text-sm text-red-600">{errors.meeting_link}</p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Recurring Section */}
@@ -751,44 +724,44 @@ const AppointmentModal = ({ isOpen, onClose, onSave, onDelete, appointment = nul
 
                   {isRecurring && (
                     <div className="space-y-4 pl-6 border-l-2 border-purple-200">
-                      {/* Pattern Type */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Repeat Pattern
-                        </label>
-                        <select
-                          value={recurringType}
-                          onChange={(e) => setRecurringType(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        >
-                          {recurringTypes.map(type => (
-                            <option key={type.value} value={type.value}>
-                              {type.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Interval */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Repeat Every
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="1"
-                            max="365"
-                            value={recurringInterval}
-                            onChange={(e) => setRecurringInterval(parseInt(e.target.value) || 1)}
-                            className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      {/* Pattern Type & Interval Row */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Pattern Type */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Repeat Pattern
+                          </label>
+                          <Combobox
+                            options={recurringTypes.map(type => ({ id: type.value, label: type.label }))}
+                            value={recurringType}
+                            onChange={(value) => setRecurringType(value)}
+                            placeholder="Select pattern..."
+                            searchPlaceholder="Search patterns..."
+                            allowClear={false}
                           />
-                          <span className="text-sm text-gray-600">
-                            {recurringType === 'daily' && 'day(s)'}
-                            {recurringType === 'weekly' && 'week(s)'}
-                            {recurringType === 'monthly' && 'month(s)'}
-                            {recurringType === 'yearly' && 'year(s)'}
-                          </span>
+                        </div>
+
+                        {/* Interval */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Repeat Every
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              max="365"
+                              value={recurringInterval}
+                              onChange={(e) => setRecurringInterval(parseInt(e.target.value) || 1)}
+                              className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                            <span className="text-sm text-gray-600">
+                              {recurringType === 'daily' && 'day(s)'}
+                              {recurringType === 'weekly' && 'week(s)'}
+                              {recurringType === 'monthly' && 'month(s)'}
+                              {recurringType === 'yearly' && 'year(s)'}
+                            </span>
+                          </div>
                         </div>
                       </div>
 

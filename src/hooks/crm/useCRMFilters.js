@@ -26,13 +26,12 @@ export function useCRMFilters(contacts = [], baseFilters = {}) {
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [showHidden, setShowHidden] = useState(false);
   const [sortOrder, setSortOrder] = useState(null); // null | 'high_to_low' | 'low_to_high' | 'follow_up_date'
+  const [columnOrder, setColumnOrder] = useState([]); // Array of status IDs for column ordering
   const [filtersLoaded, setFiltersLoaded] = useState(false);
 
   // Load filter preferences on mount
   useEffect(() => {
     if (preferencesInitialized && !filtersLoaded) {
-      console.log('[useCRMFilters] Loading filter preferences...');
-
       // Load selected statuses
       const savedStatuses = getPreference('crm_status', []);
       if (Array.isArray(savedStatuses) && savedStatuses.length > 0) {
@@ -47,8 +46,13 @@ export function useCRMFilters(contacts = [], baseFilters = {}) {
       const savedSortOrder = getPreference('crm_sort_order', null);
       setSortOrder(savedSortOrder);
 
+      // Load columnOrder preference
+      const savedColumnOrder = getPreference('crm_column_order', []);
+      if (Array.isArray(savedColumnOrder)) {
+        setColumnOrder(savedColumnOrder);
+      }
+
       setFiltersLoaded(true);
-      console.log('[useCRMFilters] Filter preferences loaded');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preferencesInitialized, filtersLoaded]);
@@ -144,11 +148,21 @@ export function useCRMFilters(contacts = [], baseFilters = {}) {
     }
   }, [updateDebouncedPreference]);
 
+  const handleColumnReorder = useCallback(async (newOrder) => {
+    setColumnOrder(newOrder);
+    try {
+      await updateDebouncedPreference('crm_column_order', newOrder, 'crm');
+    } catch (error) {
+      console.error('[useCRMFilters] Failed to save column order:', error);
+    }
+  }, [updateDebouncedPreference]);
+
   return {
     // State
     selectedStatuses,
     showHidden,
     sortOrder,
+    columnOrder,
     filtersLoaded,
 
     // Computed
@@ -161,9 +175,11 @@ export function useCRMFilters(contacts = [], baseFilters = {}) {
     handleClearStatuses,
     handleShowHiddenToggle,
     handleSortOrderChange,
+    handleColumnReorder,
     clearAllFilters,
     setSelectedStatuses,
     setShowHidden,
     setSortOrder,
+    setColumnOrder,
   };
 }

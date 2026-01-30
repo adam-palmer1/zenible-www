@@ -331,7 +331,7 @@ export default function UserManagement() {
                                 darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
                               }`}
                             >
-                              {user.full_name || user.first_name + ' ' + user.last_name || 'N/A'}
+                              {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.first_name || 'N/A'}
                             </div>
                             <div
                               className={`text-sm ${
@@ -538,10 +538,10 @@ export default function UserManagement() {
                       darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                     }`}
                   >
-                    Full Name
+                    Name
                   </dt>
                   <dd className={`mt-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                    {selectedUser.full_name || 'N/A'}
+                    {selectedUser.first_name && selectedUser.last_name ? `${selectedUser.first_name} ${selectedUser.last_name}` : selectedUser.first_name || 'N/A'}
                   </dd>
                 </div>
                 <div>

@@ -78,14 +78,6 @@ export default function AIFeedbackSection({
       setDisplayContent(feedback.analysis.raw);
     }
 
-    console.log('[AIFeedbackSection] Display content updated:', {
-      source,
-      contentLength: content?.length || 0,
-      isStreaming,
-      hasRawAnalysis: !!rawAnalysis,
-      hasFeedback: !!feedback,
-      hasStreamingContent: !!streamingContent
-    });
   }, [isStreaming, streamingContent, rawAnalysis, feedback]);
 
   // Reset rating when message changes
@@ -162,22 +154,13 @@ export default function AIFeedbackSection({
   };
 
   const handleSendQuestion = async () => {
-    console.log('[AIFeedbackSection] handleSendQuestion called', {
-      hasQuestion: !!question.trim(),
-      hasOnSendMessage: !!onSendMessage,
-      isSendingMessage
-    });
-
     if (!question.trim() || !onSendMessage || isSendingMessage) {
-      console.log('[AIFeedbackSection] Not sending - validation failed');
       return;
     }
 
     const userMessage = question.trim();
     setQuestion('');
     setIsSendingMessage(true);
-
-    console.log('[AIFeedbackSection] Sending message:', userMessage);
 
     // Add user message to conversation history
     setConversationHistory(prev => [...prev, {
@@ -189,7 +172,6 @@ export default function AIFeedbackSection({
     try {
       // Send message through parent component
       await onSendMessage(userMessage);
-      console.log('[AIFeedbackSection] Message sent successfully');
     } catch (error) {
       console.error('[AIFeedbackSection] Error sending message:', error);
       // Error handling - could add error message to conversation
@@ -223,7 +205,6 @@ export default function AIFeedbackSection({
 
     try {
       await onSendMessage(questionText);
-      console.log('[AIFeedbackSection] Completion question sent:', questionText);
     } catch (error) {
       console.error('[AIFeedbackSection] Error sending completion question:', error);
       setQuestionsSent(false); // Re-show buttons on error
@@ -451,17 +432,6 @@ export default function AIFeedbackSection({
         }
       : null;
 
-    console.log('[AIFeedbackSection] Rendering conversation history:', {
-      totalAnalysisHistory: analysisHistory.length,
-      completedAnalyses: allCompletedAnalyses.length,
-      conversationHistory: conversationHistory.length,
-      followUpMessages: followUpMessages.length,
-      hasCurrentAnalysis: !!currentAnalysis,
-      currentIsStreaming: currentAnalysis?.isStreaming,
-      analysisHistoryIds: analysisHistory.map(a => a.messageId),
-      currentMessageId: messageId
-    });
-
     // Combine all messages in chronological order
     const allMessages = [
       ...allCompletedAnalyses.map(msg => ({ ...msg, type: 'analysis' })),
@@ -476,14 +446,6 @@ export default function AIFeedbackSection({
 
     // Sort by timestamp
     const sortedMessages = allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-    console.log('[AIFeedbackSection] Sorted messages:', sortedMessages.map(m => ({
-      type: m.type,
-      timestamp: m.timestamp,
-      messageId: m.messageId,
-      isStreaming: m.isStreaming,
-      contentPreview: m.content?.substring(0, 50) || m.structured ? 'structured' : 'no content'
-    })));
 
     return (
       <div className="mt-6 space-y-3">
@@ -1347,19 +1309,6 @@ export default function AIFeedbackSection({
                   !feedback?.error &&
                   !questionsSent &&
                   completionQuestions.length > 0;
-
-                console.log('[AIFeedbackSection] Dynamic questions render check:', {
-                  shouldShow,
-                  hasCompletedAnalysis,
-                  messageId,
-                  analysisHistoryLength: analysisHistory.length,
-                  analyzing,
-                  isProcessing,
-                  isStreaming,
-                  hasError: !!feedback?.error,
-                  questionsSent,
-                  questionsCount: completionQuestions.length
-                });
 
                 return shouldShow && (
                   <div className="flex flex-col gap-1.5 sm:gap-2">

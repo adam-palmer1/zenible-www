@@ -1,11 +1,18 @@
 import React from 'react';
 
+// Simple time formatter for when no conversion is needed
+const formatTime = (timeStr) => {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours % 12 || 12;
+  return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+};
+
 const TimeSlotPicker = ({
   slots = [],
   selectedTime,
   onSelect,
   loading = false,
-  timezone,
 }) => {
   if (loading) {
     return (
@@ -33,38 +40,31 @@ const TimeSlotPicker = ({
     );
   }
 
-  // Format time for display (e.g., "09:00" -> "9:00 AM")
-  const formatTime = (time) => {
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-  };
-
   return (
     <div className="space-y-2">
-      {timezone && (
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-          Times shown in {timezone}
-        </p>
-      )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {slots.map((time) => (
-          <button
-            key={time}
-            onClick={() => onSelect(time)}
-            className={`
-              px-4 py-2 text-sm font-medium rounded-lg border transition-all
-              ${selectedTime === time
-                ? 'bg-zenible-primary text-white border-zenible-primary'
-                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:border-zenible-primary hover:text-zenible-primary'
-              }
-            `}
-          >
-            {formatTime(time)}
-          </button>
-        ))}
+        {slots.map((slot) => {
+          // Slots can be either strings (simple case) or objects with { time, visitorTime }
+          const isObject = typeof slot === 'object';
+          const hostTime = isObject ? slot.time : slot;
+          const displayTime = isObject && slot.visitorTime ? slot.visitorTime : formatTime(hostTime);
+
+          return (
+            <button
+              key={hostTime}
+              onClick={() => onSelect(hostTime)}
+              className={`
+                px-4 py-2 text-sm font-medium rounded-lg border transition-all
+                ${selectedTime === hostTime
+                  ? 'bg-zenible-primary text-white border-zenible-primary'
+                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:border-zenible-primary hover:text-zenible-primary'
+                }
+              `}
+            >
+              {displayTime}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

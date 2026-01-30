@@ -36,11 +36,8 @@ export const CRMProvider = ({ children }) => {
   // Load view mode and filters from preferences on mount
   useEffect(() => {
     if (preferencesInitialized && !preferencesLoaded) {
-      console.log('[CRMContext] Preferences are ready, loading view mode and filters...');
-
       // Load view mode preference
       const savedViewMode = getPreference('crm_view_mode', 'pipeline');
-      console.log('[CRMContext] Saved view mode:', savedViewMode);
       setViewMode(savedViewMode);
 
       // Load filter preferences
@@ -48,13 +45,6 @@ export const CRMProvider = ({ children }) => {
       const savedIsClient = getPreference('crm_filter_is_client', null);
       const savedIsVendor = getPreference('crm_filter_is_vendor', null);
       const savedIsActive = getPreference('crm_filter_is_active', true);
-
-      console.log('[CRMContext] Saved filters:', {
-        search: savedSearch,
-        is_client: savedIsClient,
-        is_vendor: savedIsVendor,
-        is_active: savedIsActive
-      });
 
       setFilters({
         search: savedSearch,
@@ -66,7 +56,6 @@ export const CRMProvider = ({ children }) => {
       });
 
       setPreferencesLoaded(true);
-      console.log('[CRMContext] View mode and filters loaded from preferences');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preferencesInitialized, preferencesLoaded]);

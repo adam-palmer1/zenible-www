@@ -7,6 +7,7 @@ import BookingGeneralSettings from './booking/BookingGeneralSettings';
 import AvailabilityEditor from './booking/AvailabilityEditor';
 import CallTypesList from './booking/CallTypesList';
 import CalendarSourcesEditor from './booking/CalendarSourcesEditor';
+import EmbedSettings from './booking/EmbedSettings';
 
 /**
  * Booking Tab - Call booking settings and configuration
@@ -64,6 +65,7 @@ const BookingTab = ({ onUnsavedChanges }) => {
     { id: 'availability', label: 'Availability' },
     { id: 'call-types', label: 'Call Types' },
     { id: 'calendars', label: 'Calendar Sources' },
+    { id: 'embed', label: 'Embed Widget' },
   ];
 
   return (
@@ -142,6 +144,9 @@ const BookingTab = ({ onUnsavedChanges }) => {
         )}
         {activeSection === 'calendars' && (
           <CalendarSourcesEditor />
+        )}
+        {activeSection === 'embed' && (
+          <EmbedSettings username={user?.username} />
         )}
       </div>
     </div>

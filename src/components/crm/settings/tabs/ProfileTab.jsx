@@ -45,6 +45,10 @@ const ProfileTab = ({ onUnsavedChanges }) => {
           invoice_reminder_frequency_days: data.invoice_reminder_frequency_days || 7,
           invoice_reminders_enabled: data.invoice_reminders_enabled ?? true,
           max_invoice_reminders: data.max_invoice_reminders || 3,
+          // Quote reminders
+          quote_reminder_frequency_days: data.quote_reminder_frequency_days || 7,
+          quote_reminders_enabled: data.quote_reminders_enabled ?? true,
+          max_quote_reminders: data.max_quote_reminders || 3,
           // Company taxes (managed separately by TaxesSection)
           company_taxes: data.company_taxes || [],
           // Branding
@@ -505,6 +509,112 @@ const ProfileTab = ({ onUnsavedChanges }) => {
         </div>
       </div>
 
+      {/* Automatic Reminders */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Automatic Reminders
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Configure automatic reminder settings for invoices and quotes. Reminders are sent to clients who haven't responded.
+        </p>
+
+        {/* Invoice Reminders */}
+        <div className="mb-8">
+          <h4 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-4">Invoice Reminders</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.invoice_reminders_enabled}
+                  onChange={(e) => handleChange('invoice_reminders_enabled', e.target.checked)}
+                  className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Enable Invoice Reminders
+                </span>
+              </label>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Frequency (days)
+              </label>
+              <input
+                type="number"
+                value={formData.invoice_reminder_frequency_days}
+                onChange={(e) => handleChange('invoice_reminder_frequency_days', parseInt(e.target.value) || 7)}
+                min="1"
+                max="30"
+                disabled={!formData.invoice_reminders_enabled}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Maximum Reminders
+              </label>
+              <input
+                type="number"
+                value={formData.max_invoice_reminders}
+                onChange={(e) => handleChange('max_invoice_reminders', parseInt(e.target.value) || 3)}
+                min="1"
+                max="10"
+                disabled={!formData.invoice_reminders_enabled}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Quote Reminders */}
+        <div>
+          <h4 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-4">Quote Reminders</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.quote_reminders_enabled}
+                  onChange={(e) => handleChange('quote_reminders_enabled', e.target.checked)}
+                  className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Enable Quote Reminders
+                </span>
+              </label>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Frequency (days)
+              </label>
+              <input
+                type="number"
+                value={formData.quote_reminder_frequency_days}
+                onChange={(e) => handleChange('quote_reminder_frequency_days', parseInt(e.target.value) || 7)}
+                min="1"
+                max="30"
+                disabled={!formData.quote_reminders_enabled}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Maximum Reminders
+              </label>
+              <input
+                type="number"
+                value={formData.max_quote_reminders}
+                onChange={(e) => handleChange('max_quote_reminders', parseInt(e.target.value) || 3)}
+                min="1"
+                max="10"
+                disabled={!formData.quote_reminders_enabled}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Applicable Taxes */}
       <div>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -541,6 +651,9 @@ const ProfileTab = ({ onUnsavedChanges }) => {
               invoice_reminder_frequency_days: company.invoice_reminder_frequency_days || 7,
               invoice_reminders_enabled: company.invoice_reminders_enabled ?? true,
               max_invoice_reminders: company.max_invoice_reminders || 3,
+              quote_reminder_frequency_days: company.quote_reminder_frequency_days || 7,
+              quote_reminders_enabled: company.quote_reminders_enabled ?? true,
+              max_quote_reminders: company.max_quote_reminders || 3,
               company_taxes: company.company_taxes || [],
               primary_color: company.primary_color || '',
               secondary_color: company.secondary_color || '',

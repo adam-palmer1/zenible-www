@@ -73,14 +73,7 @@ const SalesPipeline = ({ contacts = [], statuses = [], globalStatuses = [], cust
         grouped[statusId].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       }
 
-      console.log(`Status ${statusId} has ${grouped[statusId].length} contacts`);
     });
-
-    console.log('Grouped contacts by status:', Object.keys(grouped).map(key => ({
-      statusId: key,
-      count: grouped[key].length,
-      contacts: grouped[key].map(c => `${c.first_name} ${c.last_name} (${c.sort_order})`)
-    })));
 
     return grouped;
   }, [contacts, statuses, sortOrder, optimisticUpdates]);

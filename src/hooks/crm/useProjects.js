@@ -1,137 +1,102 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import projectsAPI from '../../services/api/crm/projects';
+import { queryKeys } from '../../lib/query-keys';
 
-// Module-level cache with separate entries for different filters
-const cache = {
-  all: { projects: null, timestamp: null },
-  stats: { data: null, timestamp: null },
-  TTL: 5 * 60 * 1000, // 5 minutes
-};
+/**
+ * React Query-based hook for managing projects
+ *
+ * Features:
+ * - Automatic request deduplication
+ * - 5-minute stale time (configured in react-query.js)
+ * - Automatic cache invalidation on mutations
+ * - Separate queries for projects list and stats
+ */
 
 export function useProjects(filters = {}) {
-  const [projects, setProjects] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
 
-  const getCacheKey = (filters) => {
-    if (!filters.statuses || filters.statuses.length === 0) return 'all';
-    // Sort statuses for consistent cache keys
-    return `statuses_${filters.statuses.slice().sort().join('_')}`;
-  };
+  // Query for projects list
+  const projectsQuery = useQuery({
+    queryKey: queryKeys.projects.list(filters),
+    queryFn: async () => {
+      const data = await projectsAPI.list(filters);
+      return data.items || data;
+    },
+  });
 
-  const loadProjects = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  // Query for project stats
+  const statsQuery = useQuery({
+    queryKey: queryKeys.projects.stats(),
+    queryFn: () => projectsAPI.getStats(),
+  });
 
-      const now = Date.now();
-      const cacheKey = getCacheKey(filters);
+  // Create project mutation
+  const createMutation = useMutation({
+    mutationFn: (data) => projectsAPI.create(data),
+    onSuccess: () => {
+      // Invalidate all project lists and stats
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.stats() });
+    },
+  });
 
-      // Initialize cache entry if it doesn't exist
-      if (!cache[cacheKey]) {
-        cache[cacheKey] = { projects: null, timestamp: null };
-      }
+  // Update project mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ projectId, data }) => projectsAPI.update(projectId, data),
+    onSuccess: () => {
+      // Invalidate all project lists and stats
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.stats() });
+    },
+  });
 
-      // Check project cache for this filter
-      const isCacheValid = cache[cacheKey].projects &&
-                          cache[cacheKey].timestamp &&
-                          (now - cache[cacheKey].timestamp < cache.TTL);
+  // Delete project mutation
+  const deleteMutation = useMutation({
+    mutationFn: (projectId) => projectsAPI.delete(projectId),
+    onSuccess: () => {
+      // Invalidate all project lists and stats
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.stats() });
+    },
+  });
 
-      // Check stats cache
-      const isStatsCacheValid = cache.stats.data &&
-                               cache.stats.timestamp &&
-                               (now - cache.stats.timestamp < cache.TTL);
-
-      if (isCacheValid && isStatsCacheValid) {
-        setProjects(cache[cacheKey].projects);
-        setStats(cache.stats.data);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch from API
-      const promises = [];
-
-      if (!isCacheValid) {
-        promises.push(projectsAPI.list(filters));
-      } else {
-        promises.push(Promise.resolve(null));
-      }
-
-      if (!isStatsCacheValid) {
-        promises.push(projectsAPI.getStats());
-      } else {
-        promises.push(Promise.resolve(null));
-      }
-
-      const [projectsData, statsData] = await Promise.all(promises);
-
-      if (projectsData !== null) {
-        cache[cacheKey].projects = projectsData.items || projectsData;
-        cache[cacheKey].timestamp = now;
-      }
-
-      if (statsData !== null) {
-        cache.stats.data = statsData;
-        cache.stats.timestamp = now;
-      }
-
-      setProjects(cache[cacheKey].projects);
-      setStats(cache.stats.data);
-    } catch (err) {
-      setError(err.message);
-      console.error('Failed to load projects:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
-
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
-
-  const invalidateAllCaches = () => {
-    // Invalidate all project caches
-    Object.keys(cache).forEach(key => {
-      if (key !== 'TTL' && cache[key]) {
-        cache[key].projects = null;
-        cache[key].timestamp = null;
-      }
-    });
-    // Invalidate stats cache
-    cache.stats.data = null;
-    cache.stats.timestamp = null;
-  };
-
+  // Wrapper functions to maintain the same API interface
   const createProject = useCallback(async (data) => {
-    const newProject = await projectsAPI.create(data);
-    invalidateAllCaches();
-    await loadProjects();
-    return newProject;
-  }, [loadProjects]);
+    return createMutation.mutateAsync(data);
+  }, [createMutation]);
 
   const updateProject = useCallback(async (projectId, data) => {
-    const updated = await projectsAPI.update(projectId, data);
-    invalidateAllCaches();
-    await loadProjects();
-    return updated;
-  }, [loadProjects]);
+    return updateMutation.mutateAsync({ projectId, data });
+  }, [updateMutation]);
 
   const deleteProject = useCallback(async (projectId) => {
-    await projectsAPI.delete(projectId);
-    invalidateAllCaches();
-    await loadProjects();
-  }, [loadProjects]);
+    return deleteMutation.mutateAsync(projectId);
+  }, [deleteMutation]);
+
+  // Refresh function that invalidates and refetches
+  const refresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.projects.lists() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.projects.stats() });
+  }, [queryClient]);
+
+  // Combine loading states - loading if either query is in initial loading state
+  const loading = projectsQuery.isLoading || statsQuery.isLoading;
+
+  // Combine error states
+  const error = projectsQuery.error?.message || statsQuery.error?.message || null;
 
   return {
-    projects,
-    stats,
+    projects: projectsQuery.data || [],
+    stats: statsQuery.data || null,
     loading,
     error,
     createProject,
     updateProject,
     deleteProject,
-    refresh: loadProjects,
+    refresh,
+    // Additional React Query utilities for advanced usage
+    isRefetching: projectsQuery.isRefetching || statsQuery.isRefetching,
+    isFetching: projectsQuery.isFetching || statsQuery.isFetching,
   };
 }

@@ -56,7 +56,6 @@ class StableWebSocketConnection {
     });
 
     socket.on('reconnect', (attemptNumber) => {
-      console.log(`Reconnected after ${attemptNumber} attempts`);
       this.connectionHealth.reconnectCount++;
       this.startHealthChecks();
     });

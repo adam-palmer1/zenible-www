@@ -4,6 +4,7 @@ import { ArrowLeftIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outl
 const BookingForm = ({
   date,
   time,
+  displayTime,
   duration,
   timezone,
   onSubmit,
@@ -93,7 +94,7 @@ const BookingForm = ({
             </div>
             <div className="flex items-center gap-2 text-gray-900 dark:text-white">
               <ClockIcon className="h-5 w-5 text-gray-400" />
-              <span>{formatTime(time)} ({duration} minutes)</span>
+              <span>{displayTime || formatTime(time)} ({duration} minutes)</span>
             </div>
             {timezone && (
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">

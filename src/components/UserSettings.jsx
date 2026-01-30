@@ -58,6 +58,16 @@ export default function UserSettings() {
   const [usernameError, setUsernameError] = useState('');
   const checkUsernameTimeoutRef = useRef(null);
 
+  // Avatar state
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isDeletingAvatar, setIsDeletingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
+
+  // Profile name state
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
   const accountSettings = [
     { id: 'profile', label: 'Profile', icon: UserIcon },
     { id: 'subscription', label: 'Subscription', icon: CreditCardIcon },
@@ -124,8 +134,9 @@ export default function UserSettings() {
         planAPI.getCurrentSubscription()
       ]);
 
-      console.log('Subscription data received:', subscriptionData);
       setProfile(userData);
+      setFirstName(userData?.first_name || '');
+      setLastName(userData?.last_name || '');
       setCurrentSubscription(subscriptionData);
     } catch (err) {
       setError('Failed to load user profile');
@@ -189,6 +200,85 @@ export default function UserSettings() {
     }
     setIsSavingUsername(false);
   };
+
+  const handleAvatarSelect = () => {
+    avatarInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setError('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    setError(null);
+    try {
+      const data = await userAPI.uploadAvatar(file);
+      setProfile((prev) => ({ ...prev, avatar_url: data.avatar_url }));
+      updateUser({ avatar_url: data.avatar_url });
+      setSuccessMessage('Profile picture updated successfully');
+    } catch (error) {
+      setError(error.message || 'Failed to upload profile picture');
+    } finally {
+      setIsUploadingAvatar(false);
+      // Reset input so same file can be selected again
+      if (avatarInputRef.current) {
+        avatarInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleAvatarDelete = async () => {
+    if (!window.confirm('Are you sure you want to remove your profile picture?')) {
+      return;
+    }
+
+    setIsDeletingAvatar(true);
+    setError(null);
+    try {
+      await userAPI.deleteAvatar();
+      setProfile((prev) => ({ ...prev, avatar_url: null }));
+      updateUser({ avatar_url: null });
+      setSuccessMessage('Profile picture removed successfully');
+    } catch (error) {
+      setError(error.message || 'Failed to remove profile picture');
+    } finally {
+      setIsDeletingAvatar(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    setError(null);
+    try {
+      const data = await userAPI.updateProfile({
+        first_name: firstName,
+        last_name: lastName
+      });
+      setProfile((prev) => ({ ...prev, first_name: data.first_name, last_name: data.last_name }));
+      updateUser({ first_name: data.first_name, last_name: data.last_name });
+      setSuccessMessage('Profile updated successfully');
+    } catch (error) {
+      setError(error.message || 'Failed to update profile');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // Check if profile name has changed
+  const hasProfileChanges = firstName !== (profile?.first_name || '') || lastName !== (profile?.last_name || '');
 
   const handlePasswordReset = async () => {
     if (!profile?.email) return;
@@ -371,90 +461,111 @@ export default function UserSettings() {
           </div>
 
           <div className="p-6 space-y-4">
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={profile?.email || ''}
-                disabled
-                className={`w-full px-3 py-2 rounded-lg border ${
-                  darkMode
-                    ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
-                    : 'bg-gray-50 border-gray-300 text-gray-500'
-                } cursor-not-allowed`}
-              />
-              <p className={`mt-1 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                Email address cannot be changed for security reasons
-              </p>
-            </div>
+            {/* Row 1: Email + Username */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={profile?.email || ''}
+                  disabled
+                  className={`w-full px-3 py-2 rounded-lg border ${
+                    darkMode
+                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
+                      : 'bg-gray-50 border-gray-300 text-gray-500'
+                  } cursor-not-allowed`}
+                />
+              </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={profile?.full_name || ''}
-                disabled
-                className={`w-full px-3 py-2 rounded-lg border ${
-                  darkMode
-                    ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
-                    : 'bg-gray-50 border-gray-300 text-gray-500'
-                } cursor-not-allowed`}
-                placeholder="Full name from Google account"
-              />
-              <p className={`mt-1 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                Name is automatically synced from your Google account
-              </p>
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                Username
-              </label>
-              <div className="flex gap-2">
-                <div className="flex-1">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  Username
+                </label>
+                <div className="flex gap-2">
                   <input
                     type="text"
                     value={newUsername}
                     onChange={(e) => handleUsernameInputChange(e.target.value)}
                     maxLength={32}
                     placeholder="Enter username"
-                    className={`w-full px-3 py-2 rounded-lg border ${
+                    className={`flex-1 px-3 py-2 rounded-lg border ${
                       darkMode
                         ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
                         : 'bg-white border-gray-300 text-gray-900'
                     } focus:ring-2 focus:ring-zenible-primary focus:border-transparent`}
                   />
-                  {newUsername.length > 0 && newUsername.length < 3 && (
-                    <p className="text-sm text-yellow-600 dark:text-yellow-500 mt-1">Min 3 characters</p>
-                  )}
-                  {isCheckingUsername && (
-                    <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Checking...</p>
-                  )}
-                  {!isCheckingUsername && isUsernameAvailable === true && newUsername !== username && (
-                    <p className="text-sm text-green-600 dark:text-green-500 mt-1">Available</p>
-                  )}
-                  {!isCheckingUsername && isUsernameAvailable === false && (
-                    <p className="text-sm text-red-600 dark:text-red-500 mt-1">Taken</p>
-                  )}
-                  {usernameError && (
-                    <p className="text-sm text-red-600 dark:text-red-500 mt-1">{usernameError}</p>
-                  )}
+                  <button
+                    onClick={handleSaveUsername}
+                    disabled={!isUsernameAvailable || newUsername === username || isSavingUsername}
+                    className="px-3 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                  >
+                    {isSavingUsername ? '...' : 'Save'}
+                  </button>
                 </div>
-                <button
-                  onClick={handleSaveUsername}
-                  disabled={!isUsernameAvailable || newUsername === username || isSavingUsername}
-                  className="px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors h-fit"
-                >
-                  {isSavingUsername ? 'Saving...' : 'Save'}
-                </button>
+                {newUsername.length > 0 && newUsername.length < 3 && (
+                  <p className="text-sm text-yellow-600 dark:text-yellow-500 mt-1">Min 3 characters</p>
+                )}
+                {isCheckingUsername && (
+                  <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Checking...</p>
+                )}
+                {!isCheckingUsername && isUsernameAvailable === true && newUsername !== username && (
+                  <p className="text-sm text-green-600 dark:text-green-500 mt-1">Available</p>
+                )}
+                {!isCheckingUsername && isUsernameAvailable === false && (
+                  <p className="text-sm text-red-600 dark:text-red-500 mt-1">Taken</p>
+                )}
+                {usernameError && (
+                  <p className="text-sm text-red-600 dark:text-red-500 mt-1">{usernameError}</p>
+                )}
               </div>
-              <p className={`mt-1 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                Used for your public booking page URL
-              </p>
+            </div>
+
+            {/* Row 2: First Name + Last Name */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Enter first name"
+                  className={`w-full px-3 py-2 rounded-lg border ${
+                    darkMode
+                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } focus:ring-2 focus:ring-zenible-primary focus:border-transparent`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  Last Name
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Enter last name"
+                    className={`flex-1 px-3 py-2 rounded-lg border ${
+                      darkMode
+                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } focus:ring-2 focus:ring-zenible-primary focus:border-transparent`}
+                  />
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={!hasProfileChanges || isSavingProfile}
+                    className="px-3 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                  >
+                    {isSavingProfile ? '...' : 'Save'}
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -512,25 +623,62 @@ export default function UserSettings() {
               </div>
             </div>
 
-            {profile?.avatar_url && (
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                  Profile Picture
-                </label>
-                <div className="flex items-center space-x-4">
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                Profile Picture
+              </label>
+              <div className="flex items-center space-x-4">
+                {profile?.avatar_url ? (
                   <img
                     src={profile.avatar_url}
                     alt="Profile"
-                    className="w-16 h-16 rounded-full border-2 border-gray-200 dark:border-zenible-dark-border"
+                    className="w-16 h-16 rounded-full border-2 border-gray-200 dark:border-zenible-dark-border object-cover"
                   />
-                  <div>
-                    <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                      Profile picture from Google account
-                    </p>
+                ) : (
+                  <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                    darkMode
+                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
+                      : 'bg-gray-100 border-gray-200 text-gray-400'
+                  }`}>
+                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                    </svg>
                   </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="file"
+                    ref={avatarInputRef}
+                    onChange={handleAvatarChange}
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    className="hidden"
+                  />
+                  <button
+                    onClick={handleAvatarSelect}
+                    disabled={isUploadingAvatar}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      darkMode
+                        ? 'bg-zenible-dark-bg border border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-border'
+                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    {isUploadingAvatar ? 'Uploading...' : profile?.avatar_url ? 'Change Picture' : 'Upload Picture'}
+                  </button>
+                  {profile?.avatar_url && (
+                    <button
+                      onClick={handleAvatarDelete}
+                      disabled={isDeletingAvatar}
+                      className="px-3 py-1.5 text-sm font-medium rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isDeletingAvatar ? 'Removing...' : 'Remove'}
+                    </button>
+                  )}
                 </div>
               </div>
-            )}
+              <p className={`mt-2 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                JPEG, PNG, GIF, or WebP. Max 5MB.
+              </p>
+            </div>
           </div>
         </div>
 

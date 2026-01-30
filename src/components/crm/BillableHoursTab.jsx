@@ -15,6 +15,8 @@ const BillableHoursTab = ({
   defaultRate,
   defaultCurrencyId,
   currency = 'USD',
+  contactCurrencyId = null, // Client's default currency ID
+  contactCurrencyCode = null, // Client's default currency code
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
@@ -26,7 +28,7 @@ const BillableHoursTab = ({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const { showSuccess, showError } = useNotification();
+  const { showSuccess, showError, showInfo } = useNotification();
 
   const {
     entries,
@@ -112,10 +114,9 @@ const BillableHoursTab = ({
     }
   };
 
-  // Handle link to invoice (placeholder - would need invoice selector)
+  // Handle link to invoice
   const handleLinkInvoice = (entry) => {
-    // TODO: Implement invoice selector modal
-    showError('Invoice linking not yet implemented');
+    showInfo('Invoice linking coming soon');
   };
 
   // Handle unlink from invoice
@@ -257,20 +258,20 @@ const BillableHoursTab = ({
       )}
 
       {/* Summary */}
-      {!loading && (summary.total_hours > 0 || summary.total_amount > 0) && (
+      {!loading && (parseFloat(summary.total_hours) > 0 || parseFloat(summary.total_amount) > 0) && (
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-500 dark:text-gray-400">Total</span>
                 <p className="font-semibold text-gray-900 dark:text-white">
-                  {summary.total_hours}h ({formatCurrency(summary.total_amount, currency)})
+                  {parseFloat(summary.total_hours).toFixed(2)}h ({formatCurrency(summary.total_amount, currency)})
                 </p>
               </div>
               <div>
                 <span className="text-gray-500 dark:text-gray-400">Uninvoiced</span>
-                <p className="font-semibold text-blue-600 dark:text-blue-400">
-                  {summary.uninvoiced_hours}h ({formatCurrency(summary.uninvoiced_amount, currency)})
+                <p className="font-semibold text-purple-600 dark:text-purple-400">
+                  {parseFloat(summary.uninvoiced_hours).toFixed(2)}h ({formatCurrency(summary.uninvoiced_amount, currency)})
                 </p>
               </div>
             </div>
@@ -288,7 +289,10 @@ const BillableHoursTab = ({
         projectId={projectId}
         entry={editingEntry}
         defaultRate={defaultRate}
-        defaultCurrency={currency}
+        contactCurrencyId={contactCurrencyId}
+        contactCurrencyCode={contactCurrencyCode}
+        projectCurrencyCode={currency}
+        projectCurrencyId={defaultCurrencyId}
         onSuccess={handleSave}
       />
 

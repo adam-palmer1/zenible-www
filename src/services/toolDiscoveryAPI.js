@@ -2,6 +2,7 @@
  * Tool Discovery API Service
  * Fetches available AI tools for characters
  */
+import { API_BASE_URL } from '@/config/api';
 
 const getAccessToken = () => {
   return localStorage.getItem('access_token');
@@ -13,7 +14,6 @@ const getAccessToken = () => {
  * @returns {Promise} Character tools response
  */
 export const getCharacterTools = async (characterId) => {
-  const baseUrl = import.meta.env.VITE_API_URL || 'https://demo-api.zenible.com';
   const token = getAccessToken();
 
   if (!token) {
@@ -21,7 +21,7 @@ export const getCharacterTools = async (characterId) => {
   }
 
   try {
-    const response = await fetch(`${baseUrl}/api/v1/ai/characters/${characterId}/tools?include_questions=true`, {
+    const response = await fetch(`${API_BASE_URL}/ai/characters/${characterId}/tools?include_questions=true`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -40,13 +40,6 @@ export const getCharacterTools = async (characterId) => {
     }
 
     const data = await response.json();
-
-    console.log('[ToolDiscovery] Character tools fetched:', {
-      characterId,
-      characterName: data.character_name,
-      toolCount: data.available_tools?.length || 0,
-      tools: data.available_tools?.map(t => t.name) || []
-    });
 
     return data;
   } catch (error) {

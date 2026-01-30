@@ -1,6 +1,5 @@
 import { makeAuthenticatedRequest } from '../utils/auth';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://demo-api.zenible.com';
+import { API_BASE_URL } from '@/config/api';
 
 // Cache for platforms to avoid repeated API calls
 let platformsCache = null;
@@ -36,7 +35,7 @@ export const platformAPI = {
         params.append('character_id', characterId);
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/v1/platforms/?${params.toString()}`, {
+      const response = await fetch(`${API_BASE_URL}/platforms/?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +74,7 @@ export const platformAPI = {
    */
   async getPlatformBySystemId(systemId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/platforms/by-system/${systemId}`, {
+      const response = await fetch(`${API_BASE_URL}/platforms/by-system/${systemId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

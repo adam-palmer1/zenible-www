@@ -26,7 +26,6 @@ export function useContacts(filters = {}, refreshKey = 0, options = {}) {
 
   // Fetch contacts
   const fetchContacts = useCallback(async (params = {}) => {
-    console.log('[useContacts] fetchContacts called with filters:', filters);
     try {
       setLoading(true);
       setError(null);
@@ -39,10 +38,8 @@ export function useContacts(filters = {}, refreshKey = 0, options = {}) {
         ...filters,
         ...params,
       };
-      console.log('[useContacts] Making API request with params:', mergedParams);
 
       const response = await contactsAPI.list(mergedParams);
-      console.log('[useContacts] API response:', response);
 
       setContacts(response.items || []);
       setPagination({
@@ -450,12 +447,8 @@ export function useContacts(filters = {}, refreshKey = 0, options = {}) {
   // Load contacts on mount, when refreshKey changes, or when filters change
   // Skip if skipInitialFetch is true (for components that only need mutation methods)
   useEffect(() => {
-    console.log('[useContacts] Effect triggered, filters:', filters, 'skipInitialFetch:', skipInitialFetch, 'refreshKey:', refreshKey);
     if (!skipInitialFetch) {
-      console.log('[useContacts] Calling fetchContacts...');
       fetchContacts();
-    } else {
-      console.log('[useContacts] Skipping initial fetch');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey, filterKey, skipInitialFetch]);

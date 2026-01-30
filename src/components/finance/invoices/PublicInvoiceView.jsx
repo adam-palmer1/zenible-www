@@ -731,6 +731,7 @@ const PublicInvoiceView = () => {
   const [showDeleteCardModal, setShowDeleteCardModal] = useState(false);
   const [cardToDelete, setCardToDelete] = useState(null);
   const [deleteCardError, setDeleteCardError] = useState(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   // Use shareCode from URL or fall back to token for backwards compatibility
   const invoiceCode = shareCode || token;
@@ -898,7 +899,10 @@ const PublicInvoiceView = () => {
     } catch (err) {
       console.error('[PublicInvoiceView] Error refreshing invoice after payment:', err);
     }
-    // Show success message after invoice data is updated
+    // Show success toast temporarily
+    setShowSuccessToast(true);
+    setTimeout(() => setShowSuccessToast(false), 5000);
+    // Mark payment as successful (hides payment form)
     setPaymentSuccess(true);
   }, [invoiceCode]);
 
@@ -971,23 +975,18 @@ const PublicInvoiceView = () => {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 fade-in duration-300">
+          <div className="bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 flex-shrink-0" />
+            <p className="text-sm font-medium">Payment successful! A confirmation email will be sent shortly.</p>
+          </div>
+        </div>
+      )}
+
       {/* Content Section */}
       <div className="px-4 md:px-8 py-4">
-        {/* Success Message */}
-        {paymentSuccess && (
-          <div className="max-w-[1200px] mx-auto mb-4 bg-white border-2 border-green-500 rounded-[12px] p-6">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="h-8 w-8 text-green-500 flex-shrink-0" />
-              <div>
-                <h3 className="text-lg font-semibold text-[#09090b]">Payment Successful!</h3>
-                <p className="text-sm text-[#71717a] mt-1">
-                  Thank you for your payment. A confirmation email will be sent shortly.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Main Content - Invoice and Payment side by side */}
         <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row gap-4">
           {/* Main Invoice Card */}
@@ -1038,14 +1037,22 @@ const PublicInvoiceView = () => {
                 <p className="text-[16px] font-semibold leading-[24px] text-[#09090b]">
                   {invoice.company_name || 'Company'}
                 </p>
-                {/* Company Address */}
-                {(invoice.company_address || invoice.company_city || invoice.company_state || invoice.company_postal_code || invoice.company_country) && (
+                {/* Company Address - Line 1 */}
+                {invoice.company_address && (
                   <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
-                    {[
-                      invoice.company_address,
-                      [invoice.company_city, invoice.company_state, invoice.company_postal_code].filter(Boolean).join(', '),
-                      invoice.company_country
-                    ].filter(Boolean).join('\n')}
+                    {invoice.company_address}
+                  </p>
+                )}
+                {/* Company Address - Line 2 (City, State) */}
+                {(invoice.company_city || invoice.company_state) && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {[invoice.company_city, invoice.company_state].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                {/* Company Address - Line 3 (Postal Code, Country) */}
+                {(invoice.company_postal_code || invoice.company_country) && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {[invoice.company_postal_code, invoice.company_country].filter(Boolean).join(', ')}
                   </p>
                 )}
                 {/* Company Email */}

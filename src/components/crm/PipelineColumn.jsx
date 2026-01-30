@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Droppable } from '@hello-pangea/dnd';
 import { PlusIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import PipelineContactCard from './PipelineContactCard';
+import PipelineContactCard, { PipelineContactCardContent } from './PipelineContactCard';
 import ServiceValueDisplay from './ServiceValueDisplay';
 import statusesAPI from '../../services/api/crm/statuses';
 import { getStatusColor } from '../../utils/crm/statusUtils';
@@ -11,7 +12,7 @@ import { useNotification } from '../../contexts/NotificationContext';
  * Pipeline column component for Kanban view
  * Simplified - no longer needs action props (uses ContactActionsContext)
  */
-const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, totalVisibleColumns = 1, globalStatuses = [], customStatuses = [], onStatusUpdate, dragSourceColumnId = null }) => {
+const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, totalVisibleColumns = 1, globalStatuses = [], customStatuses = [], onStatusUpdate, dragSourceColumnId = null, draggingContact = null, columnDragHandleProps = null, isColumnDragging = false }) => {
   const { showSuccess, showError } = useNotification();
 
   // Determine if this is a global or custom status
@@ -118,9 +119,14 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
   };
 
   return (
-    <div className="flex-1 min-w-[252px] sm:min-w-[288px] lg:min-w-0 transition-all duration-200">
-      {/* Column Header - Figma Design */}
-      <div className="p-3 w-full rounded-2xl bg-white border border-[#f4f4f5] transition-all duration-200">
+    <div className="w-full transition-all duration-200">
+      {/* Column Header - Figma Design (drag handle for column reordering) */}
+      <div
+        {...columnDragHandleProps}
+        className={`p-3 w-full rounded-2xl bg-white border transition-all duration-200 ${
+          isColumnDragging ? 'border-zenible-primary shadow-md' : 'border-[#f4f4f5]'
+        } ${columnDragHandleProps ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      >
         <div className="flex items-center gap-0.5 w-full">
           {isEditingTitle ? (
             <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -250,7 +256,32 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
       </div>
 
       {/* Contacts List */}
-      <Droppable droppableId={status.id}>
+      <Droppable
+        droppableId={status.id}
+        type="CONTACT"
+        renderClone={(provided, snapshot, rubric) => {
+          // Find the contact being dragged - check local contacts first, then fallback to draggingContact
+          const contact = contacts.find(c => c.id === rubric.draggableId) || draggingContact;
+          if (!contact) return null;
+
+          // Render in a portal at document.body to fix scroll position tracking
+          return createPortal(
+            <div
+              ref={provided.innerRef}
+              {...provided.draggableProps}
+              {...provided.dragHandleProps}
+              className="w-[252px]"
+              style={provided.draggableProps.style}
+            >
+              <PipelineContactCardContent
+                contact={contact}
+                isDragging={true}
+              />
+            </div>,
+            document.body
+          );
+        }}
+      >
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}

@@ -104,7 +104,7 @@ export const PROJECT_STATUS_LABELS = {
 
 export const PROJECT_STATUS_COLORS = {
   [PROJECT_STATUS.PLANNING]: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-  [PROJECT_STATUS.ACTIVE]: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  [PROJECT_STATUS.ACTIVE]: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
   [PROJECT_STATUS.ON_HOLD]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
   [PROJECT_STATUS.COMPLETED]: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
   [PROJECT_STATUS.CANCELLED]: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
@@ -113,7 +113,7 @@ export const PROJECT_STATUS_COLORS = {
 // Hex colors for status indicators (used in filter dropdowns)
 export const PROJECT_STATUS_HEX_COLORS = {
   [PROJECT_STATUS.PLANNING]: '#6B7280', // gray
-  [PROJECT_STATUS.ACTIVE]: '#3B82F6', // blue
+  [PROJECT_STATUS.ACTIVE]: '#8B5CF6', // purple
   [PROJECT_STATUS.ON_HOLD]: '#F59E0B', // yellow
   [PROJECT_STATUS.COMPLETED]: '#10B981', // green
   [PROJECT_STATUS.CANCELLED]: '#EF4444', // red

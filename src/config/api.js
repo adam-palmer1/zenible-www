@@ -1,5 +1,17 @@
-// API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+// API Configuration - Central source of truth
+// All service files should import from here instead of defining their own API_BASE_URL
+
+if (!import.meta.env.VITE_API_BASE_URL) {
+  throw new Error(
+    'VITE_API_BASE_URL environment variable is not set. ' +
+    'Please set it in your .env file (e.g., VITE_API_BASE_URL=https://api.zenible.com/api/v1)'
+  );
+}
+
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// Derive WebSocket URL from API_BASE_URL (replace http/https with ws/wss)
+export const WS_URL = API_BASE_URL.replace(/^http/, 'ws');
 
 // API Headers
 const getHeaders = (includeAuth = true) => {

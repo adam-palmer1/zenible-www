@@ -43,22 +43,8 @@ export default function HeadlineInput({ darkMode, headline, setHeadline, onAnaly
       <div className="p-3 sm:p-4 flex justify-end flex-shrink-0">
         <button
           onClick={() => {
-            console.log('[HeadlineInput] Button clicked:', {
-              hasHeadline: !!headline,
-              analyzing,
-              isPanelReady,
-              isConnected,
-              disabled: analyzing || !isPanelReady || !isConnected,
-              disabledReasons: {
-                analyzing,
-                panelNotReady: !isPanelReady,
-                notConnected: !isConnected
-              }
-            });
             if (onAnalyze) {
               onAnalyze();
-            } else {
-              console.error('[HeadlineInput] onAnalyze callback is not defined!');
             }
           }}
           disabled={analyzing || !isPanelReady || !isConnected}

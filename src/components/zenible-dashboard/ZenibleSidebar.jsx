@@ -177,12 +177,12 @@ export default function ZenibleSidebar({ darkMode, toggleDarkMode }) {
           >
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-semibold">
-                {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                {user?.first_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
               </div>
               <div className="flex flex-col text-left">
                 <p className={`font-inter font-medium text-base leading-6 ${
                   darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'
-                }`}>{user?.full_name || user?.email || 'User'}</p>
+                }`}>{user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.first_name || user?.email || 'User'}</p>
               </div>
             </div>
           </button>

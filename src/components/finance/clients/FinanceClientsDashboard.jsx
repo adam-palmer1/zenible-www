@@ -47,7 +47,6 @@ const FinanceClientsDashboard = () => {
             <ClientsView
               onClientClick={(client) => {
                 // Navigate to contact details or open modal
-                console.log('Client clicked:', client);
               }}
             />
           </div>

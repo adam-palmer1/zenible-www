@@ -6,6 +6,7 @@ import { formatCurrency } from '../../../utils/currency';
 import expensesAPI from '../../../services/api/finance/expenses';
 import paymentsAPI from '../../../services/api/finance/payments';
 import AssignExpenseModal from '../expenses/AssignExpenseModal';
+import ConfirmationModal from '../../common/ConfirmationModal';
 
 const PAYMENT_METHODS = [
   { value: 'bank_transfer', label: 'Bank Transfer', icon: Building2 },
@@ -29,6 +30,7 @@ const EditPaymentModal = ({ isOpen, onClose, payment: paymentProp, refreshKey })
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [methodDropdownOpen, setMethodDropdownOpen] = useState(false);
   const [showAssignExpenseModal, setShowAssignExpenseModal] = useState(false);
+  const [unlinkConfirmModal, setUnlinkConfirmModal] = useState({ isOpen: false, expenseId: null });
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_email: '',
@@ -192,8 +194,13 @@ const EditPaymentModal = ({ isOpen, onClose, payment: paymentProp, refreshKey })
 
   const feeExpenses = payment.fee_expenses || [];
 
-  const handleUnlinkExpense = async (expenseId) => {
-    if (!window.confirm('Remove this expense from the payment?')) return;
+  const handleUnlinkExpense = (expenseId) => {
+    setUnlinkConfirmModal({ isOpen: true, expenseId });
+  };
+
+  const confirmUnlinkExpense = async () => {
+    const expenseId = unlinkConfirmModal.expenseId;
+    if (!expenseId) return;
 
     try {
       setUnlinkingExpenseId(expenseId);
@@ -520,6 +527,17 @@ const EditPaymentModal = ({ isOpen, onClose, payment: paymentProp, refreshKey })
           fetchPaymentDetails(false);
           refresh();
         }}
+      />
+
+      <ConfirmationModal
+        isOpen={unlinkConfirmModal.isOpen}
+        onClose={() => setUnlinkConfirmModal({ isOpen: false, expenseId: null })}
+        onConfirm={confirmUnlinkExpense}
+        title="Unlink Expense"
+        message="Remove this expense from the payment?"
+        confirmText="Remove"
+        cancelText="Cancel"
+        confirmColor="red"
       />
     </div>
   );

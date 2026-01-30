@@ -183,6 +183,14 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
     { id: PAYMENT_METHOD.CHECK, label: 'Check' },
   ], []);
 
+  // Status options
+  const statusOptions = useMemo(() => [
+    { id: 'paid', label: 'Paid' },
+    { id: 'pending', label: 'Pending' },
+    { id: 'completed', label: 'Completed' },
+    { id: 'cancelled', label: 'Cancelled' },
+  ], []);
+
   // Handler for creating a new category from the dropdown
   const handleCreateCategory = async (name) => {
     try {
@@ -620,7 +628,7 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
                 type="date"
                 value={expenseDate}
                 onChange={(e) => setExpenseDate(e.target.value)}
-                className="w-full px-3 py-2 design-input rounded-md"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 required
               />
             </div>
@@ -640,7 +648,7 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
                   placeholder="0.00"
                   step="0.01"
                   min="0"
-                  className="w-full pl-8 pr-3 py-2 design-input rounded-md"
+                  className="w-full pl-8 pr-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   required
                 />
               </div>
@@ -650,16 +658,13 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
               <label className="block text-sm font-medium design-text-primary mb-2">
                 Status
               </label>
-              <select
+              <Combobox
+                options={statusOptions}
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 design-input rounded-md"
-              >
-                <option value="paid">Paid</option>
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+                onChange={setStatus}
+                placeholder="Select status"
+                allowClear={false}
+              />
             </div>
           </div>
 
@@ -683,7 +688,7 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
             <div>
               <label className="block text-sm font-medium design-text-primary mb-2">Currency</label>
               {currenciesLoading ? (
-                <div className="px-3 py-2 design-input rounded-md design-text-secondary">
+                <div className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md design-text-secondary">
                   Loading currencies...
                 </div>
               ) : (
@@ -743,7 +748,7 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
                         value={taxName}
                         onChange={(e) => handleTaxNameChange(e.target.value)}
                         placeholder="Tax name"
-                        className="flex-1 px-3 py-2 text-sm design-input rounded-md"
+                        className="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                       <div className="relative w-24">
                         <input
@@ -754,7 +759,7 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
                           step="0.01"
                           min="0"
                           max="100"
-                          className="w-full px-3 py-2 pr-7 text-sm design-input rounded-md"
+                          className="w-full px-3 py-2 pr-7 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                         <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm design-text-secondary">%</span>
                       </div>
@@ -800,7 +805,7 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What was this expense for?"
-              className="w-full px-3 py-2 design-input rounded-md"
+              className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
 
@@ -836,7 +841,7 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
                       type="text"
                       value={expenseNumber}
                       onChange={(e) => setExpenseNumber(e.target.value)}
-                      className="w-full px-3 py-2 design-input rounded-md"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
 
@@ -860,7 +865,7 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
                 <div>
                   <label className="block text-sm font-medium design-text-primary mb-2">Project</label>
                   {loadingClientProjects ? (
-                    <div className="px-3 py-2 design-input rounded-md design-text-secondary flex items-center gap-2">
+                    <div className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md design-text-secondary flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Loading projects...
                     </div>
@@ -903,7 +908,7 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
                       value={reference}
                       onChange={(e) => setReference(e.target.value)}
                       placeholder="Receipt/invoice number"
-                      className="w-full px-3 py-2 design-input rounded-md"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -916,7 +921,7 @@ const ExpenseForm = ({ expense = null, onSuccess, isInModal = false }) => {
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Additional notes"
                     rows={3}
-                    className="w-full px-3 py-2 design-input rounded-md resize-none"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                   />
                 </div>
 

@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://demo-api.zenible.com/api/v1';
+import { API_BASE_URL } from '@/config/api';
 
 const getHeaders = () => {
   const headers = {
@@ -23,8 +23,6 @@ class AdminAPI {
         ...options.headers,
       },
     };
-
-    console.log('Making request to:', url, 'with config:', config);
 
     try {
       const response = await fetch(url, config);
@@ -820,13 +818,11 @@ class AdminAPI {
    * @returns {Promise<Object>} Created tool object
    */
   async createAITool(data) {
-    console.log('createAITool called with:', data);
     try {
       const result = await this.request('/admin/ai-tools/', {
         method: 'POST',
         body: JSON.stringify(data),
       });
-      console.log('createAITool result:', result);
       return result;
     } catch (error) {
       console.error('createAITool error:', error);

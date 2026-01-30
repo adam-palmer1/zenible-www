@@ -1,5 +1,5 @@
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
-import { QueryClientProvider, ReactQueryDevtools } from './lib/react-query';
+import { QueryClientProvider } from './lib/react-query';
 import { queryClient } from './lib/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
@@ -14,6 +14,11 @@ import { CRMReferenceDataProvider } from './contexts/CRMReferenceDataContext';
 
 // Auth pages
 import SignIn from './pages/signin/SignIn';
+import SignUp from './pages/signup/SignUp';
+import VerifyEmail from './pages/signup/VerifyEmail';
+import VerifyEmailToken from './pages/signup/VerifyEmailToken';
+import EmailConfirmed from './pages/signup/EmailConfirmed';
+import ForgotPassword from './pages/forgot-password/ForgotPassword';
 import GoogleCallback from './components/GoogleCallback';
 import UserSettings from './components/UserSettings';
 import StripeOAuthCallback from './components/settings/StripeOAuthCallback';
@@ -40,7 +45,7 @@ import Pricing from './components/pricing/PricingNew';
 // Finance pages
 import { InvoiceDashboard, InvoiceForm, InvoiceDetail, PublicInvoiceView, RecurringInvoices } from './components/finance/invoices';
 import { QuoteDashboard, QuoteForm, QuoteDetail, PublicQuoteView } from './components/finance/quotes';
-import { CreditNotesDashboard } from './components/finance/credit-notes';
+import { CreditNotesDashboard, CreditNoteForm } from './components/finance/credit-notes';
 import { ExpenseDashboard, ExpenseForm, CategoryManagement, RecurringExpenses } from './components/finance/expenses';
 import { PaymentDashboard, PaymentCallback } from './components/finance/payments';
 import { ReportsDashboard } from './components/finance/reports';
@@ -98,6 +103,30 @@ const router = createBrowserRouter([
       {
         path: 'login',
         element: <Navigate to="/signin" replace />
+      },
+      {
+        path: 'register',
+        element: <SignUp />
+      },
+      {
+        path: 'signup',
+        element: <Navigate to="/register" replace />
+      },
+      {
+        path: 'verify-email',
+        element: <VerifyEmail />
+      },
+      {
+        path: 'auth/verify-email',
+        element: <VerifyEmailToken />
+      },
+      {
+        path: 'email-confirmed',
+        element: <EmailConfirmed />
+      },
+      {
+        path: 'forgot-password',
+        element: <ForgotPassword />
       },
       {
         path: 'dashboard',
@@ -341,6 +370,10 @@ const router = createBrowserRouter([
       },
       // Public booking routes (no auth required)
       {
+        path: 'book/cancel/:token',
+        element: <BookingCancellation />
+      },
+      {
         path: 'book/:username',
         element: <PublicUserPage />
       },
@@ -370,6 +403,22 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <CreditNotesDashboard />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/credit-notes/new',
+        element: (
+          <ProtectedRoute>
+            <CreditNoteForm />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'finance/credit-notes/:id/edit',
+        element: (
+          <ProtectedRoute>
+            <CreditNoteForm />
           </ProtectedRoute>
         )
       },
@@ -565,8 +614,6 @@ function App() {
           </PreferencesProvider>
         </CRMReferenceDataProvider>
       </AuthProvider>
-      {/* React Query DevTools - only shows in development */}
-      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
 }

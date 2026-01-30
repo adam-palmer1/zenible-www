@@ -7,6 +7,7 @@ import { getScheduledAppointments, getNextHour } from '../../utils/crm/appointme
 import { useContactActions } from '../../contexts/ContactActionsContext';
 import appointmentsAPI from '../../services/api/crm/appointments';
 import { useNotification } from '../../contexts/NotificationContext';
+import ConfirmationModal from '../common/ConfirmationModal';
 
 /**
  * AppointmentsModal - Manage multiple appointments for a contact
@@ -20,6 +21,7 @@ const AppointmentsModal = ({ isOpen, onClose, contact }) => {
   const [appointmentTime, setAppointmentTime] = useState(getNextHour());
   const { setFollowUp, refreshContacts } = useContactActions();
   const { showSuccess, showError } = useNotification();
+  const [cancelConfirmModal, setCancelConfirmModal] = useState({ isOpen: false, appointment: null });
 
   const displayName = getContactDisplayName(contact);
   const scheduledAppointments = getScheduledAppointments(contact.appointments);
@@ -104,10 +106,13 @@ const AppointmentsModal = ({ isOpen, onClose, contact }) => {
   };
 
   // Handle cancelling appointment
-  const handleCancel = async (appointment) => {
-    if (!window.confirm('Are you sure you want to cancel this appointment?')) {
-      return;
-    }
+  const handleCancel = (appointment) => {
+    setCancelConfirmModal({ isOpen: true, appointment });
+  };
+
+  const confirmCancelAppointment = async () => {
+    const appointment = cancelConfirmModal.appointment;
+    if (!appointment) return;
 
     try {
       await appointmentsAPI.update(appointment.id, {
@@ -290,6 +295,17 @@ const AppointmentsModal = ({ isOpen, onClose, contact }) => {
           </div>
         )}
       </div>
+
+      <ConfirmationModal
+        isOpen={cancelConfirmModal.isOpen}
+        onClose={() => setCancelConfirmModal({ isOpen: false, appointment: null })}
+        onConfirm={confirmCancelAppointment}
+        title="Cancel Appointment"
+        message="Are you sure you want to cancel this appointment?"
+        confirmText="Cancel Appointment"
+        cancelText="Keep"
+        confirmColor="red"
+      />
     </div>,
     document.body
   );

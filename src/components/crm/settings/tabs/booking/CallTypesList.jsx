@@ -3,6 +3,7 @@ import { PlusIcon, PencilIcon, TrashIcon, ClockIcon } from '@heroicons/react/24/
 import callTypesAPI from '../../../../../services/api/crm/callTypes';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 import CallTypeModal from './CallTypeModal';
+import ConfirmationModal from '../../../../common/ConfirmationModal';
 
 const CallTypesList = () => {
   const [callTypes, setCallTypes] = useState([]);
@@ -10,6 +11,7 @@ const CallTypesList = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCallType, setEditingCallType] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, callTypeId: null });
 
   const { showSuccess, showError } = useNotification();
 
@@ -40,10 +42,13 @@ const CallTypesList = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = async (callTypeId) => {
-    if (!window.confirm('Are you sure you want to delete this call type?')) {
-      return;
-    }
+  const handleDelete = (callTypeId) => {
+    setDeleteConfirmModal({ isOpen: true, callTypeId });
+  };
+
+  const confirmDeleteCallType = async () => {
+    const callTypeId = deleteConfirmModal.callTypeId;
+    if (!callTypeId) return;
 
     setDeletingId(callTypeId);
     try {
@@ -246,6 +251,17 @@ const CallTypesList = () => {
         onClose={handleModalClose}
         onSave={handleModalSave}
         callType={editingCallType}
+      />
+
+      <ConfirmationModal
+        isOpen={deleteConfirmModal.isOpen}
+        onClose={() => setDeleteConfirmModal({ isOpen: false, callTypeId: null })}
+        onConfirm={confirmDeleteCallType}
+        title="Delete Call Type"
+        message="Are you sure you want to delete this call type?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmColor="red"
       />
     </div>
   );

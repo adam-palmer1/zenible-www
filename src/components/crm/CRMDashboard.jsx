@@ -97,6 +97,7 @@ const CRMDashboard = () => {
     selectedStatuses,
     showHidden,
     sortOrder,
+    columnOrder,
     contactFilters,
     filteredContacts: statusFilteredContacts,
     activeFilterCount,
@@ -104,6 +105,7 @@ const CRMDashboard = () => {
     handleClearStatuses,
     handleShowHiddenToggle,
     handleSortOrderChange,
+    handleColumnReorder,
     clearAllFilters,
   } = useCRMFilters([], filters);
 
@@ -304,6 +306,8 @@ const CRMDashboard = () => {
         vendorsFilters={vendorsFilters}
         projectsFilters={projectsFilters}
         servicesFilters={servicesFilters}
+        columnOrder={columnOrder}
+        handleColumnReorder={handleColumnReorder}
       />
 
       {/* Modals */}

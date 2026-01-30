@@ -9,6 +9,7 @@ import { formatCurrency } from '../../../utils/currency';
 import { useNotification } from '../../../contexts/NotificationContext';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
 import { AllocationSummaryBar, ProjectAllocationModal } from '../allocations';
+import SendCreditNoteModal from './SendCreditNoteModal';
 
 const CreditNoteDetailModal = ({ isOpen, onClose, creditNote: creditNoteProp, onUpdate }) => {
   const navigate = useNavigate();
@@ -16,7 +17,9 @@ const CreditNoteDetailModal = ({ isOpen, onClose, creditNote: creditNoteProp, on
   const [creditNote, setCreditNote] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
   const [issuingOrVoiding, setIssuingOrVoiding] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Function to fetch credit note details
   const fetchCreditNoteDetails = async (showLoading = true) => {
@@ -156,9 +159,28 @@ const CreditNoteDetailModal = ({ isOpen, onClose, creditNote: creditNoteProp, on
     navigate(`/finance/credit-notes/${creditNote.id}/edit`);
   };
 
+  const handleDownloadPdf = async () => {
+    try {
+      setDownloadingPdf(true);
+      await creditNotesAPI.downloadPdf(creditNote.id, creditNote.credit_note_number);
+      showSuccess('PDF downloaded successfully');
+    } catch (err) {
+      showError(err.message || 'Failed to download PDF');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const handleSendSuccess = () => {
+    setShowSendModal(false);
+    fetchCreditNoteDetails(false);
+    if (onUpdate) onUpdate();
+  };
+
   const canIssue = creditNote.status === 'draft';
   const canVoid = creditNote.status === 'issued';
   const canDelete = creditNote.status === 'draft';
+  const canSend = creditNote.status === 'issued';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -318,6 +340,14 @@ const CreditNoteDetailModal = ({ isOpen, onClose, creditNote: creditNoteProp, on
                 Delete
               </button>
             )}
+            <button
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              {downloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              PDF
+            </button>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -333,6 +363,15 @@ const CreditNoteDetailModal = ({ isOpen, onClose, creditNote: creditNoteProp, on
               >
                 <Edit className="h-4 w-4" />
                 Edit
+              </button>
+            )}
+            {canSend && (
+              <button
+                onClick={() => setShowSendModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Send className="h-4 w-4" />
+                Send
               </button>
             )}
             {canVoid && (
@@ -374,6 +413,17 @@ const CreditNoteDetailModal = ({ isOpen, onClose, creditNote: creditNoteProp, on
           if (onUpdate) onUpdate();
         }}
       />
+
+      {/* Send Credit Note Modal */}
+      {showSendModal && (
+        <SendCreditNoteModal
+          isOpen={showSendModal}
+          onClose={() => setShowSendModal(false)}
+          creditNote={creditNote}
+          contact={creditNote?.contact}
+          onSuccess={handleSendSuccess}
+        />
+      )}
     </div>
   );
 };

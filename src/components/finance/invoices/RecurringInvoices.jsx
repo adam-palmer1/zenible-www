@@ -17,6 +17,7 @@ import invoicesAPI from '../../../services/api/finance/invoices';
 import NewSidebar from '../../sidebar/NewSidebar';
 import KPICard from '../shared/KPICard';
 import ActionMenu from '../../shared/ActionMenu';
+import ConfirmationModal from '../../common/ConfirmationModal';
 
 // Recurring status configuration
 const RECURRING_STATUS = {
@@ -56,6 +57,7 @@ const RecurringInvoices = () => {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
+  const [cancelConfirmModal, setCancelConfirmModal] = useState({ isOpen: false, invoice: null });
 
   // Fetch recurring templates
   useEffect(() => {
@@ -168,10 +170,14 @@ const RecurringInvoices = () => {
     }
   };
 
-  const handleCancel = async (invoice) => {
-    if (!window.confirm('Are you sure you want to cancel this recurring invoice? This cannot be undone.')) {
-      return;
-    }
+  const handleCancel = (invoice) => {
+    setCancelConfirmModal({ isOpen: true, invoice });
+  };
+
+  const confirmCancelRecurring = async () => {
+    const invoice = cancelConfirmModal.invoice;
+    if (!invoice) return;
+
     try {
       setActionLoading(invoice.id);
       await invoicesAPI.update(invoice.id, { recurring_status: 'cancelled' });
@@ -437,6 +443,17 @@ const RecurringInvoices = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={cancelConfirmModal.isOpen}
+        onClose={() => setCancelConfirmModal({ isOpen: false, invoice: null })}
+        onConfirm={confirmCancelRecurring}
+        title="Cancel Recurring Invoice"
+        message="Are you sure you want to cancel this recurring invoice? This cannot be undone."
+        confirmText="Cancel Invoice"
+        cancelText="Keep"
+        confirmColor="red"
+      />
     </div>
   );
 };

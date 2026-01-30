@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { getCurrencySymbol } from '../../../utils/currencyUtils';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
@@ -20,6 +20,18 @@ const DocumentLineItems = ({
 }) => {
   const formatNumber = (num) => applyNumberFormat(num, numberFormat);
   const symbol = getCurrencySymbol(currencyCode);
+  const tableRef = useRef(null);
+
+  // Auto-resize textareas when items change (for programmatically set values)
+  useEffect(() => {
+    if (tableRef.current) {
+      const textareas = tableRef.current.querySelectorAll('.auto-grow-textarea');
+      textareas.forEach((textarea) => {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+      });
+    }
+  }, [items]);
 
   return (
     <div>
@@ -35,7 +47,7 @@ const DocumentLineItems = ({
       </div>
 
       <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table ref={tableRef} className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>

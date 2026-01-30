@@ -1,6 +1,6 @@
 // API service for Service catalog endpoints
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://demo-api.zenible.com/api/v1';
+import { API_BASE_URL } from '@/config/api';
 
 class ServicesAPI {
   async request(endpoint, options = {}) {
@@ -71,6 +71,11 @@ class ServicesAPI {
   // Delete service
   async delete(serviceId) {
     return this.request(`/crm/services/${serviceId}`, { method: 'DELETE' });
+  }
+
+  // Get service enums (statuses, etc.)
+  async getEnums() {
+    return this.request('/crm/services/enums', { method: 'GET' });
   }
 }
 

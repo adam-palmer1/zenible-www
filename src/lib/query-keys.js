@@ -53,6 +53,7 @@ export const queryKeys = {
     lists: () => [...queryKeys.projects.all, 'list'],
     list: (filters) => [...queryKeys.projects.lists(), { filters }],
     byContact: (contactId) => [...queryKeys.projects.all, 'contact', contactId],
+    stats: () => [...queryKeys.projects.all, 'stats'],
   },
 
   // Preferences
@@ -79,6 +80,15 @@ export const queryKeys = {
     detail: (id) => [...queryKeys.emailTemplates.details(), id],
     variables: (templateType) => [...queryKeys.emailTemplates.all, 'variables', templateType],
     effective: (templateType) => [...queryKeys.emailTemplates.all, 'effective', templateType],
+  },
+
+  // Currencies
+  currencies: {
+    all: ['currencies'],
+    list: () => [...queryKeys.currencies.all, 'list'],
+    company: () => [...queryKeys.currencies.all, 'company'],
+    numberFormat: () => [...queryKeys.currencies.all, 'numberFormat'],
+    numberFormatDetails: (formatId) => [...queryKeys.currencies.all, 'numberFormatDetails', formatId],
   },
 };
 

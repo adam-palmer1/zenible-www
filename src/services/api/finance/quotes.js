@@ -3,7 +3,7 @@
  * Handles all quote-related API operations
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '@/config/api';
 
 /**
  * Base API request handler
@@ -195,6 +195,35 @@ class QuotesAPI {
   }
 
   /**
+   * Get view history for a quote
+   * @param {string} quoteId - Quote UUID
+   * @param {Object} params - Query parameters
+   * @param {number} [params.skip=0] - Records to skip (pagination)
+   * @param {number} [params.limit=100] - Max records to return (1-500)
+   * @returns {Promise<Object>} View history with views array, total count, and unique IP count
+   */
+  async getViews(quoteId, params = {}) {
+    const queryParams = new URLSearchParams({
+      skip: params.skip || 0,
+      limit: params.limit || 100,
+    }).toString();
+    return request(`${this.baseEndpoint}/${quoteId}/views?${queryParams}`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Get quote revisions history
+   * @param {string} quoteId - Quote UUID
+   * @returns {Promise<Array>} Array of revisions
+   */
+  async getRevisions(quoteId) {
+    return request(`${this.baseEndpoint}/${quoteId}/history`, {
+      method: 'GET',
+    });
+  }
+
+  /**
    * Download quote PDF
    * @param {string} quoteId - Quote UUID
    * @returns {Promise<Blob>} PDF blob
@@ -227,7 +256,7 @@ class QuotesAPI {
    * @returns {Promise<Object>} Quote
    */
   async getPublic(token) {
-    return request(`${this.baseEndpoint}/public/${token}`, { method: 'GET' });
+    return request(`/quotes/${token}`, { method: 'GET' });
   }
 
   /**
@@ -237,7 +266,7 @@ class QuotesAPI {
    * @returns {Promise<Object>} Updated quote
    */
   async acceptByToken(token, acceptanceData = {}) {
-    return request(`${this.baseEndpoint}/public/${token}/accept`, {
+    return request(`/quotes/${token}/accept`, {
       method: 'POST',
       body: JSON.stringify(acceptanceData),
     });
@@ -250,7 +279,7 @@ class QuotesAPI {
    * @returns {Promise<Object>} Updated quote
    */
   async rejectByToken(token, rejectionData = {}) {
-    return request(`${this.baseEndpoint}/public/${token}/reject`, {
+    return request(`/quotes/${token}/reject`, {
       method: 'POST',
       body: JSON.stringify(rejectionData),
     });

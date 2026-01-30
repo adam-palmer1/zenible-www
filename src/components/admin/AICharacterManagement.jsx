@@ -302,13 +302,9 @@ export default function AICharacterManagement() {
   const [toolDefinitions, setToolDefinitions] = useState({});
 
   const fetchOpenAITools = async () => {
-    console.log('=== fetchOpenAITools called ===');
     setToolsLoading(true);
     try {
       const response = await adminAPI.getOpenAITools();
-      console.log('Tools API raw response:', response);
-      console.log('Response type:', typeof response);
-      console.log('Is Array?', Array.isArray(response));
 
       // Transform the backend response to the format needed by the UI
       const tools = [];
@@ -316,8 +312,7 @@ export default function AICharacterManagement() {
 
       // The response is directly an array of tools
       if (Array.isArray(response)) {
-        console.log('Processing', response.length, 'tools from response');
-        response.forEach((tool, index) => {
+        response.forEach((tool) => {
           const toolName = tool.function.name;
 
           // Store the full definition
@@ -332,29 +327,23 @@ export default function AICharacterManagement() {
             example: tool.metadata?.example_usage
           };
           tools.push(transformedTool);
-          console.log(`Tool ${index}:`, transformedTool.value, '- enabled:', transformedTool.enabled);
         });
       } else {
         console.warn('Response is not an array:', response);
       }
 
-      console.log('Setting availableTools state with', tools.length, 'tools');
-      console.log('Transformed tools:', tools);
       setAvailableTools(tools);
       setToolDefinitions(definitions);
     } catch (err) {
       console.error('Failed to fetch OpenAI tools:', err);
-      console.error('Error details:', err.message, err.stack);
       // Set some fallback tools if API fails
       const fallbackTools = [
         { value: 'calculate', label: 'Calculator', description: 'Mathematical calculations', enabled: true, category: 'general' }
       ];
-      console.log('Using fallback tools:', fallbackTools);
       setAvailableTools(fallbackTools);
       setToolDefinitions({});
     } finally {
       setToolsLoading(false);
-      console.log('=== fetchOpenAITools completed ===');
     }
   };
 
@@ -477,11 +466,6 @@ export default function AICharacterManagement() {
   };
 
   const handleEditCharacter = (character) => {
-    console.log('=== handleEditCharacter called ===');
-    console.log('Character data:', character);
-    console.log('Backend provider:', character.backend_provider);
-    console.log('Current availableTools state:', availableTools);
-
     setEditingCharacter(character);
     setIsCloning(false);
     setCustomFunctions(character.metadata?.custom_functions || []);
@@ -516,15 +500,10 @@ export default function AICharacterManagement() {
       is_active: character.is_active !== false
     });
 
-    console.log('Character form backend_provider set to:', character.backend_provider || 'openai_chat');
-    console.log('Character existing tools:', character.metadata?.tools || []);
     setShowCharacterModal(true);
   };
 
   const handleCloneCharacter = (character) => {
-    console.log('=== handleCloneCharacter called ===');
-    console.log('Cloning character:', character);
-
     // Set to null to indicate this is a new character (not an edit)
     setEditingCharacter(null);
     setIsCloning(true); // Mark that we're cloning
@@ -565,7 +544,6 @@ export default function AICharacterManagement() {
       is_active: true // Default to active for new cloned character
     });
 
-    console.log('Character form set for clone');
     setShowCharacterModal(true);
   };
 
