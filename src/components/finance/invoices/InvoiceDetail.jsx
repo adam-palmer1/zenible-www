@@ -518,9 +518,10 @@ const InvoiceDetail = () => {
                     {[invoice.contact?.postcode?.trim(), invoice.contact?.country?.name].filter(Boolean).join(', ')}
                   </p>
                 )}
-                {invoice.contact?.email && (
+                {/* Tax Number */}
+                {invoice.contact?.tax_id && (
                   <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
-                    {invoice.contact.email}
+                    Tax Number: {invoice.contact.tax_id}
                   </p>
                 )}
               </div>

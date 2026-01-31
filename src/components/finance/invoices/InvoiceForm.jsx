@@ -390,16 +390,18 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
     return amount + taxAmount;
   };
 
-  // Client selection handler - sets currency and checks for unbilled hours on first selection (new invoices only)
+  // Client selection handler - sets currency, taxes, notes and checks for unbilled hours on first selection (new invoices only)
   const handleClientSelect = async (clientId) => {
     setContactId(clientId);
     setShowClientModal(false);
 
     // Only process for NEW invoices
     if (!invoice && clientId) {
-      // Fetch full contact details to get currency (list endpoint may not include it)
+      // Fetch full contact details to get currency, taxes, and invoice notes (list endpoint may not include them)
       try {
         const fullContact = await contactsAPI.get(clientId);
+
+        // Apply contact currency
         const contactCurrencyId =
           fullContact.preferred_currency_id ||
           fullContact.currency_id ||
@@ -413,8 +415,24 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
           }
         }
         // If contact has no currency, company default is already set
+
+        // Apply contact taxes to document taxes
+        if (fullContact.contact_taxes && fullContact.contact_taxes.length > 0) {
+          const contactTaxes = fullContact.contact_taxes
+            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+            .map(tax => ({
+              tax_name: tax.tax_name,
+              tax_rate: parseFloat(tax.tax_rate) || 0
+            }));
+          setDocumentTaxes(contactTaxes);
+        }
+
+        // Apply contact invoice notes to notes field
+        if (fullContact.invoice_notes) {
+          setNotes(fullContact.invoice_notes);
+        }
       } catch (error) {
-        console.error('Failed to fetch contact details for currency:', error);
+        console.error('Failed to fetch contact details:', error);
       }
 
       // Check for unbilled hours only on first selection

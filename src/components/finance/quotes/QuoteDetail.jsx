@@ -405,9 +405,34 @@ const QuoteDetail = () => {
                     {quote.contact.business_name}
                   </p>
                 )}
-                {quote.contact?.email && (
+                {/* Client Address - Line 1 */}
+                {quote.contact?.address_line_1 && (
                   <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
-                    {quote.contact.email}
+                    {quote.contact.address_line_1}
+                  </p>
+                )}
+                {/* Client Address - Line 2 (if present) */}
+                {quote.contact?.address_line_2 && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {quote.contact.address_line_2}
+                  </p>
+                )}
+                {/* Client Address - City, State */}
+                {(quote.contact?.city || quote.contact?.state) && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {[quote.contact?.city, quote.contact?.state].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                {/* Client Address - Postal Code, Country */}
+                {(quote.contact?.postcode || quote.contact?.country?.name) && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {[quote.contact?.postcode?.trim(), quote.contact?.country?.name].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                {/* Tax Number */}
+                {quote.contact?.tax_id && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    Tax Number: {quote.contact.tax_id}
                   </p>
                 )}
               </div>

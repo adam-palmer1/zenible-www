@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormField, FormSelect, FormCheckbox, FormTextarea } from '../../ui/form';
@@ -6,10 +6,11 @@ import { contactSchema, getContactDefaultValues } from '../schemas/contactSchema
 import ChipSelector from '../../ui/ChipSelector';
 import Combobox from '../../ui/combobox/Combobox';
 import ConfirmationModal from '../../common/ConfirmationModal';
+import CurrencySelectorModal from '../CurrencySelectorModal';
 import contactsAPI from '../../../services/api/crm/contacts';
 import contactPersonsAPI from '../../../services/api/crm/contactPersons';
 import { useCountries } from '../../../hooks/crm/useCountries';
-import { TrashIcon, PencilIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PencilIcon, PlusIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 
 /**
  * Tabbed Contact form component using React Hook Form
@@ -38,7 +39,8 @@ const ContactFormTabbed = ({
   const [activeTab, setActiveTab] = useState('basic');
 
   // Get company countries for dropdown
-  const { companyCountries, loading: countriesLoading } = useCountries();
+  const { companyCountries, defaultCountry, loading: countriesLoading } = useCountries();
+  const defaultCountryId = defaultCountry?.country?.id || null;
   const [taxRates, setTaxRates] = useState(contact?.contact_taxes || []);
   const [newTax, setNewTax] = useState({ tax_name: '', tax_rate: '' });
   const [editingTaxId, setEditingTaxId] = useState(null);
@@ -54,25 +56,31 @@ const ContactFormTabbed = ({
   const [showDeletePersonModal, setShowDeletePersonModal] = useState(false);
   const [personToDelete, setPersonToDelete] = useState(null);
 
+  // Currency selector state
+  const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
+  const currencyButtonRef = useRef(null);
+  const [showPreferredCurrencyDropdown, setShowPreferredCurrencyDropdown] = useState(false);
+  const preferredCurrencyButtonRef = useRef(null);
+
   // Get default currency (first currency marked as default or first in list)
   const defaultCurrency = companyCurrencies.find(cc => cc.is_default) || companyCurrencies[0];
   const defaultCurrencyId = defaultCurrency?.currency?.id || null;
 
   const methods = useForm({
     resolver: zodResolver(contactSchema),
-    defaultValues: getContactDefaultValues(contact, initialStatus, defaultCurrencyId, initialContactType),
+    defaultValues: getContactDefaultValues(contact, initialStatus, defaultCurrencyId, initialContactType, defaultCountryId),
   });
 
   const { watch, setValue, reset, formState: { errors } } = methods;
 
   // Reset form when contact changes (important for edit mode)
   React.useEffect(() => {
-    reset(getContactDefaultValues(contact, initialStatus, defaultCurrencyId, initialContactType), {
+    reset(getContactDefaultValues(contact, initialStatus, defaultCurrencyId, initialContactType, defaultCountryId), {
       keepErrors: false,
       keepDirty: false,
       keepIsSubmitted: false,
     });
-  }, [contact, initialStatus, defaultCurrencyId, initialContactType, reset]);
+  }, [contact, initialStatus, defaultCurrencyId, initialContactType, defaultCountryId, reset]);
 
   // Auto-switch to tab with errors when validation fails
   React.useEffect(() => {
@@ -393,38 +401,54 @@ const ContactFormTabbed = ({
               />
             </div>
 
-            {/* Business Name */}
-            <FormField
-              name="business_name"
-              label="Business Name"
-              type="text"
-              placeholder="Acme Corporation"
-            />
-
-            {/* Email */}
-            <FormField
-              name="email"
-              label="Email"
-              type="email"
-              placeholder="john@example.com"
-            />
-
-            {/* Phone */}
-            <div className="grid grid-cols-4 gap-4">
+            {/* Business Name and Registration Number */}
+            <div className="grid grid-cols-2 gap-4">
               <FormField
-                name="country_code"
-                label="Country Code"
+                name="business_name"
+                label="Business Name"
                 type="text"
-                placeholder="+44"
+                placeholder="Acme Corporation"
               />
               <FormField
-                name="phone"
-                label="Phone Number"
-                type="tel"
-                placeholder="7700 900000"
-                className="col-span-3"
+                name="registration_number"
+                label="Company Registration Number"
+                type="text"
+                placeholder="12345678"
               />
             </div>
+
+            {/* Email and Phone */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                name="email"
+                label="Email"
+                type="email"
+                placeholder="john@example.com"
+              />
+              <div className="grid grid-cols-3 gap-2">
+                <FormField
+                  name="country_code"
+                  label="Country Code"
+                  type="text"
+                  placeholder="+44"
+                />
+                <FormField
+                  name="phone"
+                  label="Phone Number"
+                  type="tel"
+                  placeholder="7700 900000"
+                  className="col-span-2"
+                />
+              </div>
+            </div>
+
+            {/* Notes */}
+            <FormTextarea
+              name="notes"
+              label="Notes"
+              rows={3}
+              placeholder="Additional notes about this contact..."
+            />
           </div>
         )}
 
@@ -682,41 +706,129 @@ const ContactFormTabbed = ({
               />
             </div>
 
-            {/* Registration Number */}
-            <FormField
-              name="registration_number"
-              label="Company Registration Number"
-              type="text"
-              placeholder="12345678"
-            />
-
-            {/* Notes */}
-            <FormTextarea
-              name="notes"
-              label="Notes"
-              rows={3}
-              placeholder="Additional notes about this contact..."
-            />
           </div>
         )}
 
         {activeTab === 'finance' && (
           <div className="space-y-4">
-            {/* Tax Information */}
-            <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-300 mb-3">
-                Tax Information
-              </h3>
+            {/* Currency and Payment Terms Row */}
+            {companyCurrencies.length > 0 && (
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  name="tax_number"
-                  label="Tax/VAT Number"
-                  type="text"
-                  placeholder="GB123456789"
-                />
+                {/* Payment Currency */}
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Payment Currency
+                  </label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    Primary currency for invoices and payments
+                  </p>
+                  <button
+                    ref={currencyButtonRef}
+                    type="button"
+                    onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-left flex items-center justify-between outline-none focus:border-zenible-primary focus:ring-1 focus:ring-zenible-primary cursor-pointer hover:border-gray-400 dark:hover:border-gray-500"
+                  >
+                    {(() => {
+                      const selectedCurrency = companyCurrencies.find(
+                        (cc) => cc.currency.id === watch('currency_id')
+                      );
+                      if (selectedCurrency) {
+                        return (
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-700 dark:text-gray-300 font-medium">
+                              {selectedCurrency.currency.symbol}
+                            </span>
+                            <span className="text-gray-900 dark:text-white">
+                              {selectedCurrency.currency.code}
+                            </span>
+                            {selectedCurrency.is_default && (
+                              <span className="text-xs text-purple-600 dark:text-purple-400">
+                                (Default)
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Select currency...
+                        </span>
+                      );
+                    })()}
+                    <ChevronDownIcon
+                      className={`h-4 w-4 text-gray-400 transition-transform ${
+                        showCurrencyDropdown ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  <CurrencySelectorModal
+                    isOpen={showCurrencyDropdown}
+                    onClose={() => setShowCurrencyDropdown(false)}
+                    onSelect={(currencyId) => {
+                      setValue('currency_id', currencyId);
+                    }}
+                    selectedCurrencyId={watch('currency_id')}
+                    currencies={companyCurrencies}
+                    anchorRef={currencyButtonRef}
+                  />
+                </div>
+
+                {/* Payment Terms */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Payment Terms (Days)
+                  </label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    Overrides company default payment terms
+                  </p>
+                  <FormField
+                    name="invoice_payment_terms"
+                    type="number"
+                    placeholder="e.g., 30"
+                    min="0"
+                    max="365"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Hourly Rate and Tax ID Row */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Hourly Rate */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Hourly Rate
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  Override company default hourly rate for this contact
+                </p>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">
+                    {companyCurrencies.find(cc => cc.currency.id === watch('currency_id'))?.currency?.symbol ||
+                     defaultCurrency?.currency?.symbol ||
+                     '£'}
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    {...methods.register('hourly_rate')}
+                    placeholder="e.g., 50.00"
+                    className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Tax ID */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Tax ID
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  Set the Tax ID for this contact
+                </p>
                 <FormField
                   name="tax_id"
-                  label="Tax ID"
                   type="text"
                   placeholder="Tax identification number"
                 />
@@ -755,85 +867,63 @@ const ContactFormTabbed = ({
               </div>
             )}
 
-            {/* Currency and Payment Terms Row */}
-            {companyCurrencies.length > 0 && (
-              <div className="grid grid-cols-2 gap-4">
-                {/* Payment Currency */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Payment Currency
-                  </label>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    Primary currency for invoices and payments
-                  </p>
-                  <FormSelect
-                    name="currency_id"
-                    options={companyCurrencies.map((cc) => ({
-                      value: cc.currency.id,
-                      label: `${cc.currency.code} (${cc.currency.symbol})`,
-                    }))}
-                  />
-                </div>
-
-                {/* Payment Terms */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Payment Terms (Days)
-                  </label>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    Overrides company default payment terms
-                  </p>
-                  <FormField
-                    name="invoice_payment_terms"
-                    type="number"
-                    placeholder="e.g., 30"
-                    min="0"
-                    max="365"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Hourly Rate */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Hourly Rate
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                Override company default hourly rate for this contact
-              </p>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">
-                  {companyCurrencies.find(cc => cc.currency.id === watch('currency_id'))?.currency?.symbol ||
-                   defaultCurrency?.currency?.symbol ||
-                   '£'}
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...methods.register('hourly_rate')}
-                  placeholder="e.g., 50.00"
-                  className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                />
-              </div>
-            </div>
-
             {/* Preferred Currency (for Vendors) */}
             {watch('is_vendor') && companyCurrencies.length > 0 && (
-              <div>
+              <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Preferred Currency (Vendor)
                 </label>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                   Vendor's preferred currency for payments
                 </p>
-                <FormSelect
-                  name="preferred_currency_id"
-                  options={companyCurrencies.map((cc) => ({
-                    value: cc.currency.id,
-                    label: `${cc.currency.code} (${cc.currency.symbol})`,
-                  }))}
+                <button
+                  ref={preferredCurrencyButtonRef}
+                  type="button"
+                  onClick={() => setShowPreferredCurrencyDropdown(!showPreferredCurrencyDropdown)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-left flex items-center justify-between outline-none focus:border-zenible-primary focus:ring-1 focus:ring-zenible-primary cursor-pointer hover:border-gray-400 dark:hover:border-gray-500"
+                >
+                  {(() => {
+                    const selectedCurrency = companyCurrencies.find(
+                      (cc) => cc.currency.id === watch('preferred_currency_id')
+                    );
+                    if (selectedCurrency) {
+                      return (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-700 dark:text-gray-300 font-medium">
+                            {selectedCurrency.currency.symbol}
+                          </span>
+                          <span className="text-gray-900 dark:text-white">
+                            {selectedCurrency.currency.code}
+                          </span>
+                          {selectedCurrency.is_default && (
+                            <span className="text-xs text-purple-600 dark:text-purple-400">
+                              (Default)
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Select currency...
+                      </span>
+                    );
+                  })()}
+                  <ChevronDownIcon
+                    className={`h-4 w-4 text-gray-400 transition-transform ${
+                      showPreferredCurrencyDropdown ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                <CurrencySelectorModal
+                  isOpen={showPreferredCurrencyDropdown}
+                  onClose={() => setShowPreferredCurrencyDropdown(false)}
+                  onSelect={(currencyId) => {
+                    setValue('preferred_currency_id', currencyId);
+                  }}
+                  selectedCurrencyId={watch('preferred_currency_id')}
+                  currencies={companyCurrencies}
+                  anchorRef={preferredCurrencyButtonRef}
                 />
               </div>
             )}

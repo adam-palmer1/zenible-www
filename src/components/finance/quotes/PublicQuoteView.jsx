@@ -209,10 +209,34 @@ const PublicQuoteView = () => {
                         {quote.contact_business_name}
                       </p>
                     )}
-                    {/* Contact Email */}
-                    {quote.contact_email && (
+                    {/* Contact Address - Line 1 */}
+                    {quote.contact_address && (
                       <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
-                        {quote.contact_email}
+                        {quote.contact_address}
+                      </p>
+                    )}
+                    {/* Contact Address - Line 2 (if present) */}
+                    {quote.contact_address_line_2 && (
+                      <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                        {quote.contact_address_line_2}
+                      </p>
+                    )}
+                    {/* Contact Address - City, State */}
+                    {(quote.contact_city || quote.contact_state) && (
+                      <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                        {[quote.contact_city, quote.contact_state].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                    {/* Contact Address - Postal Code, Country */}
+                    {(quote.contact_postcode || quote.contact_country) && (
+                      <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                        {[quote.contact_postcode?.trim(), quote.contact_country].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                    {/* Tax Number */}
+                    {quote.contact_tax_id && (
+                      <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                        Tax Number: {quote.contact_tax_id}
                       </p>
                     )}
                   </div>

@@ -1138,10 +1138,10 @@ const PublicInvoiceView = () => {
                     {[invoice.contact_postcode?.trim(), invoice.contact_country].filter(Boolean).join(', ')}
                   </p>
                 )}
-                {/* Contact Email */}
-                {(invoice.contact_email || invoice.client_email) && (
+                {/* Tax Number */}
+                {invoice.contact_tax_id && (
                   <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
-                    {invoice.contact_email || invoice.client_email}
+                    Tax Number: {invoice.contact_tax_id}
                   </p>
                 )}
               </div>

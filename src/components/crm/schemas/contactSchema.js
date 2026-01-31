@@ -111,8 +111,9 @@ export const contactSchema = z.object({
  * @param {string} initialStatus - Initial status ID
  * @param {string} defaultCurrencyId - Company's default currency ID
  * @param {string} initialContactType - Initial contact type ('client' | 'vendor' | null)
+ * @param {string} defaultCountryId - Company's default country ID
  */
-export const getContactDefaultValues = (contact = null, initialStatus = null, defaultCurrencyId = null, initialContactType = null) => {
+export const getContactDefaultValues = (contact = null, initialStatus = null, defaultCurrencyId = null, initialContactType = null, defaultCountryId = null) => {
   if (contact) {
     return {
       ...contact,
@@ -160,7 +161,7 @@ export const getContactDefaultValues = (contact = null, initialStatus = null, de
     state: '',
     postcode: '',
     country: '',
-    country_id: null,
+    country_id: defaultCountryId || null,
     notes: '',
     is_active: true,
     is_client: initialContactType === 'client',
