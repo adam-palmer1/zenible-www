@@ -17,9 +17,8 @@ export const PaymentsProvider = ({ children }) => {
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Stats from API
+  // Stats from API (extracted from list response)
   const [stats, setStats] = useState(null);
-  const [statsLoading, setStatsLoading] = useState(true); // Track stats loading separately
 
   // Modal state
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -59,7 +58,6 @@ export const PaymentsProvider = ({ children }) => {
     } else {
       // No user - not loading
       setLoading(false);
-      setStatsLoading(false);
     }
   }, [user, getPreference]);
 
@@ -96,7 +94,7 @@ export const PaymentsProvider = ({ children }) => {
         total_pages: response.total_pages || Math.ceil((response.total || items.length) / prev.per_page),
       }));
 
-      // Extract stats from list response if available
+      // Extract stats from list response - single source of truth
       if (response.stats) {
         setStats(response.stats);
       }
@@ -110,32 +108,12 @@ export const PaymentsProvider = ({ children }) => {
     }
   }, [user, pagination.page, pagination.per_page, filters]);
 
-  // Fetch stats
-  const fetchStats = useCallback(async () => {
-    if (!user) {
-      setStatsLoading(false);
-      return;
-    }
-
-    try {
-      setStatsLoading(true);
-      const statsData = await paymentsAPI.getStats();
-      setStats(statsData);
-    } catch (err) {
-      console.error('[PaymentsContext] Error fetching stats:', err);
-      // Don't set error for stats failure, it's not critical
-    } finally {
-      setStatsLoading(false);
-    }
-  }, [user]);
-
   // Auto-fetch on dependencies change (only after preferences are loaded)
   useEffect(() => {
     if (preferencesLoaded) {
       fetchPayments();
-      fetchStats();
     }
-  }, [fetchPayments, fetchStats, refreshKey, preferencesLoaded]);
+  }, [fetchPayments, refreshKey, preferencesLoaded]);
 
   // Create payment
   const createPayment = useCallback(async (paymentData) => {
@@ -332,7 +310,6 @@ export const PaymentsProvider = ({ children }) => {
     // State
     payments,
     loading,
-    statsLoading,
     error,
     initialized,
     filters,
@@ -346,7 +323,6 @@ export const PaymentsProvider = ({ children }) => {
 
     // Methods
     fetchPayments,
-    fetchStats,
     createPayment,
     updatePayment,
     deletePayment,
@@ -371,7 +347,6 @@ export const PaymentsProvider = ({ children }) => {
   }), [
     payments,
     loading,
-    statsLoading,
     error,
     initialized,
     filters,
@@ -383,7 +358,6 @@ export const PaymentsProvider = ({ children }) => {
     showEditModal,
     selectedPayment,
     fetchPayments,
-    fetchStats,
     createPayment,
     updatePayment,
     deletePayment,

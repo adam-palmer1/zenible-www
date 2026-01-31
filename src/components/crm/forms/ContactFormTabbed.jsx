@@ -4,9 +4,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormField, FormSelect, FormCheckbox, FormTextarea } from '../../ui/form';
 import { contactSchema, getContactDefaultValues } from '../schemas/contactSchema';
 import ChipSelector from '../../ui/ChipSelector';
+import Combobox from '../../ui/combobox/Combobox';
 import ConfirmationModal from '../../common/ConfirmationModal';
 import contactsAPI from '../../../services/api/crm/contacts';
 import contactPersonsAPI from '../../../services/api/crm/contactPersons';
+import { useCountries } from '../../../hooks/crm/useCountries';
 import { TrashIcon, PencilIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 /**
@@ -34,6 +36,9 @@ const ContactFormTabbed = ({
   submitError = null,
 }) => {
   const [activeTab, setActiveTab] = useState('basic');
+
+  // Get company countries for dropdown
+  const { companyCountries, loading: countriesLoading } = useCountries();
   const [taxRates, setTaxRates] = useState(contact?.contact_taxes || []);
   const [newTax, setNewTax] = useState({ tax_name: '', tax_rate: '' });
   const [editingTaxId, setEditingTaxId] = useState(null);
@@ -462,12 +467,29 @@ const ContactFormTabbed = ({
                 type="text"
                 placeholder="SW1A 1AA"
               />
-              <FormField
-                name="country"
-                label="Country"
-                type="text"
-                placeholder="United Kingdom"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Country
+                </label>
+                <Combobox
+                  options={companyCountries.map((cc) => ({
+                    id: cc.country.id,
+                    label: cc.country.name,
+                  }))}
+                  value={watch('country_id') || ''}
+                  onChange={(value) => setValue('country_id', value || null)}
+                  placeholder="Select country..."
+                  searchPlaceholder="Search countries..."
+                  loading={countriesLoading}
+                  emptyMessage="No countries found"
+                  allowClear
+                />
+                {errors.country_id && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.country_id.message}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         )}

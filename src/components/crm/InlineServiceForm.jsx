@@ -440,8 +440,16 @@ const InlineServiceForm = ({
 
                 {/* Contract Duration */}
                 {serviceItem.pricingType === 'Recurring' && (
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-gray-700">Contract Duration</label>
+                  <div
+                    className="flex flex-col gap-2"
+                    title={serviceItem.isLinkedToInvoice ? lockedTooltip : undefined}
+                  >
+                    <label className="text-sm font-medium text-gray-700">
+                      Contract Duration
+                      {serviceItem.isLinkedToInvoice && (
+                        <span className="ml-2 text-xs text-gray-400 font-normal">(Locked)</span>
+                      )}
+                    </label>
                     <GenericDropdown
                       value={serviceItem.recurringNumber === -1 ? 'infinite' : String(serviceItem.recurringNumber)}
                       onChange={(value) => handleServiceChange(serviceItem.id, 'recurringNumber', value === 'infinite' ? -1 : parseInt(value))}
@@ -459,6 +467,7 @@ const InlineServiceForm = ({
                         })
                       ]}
                       placeholder="Select duration"
+                      disabled={serviceItem.isLinkedToInvoice}
                     />
                   </div>
                 )}
@@ -527,33 +536,40 @@ const InlineServiceForm = ({
 
                 {/* Save Button for existing modified services */}
                 {!serviceItem.id.toString().startsWith('new-') && modifiedServices.has(serviceItem.id) && (
-                  <div className="flex justify-end pt-2 border-t border-gray-200">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (onUpdate && serviceItem.name.trim()) {
-                          try {
-                            const serviceData = transformServicesForBackend([serviceItem])[0];
-                            await onUpdate(serviceItem.id, serviceData);
+                  <div className="flex flex-col gap-2 pt-2 border-t border-gray-200">
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (onUpdate && serviceItem.name.trim()) {
+                            try {
+                              const serviceData = transformServicesForBackend([serviceItem])[0];
+                              await onUpdate(serviceItem.id, serviceData);
 
-                            // Don't re-map from backend response - keep current form state
-                            // The form already has the correct data from user input
-                            // Just remove from modified set after successful update
-                            setModifiedServices(prev => {
-                              const next = new Set(prev);
-                              next.delete(serviceItem.id);
-                              return next;
-                            });
-                          } catch (error) {
-                            console.error('Failed to update service:', error);
-                            // Keep in modified set so user can try again
+                              // Don't re-map from backend response - keep current form state
+                              // The form already has the correct data from user input
+                              // Just remove from modified set after successful update
+                              setModifiedServices(prev => {
+                                const next = new Set(prev);
+                                next.delete(serviceItem.id);
+                                return next;
+                              });
+                            } catch (error) {
+                              console.error('Failed to update service:', error);
+                              // Keep in modified set so user can try again
+                            }
                           }
-                        }
-                      }}
-                      className="px-4 py-2 bg-zenible-primary text-white text-sm font-medium rounded-lg hover:bg-opacity-90 transition-colors"
-                    >
-                      Save Changes
-                    </button>
+                        }}
+                        className="px-4 py-2 bg-zenible-primary text-white text-sm font-medium rounded-lg hover:bg-opacity-90 transition-colors"
+                      >
+                        Save Changes
+                      </button>
+                    </div>
+                    {serviceItem.isLinkedToInvoice && (
+                      <p className="text-xs text-gray-500 text-right">
+                        This service is linked to an invoice. Changing these details will not change the invoice.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

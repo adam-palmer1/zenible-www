@@ -224,10 +224,10 @@ const RecurringInvoiceSettings = ({
                 <label className="flex items-center">
                   <input
                     type="radio"
-                    checked={!recurringEndDate && !recurringOccurrences}
+                    checked={!recurringEndDate && (!recurringOccurrences || recurringOccurrences <= 0)}
                     onChange={() => {
                       handleChange('recurringEndDate', null);
-                      handleChange('recurringOccurrences', null);
+                      handleChange('recurringOccurrences', -1);
                     }}
                     className="mr-2 text-zenible-primary focus:ring-zenible-primary"
                   />
@@ -239,6 +239,12 @@ const RecurringInvoiceSettings = ({
                     type="radio"
                     checked={!!recurringEndDate}
                     onChange={() => {
+                      // Set a default date if none exists (30 days from now)
+                      if (!recurringEndDate) {
+                        const defaultDate = new Date();
+                        defaultDate.setDate(defaultDate.getDate() + 30);
+                        handleChange('recurringEndDate', defaultDate.toISOString().split('T')[0]);
+                      }
                       handleChange('recurringOccurrences', null);
                     }}
                     className="text-zenible-primary focus:ring-zenible-primary"
@@ -258,22 +264,42 @@ const RecurringInvoiceSettings = ({
                 <label className="flex items-center gap-2">
                   <input
                     type="radio"
-                    checked={!!recurringOccurrences}
+                    checked={recurringOccurrences > 0}
                     onChange={() => {
                       handleChange('recurringEndDate', null);
+                      // Set a default occurrence count if none exists
+                      if (!recurringOccurrences || recurringOccurrences <= 0) {
+                        handleChange('recurringOccurrences', 1);
+                      }
                     }}
                     className="text-zenible-primary focus:ring-zenible-primary"
                   />
                   <span className="design-text-primary">After</span>
                   <input
                     type="number"
-                    value={recurringOccurrences || ''}
+                    value={recurringOccurrences > 0 ? recurringOccurrences : ''}
                     onChange={(e) => {
-                      handleChange('recurringOccurrences', parseInt(e.target.value));
+                      const inputValue = e.target.value;
+                      // Empty input - don't change yet (user is typing)
+                      if (inputValue === '') return;
+
+                      const value = parseInt(inputValue);
+                      if (isNaN(value) || value <= 0) {
+                        // Invalid or 0 - switch to "Never"
+                        handleChange('recurringOccurrences', -1);
+                      } else {
+                        handleChange('recurringOccurrences', value);
+                      }
                       handleChange('recurringEndDate', null);
                     }}
+                    onBlur={(e) => {
+                      // On blur, if empty, switch to "Never"
+                      if (e.target.value === '' && recurringOccurrences > 0) {
+                        handleChange('recurringOccurrences', -1);
+                      }
+                    }}
                     min="1"
-                    placeholder="0"
+                    placeholder="1"
                     className="w-24 px-3 py-1.5 design-input rounded-md"
                   />
                   <span className="design-text-primary">occurrences</span>

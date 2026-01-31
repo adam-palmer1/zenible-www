@@ -122,7 +122,7 @@ const InvoiceSettingsModal = ({
                     />
                     <div>
                       <span className="text-sm font-medium text-gray-900 dark:text-white">Automatic Payment</span>
-                      <p className="text-xs text-gray-600 dark:text-gray-300">Automatically charge saved payment method</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-300">Allow client to save card for automatic payment</p>
                     </div>
                   </label>
 

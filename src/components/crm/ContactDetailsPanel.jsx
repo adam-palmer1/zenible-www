@@ -6,6 +6,7 @@ import ServicesList from './ServicesList';
 import ServiceAutocomplete from './ServiceAutocomplete';
 import InlineServiceForm from './InlineServiceForm';
 import ContactFinancialsTab from './ContactFinancialsTab';
+import ContactFilesTab from './ContactFilesTab';
 import ServiceDetailModal from './ServiceDetailModal';
 import { useContactActivities } from '../../hooks/crm/useContactActivities';
 import { useContacts } from '../../hooks/crm/useContacts';
@@ -255,6 +256,16 @@ const ContactDetailsPanel = ({ contact: initialContact, onClose }) => {
             >
               Financials
             </button>
+            <button
+              onClick={() => setActiveTab('files')}
+              className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'files'
+                  ? 'text-zenible-primary border-b-2 border-zenible-primary'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Files
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -359,6 +370,9 @@ const ContactDetailsPanel = ({ contact: initialContact, onClose }) => {
             ) : activeTab === 'financials' ? (
               /* Financials Tab */
               <ContactFinancialsTab contactId={contact.id} />
+            ) : activeTab === 'files' ? (
+              /* Files Tab */
+              <ContactFilesTab contactId={contact.id} projects={contact.projects || []} />
             ) : null}
           </div>
       </div>

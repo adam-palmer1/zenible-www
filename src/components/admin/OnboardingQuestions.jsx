@@ -1,6 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import adminAPI from '../../services/adminAPI';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Bars3Icon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 const QUESTION_TYPES = [
   { value: 'short_text', label: 'Short Text', icon: '📝' },
@@ -20,6 +36,102 @@ const VALIDATION_TYPES = {
   number: ['min_value', 'max_value'],
   rich_text: ['min_length', 'max_length'],
   url: ['allowed_domains'],
+};
+
+/**
+ * Sortable Question Item Component
+ */
+const SortableQuestionItem = ({ question, onEdit, onDelete }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: question.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const typeInfo = QUESTION_TYPES.find((t) => t.value === question.question_type);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`px-6 py-4 hover:bg-gray-50 ${isDragging ? 'shadow-lg ring-2 ring-purple-500 bg-white' : ''}`}
+    >
+      <div className="flex items-center gap-4">
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab text-gray-400 hover:text-gray-600"
+        >
+          <Bars3Icon className="h-5 w-5" />
+        </div>
+
+        {/* Question Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{typeInfo?.icon || '?'}</span>
+            <h4 className="text-sm font-medium text-gray-900 truncate">
+              {question.question_text}
+            </h4>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-gray-500">
+              Code: {question.question_code}
+            </span>
+            <span className="text-xs text-gray-400">•</span>
+            <span className="text-xs text-gray-500">
+              Page {question.page_number || 1}, Order {question.display_order || 0}
+            </span>
+          </div>
+        </div>
+
+        {/* Status Badges */}
+        <div className="flex items-center gap-2">
+          {question.is_required && (
+            <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+              Required
+            </span>
+          )}
+          <span
+            className={`px-2 py-1 text-xs font-medium rounded-full ${
+              question.is_active
+                ? 'bg-green-100 text-green-700'
+                : 'bg-gray-100 text-gray-700'
+            }`}
+          >
+            {question.is_active ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onEdit(question)}
+            className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+            title="Edit"
+          >
+            <PencilIcon className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onDelete(question)}
+            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title="Delete"
+          >
+            <TrashIcon className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default function OnboardingQuestions() {
@@ -164,12 +276,27 @@ export default function OnboardingQuestions() {
     }
   };
 
-  const handleDragEnd = async (result) => {
-    if (!result.destination) return;
+  // Configure sensors for drag detection
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-    const items = Array.from(questions);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = questions.findIndex((q) => q.id === active.id);
+    const newIndex = questions.findIndex((q) => q.id === over.id);
+
+    const items = arrayMove(questions, oldIndex, newIndex);
 
     // Update display_order for all affected items
     const updatedItems = items.map((item, index) => ({
@@ -367,99 +494,30 @@ export default function OnboardingQuestions() {
             <p className="mt-1 text-sm text-gray-500">Get started by creating a new question.</p>
           </div>
         ) : (
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="questions">
-              {(provided) => (
-                <div
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                  className="divide-y divide-gray-200"
-                >
-                  {questions.map((question, index) => (
-                    <Draggable
-                      key={question.id}
-                      draggableId={question.id}
-                      index={index}
-                    >
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          className={`p-4 ${snapshot.isDragging ? 'bg-purple-50' : 'hover:bg-gray-50'} transition-colors`}
-                        >
-                          <div className="flex items-center">
-                            <div {...provided.dragHandleProps} className="mr-4 cursor-move">
-                              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-                              </svg>
-                            </div>
-
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h4 className="text-sm font-medium text-gray-900">
-                                    {question.question_text}
-                                    {question.is_required && (
-                                      <span className="ml-2 text-xs text-red-500">*Required</span>
-                                    )}
-                                  </h4>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Page {question.page_number || 1}, Position {question.display_order || 0}
-                                  </p>
-                                  <div className="flex items-center gap-4 mt-2">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                      {QUESTION_TYPES.find(t => t.value === question.question_type)?.label || question.question_type}
-                                    </span>
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                      question.is_active
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-gray-100 text-gray-800'
-                                    }`}>
-                                      {question.is_active ? 'Active' : 'Inactive'}
-                                    </span>
-                                    {question.answer_count > 0 && (
-                                      <span className="text-xs text-gray-500">
-                                        {question.answer_count} responses
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => handleEditQuestion(question)}
-                                    className="p-2 text-gray-400 hover:text-purple-600 transition-colors"
-                                    title="Edit question"
-                                  >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setQuestionToDelete(question);
-                                      setShowDeleteModal(true);
-                                    }}
-                                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                                    title="Delete question"
-                                  >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          </DragDropContext>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={questions.map((q) => q.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="divide-y divide-gray-200">
+                {questions.map((question) => (
+                  <SortableQuestionItem
+                    key={question.id}
+                    question={question}
+                    onEdit={handleEditQuestion}
+                    onDelete={(q) => {
+                      setQuestionToDelete(q);
+                      setShowDeleteModal(true);
+                    }}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </div>

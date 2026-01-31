@@ -3,7 +3,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 
 /**
  * Automatic Payment Consent Modal
- * For recurring invoices - get customer consent for automatic payments
+ * Get customer consent for automatic payments
  */
 const AutomaticPaymentConsentModal = ({
   isOpen,
@@ -87,9 +87,11 @@ const AutomaticPaymentConsentModal = ({
               <p>
                 <span className="font-medium">Amount:</span> {invoice?.currency} {typeof invoice?.total === 'number' ? invoice.total.toFixed(2) : parseFloat(invoice?.total || 0).toFixed(2)}
               </p>
-              <p>
-                <span className="font-medium">Frequency:</span> {(invoice?.recurring_type || 'monthly').charAt(0).toUpperCase() + (invoice?.recurring_type || 'monthly').slice(1)}
-              </p>
+              {invoice?.recurring_type && (
+                <p>
+                  <span className="font-medium">Frequency:</span> {invoice.recurring_type.charAt(0).toUpperCase() + invoice.recurring_type.slice(1)}
+                </p>
+              )}
               {invoice?.recurring_number && invoice.recurring_number !== -1 && (
                 <p>
                   <span className="font-medium">Occurrences:</span> {invoice.recurring_number}
@@ -104,11 +106,11 @@ const AutomaticPaymentConsentModal = ({
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-design-text-secondary space-y-2">
               <p>By enabling automatic payments, you authorize us to:</p>
               <ul className="list-disc list-inside space-y-1 ml-2">
-                <li>Charge your saved payment method automatically when each invoice is due</li>
+                <li>Charge your saved payment method automatically when invoices are due</li>
                 <li>Send you an email notification before each payment is processed</li>
-                <li>Continue charging until the recurring invoice is cancelled or completed</li>
+                <li>Save your card details securely for future payments</li>
               </ul>
-              <p className="mt-3">You can cancel automatic payments at any time from your account settings.</p>
+              <p className="mt-3">You can cancel automatic payments at any time.</p>
             </div>
           </div>
 
@@ -125,7 +127,7 @@ const AutomaticPaymentConsentModal = ({
               className="mt-1 h-4 w-4 text-zenible-primary focus:ring-zenible-primary border-gray-300 rounded"
             />
             <label htmlFor="consent" className="text-sm text-design-text-secondary cursor-pointer">
-              I have read and accept the terms and conditions for automatic payments. I authorize automatic charges to my payment method for this recurring invoice.
+              I have read and accept the terms and conditions for automatic payments. I authorize automatic charges to my payment method for this invoice.
             </label>
           </div>
 

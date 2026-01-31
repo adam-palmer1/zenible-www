@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { CheckCircle, AlertCircle, CreditCard, Loader2, ArrowLeft, RefreshCw, Trash2, AlertTriangle, Clock } from 'lucide-react';
+import { CheckCircle, AlertCircle, CreditCard, Loader2, ArrowLeft, RefreshCw, Trash2, AlertTriangle, Clock, Download } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { formatCurrency } from '../../../utils/currency';
 import invoicesAPI from '../../../services/api/finance/invoices';
+import { API_BASE_URL } from '../../../config/api';
 
 // Stripe logo SVG
 const StripeLogo = ({ className = 'h-5 w-5' }) => (
@@ -112,7 +113,7 @@ const StripeCardSetupForm = ({ clientSecret, setupIntentId, shareCode, onSuccess
 
       <div className="p-3 bg-[#f5f0ff] border border-[#d4bfff] rounded-lg">
         <p className="text-sm text-[#5b21b6]">
-          Your card will be saved securely for automatic payments on this recurring invoice.
+          Your card will be saved securely for automatic payments on future invoices.
         </p>
       </div>
 
@@ -674,7 +675,7 @@ const SavedCardPaymentSection = ({ shareCode, amountDue, currency, onSuccess }) 
         <div>
           <h3 className="text-lg font-semibold text-[#09090b]">Card Saved Successfully</h3>
           <p className="text-sm text-[#71717a] mt-1">
-            Your card has been saved for automatic payments on this recurring invoice.
+            Your card has been saved for automatic payments.
           </p>
         </div>
 
@@ -732,6 +733,7 @@ const PublicInvoiceView = () => {
   const [cardToDelete, setCardToDelete] = useState(null);
   const [deleteCardError, setDeleteCardError] = useState(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Use shareCode from URL or fall back to token for backwards compatibility
   const invoiceCode = shareCode || token;
@@ -791,6 +793,34 @@ const PublicInvoiceView = () => {
       setLoadingSavedCards(false);
     }
   }, [invoiceCode]);
+
+  // Download PDF
+  const handleDownloadPdf = async () => {
+    if (!invoiceCode) return;
+
+    try {
+      setDownloadingPdf(true);
+      const response = await fetch(`${API_BASE_URL}/invoices/${invoiceCode}/pdf`);
+
+      if (!response.ok) {
+        throw new Error('Failed to download PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${invoice?.invoice_number || 'invoice'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('[PublicInvoiceView] Error downloading PDF:', err);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   // Show delete card confirmation modal
   const handleDeleteCard = (paymentMethodId) => {
@@ -962,7 +992,7 @@ const PublicInvoiceView = () => {
   // Recurring invoice detection
   const isRecurring = invoice.pricing_type === 'Recurring' || invoice.recurring_type;
   const automaticPaymentEnabled = invoice.automatic_payment_enabled === true;
-  const canSetupAutomaticPayments = isRecurring && automaticPaymentEnabled && canPayStripe;
+  const canSetupAutomaticPayments = automaticPaymentEnabled && canPayStripe;
   const hasCardOnFile = invoice.has_saved_payment_method === true;
 
   // Calculate totals
@@ -1084,14 +1114,28 @@ const PublicInvoiceView = () => {
                     {invoice.contact_business_name}
                   </p>
                 )}
-                {/* Contact Address */}
-                {(invoice.contact_address || invoice.contact_city || invoice.contact_state || invoice.contact_postcode || invoice.contact_country) && (
+                {/* Contact Address - Line 1 */}
+                {invoice.contact_address && (
                   <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
-                    {[
-                      invoice.contact_address,
-                      [invoice.contact_city, invoice.contact_state, invoice.contact_postcode].filter(Boolean).join(', '),
-                      invoice.contact_country
-                    ].filter(Boolean).join('\n')}
+                    {invoice.contact_address}
+                  </p>
+                )}
+                {/* Contact Address - Line 2 (if present) */}
+                {invoice.contact_address_line_2 && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {invoice.contact_address_line_2}
+                  </p>
+                )}
+                {/* Contact Address - City, State */}
+                {(invoice.contact_city || invoice.contact_state) && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {[invoice.contact_city, invoice.contact_state].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                {/* Contact Address - Postal Code, Country */}
+                {(invoice.contact_postcode || invoice.contact_country) && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {[invoice.contact_postcode?.trim(), invoice.contact_country].filter(Boolean).join(', ')}
                   </p>
                 )}
                 {/* Contact Email */}
@@ -1107,10 +1151,10 @@ const PublicInvoiceView = () => {
           {/* Divider */}
           <div className="h-px bg-[#e5e5e5] w-full" />
 
-          {/* Lists of Items */}
+          {/* Invoice Details */}
           <div className="flex flex-col gap-3">
             <p className="text-[16px] font-bold leading-[24px] text-[#09090b]">
-              Lists of Items
+              Invoice Details
             </p>
 
             {/* Table */}
@@ -1157,11 +1201,11 @@ const PublicInvoiceView = () => {
                         <tr key={index} className="border-b border-[#e5e5e5] bg-white">
                           <td className="px-3 py-4">
                             <div>
-                              <span className="text-[14px] font-normal leading-[22px] text-[#09090b]">
+                              <span className="text-[14px] font-normal leading-[22px] text-[#09090b] whitespace-pre-line">
                                 {item.description || item.name}
                               </span>
                               {item.subtext && (
-                                <p className="text-[12px] text-[#71717a] mt-0.5">{item.subtext}</p>
+                                <p className="text-[12px] text-[#71717a] mt-0.5 whitespace-pre-line">{item.subtext}</p>
                               )}
                             </div>
                           </td>
@@ -1343,9 +1387,35 @@ const PublicInvoiceView = () => {
           )}
         </div>
 
-          {/* Payment Section - Right Side */}
-          {canPay && !paymentSuccess && !cardSetupSuccess && (
-            <div className="lg:w-[340px] lg:flex-shrink-0 bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6 flex flex-col gap-6 h-fit lg:sticky lg:top-4">
+          {/* Right Side Column */}
+          <div className="lg:w-[340px] lg:flex-shrink-0 flex flex-col gap-4 h-fit lg:sticky lg:top-4">
+            {/* Download PDF Section */}
+            <div className="bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6">
+              <p className="text-[16px] font-bold leading-[24px] text-[#09090b] mb-4">
+                Download PDF
+              </p>
+              <button
+                onClick={handleDownloadPdf}
+                disabled={downloadingPdf}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 text-base font-medium text-white bg-[#8e51ff] hover:bg-[#7a44db] rounded-lg transition-colors disabled:opacity-50"
+              >
+                {downloadingPdf ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-5 w-5" />
+                    Download Invoice PDF
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Payment Section */}
+            {canPay && !paymentSuccess && !cardSetupSuccess && (
+            <div className="bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6 flex flex-col gap-6">
               <p className="text-[16px] font-bold leading-[24px] text-[#09090b]">
                 {isRecurring ? 'Recurring Invoice' : 'Make a Payment'}
               </p>
@@ -1511,9 +1581,6 @@ const PublicInvoiceView = () => {
                             <span className="text-[14px] font-semibold text-[#09090b] block">
                               Set Up Automatic Payments
                             </span>
-                            <p className="text-[11px] text-[#71717a]">
-                              Save card for future recurring charges
-                            </p>
                           </div>
                           <span className="text-[10px] font-medium text-[#5b21b6] bg-[#ede9fe] px-2 py-0.5 rounded">
                             Recommended
@@ -1564,7 +1631,7 @@ const PublicInvoiceView = () => {
                 </div>
               )}
 
-              {/* Stripe Card Setup Form - For recurring automatic payments */}
+              {/* Stripe Card Setup Form - For automatic payments */}
               {paymentMethod === 'setup_card' && canSetupAutomaticPayments && (
                 <StripeCardSetupSection
                   shareCode={invoiceCode}
@@ -1613,7 +1680,7 @@ const PublicInvoiceView = () => {
             </div>
           )}
 
-          {/* Card Setup Success - Right Side */}
+          {/* Card Setup Success */}
           {cardSetupSuccess && !paymentSuccess && (
             <SavedCardPaymentSection
               shareCode={invoiceCode}
@@ -1623,9 +1690,9 @@ const PublicInvoiceView = () => {
             />
           )}
 
-          {/* No payment methods available - Right Side */}
+          {/* No payment methods available */}
           {!canPay && !isPaid && !isCancelled && amountDue > 0 && !cardSetupSuccess && (
-            <div className="lg:w-[340px] lg:flex-shrink-0 bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6 h-fit">
+            <div className="bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6">
               <p className="text-[16px] font-bold leading-[24px] text-[#09090b] mb-4">Payment</p>
               {isRecurring && (
                 <div className="p-3 bg-[#f5f0ff] border border-[#d4bfff] rounded-lg mb-4">
@@ -1642,6 +1709,7 @@ const PublicInvoiceView = () => {
               </p>
             </div>
           )}
+          </div>
         </div>
       </div>
 

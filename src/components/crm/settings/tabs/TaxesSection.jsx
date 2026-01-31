@@ -1,5 +1,20 @@
 import React, { useState } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   Bars3Icon,
   PencilIcon,
@@ -10,6 +25,136 @@ import {
 import companiesAPI from '../../../../services/api/crm/companies';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import ConfirmationModal from '../../../common/ConfirmationModal';
+
+/**
+ * Sortable Tax Item Component
+ */
+const SortableTaxItem = ({
+  tax,
+  isEditing,
+  editForm,
+  setEditForm,
+  onStartEdit,
+  onSaveEdit,
+  onCancelEdit,
+  onDelete,
+  loading,
+  formatRate,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tax.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 ${
+        isDragging ? 'shadow-lg ring-2 ring-blue-500' : ''
+      }`}
+    >
+      {/* Drag Handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+      >
+        <Bars3Icon className="h-5 w-5" />
+      </div>
+
+      {/* Content */}
+      {isEditing ? (
+        // Edit Mode
+        <div className="flex-1 flex items-center gap-3">
+          <input
+            type="text"
+            value={editForm.tax_name}
+            onChange={(e) =>
+              setEditForm((prev) => ({
+                ...prev,
+                tax_name: e.target.value,
+              }))
+            }
+            className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+            placeholder="Tax name"
+            maxLength={100}
+          />
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              value={editForm.tax_rate}
+              onChange={(e) =>
+                setEditForm((prev) => ({
+                  ...prev,
+                  tax_rate: e.target.value,
+                }))
+              }
+              className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+              placeholder="Rate"
+              min="0"
+              max="100"
+              step="0.01"
+            />
+            <span className="text-gray-500 dark:text-gray-400">%</span>
+          </div>
+          <button
+            onClick={() => onSaveEdit(tax.id)}
+            disabled={loading}
+            className="p-1 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+            title="Save"
+          >
+            <CheckIcon className="h-5 w-5" />
+          </button>
+          <button
+            onClick={onCancelEdit}
+            className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            title="Cancel"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+      ) : (
+        // View Mode
+        <>
+          <div className="flex-1">
+            <span className="font-medium text-gray-900 dark:text-white">
+              {tax.tax_name}
+            </span>
+          </div>
+          <span className="text-gray-600 dark:text-gray-300 font-mono">
+            {formatRate(tax.tax_rate)}%
+          </span>
+          <button
+            onClick={() => onStartEdit(tax)}
+            className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+            title="Edit"
+          >
+            <PencilIcon className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onDelete(tax.id)}
+            disabled={loading}
+            className="p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+            title="Delete"
+          >
+            <XMarkIcon className="h-4 w-4" />
+          </button>
+        </>
+      )}
+    </div>
+  );
+};
 
 /**
  * TaxesSection - Manages multiple company taxes with drag-to-reorder
@@ -26,6 +171,18 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, taxId: null });
 
   const { showSuccess, showError } = useNotification();
+
+  // Configure sensors for drag detection
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const handleAddTax = async () => {
     if (!newTax.tax_name.trim() || newTax.tax_rate === '') {
@@ -120,20 +277,19 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
       showError(error.message || 'Failed to delete tax');
     } finally {
       setLoading(false);
+      setDeleteConfirmModal({ isOpen: false, taxId: null });
     }
   };
 
-  const handleDragEnd = async (result) => {
-    if (!result.destination) return;
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
 
-    const sourceIndex = result.source.index;
-    const destIndex = result.destination.index;
+    if (!over || active.id === over.id) return;
 
-    if (sourceIndex === destIndex) return;
+    const oldIndex = taxes.findIndex((t) => t.id === active.id);
+    const newIndex = taxes.findIndex((t) => t.id === over.id);
 
-    const reordered = Array.from(taxes);
-    const [removed] = reordered.splice(sourceIndex, 1);
-    reordered.splice(destIndex, 0, removed);
+    const reordered = arrayMove(taxes, oldIndex, newIndex);
 
     // Update sort_order for all items
     const withNewOrder = reordered.map((tax, index) => ({
@@ -160,126 +316,38 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
     return isNaN(num) ? '0.00' : num.toFixed(2);
   };
 
+  // Tax IDs for sortable context
+  const taxIds = taxes.map((t) => t.id);
+
   return (
     <div className="space-y-4">
       {/* Tax List */}
       {taxes.length > 0 ? (
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="taxes-list">
-            {(provided, snapshot) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className={`space-y-2 rounded-lg transition-colors ${
-                  snapshot.isDraggingOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                }`}
-              >
-                {taxes.map((tax, index) => (
-                  <Draggable key={tax.id} draggableId={tax.id} index={index}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        className={`flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 ${
-                          snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-500' : ''
-                        }`}
-                      >
-                        {/* Drag Handle */}
-                        <div
-                          {...provided.dragHandleProps}
-                          className="cursor-grab text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                          <Bars3Icon className="h-5 w-5" />
-                        </div>
-
-                        {/* Content */}
-                        {editingId === tax.id ? (
-                          // Edit Mode
-                          <div className="flex-1 flex items-center gap-3">
-                            <input
-                              type="text"
-                              value={editForm.tax_name}
-                              onChange={(e) =>
-                                setEditForm((prev) => ({
-                                  ...prev,
-                                  tax_name: e.target.value,
-                                }))
-                              }
-                              className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
-                              placeholder="Tax name"
-                              maxLength={100}
-                            />
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                value={editForm.tax_rate}
-                                onChange={(e) =>
-                                  setEditForm((prev) => ({
-                                    ...prev,
-                                    tax_rate: e.target.value,
-                                  }))
-                                }
-                                className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-500 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
-                                placeholder="Rate"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                              />
-                              <span className="text-gray-500 dark:text-gray-400">%</span>
-                            </div>
-                            <button
-                              onClick={() => handleSaveEdit(tax.id)}
-                              disabled={loading}
-                              className="p-1 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
-                              title="Save"
-                            >
-                              <CheckIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={handleCancelEdit}
-                              className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                              title="Cancel"
-                            >
-                              <XMarkIcon className="h-5 w-5" />
-                            </button>
-                          </div>
-                        ) : (
-                          // View Mode
-                          <>
-                            <div className="flex-1">
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {tax.tax_name}
-                              </span>
-                            </div>
-                            <span className="text-gray-600 dark:text-gray-300 font-mono">
-                              {formatRate(tax.tax_rate)}%
-                            </span>
-                            <button
-                              onClick={() => handleStartEdit(tax)}
-                              className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
-                              title="Edit"
-                            >
-                              <PencilIcon className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(tax.id)}
-                              disabled={loading}
-                              className="p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
-                              title="Delete"
-                            >
-                              <XMarkIcon className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={taxIds} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {taxes.map((tax) => (
+                <SortableTaxItem
+                  key={tax.id}
+                  tax={tax}
+                  isEditing={editingId === tax.id}
+                  editForm={editForm}
+                  setEditForm={setEditForm}
+                  onStartEdit={handleStartEdit}
+                  onSaveEdit={handleSaveEdit}
+                  onCancelEdit={handleCancelEdit}
+                  onDelete={handleDelete}
+                  loading={loading}
+                  formatRate={formatRate}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       ) : (
         <div className="text-center py-4 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 rounded-lg">
           No taxes configured yet

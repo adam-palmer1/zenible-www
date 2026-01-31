@@ -53,7 +53,7 @@ const ProjectsFiltersBar = ({
 
         {/* Status Filter Dropdown */}
         {showStatusFilter && (
-          <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+          <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
             <div className="p-3 space-y-2">
               {allProjectStatuses.map((status) => (
                 <label

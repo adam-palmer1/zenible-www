@@ -5,6 +5,8 @@ import {
   CodeBracketIcon,
   ArrowTopRightOnSquareIcon,
   InformationCircleIcon,
+  ChevronDownIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import callTypesAPI from '../../../../../services/api/crm/callTypes';
 import { useNotification } from '../../../../../contexts/NotificationContext';
@@ -18,6 +20,8 @@ const EmbedSettings = ({ username }) => {
   const [selectedCallType, setSelectedCallType] = useState('');
   const [theme, setTheme] = useState('light');
   const [copied, setCopied] = useState(false);
+  const [showCallTypeModal, setShowCallTypeModal] = useState(false);
+  const [callTypeSearch, setCallTypeSearch] = useState('');
 
   const { showError } = useNotification();
 
@@ -116,17 +120,18 @@ const EmbedSettings = ({ username }) => {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Call Type
           </label>
-          <select
-            value={selectedCallType}
-            onChange={(e) => setSelectedCallType(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-zenible-primary focus:border-transparent"
+          <button
+            type="button"
+            onClick={() => setShowCallTypeModal(true)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-left flex items-center justify-between hover:border-zenible-primary transition-colors"
           >
-            {callTypes.map((ct) => (
-              <option key={ct.id} value={ct.shortcode}>
-                {ct.name} ({ct.duration_minutes} min)
-              </option>
-            ))}
-          </select>
+            <span className="text-gray-900 dark:text-white">
+              {selectedCallTypeData
+                ? `${selectedCallTypeData.name} (${selectedCallTypeData.duration_minutes} min)`
+                : 'Select a call type'}
+            </span>
+            <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+          </button>
           {selectedCallTypeData?.description && (
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {selectedCallTypeData.description}
@@ -300,6 +305,84 @@ widget.destroy();`}
           </div>
         </div>
       </details>
+
+      {/* Call Type Modal */}
+      {showCallTypeModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+              onClick={() => {
+                setShowCallTypeModal(false);
+                setCallTypeSearch('');
+              }}
+            />
+            <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Select Call Type
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowCallTypeModal(false);
+                    setCallTypeSearch('');
+                  }}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="p-4">
+                {callTypes.length > 5 && (
+                  <input
+                    type="text"
+                    placeholder="Search call types..."
+                    value={callTypeSearch}
+                    onChange={(e) => setCallTypeSearch(e.target.value)}
+                    autoFocus
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-transparent dark:bg-gray-700 dark:text-white mb-3"
+                  />
+                )}
+                <div className="max-h-64 overflow-y-auto">
+                  {callTypes
+                    .filter(
+                      (ct) =>
+                        ct.name.toLowerCase().includes(callTypeSearch.toLowerCase()) ||
+                        ct.shortcode.toLowerCase().includes(callTypeSearch.toLowerCase())
+                    )
+                    .map((ct) => (
+                      <button
+                        key={ct.id}
+                        onClick={() => {
+                          setSelectedCallType(ct.shortcode);
+                          setShowCallTypeModal(false);
+                          setCallTypeSearch('');
+                        }}
+                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-lg ${
+                          selectedCallType === ct.shortcode ? 'bg-zenible-primary/10 text-zenible-primary' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {ct.name}
+                          </span>
+                          <span className="text-gray-400 text-xs">
+                            {ct.duration_minutes} min
+                          </span>
+                        </div>
+                        {ct.description && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                            {ct.description}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

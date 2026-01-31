@@ -28,7 +28,11 @@ export const contactSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   postcode: z.string().optional(),
-  country: z.string().optional(),
+  country: z.string().optional(), // Legacy field - kept for compatibility
+  country_id: z.any().optional().transform(val => {
+    if (!val || val === '' || val === 'null' || val === 'undefined') return null;
+    return val;
+  }),
 
   // Company/Tax information
   registration_number: z.string().optional(),
@@ -125,6 +129,7 @@ export const getContactDefaultValues = (contact = null, initialStatus = null, de
       state: contact.state || '',
       postcode: contact.postcode || '',
       country: contact.country || '',
+      country_id: contact.country_id || null,
       notes: contact.notes || '',
       // Company/Tax information
       registration_number: contact.registration_number || '',
@@ -154,7 +159,8 @@ export const getContactDefaultValues = (contact = null, initialStatus = null, de
     city: '',
     state: '',
     postcode: '',
-    country: 'United Kingdom',
+    country: '',
+    country_id: null,
     notes: '',
     is_active: true,
     is_client: initialContactType === 'client',

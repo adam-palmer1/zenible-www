@@ -294,11 +294,23 @@ export const useClientsFilters = () => {
   }, []);
 
   // Get list of visible field names for API request (excludes UI-only columns)
+  // Only include fields that are actually valid according to the API to prevent 400 errors
   const visibleFieldNames = useMemo(() => {
+    // Get valid field names from API metadata
+    const validFieldNames = new Set(fields.map(f => f.name));
+
     return Object.entries(visibleColumns)
-      .filter(([key, visible]) => visible && key !== 'actions')
+      .filter(([key, visible]) => {
+        // Exclude UI-only columns
+        if (key === 'actions') return false;
+        // Only include if visible
+        if (!visible) return false;
+        // Only include if the field is valid according to API, or if fields haven't loaded yet
+        // (when fields haven't loaded, we won't send the fields parameter anyway)
+        return validFieldNames.size === 0 || validFieldNames.has(key);
+      })
       .map(([key]) => key);
-  }, [visibleColumns]);
+  }, [visibleColumns, fields]);
 
   return {
     // State

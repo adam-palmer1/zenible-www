@@ -18,34 +18,35 @@ import expensesAPI from '../../../services/api/finance/expenses';
 
 /**
  * Entity type configuration for display
+ * All entities use Zenible purple for consistent branding
  */
 const ENTITY_CONFIG = {
   invoice: {
     label: 'Invoice',
-    headerColor: 'from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20',
-    iconBg: 'from-blue-500 to-indigo-600',
-    iconShadow: 'shadow-blue-500/25',
-    accentColor: 'blue',
+    headerColor: 'from-[#f5f0ff] to-[#ede5ff] dark:from-purple-900/20 dark:to-purple-900/30',
+    iconBg: 'from-[#8e51ff] to-[#7c3aed]',
+    iconShadow: 'shadow-[#8e51ff]/25',
+    accentColor: 'purple',
   },
   project: {
     label: 'Project',
-    headerColor: 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20',
-    iconBg: 'from-green-500 to-emerald-600',
-    iconShadow: 'shadow-green-500/25',
-    accentColor: 'green',
+    headerColor: 'from-[#f5f0ff] to-[#ede5ff] dark:from-purple-900/20 dark:to-purple-900/30',
+    iconBg: 'from-[#8e51ff] to-[#7c3aed]',
+    iconShadow: 'shadow-[#8e51ff]/25',
+    accentColor: 'purple',
   },
   payment: {
     label: 'Payment',
-    headerColor: 'from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20',
-    iconBg: 'from-amber-500 to-orange-600',
-    iconShadow: 'shadow-amber-500/25',
-    accentColor: 'amber',
+    headerColor: 'from-[#f5f0ff] to-[#ede5ff] dark:from-purple-900/20 dark:to-purple-900/30',
+    iconBg: 'from-[#8e51ff] to-[#7c3aed]',
+    iconShadow: 'shadow-[#8e51ff]/25',
+    accentColor: 'purple',
   },
   contact: {
     label: 'Client',
-    headerColor: 'from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20',
-    iconBg: 'from-purple-500 to-pink-600',
-    iconShadow: 'shadow-purple-500/25',
+    headerColor: 'from-[#f5f0ff] to-[#ede5ff] dark:from-purple-900/20 dark:to-purple-900/30',
+    iconBg: 'from-[#8e51ff] to-[#7c3aed]',
+    iconShadow: 'shadow-[#8e51ff]/25',
     accentColor: 'purple',
   },
 };
@@ -334,7 +335,7 @@ const AssignExpenseModal = ({
         <div className="p-6">
           {loading || expensesLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              <Loader2 className="h-8 w-8 animate-spin text-zenible-primary" />
             </div>
           ) : (
             <>
@@ -428,7 +429,7 @@ const AssignExpenseModal = ({
                               max="100"
                               value={item.percentage}
                               onChange={(e) => handleUpdatePercentage(item.expense_id, e.target.value)}
-                              className="w-full px-2 py-1.5 text-sm text-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                              className="w-full px-2 py-1.5 text-sm text-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-transparent"
                             />
                             <span className="text-sm text-gray-500 dark:text-gray-400">%</span>
                           </div>
@@ -475,7 +476,7 @@ const AssignExpenseModal = ({
                       placeholder="Search expenses..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-zenible-primary focus:border-transparent"
                       autoFocus
                     />
                   </div>
@@ -492,7 +493,7 @@ const AssignExpenseModal = ({
                           <button
                             key={expense.id}
                             onClick={() => handleAddExpense(expense)}
-                            className="w-full flex items-center justify-between p-3 text-left bg-white dark:bg-gray-800 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors group"
+                            className="w-full flex items-center justify-between p-3 text-left bg-white dark:bg-gray-800 rounded-lg hover:bg-[#f5f0ff] dark:hover:bg-purple-900/20 transition-colors group"
                           >
                             <div className="min-w-0 flex-1">
                               <div className="font-medium text-gray-900 dark:text-white truncate">
@@ -508,7 +509,7 @@ const AssignExpenseModal = ({
                               <span className="font-medium text-gray-900 dark:text-white">
                                 {formatCurrency(expense.amount, expense.currency?.code || currency, numberFormat)}
                               </span>
-                              <Plus className="h-4 w-4 text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400" />
+                              <Plus className="h-4 w-4 text-gray-400 group-hover:text-zenible-primary dark:group-hover:text-purple-400" />
                             </div>
                           </button>
                         ))}
@@ -524,7 +525,7 @@ const AssignExpenseModal = ({
               ) : (
                 <button
                   onClick={() => setShowAddSection(true)}
-                  className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-gray-500 dark:text-gray-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all"
+                  className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-gray-500 dark:text-gray-400 hover:border-zenible-primary hover:text-zenible-primary dark:hover:border-purple-500 dark:hover:text-purple-400 hover:bg-[#f5f0ff] dark:hover:bg-purple-900/10 transition-all"
                 >
                   <div className="flex items-center justify-center gap-2">
                     <Plus className="h-5 w-5" />
@@ -548,7 +549,7 @@ const AssignExpenseModal = ({
             <button
               onClick={handleSave}
               disabled={saving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:bg-opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               {saving ? (
                 <>

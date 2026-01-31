@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import React, { useState, useRef, useEffect } from 'react';
+import { CheckCircleIcon, XMarkIcon, PlusIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useCompanyCurrencies } from '../../../../hooks/crm/useCompanyCurrencies';
 import { useCurrencyConversion } from '../../../../hooks/crm/useCurrencyConversion';
 import { useNotification } from '../../../../contexts/NotificationContext';
@@ -22,24 +22,39 @@ const CurrenciesTab = () => {
   const { convert, loading: convertLoading } = useCurrencyConversion();
   const { showSuccess, showError } = useNotification();
 
-  const [selectedCurrency, setSelectedCurrency] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const [converterAmount, setConverterAmount] = useState(100);
   const [converterFrom, setConverterFrom] = useState('');
   const [converterTo, setConverterTo] = useState('');
   const [convertedAmount, setConvertedAmount] = useState(null);
+  const dropdownRef = useRef(null);
 
-  // Get currencies not yet enabled
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Get currencies not yet enabled, filtered by search
   const availableCurrencies = currencies.filter(
-    (c) => !companyCurrencies.find((cc) => cc.currency.id === c.id)
+    (c) =>
+      !companyCurrencies.find((cc) => cc.currency.id === c.id) &&
+      (c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.code.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleAddCurrency = async () => {
-    if (!selectedCurrency) return;
-
-    const result = await addCurrency(selectedCurrency);
+  const handleAddCurrency = async (currencyId) => {
+    const result = await addCurrency(currencyId);
     if (result.success) {
-      showSuccess('Currency added successfully');
-      setSelectedCurrency('');
+      showSuccess('Currency added');
+      setSearchTerm('');
+      setShowDropdown(false);
     } else {
       showError(result.error || 'Failed to add currency');
     }
@@ -48,7 +63,7 @@ const CurrenciesTab = () => {
   const handleRemoveCurrency = async (associationId) => {
     const result = await removeCurrency(associationId);
     if (result.success) {
-      showSuccess('Currency removed successfully');
+      showSuccess('Currency removed');
     } else {
       showError(result.error || 'Failed to remove currency');
     }
@@ -82,171 +97,116 @@ const CurrenciesTab = () => {
     <div className="space-y-8">
       {/* Enabled Currencies */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
           Enabled Currencies
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Currencies that can be used in services, invoices, and quotes. The default currency is used for reports and totals.
+          Currencies for services, invoices, and quotes. Click a currency to set it as default.
         </p>
 
-        <div className="space-y-2">
-          {companyCurrencies.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No currencies enabled yet. Add your first currency below.
-            </div>
-          ) : (
-            companyCurrencies.map((cc) => (
-              <div
-                key={cc.id}
-                className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-              >
-                <div className="flex items-center gap-4 flex-1">
-                  <input
-                    type="radio"
-                    checked={cc.is_default}
-                    onChange={() => handleSetDefault(cc.id)}
-                    className="h-4 w-4 text-zenible-primary focus:ring-zenible-primary"
-                  />
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">
-                      {cc.currency.code} - {cc.currency.name}
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Symbol: {cc.currency.symbol}
-                      {cc.is_default && (
-                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-                          Default
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleRemoveCurrency(cc.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                  title="Remove currency"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Add Currency */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Add Currency
-        </h3>
-        <div className="flex gap-3">
-          <select
-            value={selectedCurrency}
-            onChange={(e) => setSelectedCurrency(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="">Select a currency to add...</option>
-            {availableCurrencies.map((currency) => (
-              <option key={currency.id} value={currency.id}>
-                {currency.code} - {currency.name} ({currency.symbol})
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={handleAddCurrency}
-            disabled={!selectedCurrency}
-            className="px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Add Currency
-          </button>
-        </div>
-      </div>
-
-      {/* Currency Converter Preview */}
-      {companyCurrencies.length >= 2 && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Currency Converter (Preview)
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Test currency conversion between your enabled currencies
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Amount
-              </label>
-              <input
-                type="number"
-                value={converterAmount}
-                onChange={(e) => setConverterAmount(parseFloat(e.target.value))}
-                min="0"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                From
-              </label>
-              <select
-                value={converterFrom}
-                onChange={(e) => setConverterFrom(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">Select...</option>
-                {companyCurrencies.map((cc) => (
-                  <option key={cc.id} value={cc.currency.code}>
-                    {cc.currency.code}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                To
-              </label>
-              <select
-                value={converterTo}
-                onChange={(e) => setConverterTo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">Select...</option>
-                {companyCurrencies.map((cc) => (
-                  <option key={cc.id} value={cc.currency.code}>
-                    {cc.currency.code}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-end">
+        {/* Currencies as Pills */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {companyCurrencies.map((cc) => (
+            <div
+              key={cc.id}
+              className={`
+                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
+                transition-colors cursor-pointer group
+                ${cc.is_default
+                  ? 'bg-zenible-primary text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }
+              `}
+              onClick={() => !cc.is_default && handleSetDefault(cc.id)}
+              title={cc.is_default ? 'Default currency' : 'Click to set as default'}
+            >
+              {cc.is_default && <CheckIcon className="h-3.5 w-3.5" />}
+              <span className="font-semibold">{cc.currency.code}</span>
+              <span className="opacity-60">{cc.currency.symbol}</span>
               <button
-                onClick={handleConvert}
-                disabled={!converterAmount || !converterFrom || !converterTo || convertLoading}
-                className="w-full px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveCurrency(cc.id);
+                }}
+                className={`
+                  ml-1 p-0.5 rounded-full transition-colors
+                  ${cc.is_default
+                    ? 'hover:bg-white/20'
+                    : 'hover:bg-gray-300 dark:hover:bg-gray-500'
+                  }
+                `}
+                title="Remove currency"
               >
-                {convertLoading ? 'Converting...' : 'Convert'}
+                <XMarkIcon className="h-3.5 w-3.5" />
               </button>
             </div>
-          </div>
+          ))}
 
-          {convertedAmount !== null && (
-            <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-              <div className="flex items-center gap-2">
-                <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
-                <span className="text-green-800 dark:text-green-200">
-                  {converterAmount} {converterFrom} = {convertedAmount.toFixed(2)} {converterTo}
-                </span>
+          {/* Add Currency Button/Search */}
+          <div className="relative" ref={dropdownRef}>
+            {showDropdown ? (
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search currencies..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setShowDropdown(false);
+                      setSearchTerm('');
+                    }
+                  }}
+                  autoFocus
+                  className="w-48 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-full focus:ring-2 focus:ring-zenible-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+                />
+
+                {/* Dropdown */}
+                <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                  {availableCurrencies.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                      {searchTerm ? `No currencies matching "${searchTerm}"` : 'All currencies added'}
+                    </div>
+                  ) : (
+                    availableCurrencies.slice(0, 20).map((currency) => (
+                      <button
+                        key={currency.id}
+                        onClick={() => handleAddCurrency(currency.id)}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-between"
+                      >
+                        <span className="text-gray-900 dark:text-white">
+                          <span className="font-medium">{currency.code}</span>
+                          <span className="text-gray-500 ml-2">{currency.name}</span>
+                        </span>
+                        <span className="text-gray-400">{currency.symbol}</span>
+                      </button>
+                    ))
+                  )}
+                  {availableCurrencies.length > 20 && (
+                    <div className="px-4 py-2 text-xs text-gray-400 text-center border-t border-gray-200 dark:border-gray-700">
+                      Type to filter more currencies...
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <button
+                onClick={() => setShowDropdown(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-zenible-primary hover:text-zenible-primary transition-colors"
+              >
+                <PlusIcon className="h-4 w-4" />
+                <span>Add Currency</span>
+              </button>
+            )}
+          </div>
         </div>
-      )}
+
+        {companyCurrencies.length === 0 && (
+          <div className="text-center py-6 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+            No currencies enabled yet. Click "Add Currency" to get started.
+          </div>
+        )}
+      </div>
     </div>
   );
 };

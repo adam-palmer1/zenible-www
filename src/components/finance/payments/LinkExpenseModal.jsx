@@ -118,8 +118,8 @@ const LinkExpenseModal = ({ isOpen, onClose, payment }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg dark:bg-purple-900/30">
-              <Link2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <div className="p-2 bg-[#f5f0ff] rounded-lg dark:bg-purple-900/30">
+              <Link2 className="h-5 w-5 text-zenible-primary dark:text-purple-400" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -148,7 +148,7 @@ const LinkExpenseModal = ({ isOpen, onClose, payment }) => {
               placeholder="Search expenses..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zenible-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
         </div>
@@ -157,7 +157,7 @@ const LinkExpenseModal = ({ isOpen, onClose, payment }) => {
         <div className="flex-1 overflow-auto p-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+              <Loader2 className="h-8 w-8 animate-spin text-zenible-primary" />
             </div>
           ) : filteredExpenses.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
@@ -178,8 +178,8 @@ const LinkExpenseModal = ({ isOpen, onClose, payment }) => {
                     key={expense.id}
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                       selectedExpenseId === expense.id
-                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-400'
-                        : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
+                        ? 'border-zenible-primary bg-[#f5f0ff] dark:bg-purple-900/20 dark:border-purple-400'
+                        : 'border-gray-200 hover:border-zenible-primary/50 dark:border-gray-700 dark:hover:border-gray-600'
                     }`}
                   >
                     <input
@@ -188,7 +188,7 @@ const LinkExpenseModal = ({ isOpen, onClose, payment }) => {
                       value={expense.id}
                       checked={selectedExpenseId === expense.id}
                       onChange={() => setSelectedExpenseId(expense.id)}
-                      className="h-4 w-4 text-purple-600 focus:ring-purple-500"
+                      className="h-4 w-4 text-zenible-primary focus:ring-zenible-primary border-gray-300"
                     />
                     <Receipt className="h-5 w-5 text-gray-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -243,7 +243,7 @@ const LinkExpenseModal = ({ isOpen, onClose, payment }) => {
           <button
             onClick={handleLink}
             disabled={linking || !selectedExpenseId}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:bg-opacity-90 transition-colors disabled:opacity-50"
           >
             {linking ? (
               <>

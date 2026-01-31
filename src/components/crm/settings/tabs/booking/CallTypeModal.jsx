@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import callTypesAPI from '../../../../../services/api/crm/callTypes';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 
@@ -58,8 +58,27 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
   });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showDurationPicker, setShowDurationPicker] = useState(false);
+  const [showCancellationPicker, setShowCancellationPicker] = useState(false);
+  const [showConferencingPicker, setShowConferencingPicker] = useState(false);
 
   const { showSuccess, showError } = useNotification();
+
+  // Helper functions to get display labels
+  const getDurationLabel = (value) => {
+    const opt = DURATION_OPTIONS.find((o) => o.value === value);
+    return opt ? opt.label : `${value} minutes`;
+  };
+
+  const getCancellationLabel = (value) => {
+    const opt = CANCELLATION_NOTICE_OPTIONS.find((o) => o.value === value);
+    return opt ? opt.label : `${value} hours`;
+  };
+
+  const getConferencingLabel = (value) => {
+    const opt = CONFERENCING_OPTIONS.find((o) => o.value === value);
+    return opt ? opt.label : value;
+  };
 
   // Reset form when modal opens
   useEffect(() => {
@@ -263,17 +282,14 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Duration
               </label>
-              <select
-                value={formData.duration_minutes}
-                onChange={(e) => handleChange('duration_minutes', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              <button
+                type="button"
+                onClick={() => setShowDurationPicker(true)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-left flex items-center justify-between hover:border-zenible-primary transition-colors"
               >
-                {DURATION_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                <span className="text-gray-900 dark:text-white">{getDurationLabel(formData.duration_minutes)}</span>
+                <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+              </button>
             </div>
 
             {/* Max Display Slots Per Day */}
@@ -300,17 +316,14 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Cancellation Policy
               </label>
-              <select
-                value={formData.min_cancellation_notice_hours}
-                onChange={(e) => handleChange('min_cancellation_notice_hours', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              <button
+                type="button"
+                onClick={() => setShowCancellationPicker(true)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-left flex items-center justify-between hover:border-zenible-primary transition-colors"
               >
-                {CANCELLATION_NOTICE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                <span className="text-gray-900 dark:text-white">{getCancellationLabel(formData.min_cancellation_notice_hours)}</span>
+                <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+              </button>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {formData.min_cancellation_notice_hours === 0
                   ? 'Guests can cancel or reschedule at any time before the appointment'
@@ -344,17 +357,14 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Video Conferencing
               </label>
-              <select
-                value={formData.conferencing_type}
-                onChange={(e) => handleChange('conferencing_type', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              <button
+                type="button"
+                onClick={() => setShowConferencingPicker(true)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-left flex items-center justify-between hover:border-zenible-primary transition-colors"
               >
-                {CONFERENCING_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                <span className="text-gray-900 dark:text-white">{getConferencingLabel(formData.conferencing_type)}</span>
+                <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+              </button>
             </div>
 
             {/* Custom Meeting Link */}
@@ -412,6 +422,126 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }) => {
             </div>
           </form>
         </div>
+
+        {/* Duration Picker Modal */}
+        {showDurationPicker && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => setShowDurationPicker(false)}
+            />
+            <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-xs">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Select Duration
+                </h3>
+                <button
+                  onClick={() => setShowDurationPicker(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="p-2 max-h-64 overflow-y-auto">
+                {DURATION_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      handleChange('duration_minutes', opt.value);
+                      setShowDurationPicker(false);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-lg ${
+                      formData.duration_minutes === opt.value ? 'bg-zenible-primary/10 text-zenible-primary' : 'text-gray-900 dark:text-white'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancellation Notice Picker Modal */}
+        {showCancellationPicker && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => setShowCancellationPicker(false)}
+            />
+            <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-xs">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Cancellation Notice
+                </h3>
+                <button
+                  onClick={() => setShowCancellationPicker(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="p-2 max-h-64 overflow-y-auto">
+                {CANCELLATION_NOTICE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      handleChange('min_cancellation_notice_hours', opt.value);
+                      setShowCancellationPicker(false);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-lg ${
+                      formData.min_cancellation_notice_hours === opt.value ? 'bg-zenible-primary/10 text-zenible-primary' : 'text-gray-900 dark:text-white'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Conferencing Picker Modal */}
+        {showConferencingPicker && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => setShowConferencingPicker(false)}
+            />
+            <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Video Conferencing
+                </h3>
+                <button
+                  onClick={() => setShowConferencingPicker(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="p-2 max-h-64 overflow-y-auto">
+                {CONFERENCING_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      handleChange('conferencing_type', opt.value);
+                      setShowConferencingPicker(false);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-lg ${
+                      formData.conferencing_type === opt.value ? 'bg-zenible-primary/10 text-zenible-primary' : 'text-gray-900 dark:text-white'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

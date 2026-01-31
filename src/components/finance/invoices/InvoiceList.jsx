@@ -1052,19 +1052,19 @@ const InvoiceList = () => {
 
         {/* Bulk Action Bar */}
         {selectedIds.length > 0 && (
-          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-blue-900">
+          <div className="mb-4 bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 flex items-center justify-between">
+            <span className="text-sm font-medium text-purple-900">
               {selectedIds.length} invoice{selectedIds.length !== 1 ? 's' : ''} selected
             </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleBulkDownload}
                 disabled={isDownloading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-700 hover:bg-purple-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isDownloading ? (
                   <>
-                    <div className="h-4 w-4 border-2 border-blue-700 border-t-transparent rounded-full animate-spin" />
+                    <div className="h-4 w-4 border-2 border-purple-700 border-t-transparent rounded-full animate-spin" />
                     Downloading...
                   </>
                 ) : (

@@ -1,26 +1,49 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import bookingSettingsAPI from '../../../../../services/api/crm/bookingSettings';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 
-// Common timezones list
+// Comprehensive timezones list
 const TIMEZONES = [
-  { value: 'UTC', label: 'UTC' },
-  { value: 'Europe/London', label: 'London (GMT/BST)' },
-  { value: 'Europe/Paris', label: 'Paris (CET/CEST)' },
-  { value: 'Europe/Berlin', label: 'Berlin (CET/CEST)' },
-  { value: 'America/New_York', label: 'New York (EST/EDT)' },
-  { value: 'America/Chicago', label: 'Chicago (CST/CDT)' },
-  { value: 'America/Denver', label: 'Denver (MST/MDT)' },
-  { value: 'America/Los_Angeles', label: 'Los Angeles (PST/PDT)' },
-  { value: 'America/Toronto', label: 'Toronto (EST/EDT)' },
-  { value: 'America/Vancouver', label: 'Vancouver (PST/PDT)' },
-  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-  { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
-  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
-  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
-  { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
-  { value: 'Australia/Melbourne', label: 'Melbourne (AEST/AEDT)' },
-  { value: 'Pacific/Auckland', label: 'Auckland (NZST/NZDT)' },
+  { value: 'UTC', label: 'UTC', region: 'Universal' },
+  { value: 'America/New_York', label: 'New York', region: 'US' },
+  { value: 'America/Chicago', label: 'Chicago', region: 'US' },
+  { value: 'America/Denver', label: 'Denver', region: 'US' },
+  { value: 'America/Los_Angeles', label: 'Los Angeles', region: 'US' },
+  { value: 'America/Anchorage', label: 'Anchorage', region: 'US' },
+  { value: 'Pacific/Honolulu', label: 'Honolulu', region: 'US' },
+  { value: 'America/Toronto', label: 'Toronto', region: 'Canada' },
+  { value: 'America/Vancouver', label: 'Vancouver', region: 'Canada' },
+  { value: 'America/Mexico_City', label: 'Mexico City', region: 'Mexico' },
+  { value: 'Europe/London', label: 'London', region: 'UK' },
+  { value: 'Europe/Paris', label: 'Paris', region: 'France' },
+  { value: 'Europe/Berlin', label: 'Berlin', region: 'Germany' },
+  { value: 'Europe/Madrid', label: 'Madrid', region: 'Spain' },
+  { value: 'Europe/Rome', label: 'Rome', region: 'Italy' },
+  { value: 'Europe/Amsterdam', label: 'Amsterdam', region: 'Netherlands' },
+  { value: 'Europe/Stockholm', label: 'Stockholm', region: 'Sweden' },
+  { value: 'Europe/Dublin', label: 'Dublin', region: 'Ireland' },
+  { value: 'Europe/Lisbon', label: 'Lisbon', region: 'Portugal' },
+  { value: 'Europe/Warsaw', label: 'Warsaw', region: 'Poland' },
+  { value: 'Europe/Moscow', label: 'Moscow', region: 'Russia' },
+  { value: 'Europe/Istanbul', label: 'Istanbul', region: 'Turkey' },
+  { value: 'Asia/Tokyo', label: 'Tokyo', region: 'Japan' },
+  { value: 'Asia/Seoul', label: 'Seoul', region: 'South Korea' },
+  { value: 'Asia/Shanghai', label: 'Shanghai', region: 'China' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong', region: 'China' },
+  { value: 'Asia/Singapore', label: 'Singapore', region: 'Singapore' },
+  { value: 'Asia/Dubai', label: 'Dubai', region: 'UAE' },
+  { value: 'Asia/Kolkata', label: 'Mumbai', region: 'India' },
+  { value: 'Asia/Bangkok', label: 'Bangkok', region: 'Thailand' },
+  { value: 'Asia/Jakarta', label: 'Jakarta', region: 'Indonesia' },
+  { value: 'Australia/Sydney', label: 'Sydney', region: 'Australia' },
+  { value: 'Australia/Melbourne', label: 'Melbourne', region: 'Australia' },
+  { value: 'Australia/Perth', label: 'Perth', region: 'Australia' },
+  { value: 'Pacific/Auckland', label: 'Auckland', region: 'New Zealand' },
+  { value: 'America/Sao_Paulo', label: 'São Paulo', region: 'Brazil' },
+  { value: 'America/Buenos_Aires', label: 'Buenos Aires', region: 'Argentina' },
+  { value: 'Africa/Cairo', label: 'Cairo', region: 'Egypt' },
+  { value: 'Africa/Johannesburg', label: 'Johannesburg', region: 'South Africa' },
 ];
 
 const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }) => {
@@ -36,8 +59,25 @@ const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }) => {
   });
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showTimezoneModal, setShowTimezoneModal] = useState(false);
+  const [timezoneSearch, setTimezoneSearch] = useState('');
 
   const { showSuccess, showError } = useNotification();
+
+  // Get display label for selected timezone
+  const getTimezoneLabel = (value) => {
+    const tz = TIMEZONES.find((t) => t.value === value);
+    if (tz) return `${tz.label}, ${tz.region}`;
+    return value;
+  };
+
+  // Filter timezones based on search
+  const filteredTimezones = TIMEZONES.filter(
+    (tz) =>
+      tz.label.toLowerCase().includes(timezoneSearch.toLowerCase()) ||
+      tz.region.toLowerCase().includes(timezoneSearch.toLowerCase()) ||
+      tz.value.toLowerCase().includes(timezoneSearch.toLowerCase())
+  );
 
   // Track changes
   useEffect(() => {
@@ -116,17 +156,14 @@ const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }) => {
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Timezone
         </h3>
-        <select
-          value={formData.timezone}
-          onChange={(e) => handleChange('timezone', e.target.value)}
-          className="w-full md:w-1/2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+        <button
+          type="button"
+          onClick={() => setShowTimezoneModal(true)}
+          className="w-full md:w-96 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-left flex items-center justify-between hover:border-zenible-primary transition-colors"
         >
-          {TIMEZONES.map((tz) => (
-            <option key={tz.value} value={tz.value}>
-              {tz.label}
-            </option>
-          ))}
-        </select>
+          <span className="text-gray-900 dark:text-white">{getTimezoneLabel(formData.timezone)}</span>
+          <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+        </button>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
           All availability times will be displayed in this timezone
         </p>
@@ -274,6 +311,71 @@ const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }) => {
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
+
+      {/* Timezone Modal */}
+      {showTimezoneModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+              onClick={() => {
+                setShowTimezoneModal(false);
+                setTimezoneSearch('');
+              }}
+            />
+            <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Select Timezone
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowTimezoneModal(false);
+                    setTimezoneSearch('');
+                  }}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="p-4">
+                <input
+                  type="text"
+                  placeholder="Search timezones..."
+                  value={timezoneSearch}
+                  onChange={(e) => setTimezoneSearch(e.target.value)}
+                  autoFocus
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-transparent dark:bg-gray-700 dark:text-white mb-3"
+                />
+                <div className="max-h-64 overflow-y-auto">
+                  {filteredTimezones.length === 0 ? (
+                    <div className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400 text-center">
+                      No timezones matching "{timezoneSearch}"
+                    </div>
+                  ) : (
+                    filteredTimezones.map((tz) => (
+                      <button
+                        key={tz.value}
+                        onClick={() => {
+                          handleChange('timezone', tz.value);
+                          setShowTimezoneModal(false);
+                          setTimezoneSearch('');
+                        }}
+                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-between rounded-lg ${
+                          formData.timezone === tz.value ? 'bg-zenible-primary/10 text-zenible-primary' : ''
+                        }`}
+                      >
+                        <span className="text-gray-900 dark:text-white">{tz.label}</span>
+                        <span className="text-gray-400 text-xs">{tz.region}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

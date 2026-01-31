@@ -494,6 +494,30 @@ const InvoiceDetail = () => {
                     {invoice.contact.business_name}
                   </p>
                 )}
+                {/* Client Address - Line 1 */}
+                {invoice.contact?.address_line_1 && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {invoice.contact.address_line_1}
+                  </p>
+                )}
+                {/* Client Address - Line 2 (if present) */}
+                {invoice.contact?.address_line_2 && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {invoice.contact.address_line_2}
+                  </p>
+                )}
+                {/* Client Address - City, State */}
+                {(invoice.contact?.city || invoice.contact?.state) && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {[invoice.contact?.city, invoice.contact?.state].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                {/* Client Address - Postal Code, Country */}
+                {(invoice.contact?.postcode || invoice.contact?.country?.name) && (
+                  <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
+                    {[invoice.contact?.postcode?.trim(), invoice.contact?.country?.name].filter(Boolean).join(', ')}
+                  </p>
+                )}
                 {invoice.contact?.email && (
                   <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
                     {invoice.contact.email}
@@ -506,10 +530,10 @@ const InvoiceDetail = () => {
           {/* Divider */}
           <div className="h-px bg-[#e5e5e5] dark:bg-gray-700 w-full" />
 
-          {/* Lists of Items */}
+          {/* Invoice Details */}
           <div className="flex flex-col gap-3">
             <p className="text-[16px] font-bold leading-[24px] text-[#09090b] dark:text-white">
-              Lists of Items
+              Invoice Details
             </p>
 
             {/* Table */}
@@ -556,11 +580,11 @@ const InvoiceDetail = () => {
                         <tr key={index} className="border-b border-[#e5e5e5] dark:border-gray-700 bg-white dark:bg-gray-800">
                           <td className="px-3 py-4">
                             <div>
-                              <span className="text-[14px] font-normal leading-[22px] text-[#09090b] dark:text-white">
+                              <span className="text-[14px] font-normal leading-[22px] text-[#09090b] dark:text-white whitespace-pre-line">
                                 {item.description || item.name}
                               </span>
                               {item.subtext && (
-                                <p className="text-[12px] text-[#71717a] mt-0.5">{item.subtext}</p>
+                                <p className="text-[12px] text-[#71717a] mt-0.5 whitespace-pre-line">{item.subtext}</p>
                               )}
                             </div>
                           </td>
@@ -829,12 +853,24 @@ const InvoiceDetail = () => {
 
           {/* Notes Section */}
           {invoice.notes && (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
               <p className="text-[14px] font-medium leading-[22px] text-[#09090b] dark:text-white">
                 Notes
               </p>
               <p className="text-[14px] font-normal leading-[22px] text-[#71717a] whitespace-pre-wrap">
                 {invoice.notes}
+              </p>
+            </div>
+          )}
+
+          {/* Payment Instructions Section */}
+          {invoice.payment_instructions && (
+            <div className="flex flex-col gap-2">
+              <p className="text-[14px] font-medium leading-[22px] text-[#09090b] dark:text-white">
+                Payment Instructions
+              </p>
+              <p className="text-[14px] font-normal leading-[22px] text-[#71717a] whitespace-pre-wrap">
+                {invoice.payment_instructions}
               </p>
             </div>
           )}

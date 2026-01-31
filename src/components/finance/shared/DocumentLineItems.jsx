@@ -36,7 +36,7 @@ const DocumentLineItems = ({
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-900">Lists of Items</h3>
+        <h3 className="text-sm font-semibold text-gray-900">Line Items</h3>
         <button
           onClick={onAddItem}
           className="inline-flex items-center gap-1 text-sm font-medium text-purple-600 hover:text-purple-700"

@@ -8,26 +8,12 @@ import UpdatePaymentModal from './UpdatePaymentModal';
 import PaymentHistory from './PaymentHistory';
 import CustomizationQuestions from './CustomizationQuestions';
 import ProfileTab from './crm/settings/tabs/ProfileTab';
-import CurrenciesTab from './crm/settings/tabs/CurrenciesTab';
-import CountriesTab from './crm/settings/tabs/CountriesTab';
+import LocalizationTab from './crm/settings/tabs/LocalizationTab';
 import IntegrationsTab from './crm/settings/tabs/IntegrationsTab';
 import AdvancedTab from './crm/settings/tabs/AdvancedTab';
 import BookingTab from './crm/settings/tabs/BookingTab';
 import EmailTemplates from './settings/EmailTemplates';
-import NewSidebar from './sidebar/NewSidebar';
-import {
-  UserIcon,
-  CreditCardIcon,
-  BanknotesIcon,
-  PaintBrushIcon,
-  BuildingOfficeIcon,
-  CurrencyDollarIcon,
-  GlobeAltIcon,
-  PuzzlePieceIcon,
-  Cog6ToothIcon,
-  EnvelopeIcon,
-  CalendarDaysIcon,
-} from '@heroicons/react/24/outline';
+import SettingsSidebar from './SettingsSidebar';
 
 export default function UserSettings() {
   const { user, updateUser } = useAuth();
@@ -67,25 +53,6 @@ export default function UserSettings() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-
-  const accountSettings = [
-    { id: 'profile', label: 'Profile', icon: UserIcon },
-    { id: 'subscription', label: 'Subscription', icon: CreditCardIcon },
-    { id: 'payments', label: 'Payments', icon: BanknotesIcon },
-    { id: 'customization', label: 'Customization', icon: PaintBrushIcon },
-  ];
-
-  const companySettings = [
-    { id: 'company', label: 'Company Profile', icon: BuildingOfficeIcon },
-    { id: 'currencies', label: 'Currencies', icon: CurrencyDollarIcon },
-    { id: 'countries', label: 'Countries', icon: GlobeAltIcon },
-    { id: 'email-templates', label: 'Email Templates', icon: EnvelopeIcon },
-    { id: 'booking', label: 'Booking', icon: CalendarDaysIcon },
-    { id: 'integrations', label: 'Integrations', icon: PuzzlePieceIcon },
-    { id: 'advanced', label: 'Advanced', icon: Cog6ToothIcon },
-  ];
-
-  const allTabs = [...accountSettings, ...companySettings];
 
   useEffect(() => {
     fetchUserProfile();
@@ -354,12 +321,15 @@ export default function UserSettings() {
 
   if (loading) {
     return (
-      <div className={`flex-1 flex items-center justify-center ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary mx-auto"></div>
-          <p className={`mt-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-            Loading settings...
-          </p>
+      <div className={`flex h-screen ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
+        <SettingsSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <div className="flex-1 flex items-center justify-center ml-[280px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary mx-auto"></div>
+            <p className={`mt-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+              Loading settings...
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -367,73 +337,11 @@ export default function UserSettings() {
 
   return (
     <div className={`flex h-screen ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
-      {/* Sidebar */}
-      <NewSidebar />
+      {/* Settings Sidebar */}
+      <SettingsSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
-        {/* Settings Header & Tabs */}
-        <div className={`border-b ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
-          <div className="px-6 pt-6 pb-0">
-            <h1 className={`text-2xl font-semibold mb-6 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-              Settings
-            </h1>
-
-            {/* Tabs Navigation */}
-            <div className="space-y-2 -mb-px">
-              {/* Account Settings Row */}
-              <div className="flex gap-1">
-                {accountSettings.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                        isActive
-                          ? 'border-zenible-primary text-zenible-primary'
-                          : darkMode
-                          ? 'border-transparent text-zenible-dark-text-secondary hover:text-zenible-dark-text hover:border-zenible-dark-border'
-                          : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Company Settings Row */}
-              <div className="flex gap-1">
-                {companySettings.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                        isActive
-                          ? 'border-zenible-primary text-zenible-primary'
-                          : darkMode
-                          ? 'border-transparent text-zenible-dark-text-secondary hover:text-zenible-dark-text hover:border-zenible-dark-border'
-                          : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <div className="flex-1 flex flex-col ml-[280px]">
         {/* Content Area */}
         <div className="flex-1 overflow-auto bg-gray-50 dark:bg-zenible-dark-bg">
           <div className="max-w-4xl mx-auto p-6">
@@ -900,9 +808,10 @@ export default function UserSettings() {
             </div>
           </div>
         )}
+
+            {/* Payment History */}
+            <PaymentHistory />
           </div>
-        ) : activeTab === 'payments' ? (
-          <PaymentHistory />
         ) : activeTab === 'customization' ? (
           <div className="space-y-6">
             <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
@@ -930,20 +839,72 @@ export default function UserSettings() {
             </div>
           </div>
         ) : activeTab === 'company' ? (
-          <ProfileTab />
-        ) : activeTab === 'currencies' ? (
-          <CurrenciesTab />
-        ) : activeTab === 'countries' ? (
-          <CountriesTab />
+          <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+            <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+              <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                Company Profile
+              </h2>
+            </div>
+            <div className="p-6">
+              <ProfileTab />
+            </div>
+          </div>
+        ) : activeTab === 'localization' ? (
+          <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+            <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+              <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                Localization
+              </h2>
+            </div>
+            <div className="p-6">
+              <LocalizationTab />
+            </div>
+          </div>
         ) : activeTab === 'email-templates' ? (
-          <EmailTemplates />
+          <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+            <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+              <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                Email Templates
+              </h2>
+            </div>
+            <div className="p-6">
+              <EmailTemplates />
+            </div>
+          </div>
         ) : activeTab === 'booking' ? (
-          <BookingTab />
+          <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+            <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+              <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                Booking
+              </h2>
+            </div>
+            <div className="p-6">
+              <BookingTab />
+            </div>
+          </div>
         ) : activeTab === 'integrations' ? (
-          <IntegrationsTab />
-            ) : activeTab === 'advanced' ? (
+          <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+            <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+              <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                Integrations
+              </h2>
+            </div>
+            <div className="p-6">
+              <IntegrationsTab />
+            </div>
+          </div>
+        ) : activeTab === 'advanced' ? (
+          <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+            <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+              <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                Advanced
+              </h2>
+            </div>
+            <div className="p-6">
               <AdvancedTab />
-            ) : null}
+            </div>
+          </div>
+        ) : null}
           </div>
         </div>
 

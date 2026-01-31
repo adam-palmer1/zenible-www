@@ -288,99 +288,94 @@ const StatusFormModal = ({ status, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 z-[70]" onClick={onClose} />
-
-        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 z-[71]">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-            {isEdit ? 'Edit Status' : 'Create Custom Status'}
-          </h3>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isGlobal && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Internal Name {!isEdit && '*'}
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="demo_scheduled"
-                  maxLength={20}
-                  disabled={isEdit}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
-                />
-                {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
-                {!isEdit && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Lowercase letters and underscores only
-                  </p>
-                )}
-              </div>
+    <Modal
+      open={true}
+      onOpenChange={(open) => !open && onClose()}
+      title={isEdit ? 'Edit Status' : 'Create Custom Status'}
+      size="md"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {!isGlobal && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Internal Name {!isEdit && '*'}
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="demo_scheduled"
+              maxLength={20}
+              disabled={isEdit}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+            />
+            {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
+            {!isEdit && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Lowercase letters and underscores only
+              </p>
             )}
+          </div>
+        )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Display Name *
-              </label>
-              <input
-                type="text"
-                value={formData.friendly_name}
-                onChange={(e) => setFormData({ ...formData, friendly_name: e.target.value })}
-                placeholder="Demo Scheduled"
-                maxLength={255}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-              {errors.friendly_name && (
-                <p className="text-xs text-red-600 mt-1">{errors.friendly_name}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Color *
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  placeholder="#DBEAFE"
-                  maxLength={7}
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              {errors.color && <p className="text-xs text-red-600 mt-1">{errors.color}</p>}
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:bg-opacity-90 transition-colors disabled:opacity-50"
-              >
-                {submitting ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save' : 'Create')}
-              </button>
-            </div>
-          </form>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Display Name *
+          </label>
+          <input
+            type="text"
+            value={formData.friendly_name}
+            onChange={(e) => setFormData({ ...formData, friendly_name: e.target.value })}
+            placeholder="Demo Scheduled"
+            maxLength={255}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          />
+          {errors.friendly_name && (
+            <p className="text-xs text-red-600 mt-1">{errors.friendly_name}</p>
+          )}
         </div>
-      </div>
-    </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Color *
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={formData.color}
+              onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+              className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
+            />
+            <input
+              type="text"
+              value={formData.color}
+              onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+              placeholder="#DBEAFE"
+              maxLength={7}
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </div>
+          {errors.color && <p className="text-xs text-red-600 mt-1">{errors.color}</p>}
+        </div>
+
+        <div className="flex items-center justify-end gap-3 pt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-4 py-2 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:bg-opacity-90 transition-colors disabled:opacity-50"
+          >
+            {submitting ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save' : 'Create')}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 };
 

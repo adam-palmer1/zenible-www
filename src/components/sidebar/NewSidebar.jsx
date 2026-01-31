@@ -17,7 +17,6 @@ import ContentOutreachIcon from './icons/ContentOutreachIcon';
 import BoardroomIcon from './icons/BoardroomIcon';
 import ProposalWizardIcon from './icons/ProposalWizardIcon';
 import ProposalsIcon from './icons/ProposalsIcon';
-import SettingsIcon from './icons/SettingsIcon';
 
 export default function NewSidebar() {
   const location = useLocation();
@@ -180,12 +179,6 @@ export default function NewSidebar() {
           isActive: location.pathname === '/freelancer-academy/the-library'
         }
       ]
-    },
-    {
-      icon: SettingsIcon,
-      label: 'Settings',
-      path: '/settings',
-      isActive: location.pathname.startsWith('/settings')
     }
   ];
 

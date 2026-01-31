@@ -68,6 +68,7 @@ const ClientsView = ({
   visibleColumns,
   availableColumns,
   visibleFieldNames = [],
+  fieldsLoading = false,
 }) => {
   const { showError, showSuccess } = useNotification();
   const { defaultCurrency, numberFormat } = useCompanyCurrencies();
@@ -106,9 +107,11 @@ const ClientsView = ({
       baseFilters.preserve_currencies = true;
     }
 
-    // Only add fields parameter if we have visible field names
-    // This ensures the initial request works before fields metadata loads
-    if (visibleFieldNames.length > 0) {
+    // Only add fields parameter if:
+    // 1. We have visible field names from user preferences
+    // 2. Fields metadata has loaded (so we know which fields are valid)
+    // This prevents sending invalid field names before the API tells us what's valid
+    if (visibleFieldNames.length > 0 && !fieldsLoading) {
       const allFields = new Set([...essentialFields, ...visibleFieldNames]);
       return {
         ...baseFilters,
@@ -118,7 +121,7 @@ const ClientsView = ({
 
     // Without fields parameter, API returns all fields (default behavior)
     return baseFilters;
-  }, [visibleFieldNames, showPreferredCurrency]);
+  }, [visibleFieldNames, showPreferredCurrency, fieldsLoading]);
 
   // Fetch clients (contacts with is_client: true) with only the requested fields
   const { contacts: clients, loading: clientsLoading, updateContact, deleteContact } = useContacts(

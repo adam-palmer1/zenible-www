@@ -417,10 +417,10 @@ const QuoteDetail = () => {
           {/* Divider */}
           <div className="h-px bg-[#e5e5e5] dark:bg-gray-700 w-full" />
 
-          {/* Lists of Items */}
+          {/* Quote Details */}
           <div className="flex flex-col gap-3">
             <p className="text-[16px] font-bold leading-[24px] text-[#09090b] dark:text-white">
-              Lists of Items
+              Quote Details
             </p>
 
             {/* Table */}

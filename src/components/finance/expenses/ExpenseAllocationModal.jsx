@@ -117,7 +117,7 @@ const SearchableDropdown = ({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={`w-full flex items-center justify-between gap-2 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-left transition-all ${
-          isOpen ? 'ring-2 ring-indigo-500 border-transparent' : ''
+          isOpen ? 'ring-2 ring-purple-500 border-transparent' : ''
         } ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-gray-400 dark:hover:border-gray-500'}`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -142,7 +142,7 @@ const SearchableDropdown = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search..."
-                  className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -162,7 +162,7 @@ const SearchableDropdown = ({
                   onClick={() => handleSelect(option.value)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition-colors ${
                     option.value === value
-                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                      ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -173,7 +173,7 @@ const SearchableDropdown = ({
                   )}
                   <span className="flex-1 truncate">{option.label}</span>
                   {option.value === value && (
-                    <Check className="h-4 w-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                    <Check className="h-4 w-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
                   )}
                 </button>
               ))
@@ -350,7 +350,7 @@ const ExpenseAllocationModal = ({ open, onOpenChange, expense, onUpdate }) => {
     >
       <div className="-m-6 mb-0">
         {/* Header - No icon */}
-        <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20">
+        <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/30">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -403,7 +403,7 @@ const ExpenseAllocationModal = ({ open, onOpenChange, expense, onUpdate }) => {
                         ? 'bg-red-500'
                         : totalPercentage === 100
                         ? 'bg-green-500'
-                        : 'bg-indigo-500'
+                        : 'bg-purple-500'
                     }`}
                     style={{ width: `${Math.min(totalPercentage, 100)}%` }}
                   />
@@ -494,7 +494,7 @@ const ExpenseAllocationModal = ({ open, onOpenChange, expense, onUpdate }) => {
                                   onChange={(e) =>
                                     handleUpdateAllocation(index, { percentage: e.target.value })
                                   }
-                                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 />
                                 <span className="text-sm text-gray-500 dark:text-gray-400">%</span>
                               </div>
@@ -522,7 +522,7 @@ const ExpenseAllocationModal = ({ open, onOpenChange, expense, onUpdate }) => {
               <button
                 onClick={handleAddAllocation}
                 disabled={totalPercentage >= 100}
-                className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-gray-500 dark:text-gray-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 dark:hover:border-purple-500 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex items-center justify-center gap-2">
                   <Plus className="h-5 w-5" />
@@ -545,7 +545,7 @@ const ExpenseAllocationModal = ({ open, onOpenChange, expense, onUpdate }) => {
             <button
               onClick={handleSave}
               disabled={saving || isOverAllocated}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               {saving ? (
                 <>

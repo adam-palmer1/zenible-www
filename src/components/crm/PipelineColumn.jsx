@@ -1,22 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Droppable } from '@hello-pangea/dnd';
+import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { PlusIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import PipelineContactCard, { PipelineContactCardContent } from './PipelineContactCard';
+import PipelineContactCard from './PipelineContactCard';
 import ServiceValueDisplay from './ServiceValueDisplay';
 import statusesAPI from '../../services/api/crm/statuses';
 import { getStatusColor } from '../../utils/crm/statusUtils';
 import { useNotification } from '../../contexts/NotificationContext';
 
 /**
- * Pipeline column component for Kanban view
- * Simplified - no longer needs action props (uses ContactActionsContext)
+ * Pipeline column component for Kanban view using @dnd-kit
+ * Supports both column reordering and contact card drops
  */
-const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, totalVisibleColumns = 1, globalStatuses = [], customStatuses = [], onStatusUpdate, dragSourceColumnId = null, draggingContact = null, columnDragHandleProps = null, isColumnDragging = false }) => {
+const PipelineColumn = ({
+  status,
+  contacts = [],
+  onAddContact,
+  onContactClick,
+  totalVisibleColumns = 1,
+  globalStatuses = [],
+  customStatuses = [],
+  onStatusUpdate,
+  isDraggingContact = false,
+}) => {
   const { showSuccess, showError } = useNotification();
 
   // Determine if this is a global or custom status
-  const isGlobal = globalStatuses.some(s => s.id === status.id);
+  const isGlobal = globalStatuses.some((s) => s.id === status.id);
 
   // Use status friendly_name directly
   const displayName = status.friendly_name || status.name;
@@ -25,19 +36,59 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
   const [editedTitle, setEditedTitle] = useState(displayName);
   const inputRef = useRef(null);
 
+  // Sortable hook for column reordering
+  const {
+    attributes: columnAttributes,
+    listeners: columnListeners,
+    setNodeRef: setColumnNodeRef,
+    transform: columnTransform,
+    transition: columnTransition,
+    isDragging: isColumnDragging,
+  } = useSortable({
+    id: `column-${status.id}`,
+    data: {
+      type: 'column',
+      status,
+    },
+  });
+
+  // Droppable hook for the contact drop zone
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: `droppable-${status.id}`,
+    data: {
+      type: 'column',
+      statusId: status.id,
+    },
+  });
+
+  const columnStyle = {
+    transform: CSS.Transform.toString(columnTransform),
+    transition: columnTransition,
+  };
+
   // Calculate total value in this stage (separated by status: pending, confirmed, active)
-  const columnTotals = contacts.reduce((acc, contact) => {
-    // Pending totals
-    acc.pendingOneOff += parseFloat(contact.pending_one_off_total || 0);
-    acc.pendingRecurring += parseFloat(contact.pending_recurring_total || 0);
-    // Confirmed totals (ready to start)
-    acc.confirmedOneOff += parseFloat(contact.confirmed_one_off_total || 0);
-    acc.confirmedRecurring += parseFloat(contact.confirmed_recurring_total || 0);
-    // Active totals (being worked on)
-    acc.activeOneOff += parseFloat(contact.active_one_off_total || 0);
-    acc.activeRecurring += parseFloat(contact.active_recurring_total || 0);
-    return acc;
-  }, { pendingOneOff: 0, pendingRecurring: 0, confirmedOneOff: 0, confirmedRecurring: 0, activeOneOff: 0, activeRecurring: 0 });
+  const columnTotals = contacts.reduce(
+    (acc, contact) => {
+      // Pending totals
+      acc.pendingOneOff += parseFloat(contact.pending_one_off_total || 0);
+      acc.pendingRecurring += parseFloat(contact.pending_recurring_total || 0);
+      // Confirmed totals (ready to start)
+      acc.confirmedOneOff += parseFloat(contact.confirmed_one_off_total || 0);
+      acc.confirmedRecurring += parseFloat(contact.confirmed_recurring_total || 0);
+      // Active totals (being worked on)
+      acc.activeOneOff += parseFloat(contact.active_one_off_total || 0);
+      acc.activeRecurring += parseFloat(contact.active_recurring_total || 0);
+      return acc;
+    },
+    {
+      pendingOneOff: 0,
+      pendingRecurring: 0,
+      confirmedOneOff: 0,
+      confirmedRecurring: 0,
+      activeOneOff: 0,
+      activeRecurring: 0,
+    }
+  );
 
   // Check if we have any values to display
   const hasPendingValues = columnTotals.pendingOneOff > 0 || columnTotals.pendingRecurring > 0;
@@ -118,14 +169,32 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
     }
   };
 
+  // Contact IDs for sortable context
+  const contactIds = contacts.map((c) => c.id);
+
   return (
-    <div className="w-full transition-all duration-200">
-      {/* Column Header - Figma Design (drag handle for column reordering) */}
+    <div
+      ref={(node) => {
+        // Combine column sortable ref and droppable ref
+        setColumnNodeRef(node);
+        setDroppableRef(node);
+      }}
+      style={columnStyle}
+      className={`flex-1 min-w-[252px] sm:min-w-[288px] lg:min-w-0 h-full min-h-[400px] rounded-xl transition-all duration-200 ${
+        isColumnDragging ? 'opacity-50 z-50' : ''
+      } ${
+        isOver && isDraggingContact
+          ? 'bg-zenible-primary/10 ring-3 ring-zenible-primary shadow-lg shadow-zenible-primary/20'
+          : ''
+      }`}
+    >
+      {/* Column Header - drag handle for column reordering */}
       <div
-        {...columnDragHandleProps}
-        className={`p-3 w-full rounded-2xl bg-white border transition-all duration-200 ${
+        {...columnAttributes}
+        {...columnListeners}
+        className={`p-3 w-full rounded-2xl bg-white border ${
           isColumnDragging ? 'border-zenible-primary shadow-md' : 'border-[#f4f4f5]'
-        } ${columnDragHandleProps ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        } cursor-grab active:cursor-grabbing`}
       >
         <div className="flex items-center gap-0.5 w-full">
           {isEditingTitle ? (
@@ -138,9 +207,12 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
                 onKeyDown={handleKeyDown}
                 className="flex-1 min-w-0 px-2 py-1 text-sm font-semibold border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-zenible-primary"
                 maxLength={50}
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
               />
               <button
                 onClick={handleSaveEdit}
+                onPointerDown={(e) => e.stopPropagation()}
                 className="flex-shrink-0 p-1 text-zenible-primary hover:bg-purple-50 rounded transition-colors"
                 title="Save"
               >
@@ -148,6 +220,7 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
               </button>
               <button
                 onClick={handleCancelEdit}
+                onPointerDown={(e) => e.stopPropagation()}
                 className="flex-shrink-0 p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                 title="Cancel"
               >
@@ -175,14 +248,13 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
                 {/* Edit button - shows on hover */}
                 <button
                   onClick={handleStartEdit}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className="absolute -right-6 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-zenible-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all"
                   title="Rename column"
                 >
                   <PencilIcon className="h-4 w-4" />
                 </button>
               </div>
-
-              {/* Info Icon - removed as it's not functional in current implementation */}
 
               {/* Spacer */}
               <div className="flex-1 min-w-0" />
@@ -191,6 +263,7 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
               <div className="flex items-center gap-0">
                 <button
                   onClick={onAddContact}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className="p-[7px] text-gray-900 hover:bg-gray-100 rounded-[10px] transition-colors"
                   title="Add contact"
                 >
@@ -207,11 +280,13 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
           <div className="border-t border-[#e5e5e5] my-2" />
           {/* Amount - show pending, confirmed and active separately */}
           <div className="flex flex-col gap-1 text-xs sm:text-sm min-h-[20px]">
-            {(hasPendingValues || hasConfirmedValues || hasActiveValues) ? (
+            {hasPendingValues || hasConfirmedValues || hasActiveValues ? (
               <>
                 {hasPendingValues && (
                   <div className="flex items-center gap-1.5 overflow-hidden">
-                    <span className="text-amber-600 dark:text-amber-400 text-xs shrink-0">Pending:</span>
+                    <span className="text-amber-600 dark:text-amber-400 text-xs shrink-0">
+                      Pending:
+                    </span>
                     <div className="truncate min-w-0">
                       <ServiceValueDisplay
                         oneOffTotal={columnTotals.pendingOneOff}
@@ -237,7 +312,9 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
                 )}
                 {hasActiveValues && (
                   <div className="flex items-center gap-1.5 overflow-hidden">
-                    <span className="text-gray-500 dark:text-gray-400 text-xs shrink-0">Active:</span>
+                    <span className="text-gray-500 dark:text-gray-400 text-xs shrink-0">
+                      Active:
+                    </span>
                     <div className="truncate min-w-0">
                       <ServiceValueDisplay
                         oneOffTotal={columnTotals.activeOneOff}
@@ -256,70 +333,36 @@ const PipelineColumn = ({ status, contacts = [], onAddContact, onContactClick, t
       </div>
 
       {/* Contacts List */}
-      <Droppable
-        droppableId={status.id}
-        type="CONTACT"
-        renderClone={(provided, snapshot, rubric) => {
-          // Find the contact being dragged - check local contacts first, then fallback to draggingContact
-          const contact = contacts.find(c => c.id === rubric.draggableId) || draggingContact;
-          if (!contact) return null;
-
-          // Render in a portal at document.body to fix scroll position tracking
-          return createPortal(
-            <div
-              ref={provided.innerRef}
-              {...provided.draggableProps}
-              {...provided.dragHandleProps}
-              className="w-[252px]"
-              style={provided.draggableProps.style}
-            >
-              <PipelineContactCardContent
-                contact={contact}
-                isDragging={true}
-              />
-            </div>,
-            document.body
-          );
-        }}
-      >
-        {(provided, snapshot) => (
+      <div className="mt-3 sm:mt-4 min-h-[200px] flex-1">
+        <SortableContext items={contactIds} strategy={verticalListSortingStrategy}>
+          {/* Use auto-fill grid when fewer columns - allows up to 10% compression (280px -> 252px) */}
           <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={`mt-3 sm:mt-4 min-h-[100px] sm:min-h-32 transition-all duration-200 rounded-lg ${
-              snapshot.isDraggingOver ? 'bg-brand-purple/10 shadow-[0_0_0_3px_rgba(138,43,225,0.3)]' : ''
-            }`}
-          >
-            {/* Use auto-fill grid when fewer columns - allows up to 10% compression (280px -> 252px) */}
-            <div
-              className="w-full gap-2 sm:gap-3"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: totalVisibleColumns <= 4
+            className="w-full gap-2 sm:gap-3"
+            style={{
+              display: 'grid',
+              gridTemplateColumns:
+                totalVisibleColumns <= 4
                   ? 'repeat(auto-fill, minmax(min(252px, 100%), 1fr))'
-                  : '1fr'
-              }}
-            >
-              {contacts.length === 0 ? (
-                <div className="text-center py-8 text-design-text-muted col-span-full">
-                  <p className="text-sm">No contacts</p>
-                </div>
-              ) : (
-                contacts.map((contact, index) => (
-                  <PipelineContactCard
-                    key={contact.id}
-                    contact={contact}
-                    status={status}
-                    index={index}
-                    onClick={() => onContactClick(contact)}
-                  />
-                ))
-              )}
-            </div>
-            {provided.placeholder}
+                  : '1fr',
+            }}
+          >
+            {contacts.length === 0 ? (
+              <div className="text-center py-8 text-design-text-muted col-span-full">
+                <p className="text-sm">No contacts</p>
+              </div>
+            ) : (
+              contacts.map((contact) => (
+                <PipelineContactCard
+                  key={contact.id}
+                  contact={contact}
+                  status={status}
+                  onClick={() => onContactClick(contact)}
+                />
+              ))
+            )}
           </div>
-        )}
-      </Droppable>
+        </SortableContext>
+      </div>
     </div>
   );
 };

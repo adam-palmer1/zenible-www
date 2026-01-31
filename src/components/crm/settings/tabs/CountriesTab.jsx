@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import React, { useState, useRef, useEffect } from 'react';
+import { XMarkIcon, PlusIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useCountries } from '../../../../hooks/crm/useCountries';
 import { useNotification } from '../../../../contexts/NotificationContext';
 
@@ -18,8 +18,21 @@ const CountriesTab = () => {
   } = useCountries();
 
   const { showSuccess, showError } = useNotification();
-  const [selectedCountry, setSelectedCountry] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Filter available countries by search
   const filteredCountries = countries.filter(
@@ -29,14 +42,12 @@ const CountriesTab = () => {
         c.code.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleAddCountry = async () => {
-    if (!selectedCountry) return;
-
-    const result = await addCountry(selectedCountry);
+  const handleAddCountry = async (countryId) => {
+    const result = await addCountry(countryId);
     if (result.success) {
-      showSuccess('Country added successfully');
-      setSelectedCountry('');
+      showSuccess('Country added');
       setSearchTerm('');
+      setShowDropdown(false);
     } else {
       showError(result.error || 'Failed to add country');
     }
@@ -45,7 +56,7 @@ const CountriesTab = () => {
   const handleRemoveCountry = async (associationId) => {
     const result = await removeCountry(associationId);
     if (result.success) {
-      showSuccess('Country removed successfully');
+      showSuccess('Country removed');
     } else {
       showError(result.error || 'Failed to remove country');
     }
@@ -69,110 +80,117 @@ const CountriesTab = () => {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Enabled Countries */}
+    <div className="space-y-6">
+      {/* Header with Add Country */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Enabled Countries
-        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Enabled Countries
+          </h3>
+        </div>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Countries that can be selected in contacts, addresses, and other fields. The default country is pre-selected in forms.
+          Countries available in contacts, addresses, and forms. Click a country to set it as default.
         </p>
 
-        <div className="space-y-2">
-          {companyCountries.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No countries enabled yet. Add your first country below.
-            </div>
-          ) : (
-            companyCountries.map((cc) => (
-              <div
-                key={cc.id}
-                className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+        {/* Enabled Countries as Pills */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {companyCountries.map((cc) => (
+            <div
+              key={cc.id}
+              className={`
+                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium
+                transition-colors cursor-pointer group
+                ${cc.is_default
+                  ? 'bg-zenible-primary text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }
+              `}
+              onClick={() => !cc.is_default && handleSetDefault(cc.id)}
+              title={cc.is_default ? 'Default country' : 'Click to set as default'}
+            >
+              {cc.is_default && <CheckIcon className="h-3.5 w-3.5" />}
+              <span>{cc.country.name}</span>
+              <span className="text-xs opacity-60">({cc.country.code})</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveCountry(cc.id);
+                }}
+                className={`
+                  ml-1 p-0.5 rounded-full transition-colors
+                  ${cc.is_default
+                    ? 'hover:bg-white/20'
+                    : 'hover:bg-gray-300 dark:hover:bg-gray-500'
+                  }
+                `}
+                title="Remove country"
               >
-                <div className="flex items-center gap-4 flex-1">
-                  <input
-                    type="radio"
-                    checked={cc.is_default}
-                    onChange={() => handleSetDefault(cc.id)}
-                    className="h-4 w-4 text-zenible-primary focus:ring-zenible-primary"
-                  />
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">
-                      {cc.country.name}
+                <XMarkIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+
+          {/* Add Country Button/Search */}
+          <div className="relative" ref={dropdownRef}>
+            {showDropdown ? (
+              <div className="relative">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder="Search countries..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setShowDropdown(false);
+                      setSearchTerm('');
+                    }
+                  }}
+                  autoFocus
+                  className="w-48 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-full focus:ring-2 focus:ring-zenible-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+                />
+
+                {/* Dropdown */}
+                <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                  {filteredCountries.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                      {searchTerm ? `No countries matching "${searchTerm}"` : 'All countries added'}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Code: {cc.country.code}
-                      {cc.country.telephone_code && ` • Phone: ${cc.country.telephone_code}`}
-                      {cc.is_default && (
-                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-                          Default
-                        </span>
-                      )}
+                  ) : (
+                    filteredCountries.slice(0, 20).map((country) => (
+                      <button
+                        key={country.id}
+                        onClick={() => handleAddCountry(country.id)}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-between"
+                      >
+                        <span className="text-gray-900 dark:text-white">{country.name}</span>
+                        <span className="text-gray-400 text-xs">{country.code}</span>
+                      </button>
+                    ))
+                  )}
+                  {filteredCountries.length > 20 && (
+                    <div className="px-4 py-2 text-xs text-gray-400 text-center border-t border-gray-200 dark:border-gray-700">
+                      Type to filter more countries...
                     </div>
-                  </div>
+                  )}
                 </div>
-
-                <button
-                  onClick={() => handleRemoveCountry(cc.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                  title="Remove country"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
               </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Add Country */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Add Country
-        </h3>
-
-        {/* Search/Filter */}
-        <div className="mb-3">
-          <input
-            type="text"
-            placeholder="Search countries..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          />
+            ) : (
+              <button
+                onClick={() => setShowDropdown(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-zenible-primary hover:text-zenible-primary transition-colors"
+              >
+                <PlusIcon className="h-4 w-4" />
+                <span>Add Country</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex gap-3">
-          <select
-            value={selectedCountry}
-            onChange={(e) => setSelectedCountry(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white max-h-48"
-            size={filteredCountries.length > 0 ? Math.min(filteredCountries.length, 8) : 1}
-          >
-            <option value="">Select a country to add...</option>
-            {filteredCountries.slice(0, 50).map((country) => (
-              <option key={country.id} value={country.id}>
-                {country.name} ({country.code})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mt-3">
-          <button
-            onClick={handleAddCountry}
-            disabled={!selectedCountry}
-            className="px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Add Country
-          </button>
-        </div>
-
-        {searchTerm && filteredCountries.length === 0 && (
-          <p className="mt-3 text-sm text-gray-500">
-            No countries found matching "{searchTerm}"
-          </p>
+        {companyCountries.length === 0 && (
+          <div className="text-center py-6 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+            No countries enabled yet. Click "Add Country" to get started.
+          </div>
         )}
       </div>
     </div>
