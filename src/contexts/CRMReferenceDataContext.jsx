@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { useAuth } from './AuthContext';
 import countriesAPI from '../services/api/crm/countries';
 import industriesAPI from '../services/api/crm/industries';
 import employeeRangesAPI from '../services/api/crm/employeeRanges';
@@ -9,6 +10,8 @@ import appointmentEnumsAPI from '../services/api/crm/appointmentEnums';
 const CRMReferenceDataContext = createContext();
 
 export const CRMReferenceDataProvider = ({ children }) => {
+  const { isAuthenticated, loading: authLoading } = useAuth();
+
   // State for all reference data
   const [state, setState] = useState({
     // Static reference data
@@ -86,8 +89,15 @@ export const CRMReferenceDataProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    fetchAllReferenceData();
-  }, [fetchAllReferenceData]);
+    // Only fetch reference data when user is authenticated
+    // This prevents unnecessary API calls on public pages (e.g., public invoice view)
+    if (!authLoading && isAuthenticated) {
+      fetchAllReferenceData();
+    } else if (!authLoading && !isAuthenticated) {
+      // Not authenticated - set loading to false so components don't wait forever
+      setState(prev => ({ ...prev, loading: false }));
+    }
+  }, [fetchAllReferenceData, authLoading, isAuthenticated]);
 
   // Helper methods for quick lookups
   const helpers = useMemo(() => ({

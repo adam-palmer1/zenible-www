@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Loader2, Repeat, Plus, AlertTriangle, Clock, Eye, ChevronDown, ChevronUp, Monitor, Smartphone } from 'lucide-react';
 import { useInvoices } from '../../../contexts/InvoiceContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { INVOICE_STATUS, INVOICE_STATUS_COLORS, INVOICE_STATUS_LABELS } from '../../../constants/finance';
 import { formatCurrency } from '../../../utils/currency';
 import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
@@ -24,6 +25,7 @@ const InvoiceDetail = () => {
   const navigate = useNavigate();
   const { deleteInvoice, cloneInvoice, updateInvoice, refresh } = useInvoices();
   const { showSuccess, showError } = useNotification();
+  const { getCountryById } = useCRMReferenceData();
 
   const [invoice, setInvoice] = useState(null);
   const [company, setCompany] = useState(null);
@@ -513,9 +515,12 @@ const InvoiceDetail = () => {
                   </p>
                 )}
                 {/* Client Address - Postal Code, Country */}
-                {(invoice.contact?.postcode || invoice.contact?.country?.name) && (
+                {(invoice.contact?.postcode || invoice.contact?.country?.name || invoice.contact?.country_id) && (
                   <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
-                    {[invoice.contact?.postcode?.trim(), invoice.contact?.country?.name].filter(Boolean).join(', ')}
+                    {[
+                      invoice.contact?.postcode?.trim(),
+                      invoice.contact?.country?.name || (invoice.contact?.country_id && getCountryById(invoice.contact.country_id)?.name)
+                    ].filter(Boolean).join(', ')}
                   </p>
                 )}
                 {/* Tax Number */}

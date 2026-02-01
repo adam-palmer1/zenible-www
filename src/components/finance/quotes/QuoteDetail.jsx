@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Loader2, FileText, Eye, ChevronDown, ChevronUp, Monitor, Smartphone, Bell } from 'lucide-react';
 import { useQuotes } from '../../../contexts/QuoteContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { QUOTE_STATUS, QUOTE_STATUS_COLORS } from '../../../constants/finance';
 import { formatCurrency } from '../../../utils/currency';
 import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
@@ -19,6 +20,7 @@ const QuoteDetail = () => {
   const navigate = useNavigate();
   const { deleteQuote, cloneQuote, acceptQuote, rejectQuote } = useQuotes();
   const { showSuccess, showError } = useNotification();
+  const { getCountryById } = useCRMReferenceData();
 
   const [quote, setQuote] = useState(null);
   const [company, setCompany] = useState(null);
@@ -424,9 +426,12 @@ const QuoteDetail = () => {
                   </p>
                 )}
                 {/* Client Address - Postal Code, Country */}
-                {(quote.contact?.postcode || quote.contact?.country?.name) && (
+                {(quote.contact?.postcode || quote.contact?.country?.name || quote.contact?.country_id) && (
                   <p className="text-[14px] font-normal leading-[22px] text-[#71717a]">
-                    {[quote.contact?.postcode?.trim(), quote.contact?.country?.name].filter(Boolean).join(', ')}
+                    {[
+                      quote.contact?.postcode?.trim(),
+                      quote.contact?.country?.name || (quote.contact?.country_id && getCountryById(quote.contact.country_id)?.name)
+                    ].filter(Boolean).join(', ')}
                   </p>
                 )}
                 {/* Tax Number */}
