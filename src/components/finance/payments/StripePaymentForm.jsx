@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { usePaymentIntegrations } from '../../../contexts/PaymentIntegrationsContext';
+import invoicesAPI from '../../../services/api/finance/invoices';
 
 /**
  * Stripe card element options
@@ -62,25 +63,12 @@ const StripePaymentFormInner = ({
 
     try {
       // Step 1: Create payment intent on backend
-      const paymentIntentResponse = await fetch('/api/v1/invoices/payment-intent/stripe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(isPublic && publicToken ? {} : { Authorization: `Bearer ${localStorage.getItem('access_token')}` }),
-        },
-        body: JSON.stringify({
-          invoice_id: invoiceId,
-          amount: amount,
-          currency: currency.toLowerCase(),
-          ...(isPublic && publicToken ? { token: publicToken } : {}),
-        }),
+      const { client_secret } = await invoicesAPI.createStripePaymentIntent({
+        invoiceId,
+        amount,
+        currency,
+        publicToken: isPublic ? publicToken : null,
       });
-
-      if (!paymentIntentResponse.ok) {
-        throw new Error('Failed to create payment intent');
-      }
-
-      const { client_secret } = await paymentIntentResponse.json();
 
       // Step 2: Confirm payment with Stripe
       const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(client_secret, {
@@ -100,18 +88,11 @@ const StripePaymentFormInner = ({
 
       if (paymentIntent.status === 'succeeded') {
         // Step 3: Confirm payment on backend
-        await fetch('/api/v1/invoices/confirm-payment', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(isPublic && publicToken ? {} : { Authorization: `Bearer ${localStorage.getItem('access_token')}` }),
-          },
-          body: JSON.stringify({
-            invoice_id: invoiceId,
-            payment_intent_id: paymentIntent.id,
-            payment_method: 'stripe',
-            ...(isPublic && publicToken ? { token: publicToken } : {}),
-          }),
+        await invoicesAPI.confirmPayment({
+          invoiceId,
+          paymentMethod: 'stripe',
+          paymentIntentId: paymentIntent.id,
+          publicToken: isPublic ? publicToken : null,
         });
 
         onSuccess(paymentIntent);

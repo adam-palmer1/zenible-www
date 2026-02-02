@@ -59,11 +59,13 @@ export function useContactNotes(contactId) {
 
   // Update note
   const updateNote = useCallback(async (noteId, data) => {
+    if (!contactId) return;
+
     try {
       setLoading(true);
       setError(null);
 
-      const updatedNote = await contactsAPI.updateNote(noteId, data);
+      const updatedNote = await contactsAPI.updateNote(contactId, noteId, data);
 
       // Update in local state
       setNotes((prev) =>
@@ -78,7 +80,7 @@ export function useContactNotes(contactId) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [contactId]);
 
   // Delete note
   const deleteNote = useCallback(async (noteId) => {

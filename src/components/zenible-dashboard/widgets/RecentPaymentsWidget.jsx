@@ -1,0 +1,116 @@
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { CreditCardIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { usePayments } from '../../../contexts/PaymentsContext';
+import { formatCurrency } from '../../../utils/currency';
+
+/**
+ * Recent Payments Widget for Dashboard
+ * Shows the most recent payments received
+ *
+ * Settings:
+ * - limit: Number of payments to display (default: 5)
+ */
+const RecentPaymentsWidget = ({ settings = {} }) => {
+  const navigate = useNavigate();
+  const { payments, loading, initialized, fetchPayments } = usePayments();
+  const limit = settings.limit || 5;
+
+  useEffect(() => {
+    if (!initialized) {
+      fetchPayments();
+    }
+  }, [initialized, fetchPayments]);
+
+  // Get recent payments
+  const recentPayments = payments.slice(0, limit);
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: 'bg-amber-100 text-amber-700',
+      completed: 'bg-green-100 text-green-700',
+      failed: 'bg-red-100 text-red-700',
+      refunded: 'bg-gray-100 text-gray-700',
+      partially_refunded: 'bg-orange-100 text-orange-700',
+    };
+    return colors[status] || colors.pending;
+  };
+
+  const handleViewAll = () => navigate('/finance/payments');
+  const handlePaymentClick = (id) => navigate(`/finance/payments?payment=${id}`);
+
+  if (loading && !initialized) {
+    return (
+      <div className="flex items-center justify-center h-[180px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-[180px]">
+      {recentPayments.length === 0 ? (
+        <div className="flex flex-col items-center justify-center flex-1 text-center">
+          <CreditCardIcon className="w-12 h-12 text-gray-300 mb-2" />
+          <p className="text-sm text-gray-500">No payments received yet</p>
+          <button
+            onClick={handleViewAll}
+            className="mt-2 text-xs text-[#8e51ff] hover:text-[#7b3ff0]"
+          >
+            Record a payment
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2 flex-1 overflow-y-auto">
+            {recentPayments.map((payment) => (
+              <button
+                key={payment.id}
+                onClick={() => handlePaymentClick(payment.id)}
+                className="w-full text-left p-3 rounded-lg border border-gray-100 hover:border-[#8e51ff] hover:bg-purple-50/50 transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {payment.contact?.display_name || payment.contact?.company_name || 'Unknown client'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {payment.payment_method || 'Payment'} • {formatDate(payment.date_received)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-2">
+                    <span className={`px-2 py-0.5 text-xs rounded-full capitalize ${getStatusColor(payment.status)}`}>
+                      {payment.status}
+                    </span>
+                    <span className="text-sm font-medium text-green-600">
+                      +{formatCurrency(payment.amount || 0, payment.currency || 'USD')}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <button
+              onClick={handleViewAll}
+              className="w-full text-sm text-[#8e51ff] hover:text-[#7b3ff0] font-medium flex items-center justify-center gap-1"
+            >
+              View all payments
+              <ArrowRightIcon className="w-4 h-4" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default RecentPaymentsWidget;

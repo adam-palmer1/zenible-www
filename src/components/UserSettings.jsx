@@ -12,6 +12,7 @@ import LocalizationTab from './crm/settings/tabs/LocalizationTab';
 import IntegrationsTab from './crm/settings/tabs/IntegrationsTab';
 import AdvancedTab from './crm/settings/tabs/AdvancedTab';
 import BookingTab from './crm/settings/tabs/BookingTab';
+import UsersPermissionsTab from './crm/settings/tabs/UsersPermissionsTab';
 import EmailTemplates from './settings/EmailTemplates';
 import SettingsSidebar from './SettingsSidebar';
 
@@ -891,6 +892,17 @@ export default function UserSettings() {
             </div>
             <div className="p-6">
               <IntegrationsTab />
+            </div>
+          </div>
+        ) : activeTab === 'users' ? (
+          <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+            <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+              <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                Users & Permissions
+              </h2>
+            </div>
+            <div className="p-6">
+              <UsersPermissionsTab />
             </div>
           </div>
         ) : activeTab === 'advanced' ? (

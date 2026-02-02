@@ -4,6 +4,9 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useNavigate } from 'react-router-dom';
 import NewZenibleDashboard from './zenible-dashboard/NewZenibleDashboard';
 import OnboardingModal from './OnboardingModal';
+import { InvoiceProvider } from '../contexts/InvoiceContext';
+import { ExpenseProvider } from '../contexts/ExpenseContext';
+import { PaymentsProvider } from '../contexts/PaymentsContext';
 
 export default function ProtectedDashboard() {
   const { user, loading } = useAuth();
@@ -64,12 +67,16 @@ export default function ProtectedDashboard() {
 
   // User is authenticated, show the dashboard
   return (
-    <>
-      <NewZenibleDashboard />
-      <OnboardingModal
-        isOpen={showOnboarding}
-        onClose={() => setShowOnboarding(false)}
-      />
-    </>
+    <InvoiceProvider>
+      <ExpenseProvider>
+        <PaymentsProvider>
+          <NewZenibleDashboard />
+          <OnboardingModal
+            isOpen={showOnboarding}
+            onClose={() => setShowOnboarding(false)}
+          />
+        </PaymentsProvider>
+      </ExpenseProvider>
+    </InvoiceProvider>
   );
 }

@@ -335,19 +335,9 @@ const PipelineColumn = ({
       {/* Contacts List */}
       <div className="mt-3 sm:mt-4 min-h-[200px] flex-1">
         <SortableContext items={contactIds} strategy={verticalListSortingStrategy}>
-          {/* Use auto-fill grid when fewer columns - allows up to 10% compression (280px -> 252px) */}
-          <div
-            className="w-full gap-2 sm:gap-3"
-            style={{
-              display: 'grid',
-              gridTemplateColumns:
-                totalVisibleColumns <= 4
-                  ? 'repeat(auto-fill, minmax(min(252px, 100%), 1fr))'
-                  : '1fr',
-            }}
-          >
+          <div className="w-full flex flex-col gap-2 sm:gap-3">
             {contacts.length === 0 ? (
-              <div className="text-center py-8 text-design-text-muted col-span-full">
+              <div className="text-center py-8 text-design-text-muted">
                 <p className="text-sm">No contacts</p>
               </div>
             ) : (

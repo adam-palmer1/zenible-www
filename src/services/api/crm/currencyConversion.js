@@ -75,6 +75,44 @@ class CurrencyConversionAPI {
   async clearCache() {
     return this.request('/crm/currency/cache/clear', { method: 'POST' });
   }
+
+  // Get historical exchange rate for a specific date
+  async getHistoricalRate(fromCurrency, toCurrency, date) {
+    return this.request('/crm/currency/historical/rate', {
+      method: 'POST',
+      body: JSON.stringify({
+        from_currency: fromCurrency,
+        to_currency: toCurrency,
+        date,
+      }),
+    });
+  }
+
+  // Get historical exchange rates for a date range (for charting)
+  async getHistoricalRange(fromCurrency, toCurrency, startDate, endDate) {
+    return this.request('/crm/currency/historical/range', {
+      method: 'POST',
+      body: JSON.stringify({
+        from_currency: fromCurrency,
+        to_currency: toCurrency,
+        start_date: startDate,
+        end_date: endDate,
+      }),
+    });
+  }
+
+  // Convert amount using historical rate
+  async historicalConvert(amount, fromCurrency, toCurrency, date) {
+    return this.request('/crm/currency/historical/convert', {
+      method: 'POST',
+      body: JSON.stringify({
+        amount,
+        from_currency: fromCurrency,
+        to_currency: toCurrency,
+        date,
+      }),
+    });
+  }
 }
 
 export default new CurrencyConversionAPI();

@@ -26,7 +26,8 @@
       "Bash(xargs cat:*)",
       "Bash(jq:*)",
       "WebFetch(domain:localhost)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "WebFetch(domain:api.zenible.com)"
     ],
     "deny": [],
     "ask": []

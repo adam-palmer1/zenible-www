@@ -413,6 +413,19 @@ class ExpensesAPI {
     }).toString();
     return request(`${this.baseEndpoint}?${queryString}`, { method: 'GET' });
   }
+
+  /**
+   * Get expense statistics overview
+   * @param {Object} params - Query parameters (start_date, end_date)
+   * @returns {Promise<Object>} Expense stats
+   */
+  async getStats(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString
+      ? `${this.baseEndpoint}stats/overview?${queryString}`
+      : `${this.baseEndpoint}stats/overview`;
+    return request(endpoint, { method: 'GET' });
+  }
 }
 
 const expensesAPI = new ExpensesAPI();

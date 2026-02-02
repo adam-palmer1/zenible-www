@@ -14,6 +14,7 @@ import {
   Cog6ToothIcon,
   EnvelopeIcon,
   CalendarDaysIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline';
 
 export default function SettingsSidebar({ activeTab, setActiveTab }) {
@@ -50,6 +51,7 @@ export default function SettingsSidebar({ activeTab, setActiveTab }) {
     { id: 'email-templates', label: 'Email Templates', icon: EnvelopeIcon },
     { id: 'booking', label: 'Booking', icon: CalendarDaysIcon },
     { id: 'integrations', label: 'Integrations', icon: PuzzlePieceIcon },
+    { id: 'users', label: 'Users & Permissions', icon: UsersIcon },
     { id: 'advanced', label: 'Advanced', icon: Cog6ToothIcon },
   ];
 

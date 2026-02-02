@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { usePaymentIntegrations } from '../../../contexts/PaymentIntegrationsContext';
+import invoicesAPI from '../../../services/api/finance/invoices';
 
 /**
  * PayPal Payment Form Component
@@ -32,25 +33,13 @@ const PayPalPaymentForm = ({
       setError(null);
 
       // Create order on backend
-      const response = await fetch('/api/v1/invoices/payment-order/paypal', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(isPublic && publicToken ? {} : { Authorization: `Bearer ${localStorage.getItem('access_token')}` }),
-        },
-        body: JSON.stringify({
-          invoice_id: invoiceId,
-          amount: amount,
-          currency: currency,
-          ...(isPublic && publicToken ? { token: publicToken } : {}),
-        }),
+      const { order_id } = await invoicesAPI.createPayPalOrder({
+        invoiceId,
+        amount,
+        currency,
+        publicToken: isPublic ? publicToken : null,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create PayPal order');
-      }
-
-      const { order_id } = await response.json();
       return order_id;
     } catch (err) {
       console.error('[PayPalPaymentForm] Create order error:', err);
@@ -67,27 +56,14 @@ const PayPalPaymentForm = ({
       setError(null);
 
       // Confirm payment on backend
-      const response = await fetch('/api/v1/invoices/confirm-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(isPublic && publicToken ? {} : { Authorization: `Bearer ${localStorage.getItem('access_token')}` }),
-        },
-        body: JSON.stringify({
-          invoice_id: invoiceId,
-          payment_method: 'paypal',
-          paypal_order_id: data.orderID,
-          ...(isPublic && publicToken ? { token: publicToken } : {}),
-        }),
+      const result = await invoicesAPI.confirmPayment({
+        invoiceId,
+        paymentMethod: 'paypal',
+        paypalOrderId: data.orderID,
+        publicToken: isPublic ? publicToken : null,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to confirm payment');
-      }
-
-      const result = await response.json();
       onSuccess(result);
-
       return result;
     } catch (err) {
       console.error('[PayPalPaymentForm] Payment confirmation error:', err);

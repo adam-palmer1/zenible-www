@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import invoicesAPI from '../../../services/api/finance/invoices';
 
 /**
  * Automatic Payment Consent Modal
@@ -32,23 +33,12 @@ const AutomaticPaymentConsentModal = ({
 
     try {
       // Call consent API
-      const response = await fetch('/api/v1/invoices/share/consent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token: publicToken,
-          automatic_payment_enabled: true,
-          consent_accepted: true,
-        }),
+      const result = await invoicesAPI.updatePaymentConsent({
+        publicToken,
+        automaticPaymentEnabled: true,
+        consentAccepted: true,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update payment consent');
-      }
-
-      const result = await response.json();
       onConsent(result);
       onClose();
     } catch (err) {

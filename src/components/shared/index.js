@@ -23,4 +23,3 @@ export { default as CircularScoreIndicator } from './CircularScoreIndicator';
 export { default as ImageCropperModal } from './ImageCropperModal';
 export { default as AIFeedbackSection } from './AIFeedbackSection';
 export { default as TimePickerInput } from './TimePickerInput';
-export { default as FileUploadField } from './FileUploadField';

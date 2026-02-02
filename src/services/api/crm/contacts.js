@@ -159,8 +159,8 @@ class ContactsAPI {
   }
 
   // Update contact note
-  async updateNote(noteId, noteData) {
-    return this.request(`/crm/contacts/notes/${noteId}`, {
+  async updateNote(contactId, noteId, noteData) {
+    return this.request(`/crm/contacts/${contactId}/notes/${noteId}`, {
       method: 'PATCH',
       body: JSON.stringify(noteData),
     });

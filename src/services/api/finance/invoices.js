@@ -548,6 +548,182 @@ class InvoicesAPI {
       body: JSON.stringify(options),
     });
   }
+
+  /**
+   * Get invoice statistics overview
+   * @returns {Promise<Object>} Invoice stats { total_invoices, total_value, total_paid, total_outstanding, overdue_count, overdue_value, draft_count, sent_count, paid_count }
+   */
+  async getStats() {
+    return request(`${this.baseEndpoint}/stats/overview`, {
+      method: 'GET',
+    });
+  }
+
+  // ========== Payment Intent Endpoints (Admin & Public) ==========
+
+  /**
+   * Create Stripe payment intent for an invoice
+   * Supports both authenticated and public (token-based) access
+   * @param {Object} params - Payment intent parameters
+   * @param {string} params.invoiceId - Invoice ID
+   * @param {number} params.amount - Amount to charge
+   * @param {string} params.currency - Currency code (e.g., 'usd')
+   * @param {string} [params.publicToken] - Public share token for unauthenticated access
+   * @returns {Promise<Object>} { client_secret, payment_intent_id, ... }
+   */
+  async createStripePaymentIntent({ invoiceId, amount, currency, publicToken = null }) {
+    const url = `${API_BASE_URL}/invoices/payment-intent/stripe`;
+    const token = localStorage.getItem('access_token');
+
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    // Only add auth header if not using public token
+    if (!publicToken && token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        invoice_id: invoiceId,
+        amount,
+        currency: currency.toLowerCase(),
+        ...(publicToken ? { token: publicToken } : {}),
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.detail || 'Failed to create payment intent');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Create PayPal order for an invoice
+   * Supports both authenticated and public (token-based) access
+   * @param {Object} params - Order parameters
+   * @param {string} params.invoiceId - Invoice ID
+   * @param {number} params.amount - Amount to charge
+   * @param {string} params.currency - Currency code
+   * @param {string} [params.publicToken] - Public share token for unauthenticated access
+   * @returns {Promise<Object>} { order_id, ... }
+   */
+  async createPayPalOrder({ invoiceId, amount, currency, publicToken = null }) {
+    const url = `${API_BASE_URL}/invoices/payment-order/paypal`;
+    const token = localStorage.getItem('access_token');
+
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (!publicToken && token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        invoice_id: invoiceId,
+        amount,
+        currency,
+        ...(publicToken ? { token: publicToken } : {}),
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.detail || 'Failed to create PayPal order');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Confirm payment for an invoice (works with Stripe and PayPal)
+   * Supports both authenticated and public (token-based) access
+   * @param {Object} params - Confirmation parameters
+   * @param {string} params.invoiceId - Invoice ID
+   * @param {string} params.paymentMethod - Payment method ('stripe' or 'paypal')
+   * @param {string} [params.paymentIntentId] - Stripe payment intent ID (for Stripe)
+   * @param {string} [params.paypalOrderId] - PayPal order ID (for PayPal)
+   * @param {string} [params.publicToken] - Public share token for unauthenticated access
+   * @returns {Promise<Object>} Confirmation result
+   */
+  async confirmPayment({ invoiceId, paymentMethod, paymentIntentId, paypalOrderId, publicToken = null }) {
+    const url = `${API_BASE_URL}/invoices/confirm-payment`;
+    const token = localStorage.getItem('access_token');
+
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (!publicToken && token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const body = {
+      invoice_id: invoiceId,
+      payment_method: paymentMethod,
+      ...(publicToken ? { token: publicToken } : {}),
+    };
+
+    if (paymentIntentId) {
+      body.payment_intent_id = paymentIntentId;
+    }
+    if (paypalOrderId) {
+      body.paypal_order_id = paypalOrderId;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.detail || 'Failed to confirm payment');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Update automatic payment consent for a shared invoice
+   * @param {Object} params - Consent parameters
+   * @param {string} params.publicToken - Public share token
+   * @param {boolean} params.automaticPaymentEnabled - Whether to enable automatic payments
+   * @param {boolean} params.consentAccepted - Whether user accepted terms
+   * @returns {Promise<Object>} Updated invoice/consent result
+   */
+  async updatePaymentConsent({ publicToken, automaticPaymentEnabled, consentAccepted }) {
+    const url = `${API_BASE_URL}/invoices/share/consent`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        token: publicToken,
+        automatic_payment_enabled: automaticPaymentEnabled,
+        consent_accepted: consentAccepted,
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.detail || 'Failed to update payment consent');
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance
