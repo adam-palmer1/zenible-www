@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useNavigate } from 'react-router-dom';
 import NewZenibleDashboard from './zenible-dashboard/NewZenibleDashboard';
-import OnboardingModal from './OnboardingModal';
+import FirstSignInModal from './FirstSignInModal';
 import { InvoiceProvider } from '../contexts/InvoiceContext';
 import { ExpenseProvider } from '../contexts/ExpenseContext';
 import { PaymentsProvider } from '../contexts/PaymentsContext';
 
 export default function ProtectedDashboard() {
   const { user, loading } = useAuth();
-  const { getPreference, loading: prefsLoading } = usePreferences();
+  const { preferences, loading: prefsLoading } = usePreferences();
   const navigate = useNavigate();
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showFirstSignIn, setShowFirstSignIn] = useState(false);
+  const hasCheckedOnboarding = useRef(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -22,29 +23,27 @@ export default function ProtectedDashboard() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    // Check if onboarding should be shown
-    if (!loading && !prefsLoading && user) {
-      const onboardingStatus = getPreference('onboarding_status');
-      const reminderDate = getPreference('onboarding_reminder_date');
+    // Check if first sign-in modal should be shown - only once when loading completes
+    if (!loading && !prefsLoading && user && !hasCheckedOnboarding.current) {
+      hasCheckedOnboarding.current = true;
 
-      if (!onboardingStatus || onboardingStatus === null) {
-        // Never seen onboarding before
-        setShowOnboarding(true);
+      const onboardingStatus = preferences?.onboarding_status;
+      const reminderDate = preferences?.onboarding_reminder_date;
+
+      // Only hide modal for explicit 'complete' or 'ignored' status
+      if (onboardingStatus === 'complete' || onboardingStatus === 'ignored') {
+        setShowFirstSignIn(false);
       } else if (onboardingStatus === 'deferred' && reminderDate) {
         // Check if it's time to show the reminder
         const now = new Date();
         const reminder = new Date(reminderDate);
-        if (now >= reminder) {
-          setShowOnboarding(true);
-        } else {
-          setShowOnboarding(false);
-        }
+        setShowFirstSignIn(now >= reminder);
       } else {
-        // If status is 'complete' or 'ignored', don't show modal
-        setShowOnboarding(false);
+        // For null, undefined, or any other value - show the modal
+        setShowFirstSignIn(true);
       }
     }
-  }, [user, loading, prefsLoading, getPreference]);
+  }, [user, loading, prefsLoading, preferences]);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -71,9 +70,9 @@ export default function ProtectedDashboard() {
       <ExpenseProvider>
         <PaymentsProvider>
           <NewZenibleDashboard />
-          <OnboardingModal
-            isOpen={showOnboarding}
-            onClose={() => setShowOnboarding(false)}
+          <FirstSignInModal
+            isOpen={showFirstSignIn}
+            onClose={() => setShowFirstSignIn(false)}
           />
         </PaymentsProvider>
       </ExpenseProvider>

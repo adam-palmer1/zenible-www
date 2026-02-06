@@ -1,6 +1,74 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { Search, ChevronDown, Check, SortAsc, Filter, CreditCard, Loader2 } from 'lucide-react';
 import adminAPI from '../../services/adminAPI';
+
+const STATUS_FILTER_OPTIONS = [
+  { id: '', label: 'All Statuses' },
+  { id: 'ACTIVE', label: 'Active' },
+  { id: 'cancelled', label: 'Cancelled' },
+  { id: 'past_due', label: 'Past Due' },
+  { id: 'trialing', label: 'Trialing' },
+];
+
+const SORT_BY_OPTIONS = [
+  { id: 'created_at', label: 'Created Date' },
+  { id: 'current_period_start', label: 'Period Start' },
+  { id: 'current_period_end', label: 'Period End' },
+  { id: 'status', label: 'Status' },
+  { id: 'updated_at', label: 'Updated Date' },
+];
+
+const SORT_DIR_OPTIONS = [
+  { id: 'desc', label: 'Descending' },
+  { id: 'asc', label: 'Ascending' },
+];
+
+/**
+ * Generic Filter Dropdown - Positioned relative to trigger button
+ */
+const FilterDropdown = ({ isOpen, onClose, options, selectedValue, onSelect, title }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const handleClickOutside = () => onClose();
+    document.addEventListener('keydown', handleEscape);
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {title && (
+        <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
+          {title}
+        </div>
+      )}
+      {options.map((option) => (
+        <button
+          key={option.id}
+          onClick={() => { onSelect(option.id); onClose(); }}
+          className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between transition-colors ${
+            option.id === selectedValue ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-gray-300'
+          }`}
+        >
+          <span>{option.label}</span>
+          {option.id === selectedValue && <Check className="h-4 w-4 text-purple-600" />}
+        </button>
+      ))}
+    </div>
+  );
+};
 
 export default function SubscriptionManagement() {
   const { darkMode } = useOutletContext();
@@ -15,9 +83,29 @@ export default function SubscriptionManagement() {
   const [selectedSubscription, setSelectedSubscription] = useState(null);
   const [cancelling, setCancelling] = useState(false);
 
+  // Search and filter state
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [planFilter, setPlanFilter] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortDir, setSortDir] = useState('desc');
+
+  // Filter dropdown state
+  const [showStatusFilterDropdown, setShowStatusFilterDropdown] = useState(false);
+  const [showPlanFilterDropdown, setShowPlanFilterDropdown] = useState(false);
+  const [showSortByDropdown, setShowSortByDropdown] = useState(false);
+  const [showSortDirDropdown, setShowSortDirDropdown] = useState(false);
+
+  // Plans for filter
+  const [plans, setPlans] = useState([]);
+
   useEffect(() => {
     fetchSubscriptions();
-  }, [page]);
+  }, [page, statusFilter, planFilter, sortBy, sortDir]);
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
 
   // Handle escape key press to close modal
   useEffect(() => {
@@ -35,8 +123,18 @@ export default function SubscriptionManagement() {
 
   const fetchSubscriptions = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await adminAPI.getSubscriptions({ page, per_page: perPage });
+      const params = {
+        page,
+        per_page: perPage,
+        ...(search && { search }),
+        ...(statusFilter && { status: statusFilter }),
+        ...(planFilter && { plan_id: planFilter }),
+        sort_by: sortBy,
+        sort_dir: sortDir,
+      };
+      const response = await adminAPI.getSubscriptions(params);
       setSubscriptions(response.subscriptions || []);
       setTotalPages(response.pages || 1);
       setTotalSubscriptions(response.total || 0);
@@ -45,6 +143,29 @@ export default function SubscriptionManagement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchPlans = async () => {
+    try {
+      const response = await adminAPI.getPlans({ is_active: true });
+      setPlans(response.plans || response.items || []);
+    } catch (err) {
+      console.error('Error fetching plans:', err);
+    }
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setPage(1);
+    fetchSubscriptions();
+  };
+
+  const getPlanFilterOptions = () => {
+    const options = [{ id: '', label: 'All Plans' }];
+    plans.forEach(plan => {
+      options.push({ id: plan.id, label: plan.name });
+    });
+    return options;
   };
 
   const openCancelModal = (subscription) => {
@@ -91,11 +212,146 @@ export default function SubscriptionManagement() {
         </p>
       </div>
 
+      {/* Filters */}
       <div className="p-6">
+        <div className={`p-4 rounded-xl border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+          <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-3">
+            {/* Search Input */}
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by email or name..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'} focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                />
+              </div>
+            </div>
+
+            {/* Status Filter */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowStatusFilterDropdown(!showStatusFilterDropdown);
+                  setShowPlanFilterDropdown(false);
+                  setShowSortByDropdown(false);
+                  setShowSortDirDropdown(false);
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'} hover:border-purple-400 transition-colors ${statusFilter ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : ''}`}
+              >
+                <Filter className="h-4 w-4 text-gray-500" />
+                <span className="text-sm">{STATUS_FILTER_OPTIONS.find(o => o.id === statusFilter)?.label || 'All Statuses'}</span>
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </button>
+              <FilterDropdown
+                isOpen={showStatusFilterDropdown}
+                onClose={() => setShowStatusFilterDropdown(false)}
+                options={STATUS_FILTER_OPTIONS}
+                selectedValue={statusFilter}
+                onSelect={setStatusFilter}
+                title="Status"
+              />
+            </div>
+
+            {/* Plan Filter */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPlanFilterDropdown(!showPlanFilterDropdown);
+                  setShowStatusFilterDropdown(false);
+                  setShowSortByDropdown(false);
+                  setShowSortDirDropdown(false);
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'} hover:border-purple-400 transition-colors ${planFilter ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : ''}`}
+              >
+                <CreditCard className="h-4 w-4 text-gray-500" />
+                <span className="text-sm">{getPlanFilterOptions().find(o => o.id === planFilter)?.label || 'All Plans'}</span>
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </button>
+              <FilterDropdown
+                isOpen={showPlanFilterDropdown}
+                onClose={() => setShowPlanFilterDropdown(false)}
+                options={getPlanFilterOptions()}
+                selectedValue={planFilter}
+                onSelect={setPlanFilter}
+                title="Plan"
+              />
+            </div>
+
+            {/* Sort By */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSortByDropdown(!showSortByDropdown);
+                  setShowStatusFilterDropdown(false);
+                  setShowPlanFilterDropdown(false);
+                  setShowSortDirDropdown(false);
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'} hover:border-purple-400 transition-colors`}
+              >
+                <SortAsc className="h-4 w-4 text-gray-500" />
+                <span className="text-sm">{SORT_BY_OPTIONS.find(o => o.id === sortBy)?.label || 'Sort'}</span>
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </button>
+              <FilterDropdown
+                isOpen={showSortByDropdown}
+                onClose={() => setShowSortByDropdown(false)}
+                options={SORT_BY_OPTIONS}
+                selectedValue={sortBy}
+                onSelect={setSortBy}
+                title="Sort By"
+              />
+            </div>
+
+            {/* Sort Direction */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSortDirDropdown(!showSortDirDropdown);
+                  setShowStatusFilterDropdown(false);
+                  setShowPlanFilterDropdown(false);
+                  setShowSortByDropdown(false);
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'} hover:border-purple-400 transition-colors`}
+              >
+                <span className="text-sm">{SORT_DIR_OPTIONS.find(o => o.id === sortDir)?.label || 'Desc'}</span>
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </button>
+              <FilterDropdown
+                isOpen={showSortDirDropdown}
+                onClose={() => setShowSortDirDropdown(false)}
+                options={SORT_DIR_OPTIONS}
+                selectedValue={sortDir}
+                onSelect={setSortDir}
+                title="Direction"
+              />
+            </div>
+
+            {/* Search Button */}
+            <button type="submit" className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+              <Search className="h-4 w-4" />
+              Search
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* Subscriptions Table */}
+      <div className="px-6 pb-6">
         <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
+              <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
             </div>
           ) : error ? (
             <div className="text-red-500 text-center py-12">Error: {error}</div>

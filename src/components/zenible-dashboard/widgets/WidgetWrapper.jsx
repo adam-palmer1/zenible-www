@@ -1,6 +1,4 @@
-import React, { Suspense, lazy } from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import React, { Suspense, lazy, useState } from 'react';
 import { EllipsisVerticalIcon, EyeSlashIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import Dropdown from '../../ui/dropdown/Dropdown';
 import { WIDGET_REGISTRY, getDefaultWidgetSettings } from './WidgetRegistry';
@@ -32,37 +30,24 @@ const WidgetSkeleton = () => (
 );
 
 /**
- * WidgetWrapper - Sortable wrapper component for dashboard widgets
+ * WidgetWrapper - Container component for dashboard widgets
  *
  * Features:
- * - Drag handle via useSortable
+ * - Drag handle for react-grid-layout (via .widget-drag-handle class)
  * - 3-dot action menu with Hide and Settings options
  * - Lazy loading of widget content
  * - Consistent styling across all widgets
+ * - Fills entire grid cell height
  */
 const WidgetWrapper = ({
   widgetId,
   onHide,
   onOpenSettings,
-  isDragOverlay = false,
+  isDragging = false,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const { getPreference } = usePreferences();
   const config = WIDGET_REGISTRY[widgetId];
-
-  // Get sortable props
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: widgetId, disabled: isDragOverlay });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
 
   // Get widget-specific settings from preferences
   const widgetSettings = getPreference(
@@ -78,45 +63,36 @@ const WidgetWrapper = ({
     return null;
   }
 
-  // Determine width class for full-width widgets
-  const widthClass = config.fullWidth ? 'md:col-span-2 lg:col-span-3' : '';
-
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`
-        relative group
-        ${widthClass}
-        ${isDragging ? 'opacity-50 z-50' : ''}
-        ${isDragOverlay ? 'shadow-xl rotate-2' : ''}
-      `}
-    >
+    <div className="h-full w-full">
       {/* Card container */}
-      <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden h-full flex flex-col">
+      <div
+        className={`group bg-white border border-neutral-200 rounded-xl overflow-hidden h-full flex flex-col shadow-sm hover:shadow-md transition-all ${
+          isDragging ? 'shadow-lg ring-2 ring-[#8e51ff] ring-opacity-50' : ''
+        }`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         {/* Header with drag handle and action menu */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="flex items-center justify-between p-4 pb-2 cursor-grab active:cursor-grabbing"
-        >
-          <h3 className="text-base font-medium text-zinc-700">
+        <div className="flex items-center justify-between px-3 py-2 cursor-grab active:cursor-grabbing select-none flex-shrink-0">
+          <h3 className="text-sm font-medium text-zinc-700 truncate">
             {config.name}
           </h3>
 
-          {/* 3-dot action menu */}
+          {/* 3-dot action menu - stops propagation to prevent drag while clicking */}
           <div
-            className="opacity-0 group-hover:opacity-100 transition-opacity"
+            className="opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity flex-shrink-0"
             onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
           >
             <Dropdown
               trigger={
                 <button
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   aria-label="Widget options"
                 >
-                  <EllipsisVerticalIcon className="h-5 w-5" />
+                  <EllipsisVerticalIcon className="h-4 w-4" />
                 </button>
               }
               align="end"
@@ -136,10 +112,10 @@ const WidgetWrapper = ({
           </div>
         </div>
 
-        {/* Widget content */}
-        <div className="p-4 pt-2 flex-1 overflow-hidden">
+        {/* Widget content - fills remaining space */}
+        <div className="px-3 pb-3 flex-1 min-h-0 overflow-hidden">
           <Suspense fallback={<WidgetSkeleton />}>
-            <WidgetComponent settings={widgetSettings} />
+            <WidgetComponent settings={widgetSettings} isHovered={isHovered} />
           </Suspense>
         </div>
       </div>

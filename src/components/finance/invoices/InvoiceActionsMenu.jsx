@@ -9,6 +9,7 @@ import {
   DocumentIcon,
   FolderIcon,
   CreditCardIcon,
+  BellAlertIcon,
 } from '@heroicons/react/24/outline';
 import { MoreVertical } from 'lucide-react';
 import Dropdown from '../../ui/dropdown/Dropdown';
@@ -25,10 +26,12 @@ const InvoiceActionsMenu = ({
   onLinkPayment,
   onExpenses,
   onProjects,
+  onSendReminder,
   onMarkAsSent,
   onRevertToDraft,
   onChargeCard,
   showLinkPayment = false,
+  showSendReminder = false,
   showMarkAsSent = false,
   showRevertToDraft = false,
   showChargeCard = false,
@@ -46,6 +49,12 @@ const InvoiceActionsMenu = ({
       icon: DocumentDuplicateIcon,
       onClick: onClone,
     },
+    showSendReminder && {
+      id: 'send_reminder',
+      label: 'Send Reminder',
+      icon: BellAlertIcon,
+      onClick: onSendReminder,
+    },
     showChargeCard && {
       id: 'charge_card',
       label: 'Charge Saved Card',
@@ -60,13 +69,13 @@ const InvoiceActionsMenu = ({
     },
     {
       id: 'expenses',
-      label: 'Manage Expenses',
+      label: 'Link Expenses',
       icon: ReceiptPercentIcon,
       onClick: onExpenses,
     },
     {
       id: 'projects',
-      label: 'Manage Projects',
+      label: 'Link Projects',
       icon: FolderIcon,
       onClick: onProjects,
     },

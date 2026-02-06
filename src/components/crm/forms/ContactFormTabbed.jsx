@@ -22,6 +22,7 @@ import { TrashIcon, PencilIcon, PlusIcon, ChevronDownIcon } from '@heroicons/rea
  * @param {string} props.initialContactType - Initial contact type ('client' | 'vendor' | null)
  * @param {Array} props.allStatuses - All available statuses
  * @param {Array} props.companyCurrencies - Available company currencies (for Finance tab)
+ * @param {Array} props.companyTaxes - Available company tax rates (for Finance tab)
  * @param {Function} props.onSubmit - Form submit handler
  * @param {boolean} props.loading - Whether form is submitting
  * @param {string} props.submitError - General submit error message
@@ -32,6 +33,7 @@ const ContactFormTabbed = ({
   initialContactType = null,
   allStatuses = [],
   companyCurrencies = [],
+  companyTaxes = [],
   onSubmit,
   loading = false,
   submitError = null,
@@ -42,10 +44,10 @@ const ContactFormTabbed = ({
   const { companyCountries, defaultCountry, loading: countriesLoading } = useCountries();
   const defaultCountryId = defaultCountry?.country?.id || null;
   const [taxRates, setTaxRates] = useState(contact?.contact_taxes || []);
-  const [newTax, setNewTax] = useState({ tax_name: '', tax_rate: '' });
-  const [editingTaxId, setEditingTaxId] = useState(null);
+  const [showTaxDropdown, setShowTaxDropdown] = useState(false);
   const [taxLoading, setTaxLoading] = useState(false);
   const [taxError, setTaxError] = useState(null);
+  const taxDropdownRef = React.useRef(null);
 
   // Contact Persons state
   const [contactPersons, setContactPersons] = useState(contact?.contact_persons || []);
@@ -156,26 +158,23 @@ const ContactFormTabbed = ({
     return currentGlobalStatusId || currentCustomStatusId || null;
   };
 
-  // Tax rate management functions
-  const handleAddTax = async () => {
-    if (!contact?.id || !newTax.tax_name || !newTax.tax_rate) {
-      setTaxError('Tax name and rate are required');
-      return;
-    }
+  // Tax rate management functions - dropdown-based
+  const handleAddTaxFromCompany = async (companyTax) => {
+    if (!contact?.id) return;
 
     try {
       setTaxLoading(true);
       setTaxError(null);
 
       const taxData = {
-        tax_name: newTax.tax_name,
-        tax_rate: parseFloat(newTax.tax_rate),
+        tax_name: companyTax.tax_name,
+        tax_rate: companyTax.tax_rate,
         sort_order: taxRates.length,
       };
 
       const createdTax = await contactsAPI.addContactTax(contact.id, taxData);
       setTaxRates([...taxRates, createdTax]);
-      setNewTax({ tax_name: '', tax_rate: '' });
+      setShowTaxDropdown(false);
     } catch (err) {
       console.error('Failed to add tax:', err);
       setTaxError(err.message);
@@ -184,32 +183,8 @@ const ContactFormTabbed = ({
     }
   };
 
-  const handleUpdateTax = async (taxId, updatedData) => {
-    if (!contact?.id) return;
-
-    try {
-      setTaxLoading(true);
-      setTaxError(null);
-
-      await contactsAPI.updateContactTax(contact.id, taxId, updatedData);
-      setTaxRates(
-        taxRates.map((tax) =>
-          tax.id === taxId ? { ...tax, ...updatedData } : tax
-        )
-      );
-      setEditingTaxId(null);
-    } catch (err) {
-      console.error('Failed to update tax:', err);
-      setTaxError(err.message);
-    } finally {
-      setTaxLoading(false);
-    }
-  };
-
   const handleDeleteTax = async (taxId) => {
-    if (!contact?.id || !confirm('Are you sure you want to delete this tax rate?')) {
-      return;
-    }
+    if (!contact?.id) return;
 
     try {
       setTaxLoading(true);
@@ -224,6 +199,26 @@ const ContactFormTabbed = ({
       setTaxLoading(false);
     }
   };
+
+  // Get available taxes (company taxes not already assigned to contact)
+  const getAvailableTaxes = () => {
+    const assignedTaxNames = taxRates.map(t => t.tax_name.toLowerCase());
+    return companyTaxes.filter(ct => !assignedTaxNames.includes(ct.tax_name.toLowerCase()));
+  };
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (taxDropdownRef.current && !taxDropdownRef.current.contains(event.target)) {
+        setShowTaxDropdown(false);
+      }
+    };
+
+    if (showTaxDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showTaxDropdown]);
 
   // Contact Person handlers
   const handleAddPerson = async () => {
@@ -949,7 +944,7 @@ const ContactFormTabbed = ({
                 Tax Rates
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                Multiple tax rates can be applied to invoices for this contact
+                Select tax rates from your company defaults to apply to this contact's invoices
               </p>
 
               {/* Tax Error Display */}
@@ -961,119 +956,84 @@ const ContactFormTabbed = ({
 
               {contact?.id ? (
                 <>
-                  {/* Existing Tax Rates */}
+                  {/* Assigned Tax Rates */}
                   {taxRates.length > 0 && (
                     <div className="space-y-2 mb-4">
                       {taxRates.map((tax) => (
                         <div
                           key={tax.id}
-                          className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
                         >
-                          {editingTaxId === tax.id ? (
-                            <>
-                              <input
-                                type="text"
-                                value={tax.tax_name}
-                                onChange={(e) =>
-                                  setTaxRates(
-                                    taxRates.map((t) =>
-                                      t.id === tax.id ? { ...t, tax_name: e.target.value } : t
-                                    )
-                                  )
-                                }
-                                className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                placeholder="Tax name"
-                              />
-                              <input
-                                type="number"
-                                value={tax.tax_rate}
-                                onChange={(e) =>
-                                  setTaxRates(
-                                    taxRates.map((t) =>
-                                      t.id === tax.id ? { ...t, tax_rate: e.target.value } : t
-                                    )
-                                  )
-                                }
-                                className="w-24 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                placeholder="Rate"
-                                step="0.01"
-                              />
-                              <button
-                                onClick={() =>
-                                  handleUpdateTax(tax.id, {
-                                    tax_name: tax.tax_name,
-                                    tax_rate: parseFloat(tax.tax_rate),
-                                  })
-                                }
-                                disabled={taxLoading}
-                                className="px-2 py-1 text-xs text-white bg-zenible-primary rounded hover:bg-opacity-90 disabled:opacity-50"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={() => setEditingTaxId(null)}
-                                className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex-1">
-                                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {tax.tax_name}
-                                </span>
-                                <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                                  {tax.tax_rate}%
-                                </span>
-                              </div>
-                              <button
-                                onClick={() => setEditingTaxId(tax.id)}
-                                className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteTax(tax.id)}
-                                disabled={taxLoading}
-                                className="px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 disabled:opacity-50"
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {tax.tax_name}
+                            </span>
+                            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                              {tax.tax_rate}%
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTax(tax.id)}
+                            disabled={taxLoading}
+                            className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
+                            title="Remove tax"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {/* Add New Tax Rate */}
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={newTax.tax_name}
-                      onChange={(e) => setNewTax({ ...newTax, tax_name: e.target.value })}
-                      placeholder="Tax name (e.g., VAT)"
-                      className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    />
-                    <input
-                      type="number"
-                      value={newTax.tax_rate}
-                      onChange={(e) => setNewTax({ ...newTax, tax_rate: e.target.value })}
-                      placeholder="Rate %"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      className="w-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    />
+                  {/* Add Tax Dropdown */}
+                  <div className="relative" ref={taxDropdownRef}>
                     <button
-                      onClick={handleAddTax}
-                      disabled={taxLoading || !newTax.tax_name || !newTax.tax_rate}
-                      className="px-4 py-2 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:bg-opacity-90 disabled:opacity-50 transition-colors"
+                      type="button"
+                      onClick={() => setShowTaxDropdown(!showTaxDropdown)}
+                      disabled={taxLoading || getAvailableTaxes().length === 0}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-left flex items-center justify-between outline-none focus:border-zenible-primary focus:ring-1 focus:ring-zenible-primary cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Add
+                      <span className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                        <PlusIcon className="h-4 w-4" />
+                        {getAvailableTaxes().length === 0
+                          ? (companyTaxes.length === 0 ? 'No company taxes configured' : 'All taxes assigned')
+                          : 'Add tax rate...'}
+                      </span>
+                      <ChevronDownIcon
+                        className={`h-4 w-4 text-gray-400 transition-transform ${
+                          showTaxDropdown ? 'rotate-180' : ''
+                        }`}
+                      />
                     </button>
+
+                    {/* Dropdown Menu */}
+                    {showTaxDropdown && getAvailableTaxes().length > 0 && (
+                      <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {getAvailableTaxes().map((tax) => (
+                          <button
+                            key={tax.id}
+                            type="button"
+                            onClick={() => handleAddTaxFromCompany(tax)}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                          >
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {tax.tax_name}
+                            </span>
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {tax.tax_rate}%
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
+
+                  {companyTaxes.length === 0 && (
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      Configure tax rates in Settings → Taxes to enable tax selection here.
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400">

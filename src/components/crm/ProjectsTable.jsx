@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PencilIcon, TrashIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
 import { useProjects } from '../../hooks/crm';
 import { useCRM } from '../../contexts/CRMContext';
@@ -13,6 +14,7 @@ import {
 } from '../../constants/crm';
 
 export default function ProjectsTable({ selectedStatuses = [] }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
@@ -25,6 +27,22 @@ export default function ProjectsTable({ selectedStatuses = [] }) {
   );
   const { openProjectModal } = useCRM();
   const { showSuccess, showError } = useNotification();
+
+  // Handle projectId query parameter - open project detail modal
+  const urlProjectId = searchParams.get('projectId');
+  useEffect(() => {
+    if (urlProjectId && projects.length > 0 && !loading) {
+      const project = projects.find(p => p.id === urlProjectId);
+      if (project) {
+        setSelectedProject(project);
+        setShowDetailModal(true);
+      }
+      // Clear the URL param after opening
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('projectId');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [urlProjectId, projects, loading, searchParams, setSearchParams]);
 
   const handleDeleteClick = (project) => {
     setProjectToDelete(project);

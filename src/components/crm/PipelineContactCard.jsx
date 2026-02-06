@@ -6,7 +6,6 @@ import ServiceValueDisplay from './ServiceValueDisplay';
 import ContactActionMenu from './ContactActionMenu';
 import AppointmentsModal from './AppointmentsModal';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
-import { getNextAppointment } from '../../utils/crm/appointmentUtils';
 
 /**
  * Card content component - exported for use in DragOverlay
@@ -18,8 +17,8 @@ export const PipelineContactCardContent = ({
   onClick,
   onAppointmentClick,
 }) => {
-  // Get the next/closest appointment from the appointments array
-  const nextAppointment = getNextAppointment(contact.appointments);
+  // Use the next_appointment field from the backend (already computed)
+  const nextAppointment = contact.next_appointment;
 
   // Get display name using shared utility
   const displayName = getContactDisplayName(contact);

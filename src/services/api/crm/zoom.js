@@ -1,67 +1,26 @@
-// API service for Zoom Integration endpoints
+/**
+ * Zoom Integration API Service
+ */
 
-import { API_BASE_URL } from '@/config/api';
+import { createRequest } from '../httpClient';
 
-class ZoomAPI {
-  async request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+const request = createRequest('ZoomAPI');
 
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
+const zoomAPI = {
+  /** Initiate Zoom OAuth connection */
+  getConnectUrl: () => request('/crm/zoom/connect', { method: 'GET' }),
 
-    // Add auth token
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+  /** Handle OAuth callback */
+  handleCallback: (code, state) => request('/crm/zoom/callback', {
+    method: 'POST',
+    body: JSON.stringify({ code, state }),
+  }),
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
+  /** Get connection status */
+  getStatus: () => request('/crm/zoom/status', { method: 'GET' }),
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        throw new Error(error.detail || `Request failed with status ${response.status}`);
-      }
+  /** Disconnect Zoom */
+  disconnect: () => request('/crm/zoom/disconnect', { method: 'DELETE' }),
+};
 
-      // Handle 204 No Content
-      if (response.status === 204) {
-        return null;
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Zoom API request failed:', error);
-      throw error;
-    }
-  }
-
-  // Initiate Zoom OAuth connection
-  async getConnectUrl() {
-    return this.request('/crm/zoom/connect', { method: 'GET' });
-  }
-
-  // Handle OAuth callback
-  async handleCallback(code, state) {
-    return this.request('/crm/zoom/callback', {
-      method: 'POST',
-      body: JSON.stringify({ code, state }),
-    });
-  }
-
-  // Get connection status
-  async getStatus() {
-    return this.request('/crm/zoom/status', { method: 'GET' });
-  }
-
-  // Disconnect Zoom
-  async disconnect() {
-    return this.request('/crm/zoom/disconnect', { method: 'DELETE' });
-  }
-}
-
-export default new ZoomAPI();
+export default zoomAPI;

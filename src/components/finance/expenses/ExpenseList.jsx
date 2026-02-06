@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Filter, MoreVertical, Repeat, ArrowUpDown, ArrowUp, ArrowDown, PieChart, Users, X, Check } from 'lucide-react';
 import { useExpenses } from '../../../contexts/ExpenseContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
@@ -79,6 +79,7 @@ const SortableHeader = ({ label, sortKey, currentSortBy, currentSortOrder, onSor
 
 const ExpenseList = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     expenses,
     loading,
@@ -105,6 +106,9 @@ const ExpenseList = () => {
   const { numberFormats } = useCRMReferenceData();
   const { getNumberFormat } = useCompanyAttributes();
 
+  // URL parameter for opening specific expense
+  const urlExpenseId = searchParams.get('expense');
+
   // Get number format from company settings
   const numberFormat = useMemo(() => {
     const formatId = getNumberFormat();
@@ -114,9 +118,9 @@ const ExpenseList = () => {
     return null; // Will use default format
   }, [getNumberFormat, numberFormats]);
 
-  // State
+  // State - use context filters for server-side filtering
   const [searchQuery, setSearchQuery] = useState(filters.search || '');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const searchTimeoutRef = useRef(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -135,7 +139,21 @@ const ExpenseList = () => {
   const [pendingVendorIds, setPendingVendorIds] = useState([]); // Temporary state for dropdown
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
   const [vendorSearch, setVendorSearch] = useState('');
-  const [showRecurringOnly, setShowRecurringOnly] = useState(false);
+
+  // Handle expense query parameter - open expense edit modal
+  useEffect(() => {
+    if (urlExpenseId && expenses.length > 0 && !loading) {
+      const expense = expenses.find(e => e.id === urlExpenseId);
+      if (expense) {
+        setEditExpenseId(expense.id);
+        setShowEditModal(true);
+      }
+      // Clear the URL param after opening
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('expense');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [urlExpenseId, expenses, loading, searchParams, setSearchParams]);
 
   // Sync selectedVendorIds when filters.vendor_ids changes from context (e.g., preferences loaded)
   useEffect(() => {
@@ -150,6 +168,33 @@ const ExpenseList = () => {
     }
   }, [showVendorDropdown]);
 
+  // Sync searchQuery with context filters on mount
+  useEffect(() => {
+    setSearchQuery(filters.search || '');
+  }, [filters.search]);
+
+  // Debounced search - send to server after 300ms of no typing
+  useEffect(() => {
+    // Clear any existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set a new timeout to update filters after debounce period
+    searchTimeoutRef.current = setTimeout(() => {
+      if (searchQuery !== (filters.search || '')) {
+        updateFilters({ search: searchQuery || null });
+      }
+    }, 300);
+
+    // Cleanup on unmount
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery, filters.search, updateFilters]);
+
   // Helper to get vendor display name for sorting/filtering
   const getExpenseVendorName = (expense) => {
     if (!expense.vendor) return '';
@@ -161,36 +206,10 @@ const ExpenseList = () => {
     ).toLowerCase();
   };
 
-  // Filter and sort expenses locally
+  // Server-side filtering is now handled by the API
+  // Only client-side sorting for vendor (if backend doesn't support it)
   const filteredExpenses = useMemo(() => {
     let result = [...expenses];
-
-    // Filter by status
-    if (filterStatus !== 'all') {
-      result = result.filter(exp => exp.status === filterStatus);
-    }
-
-    // Filter by recurring only
-    if (showRecurringOnly) {
-      result = result.filter(exp => exp.pricing_type === 'recurring' && exp.recurring_type);
-    }
-
-    // Client-side search filtering for vendor name (backend search might not include vendor)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      result = result.filter(exp => {
-        // Check vendor name
-        const vendorName = getExpenseVendorName(exp);
-        if (vendorName.includes(query)) return true;
-
-        // Also check description and expense number for completeness
-        if (exp.description?.toLowerCase().includes(query)) return true;
-        if (exp.expense_number?.toLowerCase().includes(query)) return true;
-        if (exp.expense_category?.name?.toLowerCase().includes(query)) return true;
-
-        return false;
-      });
-    }
 
     // Client-side sorting for vendor (backend might not support it)
     if (sortBy === 'vendor') {
@@ -203,7 +222,7 @@ const ExpenseList = () => {
     }
 
     return result;
-  }, [expenses, filterStatus, searchQuery, sortBy, sortOrder, showRecurringOnly]);
+  }, [expenses, sortBy, sortOrder]);
 
   // Format date
   const formatDate = (dateString) => {
@@ -214,9 +233,8 @@ const ExpenseList = () => {
 
   // Handlers
   const handleSearch = (e) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    // Don't call updateFilters here - it's handled by the debounced effect above
+    setSearchQuery(e.target.value);
+    // Actual filter update is debounced in useEffect above
   };
 
   // Handle date field change (entry date vs paid date)
@@ -286,9 +304,13 @@ const ExpenseList = () => {
     });
   }, [vendors, vendorSearch]);
 
-  // Handle show recurring only toggle
+  // Handle show recurring only toggle - server-side filtering
   const handleShowRecurringOnlyToggle = () => {
-    setShowRecurringOnly(prev => !prev);
+    const isCurrentlyRecurring = filters.pricing_type === 'recurring';
+    updateFilters({
+      pricing_type: isCurrentlyRecurring ? null : 'recurring',
+      is_template: isCurrentlyRecurring ? null : true,
+    });
   };
 
   // Get vendor display name
@@ -578,13 +600,13 @@ const ExpenseList = () => {
           <div className="relative">
             <button
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className={`inline-flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-gray-800 border-[1.5px] ${filterStatus !== 'all' || showRecurringOnly ? 'border-purple-500' : 'border-[#e5e5e5] dark:border-gray-600'} rounded-xl text-sm font-normal text-[#09090b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500`}
+              className={`inline-flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-gray-800 border-[1.5px] ${filters.status || filters.pricing_type === 'recurring' ? 'border-purple-500' : 'border-[#e5e5e5] dark:border-gray-600'} rounded-xl text-sm font-normal text-[#09090b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500`}
             >
               <Filter className="h-4 w-4 text-[#71717a]" />
               Filter
-              {(filterStatus !== 'all' || showRecurringOnly) && (
+              {(filters.status || filters.pricing_type === 'recurring') && (
                 <span className="ml-1 px-1.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 rounded-full">
-                  {(filterStatus !== 'all' ? 1 : 0) + (showRecurringOnly ? 1 : 0)}
+                  {(filters.status ? 1 : 0) + (filters.pricing_type === 'recurring' ? 1 : 0)}
                 </span>
               )}
             </button>
@@ -600,32 +622,32 @@ const ExpenseList = () => {
                     <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Status</h4>
                     <div className="space-y-1">
                       <button
-                        onClick={() => setFilterStatus('all')}
-                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filterStatus === 'all' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                        onClick={() => updateFilters({ status: null })}
+                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${!filters.status ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                       >
                         All Statuses
                       </button>
                       <button
-                        onClick={() => setFilterStatus(EXPENSE_STATUS.PENDING)}
-                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filterStatus === EXPENSE_STATUS.PENDING ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                        onClick={() => updateFilters({ status: EXPENSE_STATUS.PENDING })}
+                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filters.status === EXPENSE_STATUS.PENDING ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                       >
                         Pending
                       </button>
                       <button
-                        onClick={() => setFilterStatus(EXPENSE_STATUS.PAID)}
-                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filterStatus === EXPENSE_STATUS.PAID ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                        onClick={() => updateFilters({ status: EXPENSE_STATUS.PAID })}
+                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filters.status === EXPENSE_STATUS.PAID ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                       >
                         Paid
                       </button>
                       <button
-                        onClick={() => setFilterStatus(EXPENSE_STATUS.COMPLETED)}
-                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filterStatus === EXPENSE_STATUS.COMPLETED ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                        onClick={() => updateFilters({ status: EXPENSE_STATUS.COMPLETED })}
+                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filters.status === EXPENSE_STATUS.COMPLETED ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                       >
                         Completed
                       </button>
                       <button
-                        onClick={() => setFilterStatus(EXPENSE_STATUS.CANCELLED)}
-                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filterStatus === EXPENSE_STATUS.CANCELLED ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                        onClick={() => updateFilters({ status: EXPENSE_STATUS.CANCELLED })}
+                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filters.status === EXPENSE_STATUS.CANCELLED ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                       >
                         Cancelled
                       </button>
@@ -638,7 +660,7 @@ const ExpenseList = () => {
                     <label className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={showRecurringOnly}
+                        checked={filters.pricing_type === 'recurring'}
                         onChange={handleShowRecurringOnlyToggle}
                         className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                       />

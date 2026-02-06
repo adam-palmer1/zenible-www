@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import NewSidebar from '../sidebar/NewSidebar';
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, Cog6ToothIcon, XMarkIcon, ArrowPathIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { useCalendar } from '../../hooks/useCalendar';

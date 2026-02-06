@@ -81,18 +81,32 @@ export async function makeAuthenticatedRequest(url, options = {}) {
 
 // Auth API calls
 export const authAPI = {
-  async signup(email, password, name) {
+  async signup(email, password, firstName, lastName = null) {
+    const body = { email, password, first_name: firstName };
+    if (lastName) body.last_name = lastName;
+
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, full_name: name })
+      body: JSON.stringify(body)
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Registration failed');
+      // Handle validation error array format
+      if (Array.isArray(error.detail)) {
+        const messages = error.detail.map(e => {
+          // Extract the readable part of the message
+          let msg = e.msg || '';
+          // Remove "Value error, " prefix if present
+          msg = msg.replace(/^Value error,\s*/i, '');
+          return msg;
+        }).filter(Boolean);
+        throw new Error(messages.join('. ') || 'Registration failed');
+      }
+      throw new Error(error.detail || error.message || 'Registration failed');
     }
-    
+
     return response.json();
   },
 
@@ -102,12 +116,21 @@ export const authAPI = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Login failed');
+      // Handle validation error array format
+      if (Array.isArray(error.detail)) {
+        const messages = error.detail.map(e => {
+          let msg = e.msg || '';
+          msg = msg.replace(/^Value error,\s*/i, '');
+          return msg;
+        }).filter(Boolean);
+        throw new Error(messages.join('. ') || 'Login failed');
+      }
+      throw new Error(error.detail || error.message || 'Login failed');
     }
-    
+
     return response.json();
   },
 
@@ -132,12 +155,20 @@ export const authAPI = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code })
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Verification failed');
+      if (Array.isArray(error.detail)) {
+        const messages = error.detail.map(e => {
+          let msg = e.msg || '';
+          msg = msg.replace(/^Value error,\s*/i, '');
+          return msg;
+        }).filter(Boolean);
+        throw new Error(messages.join('. ') || 'Verification failed');
+      }
+      throw new Error(error.detail || error.message || 'Verification failed');
     }
-    
+
     return response.json();
   },
 
@@ -158,27 +189,72 @@ export const authAPI = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Request failed');
+      if (Array.isArray(error.detail)) {
+        const messages = error.detail.map(e => {
+          let msg = e.msg || '';
+          msg = msg.replace(/^Value error,\s*/i, '');
+          return msg;
+        }).filter(Boolean);
+        throw new Error(messages.join('. ') || 'Request failed');
+      }
+      throw new Error(error.detail || error.message || 'Request failed');
     }
-    
+
     return response.json();
   },
 
+  /**
+   * Set password using /auth/set-password endpoint
+   * Handles both password reset and invitation acceptance
+   * Returns access token for auto-login
+   * @param {string} token - JWT token (password reset or invitation)
+   * @param {string} newPassword - New password
+   * @param {string} [firstName] - First name (required for invitations)
+   * @param {string} [lastName] - Last name (optional)
+   */
+  async setPassword(token, newPassword, firstName = null, lastName = null) {
+    const body = { token, new_password: newPassword };
+    if (firstName) body.first_name = firstName;
+    if (lastName) body.last_name = lastName;
+
+    const response = await fetch(`${API_BASE_URL}/auth/set-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || error.message || 'Failed to set password');
+    }
+
+    return response.json();
+  },
+
+  // Legacy endpoint - returns user data without auto-login
   async resetPassword(token, newPassword) {
     const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, new_password: newPassword })
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Reset failed');
+      if (Array.isArray(error.detail)) {
+        const messages = error.detail.map(e => {
+          let msg = e.msg || '';
+          msg = msg.replace(/^Value error,\s*/i, '');
+          return msg;
+        }).filter(Boolean);
+        throw new Error(messages.join('. ') || 'Reset failed');
+      }
+      throw new Error(error.detail || error.message || 'Reset failed');
     }
-    
+
     return response.json();
   },
 

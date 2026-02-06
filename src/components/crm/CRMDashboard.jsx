@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import CRMLayout from './layout/CRMLayout';
 import CRMTopBar from './layout/CRMTopBar';
 import CRMHeader from './layout/CRMHeader';
@@ -16,6 +16,7 @@ import ContactDetailsPanel from './ContactDetailsPanel';
 import CRMSettingsModal from './CRMSettingsModal';
 import { useCRM } from '../../contexts/CRMContext';
 import { useContacts, useContactStatuses, useServices } from '../../hooks/crm';
+import contactsAPI from '../../services/api/crm/contacts';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useCRMFilters } from '../../hooks/crm/useCRMFilters';
 import { useClientsFilters } from '../../hooks/crm/useClientsFilters';
@@ -31,6 +32,7 @@ const CRMDashboard = () => {
   // URL-based tab navigation
   const { tab } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Validate tab value and determine active tab
   const validTabs = ['crm', 'clients', 'vendors', 'services', 'projects'];
@@ -173,6 +175,28 @@ const CRMDashboard = () => {
       console.error('Failed to refresh CRM data:', error);
     }
   }, [fetchStatuses, refresh]);
+
+  // Handle contact query parameter - open contact details panel
+  useEffect(() => {
+    const contactId = searchParams.get('contact');
+    if (contactId && !selectedContact) {
+      const loadContact = async () => {
+        try {
+          const contact = await contactsAPI.get(contactId);
+          if (contact) {
+            selectContact(contact);
+          }
+        } catch (error) {
+          console.error('Failed to load contact:', error);
+        }
+        // Clear the query param after loading
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('contact');
+        setSearchParams(newParams, { replace: true });
+      };
+      loadContact();
+    }
+  }, [searchParams, setSearchParams, selectContact, selectedContact]);
 
   return (
     <CRMLayout

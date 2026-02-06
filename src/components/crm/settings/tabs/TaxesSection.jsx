@@ -22,7 +22,7 @@ import {
   PlusIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline';
-import companiesAPI from '../../../../services/api/crm/companies';
+import taxesAPI from '../../../../services/api/crm/taxes';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import ConfirmationModal from '../../../common/ConfirmationModal';
 
@@ -198,7 +198,7 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
 
     setAddingTax(true);
     try {
-      const created = await companiesAPI.createTax({
+      const created = await taxesAPI.create({
         tax_name: newTax.tax_name.trim(),
         tax_rate: rate,
         sort_order: taxes.length,
@@ -242,7 +242,7 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
 
     setLoading(true);
     try {
-      const updated = await companiesAPI.updateTax(taxId, {
+      const updated = await taxesAPI.update(taxId, {
         tax_name: editForm.tax_name.trim(),
         tax_rate: rate,
       });
@@ -268,7 +268,7 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
 
     setLoading(true);
     try {
-      await companiesAPI.deleteTax(taxId);
+      await taxesAPI.delete(taxId);
       const updatedTaxes = taxes.filter((t) => t.id !== taxId);
       setTaxes(updatedTaxes);
       onTaxesChange?.(updatedTaxes);
@@ -300,7 +300,7 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
     setTaxes(withNewOrder);
 
     try {
-      await companiesAPI.reorderTaxes(
+      await taxesAPI.reorder(
         withNewOrder.map((t) => ({ id: t.id, sort_order: t.sort_order }))
       );
       onTaxesChange?.(withNewOrder);

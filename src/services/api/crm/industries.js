@@ -1,70 +1,32 @@
-// API service for Industry endpoints
+/**
+ * Industries API Service
+ */
 
-import { API_BASE_URL } from '@/config/api';
+import { createRequest } from '../httpClient';
 
-class IndustriesAPI {
-  async request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+const request = createRequest('IndustriesAPI');
 
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
+const industriesAPI = {
+  /** Get list of all industries */
+  list: () => request('/crm/industries/', { method: 'GET' }),
 
-    // Add auth token
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+  /** Get specific industry by ID */
+  get: (industryId) => request(`/crm/industries/${industryId}`, { method: 'GET' }),
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
+  /** Create new industry (admin only) */
+  create: (data) => request('/crm/industries/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        throw new Error(error.detail || `Request failed with status ${response.status}`);
-      }
+  /** Update industry (admin only) */
+  update: (industryId, data) => request(`/crm/industries/${industryId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
 
-      return await response.json();
-    } catch (error) {
-      console.error('Industries API request failed:', error);
-      throw error;
-    }
-  }
+  /** Delete industry (admin only) */
+  delete: (industryId) => request(`/crm/industries/${industryId}`, { method: 'DELETE' }),
+};
 
-  // Get list of all industries
-  async list() {
-    return this.request('/crm/industries/', { method: 'GET' });
-  }
-
-  // Get specific industry by ID
-  async get(industryId) {
-    return this.request(`/crm/industries/${industryId}`, { method: 'GET' });
-  }
-
-  // Create new industry (admin only)
-  async create(data) {
-    return this.request('/crm/industries/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Update industry (admin only)
-  async update(industryId, data) {
-    return this.request(`/crm/industries/${industryId}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Delete industry (admin only)
-  async delete(industryId) {
-    return this.request(`/crm/industries/${industryId}`, { method: 'DELETE' });
-  }
-}
-
-export default new IndustriesAPI();
+export default industriesAPI;

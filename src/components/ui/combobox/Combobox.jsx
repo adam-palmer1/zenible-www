@@ -195,6 +195,7 @@ const Combobox = ({
                   onChange={(e) => setNewItemName(e.target.value)}
                   onKeyDown={handleCreateKeyDown}
                   placeholder="Enter name..."
+                  autoComplete="off"
                   className="flex-1 px-3 py-2 text-sm design-input rounded-md"
                   disabled={creating}
                 />
@@ -231,6 +232,7 @@ const Combobox = ({
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={searchPlaceholder}
+                    autoComplete="off"
                     className="w-full pl-9 pr-3 py-2 text-sm design-input rounded-md"
                   />
                 </div>

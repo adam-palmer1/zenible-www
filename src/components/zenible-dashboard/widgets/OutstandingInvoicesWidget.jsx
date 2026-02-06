@@ -41,12 +41,12 @@ const OutstandingInvoicesWidget = ({ settings = {} }) => {
     fetchStats();
   }, [currencyLoading]);
 
-  const handleViewOutstanding = () => navigate('/finance/invoices?status=sent,partially_paid');
+  const handleViewOutstanding = () => navigate('/finance/invoices?status=outstanding');
   const handleViewOverdue = () => navigate('/finance/invoices?status=overdue');
 
   if (loading || currencyLoading) {
     return (
-      <div className="flex items-center justify-center h-[180px]">
+      <div className="flex items-center justify-center h-full min-h-[100px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
       </div>
     );
@@ -54,7 +54,7 @@ const OutstandingInvoicesWidget = ({ settings = {} }) => {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-[180px] text-gray-500 text-sm">
+      <div className="flex items-center justify-center h-full min-h-[100px] text-gray-500 text-sm">
         Failed to load invoice stats
       </div>
     );
@@ -63,59 +63,37 @@ const OutstandingInvoicesWidget = ({ settings = {} }) => {
   const totalOutstanding = parseFloat(stats?.total_outstanding || 0);
   const totalOverdue = parseFloat(stats?.overdue_value || 0);
   const overdueCount = stats?.overdue_count || 0;
-  const outstandingCount = (stats?.sent_count || 0);
+  const outstandingCount = stats?.outstanding_count || 0;
 
   return (
-    <div className="flex flex-col h-[180px]">
-      {/* Outstanding Amount */}
-      <div className="flex-1 space-y-4">
-        <button
-          onClick={handleViewOutstanding}
-          className="w-full p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="text-left">
-              <p className="text-xs text-blue-600 font-medium mb-1">Outstanding</p>
-              <p className="text-2xl font-bold text-blue-700">
-                {formatCurrency(totalOutstanding, currency)}
-              </p>
-              <p className="text-xs text-blue-500 mt-1">
-                {outstandingCount} invoice{outstandingCount !== 1 ? 's' : ''}
-              </p>
-            </div>
-            <BanknotesIcon className="w-10 h-10 text-blue-300 group-hover:text-blue-400" />
-          </div>
-        </button>
+    <div className="flex flex-col h-full justify-center gap-2">
+      {/* Outstanding */}
+      <button
+        onClick={handleViewOutstanding}
+        className="flex items-center justify-between p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+      >
+        <span className="text-xs text-gray-600 font-medium">Outstanding ({outstandingCount})</span>
+        <span className="text-sm font-bold text-gray-700">
+          {formatCurrency(totalOutstanding, currency)}
+        </span>
+      </button>
 
-        {/* Overdue Amount */}
-        {overdueCount > 0 ? (
-          <button
-            onClick={handleViewOverdue}
-            className="w-full p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors group"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />
-                <div className="text-left">
-                  <p className="text-sm font-medium text-red-700">
-                    {formatCurrency(totalOverdue, currency)} overdue
-                  </p>
-                  <p className="text-xs text-red-500">
-                    {overdueCount} invoice{overdueCount !== 1 ? 's' : ''} past due
-                  </p>
-                </div>
-              </div>
-              <ArrowRightIcon className="w-4 h-4 text-red-400 group-hover:text-red-600" />
-            </div>
-          </button>
-        ) : (
-          <div className="p-3 bg-green-50 rounded-lg">
-            <p className="text-sm text-green-700 text-center">
-              No overdue invoices
-            </p>
-          </div>
-        )}
-      </div>
+      {/* Overdue */}
+      <button
+        onClick={handleViewOverdue}
+        className={`flex items-center justify-between p-2 rounded-lg transition-colors ${
+          overdueCount > 0
+            ? 'bg-red-50 hover:bg-red-100'
+            : 'bg-green-50 hover:bg-green-100'
+        }`}
+      >
+        <span className={`text-xs font-medium ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+          Overdue ({overdueCount})
+        </span>
+        <span className={`text-sm font-bold ${overdueCount > 0 ? 'text-red-700' : 'text-green-700'}`}>
+          {formatCurrency(totalOverdue, currency)}
+        </span>
+      </button>
     </div>
   );
 };

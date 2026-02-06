@@ -1,7 +1,12 @@
 import React from 'react';
 import ExpertCard from './ExpertCard';
+import { useUsageDashboardOptional } from '../../contexts/UsageDashboardContext';
+import UsageLimitBadge from '../ui/UsageLimitBadge';
 
 export default function ExpertSidebar({ characters, loadingCharacters, darkMode }) {
+  const usageContext = useUsageDashboardOptional();
+  const planName = usageContext?.planName || 'Free Plan';
+
   return (
     <div
       className={`h-full border-r border-solid flex flex-col ${
@@ -26,13 +31,22 @@ export default function ExpertSidebar({ characters, loadingCharacters, darkMode 
           >
             Hue Supply
           </p>
-          <p
-            className={`font-['Inter'] font-normal text-[12px] leading-[20px] ${
-              darkMode ? 'text-gray-400' : 'text-zinc-500'
-            }`}
-          >
-            Free Plan
-          </p>
+          <div className="flex items-center gap-2">
+            <p
+              className={`font-['Inter'] font-normal text-[12px] leading-[20px] ${
+                darkMode ? 'text-gray-400' : 'text-zinc-500'
+              }`}
+            >
+              {planName}
+            </p>
+            {usageContext && (
+              <UsageLimitBadge
+                aiUsage
+                variant="compact"
+                darkMode={darkMode}
+              />
+            )}
+          </div>
         </div>
       </div>
 

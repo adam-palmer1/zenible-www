@@ -64,38 +64,6 @@ class CompaniesAPI {
     });
   }
 
-  // Tax CRUD operations
-  async listTaxes() {
-    return this.request('/crm/companies/current/taxes/', { method: 'GET' });
-  }
-
-  async createTax(data) {
-    return this.request('/crm/companies/current/taxes/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateTax(taxId, data) {
-    return this.request(`/crm/companies/current/taxes/${taxId}/`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteTax(taxId) {
-    return this.request(`/crm/companies/current/taxes/${taxId}/`, {
-      method: 'DELETE',
-    });
-  }
-
-  async reorderTaxes(taxes) {
-    return this.request('/crm/companies/current/taxes/reorder/', {
-      method: 'PUT',
-      body: JSON.stringify({ taxes }),
-    });
-  }
-
   // Logo upload (uses FormData, not JSON)
   async uploadLogo(file) {
     const url = `${API_BASE_URL}/crm/companies/current/logo`;

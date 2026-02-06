@@ -5,9 +5,11 @@ import {
   PencilIcon,
   TrashIcon,
   ShieldCheckIcon,
+  PlayIcon,
 } from '@heroicons/react/24/outline';
 import { usePreferences } from '../../../../contexts/PreferencesContext';
 import { useNotification } from '../../../../contexts/NotificationContext';
+import { useAuth } from '../../../../contexts/AuthContext';
 import companyUsersAPI from '../../../../services/api/crm/companyUsers';
 import InviteUserModal from './users/InviteUserModal';
 import EditPermissionsModal from './users/EditPermissionsModal';
@@ -27,6 +29,7 @@ const CategoryLabels = {
 const UsersPermissionsTab = () => {
   const { darkMode } = usePreferences();
   const { showSuccess, showError } = useNotification();
+  const { user: currentUser } = useAuth();
 
   // State
   const [users, setUsers] = useState([]);
@@ -46,7 +49,7 @@ const UsersPermissionsTab = () => {
     try {
       setLoading(true);
       const [usersData, permsData] = await Promise.all([
-        companyUsersAPI.getCompanyUsers(),
+        companyUsersAPI.getCompanyUsers({ include_inactive: true }),
         companyUsersAPI.getPermissions(),
       ]);
       setUsers(usersData.users || []);
@@ -64,17 +67,27 @@ const UsersPermissionsTab = () => {
     loadData();
   }, [loadData]);
 
-  // Filter users by search
-  const filteredUsers = users.filter((user) => {
-    if (!search) return true;
-    const searchLower = search.toLowerCase();
-    return (
-      user.email?.toLowerCase().includes(searchLower) ||
-      user.first_name?.toLowerCase().includes(searchLower) ||
-      user.last_name?.toLowerCase().includes(searchLower) ||
-      user.full_name?.toLowerCase().includes(searchLower)
-    );
-  });
+  // Filter users by search and sort with current user at top
+  const filteredUsers = users
+    .filter((user) => {
+      if (!search) return true;
+      const searchLower = search.toLowerCase();
+      return (
+        user.email?.toLowerCase().includes(searchLower) ||
+        user.first_name?.toLowerCase().includes(searchLower) ||
+        user.last_name?.toLowerCase().includes(searchLower) ||
+        user.full_name?.toLowerCase().includes(searchLower)
+      );
+    })
+    .sort((a, b) => {
+      // Current user always first
+      if (a.id === currentUser?.id) return -1;
+      if (b.id === currentUser?.id) return 1;
+      // Active users before inactive
+      if (a.is_active && !b.is_active) return -1;
+      if (!a.is_active && b.is_active) return 1;
+      return 0;
+    });
 
   // Handle edit click
   const handleEditClick = (user) => {
@@ -109,6 +122,18 @@ const UsersPermissionsTab = () => {
     setSelectedUser(null);
     showSuccess('User removed from company');
     loadData();
+  };
+
+  // Handle reactivate user
+  const handleReactivateUser = async (user) => {
+    try {
+      await companyUsersAPI.activateUser(user.id);
+      showSuccess(`${user.full_name || user.email} has been reactivated`);
+      loadData();
+    } catch (error) {
+      console.error('Failed to reactivate user:', error);
+      showError(error.message || 'Failed to reactivate user. Please try again.');
+    }
   };
 
   // Get permission name by code
@@ -219,6 +244,13 @@ const UsersPermissionsTab = () => {
                     <h3 className={`font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                       {user.full_name || 'No name'}
                     </h3>
+                    {currentUser?.id === user.id && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        darkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        You
+                      </span>
+                    )}
                     {user.is_company_admin && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-zenible-primary text-white">
                         <ShieldCheckIcon className="h-3 w-3" />
@@ -265,31 +297,50 @@ const UsersPermissionsTab = () => {
                   )}
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleEditClick(user)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      darkMode
-                        ? 'hover:bg-zenible-dark-card text-zenible-dark-text-secondary hover:text-zenible-dark-text'
-                        : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
-                    }`}
-                    title="Edit permissions"
-                  >
-                    <PencilIcon className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleRemoveClick(user)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      darkMode
-                        ? 'hover:bg-red-900/30 text-zenible-dark-text-secondary hover:text-red-400'
-                        : 'hover:bg-red-50 text-gray-500 hover:text-red-600'
-                    }`}
-                    title="Remove user"
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
-                </div>
+                {/* Actions - hidden for current user */}
+                {currentUser?.id !== user.id && (
+                  <div className="flex items-center gap-2">
+                    {user.is_active ? (
+                      <>
+                        <button
+                          onClick={() => handleEditClick(user)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            darkMode
+                              ? 'hover:bg-zenible-dark-card text-zenible-dark-text-secondary hover:text-zenible-dark-text'
+                              : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
+                          }`}
+                          title="Edit permissions"
+                        >
+                          <PencilIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleRemoveClick(user)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            darkMode
+                              ? 'hover:bg-red-900/30 text-zenible-dark-text-secondary hover:text-red-400'
+                              : 'hover:bg-red-50 text-gray-500 hover:text-red-600'
+                          }`}
+                          title="Deactivate or remove user"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => handleReactivateUser(user)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors font-medium text-sm ${
+                          darkMode
+                            ? 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
+                            : 'bg-green-50 text-green-700 hover:bg-green-100'
+                        }`}
+                        title="Reactivate user"
+                      >
+                        <PlayIcon className="h-4 w-4" />
+                        Reactivate
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -324,7 +375,6 @@ const UsersPermissionsTab = () => {
       {showRemoveModal && selectedUser && (
         <RemoveUserModal
           user={selectedUser}
-          users={users}
           onClose={() => {
             setShowRemoveModal(false);
             setSelectedUser(null);

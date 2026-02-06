@@ -1,76 +1,37 @@
-// API service for Country endpoints
+/**
+ * Countries API Service
+ * Handles country management operations
+ */
 
-import { API_BASE_URL } from '@/config/api';
+import { createRequest } from '../httpClient';
 
-class CountriesAPI {
-  async request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+const request = createRequest('CountriesAPI');
 
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
+const countriesAPI = {
+  /** Get list of all countries */
+  list: () => request('/crm/countries/', { method: 'GET' }),
 
-    // Add auth token
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+  /** Get specific country by ID */
+  get: (countryId) => request(`/crm/countries/${countryId}`, { method: 'GET' }),
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
+  /** Get company-enabled countries */
+  getCompanyCountries: () => request('/crm/countries/company/enabled', { method: 'GET' }),
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        throw new Error(error.detail || `Request failed with status ${response.status}`);
-      }
+  /** Add country to company */
+  addCountryToCompany: (countryId) => request('/crm/countries/company/enabled', {
+    method: 'POST',
+    body: JSON.stringify({ country_id: countryId }),
+  }),
 
-      return await response.json();
-    } catch (error) {
-      console.error('Countries API request failed:', error);
-      throw error;
-    }
-  }
+  /** Remove country from company */
+  removeCountryFromCompany: (associationId) => request(`/crm/countries/company/enabled/${associationId}`, {
+    method: 'DELETE',
+  }),
 
-  // Get list of all countries
-  async list() {
-    return this.request('/crm/countries/', { method: 'GET' });
-  }
+  /** Set country as default for company */
+  setDefaultCountry: (associationId) => request(`/crm/countries/company/enabled/${associationId}/default`, {
+    method: 'PATCH',
+  }),
+};
 
-  // Get specific country by ID
-  async get(countryId) {
-    return this.request(`/crm/countries/${countryId}`, { method: 'GET' });
-  }
-
-  // Get company-enabled countries
-  async getCompanyCountries() {
-    return this.request('/crm/countries/company/enabled', { method: 'GET' });
-  }
-
-  // Add country to company
-  async addCountryToCompany(countryId) {
-    return this.request('/crm/countries/company/enabled', {
-      method: 'POST',
-      body: JSON.stringify({ country_id: countryId }),
-    });
-  }
-
-  // Remove country from company
-  async removeCountryFromCompany(associationId) {
-    return this.request(`/crm/countries/company/enabled/${associationId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Set country as default for company
-  async setDefaultCountry(associationId) {
-    return this.request(`/crm/countries/company/enabled/${associationId}/default`, {
-      method: 'PATCH',
-    });
-  }
-}
-
-export default new CountriesAPI();
+export default countriesAPI;

@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Check, ChevronDown } from 'lucide-react';
 import { useCRMReferenceData } from '../../../../contexts/CRMReferenceDataContext';
 import companiesAPI from '../../../../services/api/crm/companies';
+import countriesAPI from '../../../../services/api/crm/countries';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import TaxesSection from './TaxesSection';
 
@@ -15,6 +17,11 @@ const ProfileTab = ({ onUnsavedChanges }) => {
   const [hasChanges, setHasChanges] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoUrl, setLogoUrl] = useState(null);
+  const [countries, setCountries] = useState([]);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
+  const countryTriggerRef = useRef(null);
+  const countryDropdownRef = useRef(null);
 
   const { industries, employeeRanges, loading: refDataLoading } = useCRMReferenceData();
   const { showSuccess, showError } = useNotification();
@@ -65,6 +72,54 @@ const ProfileTab = ({ onUnsavedChanges }) => {
     loadCompany();
   }, [showError]);
 
+  // Load countries list
+  useEffect(() => {
+    const loadCountries = async () => {
+      try {
+        const data = await countriesAPI.list();
+        setCountries(data);
+      } catch (error) {
+        console.error('Failed to load countries:', error);
+      }
+    };
+    loadCountries();
+  }, []);
+
+  // Close country dropdown on click outside
+  useEffect(() => {
+    if (!showCountryDropdown) return;
+
+    const handleClickOutside = (event) => {
+      if (
+        countryDropdownRef.current &&
+        !countryDropdownRef.current.contains(event.target) &&
+        countryTriggerRef.current &&
+        !countryTriggerRef.current.contains(event.target)
+      ) {
+        setShowCountryDropdown(false);
+        setCountrySearch('');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCountryDropdown]);
+
+  // Close country dropdown on escape key
+  useEffect(() => {
+    if (!showCountryDropdown) return;
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowCountryDropdown(false);
+        setCountrySearch('');
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showCountryDropdown]);
+
   // Track changes
   useEffect(() => {
     onUnsavedChanges?.(hasChanges);
@@ -73,6 +128,22 @@ const ProfileTab = ({ onUnsavedChanges }) => {
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
+  };
+
+  // Filter countries based on search
+  const filteredCountries = countries.filter(
+    (c) =>
+      c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+      c.code.toLowerCase().includes(countrySearch.toLowerCase())
+  );
+
+  // Get current country display name
+  const getCountryDisplay = () => {
+    if (!formData.country) return 'Select country';
+    const country = countries.find(
+      (c) => c.name === formData.country || c.code === formData.country
+    );
+    return country ? country.name : formData.country;
   };
 
   // Logo upload handler
@@ -259,16 +330,77 @@ const ProfileTab = ({ onUnsavedChanges }) => {
             />
           </div>
 
-          <div>
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Country
             </label>
-            <input
-              type="text"
-              value={formData.country}
-              onChange={(e) => handleChange('country', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            />
+            <button
+              ref={countryTriggerRef}
+              type="button"
+              onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white text-left flex items-center justify-between hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+            >
+              <span className={formData.country ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}>
+                {getCountryDisplay()}
+              </span>
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            </button>
+
+            {/* Country Dropdown */}
+            {showCountryDropdown && (
+              <div
+                ref={countryDropdownRef}
+                className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+              >
+                {/* Search */}
+                <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    <input
+                      type="text"
+                      placeholder="Search countries..."
+                      value={countrySearch}
+                      onChange={(e) => setCountrySearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                {/* Country List */}
+                <div className="max-h-64 overflow-y-auto">
+                  {filteredCountries.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                      {countrySearch ? 'No countries found' : 'No countries available'}
+                    </div>
+                  ) : (
+                    <div className="py-1">
+                      {filteredCountries.map((country) => (
+                        <button
+                          key={country.id}
+                          onClick={() => {
+                            handleChange('country', country.name);
+                            setShowCountryDropdown(false);
+                            setCountrySearch('');
+                          }}
+                          className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between transition-colors ${
+                            formData.country === country.name ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+                          }`}
+                        >
+                          <span className="text-gray-900 dark:text-white">
+                            {country.name}
+                            <span className="ml-2 text-gray-400 text-xs">({country.code})</span>
+                          </span>
+                          {formData.country === country.name && (
+                            <Check className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -673,6 +805,7 @@ const ProfileTab = ({ onUnsavedChanges }) => {
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
+
     </div>
   );
 };

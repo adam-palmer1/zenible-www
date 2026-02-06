@@ -497,6 +497,7 @@ const CreditNoteForm = ({ creditNote: creditNoteProp = null, onSuccess, isInModa
             value={creditNoteNumber}
             onChange={(e) => setCreditNoteNumber(e.target.value)}
             placeholder="CRN-0001"
+            autoComplete="off"
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>
@@ -511,6 +512,7 @@ const CreditNoteForm = ({ creditNote: creditNoteProp = null, onSuccess, isInModa
               type="date"
               value={issueDate}
               onChange={(e) => setIssueDate(e.target.value)}
+              autoComplete="off"
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               required
             />
@@ -565,6 +567,7 @@ const CreditNoteForm = ({ creditNote: creditNoteProp = null, onSuccess, isInModa
             value={reference}
             onChange={(e) => setReference(e.target.value)}
             placeholder="e.g., PO-12345"
+            autoComplete="off"
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>
@@ -602,6 +605,7 @@ const CreditNoteForm = ({ creditNote: creditNoteProp = null, onSuccess, isInModa
                 value={linkedInvoiceId}
                 onChange={(e) => setLinkedInvoiceId(e.target.value)}
                 placeholder="Invoice ID (optional)"
+                autoComplete="off"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             )}
@@ -618,6 +622,7 @@ const CreditNoteForm = ({ creditNote: creditNoteProp = null, onSuccess, isInModa
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="e.g., Product return - defective item"
+            autoComplete="off"
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>
@@ -664,6 +669,7 @@ const CreditNoteForm = ({ creditNote: creditNoteProp = null, onSuccess, isInModa
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Additional notes (visible to client)"
           rows={4}
+          autoComplete="off"
           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
         />
       </div>

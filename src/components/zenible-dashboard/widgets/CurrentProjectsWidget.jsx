@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
  * Settings:
  * - limit: Number of projects to display (default: 3)
  */
-const CurrentProjectsWidget = ({ settings = {} }) => {
+const CurrentProjectsWidget = ({ settings = {}, isHovered = false }) => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -55,16 +55,16 @@ const CurrentProjectsWidget = ({ settings = {} }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[180px]">
+      <div className="flex items-center justify-center h-full min-h-[100px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[180px]">
+    <div className="flex flex-col h-full">
       {/* Projects List */}
-      <div className="flex-1 overflow-y-auto space-y-2">
+      <div className="flex-1 overflow-hidden">
         {projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <RectangleStackIcon className="w-12 h-12 text-gray-300 mb-2" />
@@ -77,7 +77,15 @@ const CurrentProjectsWidget = ({ settings = {} }) => {
             </button>
           </div>
         ) : (
-          projects.map((project) => (
+          <div
+            className="h-full overflow-y-auto space-y-2"
+            style={{
+              width: isHovered ? '100%' : 'calc(100% + 17px)',
+              paddingRight: isHovered ? '0' : '17px',
+              transition: 'width 0.2s ease, padding-right 0.2s ease'
+            }}
+          >
+          {projects.map((project) => (
             <button
               key={project.id}
               onClick={() => handleProjectClick(project.id)}
@@ -109,7 +117,8 @@ const CurrentProjectsWidget = ({ settings = {} }) => {
                 <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-[#8e51ff] flex-shrink-0 mt-0.5" />
               </div>
             </button>
-          ))
+          ))}
+          </div>
         )}
       </div>
 

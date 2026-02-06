@@ -27,11 +27,19 @@ class PlanAPI {
 
   async getPublicPlanDetails(planId) {
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+
+      // Include auth token if available
+      const accessToken = localStorage.getItem('access_token');
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(`${API_BASE_URL}/plans/${planId}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -551,6 +559,34 @@ class PlanAPI {
       return await response.json();
     } catch (error) {
       console.error('Failed to fetch invoices:', error);
+      throw error;
+    }
+  }
+
+  // Usage Dashboard - comprehensive view of user's plan, features, limits, and usage
+  async getUsageDashboard() {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/me/usage-dashboard`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to fetch usage dashboard:', error);
       throw error;
     }
   }

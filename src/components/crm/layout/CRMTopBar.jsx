@@ -5,6 +5,8 @@ import {
   Squares2X2Icon,
   ListBulletIcon,
 } from '@heroicons/react/24/outline';
+import { useUsageDashboardOptional } from '../../../contexts/UsageDashboardContext';
+import UsageLimitBadge from '../../ui/UsageLimitBadge';
 
 /**
  * CRMTopBar - Top section with title, view toggle, and primary actions
@@ -28,6 +30,27 @@ const CRMTopBar = ({
   updatePreference,
   activeTab = 'crm',
 }) => {
+  const usageContext = useUsageDashboardOptional();
+
+  // Map activeTab to entity type for usage limits
+  const getEntityType = () => {
+    switch (activeTab) {
+      case 'clients':
+        return 'active_clients';
+      case 'vendors':
+        return 'active_vendors';
+      case 'services':
+        return 'active_services';
+      case 'projects':
+        return 'active_projects';
+      default: // 'crm'
+        return 'active_crm_contacts';
+    }
+  };
+
+  const entityType = getEntityType();
+  const canCreate = usageContext?.canCreate?.(entityType) ?? true;
+
   const handleViewModeChange = async (mode) => {
     setViewMode(mode);
     try {
@@ -63,6 +86,15 @@ const CRMTopBar = ({
 
         {/* Right: View Toggle + Actions */}
         <div className="flex items-center gap-3 h-full">
+          {/* Usage Limit Badge */}
+          {usageContext && (
+            <UsageLimitBadge
+              entityType={entityType}
+              variant="compact"
+              showUpgradeLink={true}
+            />
+          )}
+
           {/* View Mode Toggle - Only on CRM tab */}
           {activeTab === 'crm' && (
             <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
@@ -94,7 +126,13 @@ const CRMTopBar = ({
           {/* Add Button (changes based on active tab) */}
           <button
             onClick={addButtonConfig.action}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 transition-colors font-medium"
+            disabled={!canCreate}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
+              canCreate
+                ? 'bg-zenible-primary text-white hover:bg-opacity-90'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            title={!canCreate ? 'Upgrade your plan to add more' : ''}
           >
             <PlusIcon className="h-5 w-5" />
             <span>{addButtonConfig.text}</span>

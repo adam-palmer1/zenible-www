@@ -248,7 +248,7 @@ const EditPaymentModal = ({ isOpen, onClose, payment: paymentProp, refreshKey })
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 space-y-4" autoComplete="off">
           {/* Customer Name and Email (Read-only) */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -260,6 +260,7 @@ const EditPaymentModal = ({ isOpen, onClose, payment: paymentProp, refreshKey })
                 type="text"
                 value={formData.customer_name}
                 disabled
+                autoComplete="off"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400"
               />
             </div>
@@ -271,6 +272,7 @@ const EditPaymentModal = ({ isOpen, onClose, payment: paymentProp, refreshKey })
                 type="email"
                 value={formData.customer_email || '-'}
                 disabled
+                autoComplete="off"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400"
               />
             </div>
@@ -295,6 +297,7 @@ const EditPaymentModal = ({ isOpen, onClose, payment: paymentProp, refreshKey })
                 min="0"
                 placeholder="0.00"
                 required
+                autoComplete="off"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
@@ -321,6 +324,7 @@ const EditPaymentModal = ({ isOpen, onClose, payment: paymentProp, refreshKey })
                 name="payment_date"
                 value={formData.payment_date}
                 onChange={handleChange}
+                autoComplete="off"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
@@ -395,6 +399,7 @@ const EditPaymentModal = ({ isOpen, onClose, payment: paymentProp, refreshKey })
               value={formData.reference_number}
               onChange={handleChange}
               placeholder="e.g., check number, transaction ID"
+              autoComplete="off"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
@@ -411,6 +416,7 @@ const EditPaymentModal = ({ isOpen, onClose, payment: paymentProp, refreshKey })
               onChange={handleChange}
               rows={3}
               placeholder="Add notes about this payment..."
+              autoComplete="off"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>

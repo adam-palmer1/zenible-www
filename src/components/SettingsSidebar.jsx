@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
 import planAPI from '../services/planAPI';
+import companyUsersAPI from '../services/api/crm/companyUsers';
 import UserProfileSection from './sidebar/UserProfileSection';
 import {
   UserIcon,
@@ -22,6 +23,7 @@ export default function SettingsSidebar({ activeTab, setActiveTab }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [planName, setPlanName] = useState('Free Plan');
+  const [isCompanyAdmin, setIsCompanyAdmin] = useState(false);
 
   useEffect(() => {
     const fetchPlanName = async () => {
@@ -39,19 +41,36 @@ export default function SettingsSidebar({ activeTab, setActiveTab }) {
     fetchPlanName();
   }, [user]);
 
+  // Check if user is a company admin
+  useEffect(() => {
+    const fetchCompanyPermissions = async () => {
+      try {
+        const permissions = await companyUsersAPI.getMyPermissions();
+        setIsCompanyAdmin(permissions?.is_company_admin || false);
+      } catch (error) {
+        // User may not be part of a company, default to false
+        setIsCompanyAdmin(false);
+      }
+    };
+    if (user) {
+      fetchCompanyPermissions();
+    }
+  }, [user]);
+
   const accountSettings = [
     { id: 'profile', label: 'Profile', icon: UserIcon },
     { id: 'subscription', label: 'Subscription', icon: CreditCardIcon },
-    { id: 'customization', label: 'Customization', icon: PaintBrushIcon },
+    { id: 'customization', label: 'AI Intelligence', icon: PaintBrushIcon },
+    { id: 'booking', label: 'Call Booking', icon: CalendarDaysIcon },
   ];
 
   const companySettings = [
     { id: 'company', label: 'Company Profile', icon: BuildingOfficeIcon },
     { id: 'localization', label: 'Localization', icon: GlobeAltIcon },
     { id: 'email-templates', label: 'Email Templates', icon: EnvelopeIcon },
-    { id: 'booking', label: 'Booking', icon: CalendarDaysIcon },
     { id: 'integrations', label: 'Integrations', icon: PuzzlePieceIcon },
-    { id: 'users', label: 'Users & Permissions', icon: UsersIcon },
+    // Only show Users & Permissions to company admins
+    ...(isCompanyAdmin ? [{ id: 'users', label: 'Users & Permissions', icon: UsersIcon }] : []),
     { id: 'advanced', label: 'Advanced', icon: Cog6ToothIcon },
   ];
 

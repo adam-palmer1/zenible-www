@@ -116,10 +116,18 @@ class AdminAPI {
   }
 
   // Admin-specific user actions
-  async assignPlanToUser(userId, planId, billingCycle = 'monthly') {
-    return this.request(`/admin/users/${userId}/assign-plan`, {
+  async assignPlanToUser(userId, planId, options = {}) {
+    const params = new URLSearchParams({ plan_id: planId });
+
+    if (options.startDate) {
+      params.append('start_date', options.startDate);
+    }
+    if (options.endDate) {
+      params.append('end_date', options.endDate);
+    }
+
+    return this.request(`/admin/users/${userId}/assign-plan?${params.toString()}`, {
       method: 'POST',
-      body: JSON.stringify({ plan_id: planId, billing_cycle: billingCycle }),
     });
   }
 
@@ -129,6 +137,16 @@ class AdminAPI {
 
   async resetUserApiUsage(userId) {
     return this.request(`/admin/users/${userId}/reset-api-usage`, { method: 'POST' });
+  }
+
+  async permanentlyDeleteUser(userId, { confirm = true, dryRun = false } = {}) {
+    const params = new URLSearchParams({ confirm: confirm.toString() });
+    if (dryRun) {
+      params.append('dry_run', 'true');
+    }
+    return this.request(`/admin/users/${userId}/permanent?${params.toString()}`, {
+      method: 'DELETE',
+    });
   }
 
   // Plan management endpoints
@@ -684,6 +702,22 @@ class AdminAPI {
     });
   }
 
+  // Tool Access Management
+  async getAvailableTools() {
+    return this.request('/admin/features/tools', { method: 'GET' });
+  }
+
+  async getPlanToolAccess(planId) {
+    return this.request(`/admin/features/plans/${planId}/tool-access`, { method: 'GET' });
+  }
+
+  async updatePlanToolAccess(planId, tools) {
+    return this.request(`/admin/features/plans/${planId}/tool-access`, {
+      method: 'PUT',
+      body: JSON.stringify({ tools }),
+    });
+  }
+
   // Customization Questions Management
   async getAllCustomizationQuestions(params = {}) {
     const queryString = new URLSearchParams(params).toString();
@@ -709,8 +743,11 @@ class AdminAPI {
     });
   }
 
-  async deleteCustomizationQuestion(questionId) {
-    return this.request(`/admin/customization/${questionId}`, { method: 'DELETE' });
+  async deleteCustomizationQuestion(questionId, force = false) {
+    const endpoint = force
+      ? `/admin/customization/${questionId}?force=true`
+      : `/admin/customization/${questionId}`;
+    return this.request(endpoint, { method: 'DELETE' });
   }
 
   async getQuestionAnswers(questionId) {

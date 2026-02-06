@@ -1,105 +1,62 @@
-// API service for Company Attribute endpoints
+/**
+ * Company Attributes API Service
+ */
 
-import { API_BASE_URL } from '@/config/api';
+import { createRequest } from '../httpClient';
 
-class CompanyAttributesAPI {
-  async request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+const request = createRequest('CompanyAttributesAPI');
 
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
+const companyAttributesAPI = {
+  /** Get all attributes for current company */
+  getAll: () => request('/crm/companies/current/attributes/', { method: 'GET' }),
 
-    // Add auth token
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+  /** Get specific attribute by name */
+  get: (attributeName) => request(`/crm/companies/current/attributes/${attributeName}`, {
+    method: 'GET',
+  }),
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
+  /** Create or update attribute */
+  set: (attributeName, attributeValue, description = null) => request('/crm/companies/current/attributes/', {
+    method: 'POST',
+    body: JSON.stringify({
+      attribute_name: attributeName,
+      attribute_value: attributeValue,
+      description,
+    }),
+  }),
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        throw new Error(error.detail || `Request failed with status ${response.status}`);
-      }
+  /** Batch update multiple attributes */
+  batchUpdate: (attributes) => request('/crm/companies/current/attributes/batch', {
+    method: 'PUT',
+    body: JSON.stringify({ attributes }),
+  }),
 
-      return await response.json();
-    } catch (error) {
-      console.error('Company Attributes API request failed:', error);
-      throw error;
-    }
-  }
+  /** Delete attribute */
+  delete: (attributeName) => request(`/crm/companies/current/attributes/${attributeName}`, {
+    method: 'DELETE',
+  }),
 
-  // Get all attributes for current company
-  async getAll() {
-    return this.request('/crm/companies/current/attributes/', { method: 'GET' });
-  }
+  /** Get industry attribute */
+  getIndustry: () => request('/crm/companies/current/attributes/industry/current', {
+    method: 'GET',
+  }),
 
-  // Get specific attribute by name
-  async get(attributeName) {
-    return this.request(`/crm/companies/current/attributes/${attributeName}`, {
-      method: 'GET',
-    });
-  }
+  /** Set industry attribute */
+  setIndustry: (industryId) => request('/crm/companies/current/attributes/industry/current', {
+    method: 'PUT',
+    body: JSON.stringify(industryId),
+  }),
 
-  // Create or update attribute
-  async set(attributeName, attributeValue, description = null) {
-    return this.request('/crm/companies/current/attributes/', {
-      method: 'POST',
-      body: JSON.stringify({
-        attribute_name: attributeName,
-        attribute_value: attributeValue,
-        description,
-      }),
-    });
-  }
+  /** Get employee count attribute */
+  getEmployeeCount: () => request('/crm/companies/current/attributes/employee-count/current', {
+    method: 'GET',
+  }),
 
-  // Batch update multiple attributes
-  async batchUpdate(attributes) {
-    return this.request('/crm/companies/current/attributes/batch', {
-      method: 'PUT',
-      body: JSON.stringify({ attributes }),
-    });
-  }
+  /** Set employee count attribute */
+  setEmployeeCount: (employeeRangeId) => request('/crm/companies/current/attributes/employee-count/current', {
+    method: 'PUT',
+    body: JSON.stringify(employeeRangeId),
+  }),
+};
 
-  // Delete attribute
-  async delete(attributeName) {
-    return this.request(`/crm/companies/current/attributes/${attributeName}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Convenience methods for specific attributes
-  async getIndustry() {
-    return this.request('/crm/companies/current/attributes/industry/current', {
-      method: 'GET',
-    });
-  }
-
-  async setIndustry(industryId) {
-    return this.request('/crm/companies/current/attributes/industry/current', {
-      method: 'PUT',
-      body: JSON.stringify(industryId),
-    });
-  }
-
-  async getEmployeeCount() {
-    return this.request('/crm/companies/current/attributes/employee-count/current', {
-      method: 'GET',
-    });
-  }
-
-  async setEmployeeCount(employeeRangeId) {
-    return this.request('/crm/companies/current/attributes/employee-count/current', {
-      method: 'PUT',
-      body: JSON.stringify(employeeRangeId),
-    });
-  }
-}
-
-export default new CompanyAttributesAPI();
+export default companyAttributesAPI;

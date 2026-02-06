@@ -32,9 +32,14 @@ export const QuoteProvider = ({ children }) => {
     search: '',
     status: null,
     contact_id: null,
+    contact_ids: null, // comma-separated UUIDs for multiple contacts
+    project_id: null,
+    pricing_type: null,
     expired_only: null,
-    from_date: null,
-    to_date: null,
+    issue_date_from: null,
+    issue_date_to: null,
+    valid_until_from: null,
+    valid_until_to: null,
   });
 
   const [pagination, setPagination] = useState({
@@ -70,17 +75,22 @@ export const QuoteProvider = ({ children }) => {
       setError(null);
 
       // Build params, filtering out null/undefined values
+      // Backend uses page/per_page pagination (not skip/limit)
       const params = {
-        skip: (pagination.page - 1) * pagination.limit,
-        limit: pagination.limit,
+        page: pagination.page,
+        per_page: pagination.limit,
         sort_by: sortBy,
-        sort_order: sortOrder,
+        sort_direction: sortOrder,
       };
 
       // Only add filter params if they have actual values
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== null && value !== undefined && value !== '') {
-          params[key] = value;
+          // Skip 'search' as it's handled client-side for now
+          // The backend doesn't have a search parameter
+          if (key !== 'search') {
+            params[key] = value;
+          }
         }
       });
 

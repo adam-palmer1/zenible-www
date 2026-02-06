@@ -11,7 +11,7 @@ import appointmentsAPI from '../../../services/api/crm/appointments';
  * - days: Number of days ahead to look (default: 7)
  * - limit: Max calls to display (default: 5)
  */
-const UpcomingCallsWidget = ({ settings = {} }) => {
+const UpcomingCallsWidget = ({ settings = {}, isHovered = false }) => {
   const navigate = useNavigate();
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -92,14 +92,14 @@ const UpcomingCallsWidget = ({ settings = {} }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[180px]">
+      <div className="flex items-center justify-center h-full min-h-[100px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[180px]">
+    <div className="flex flex-col h-full">
       {calls.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 text-center">
           <PhoneIcon className="w-12 h-12 text-gray-300 mb-2" />
@@ -113,7 +113,15 @@ const UpcomingCallsWidget = ({ settings = {} }) => {
         </div>
       ) : (
         <>
-          <div className="space-y-2 flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-hidden">
+            <div
+              className="h-full overflow-y-auto space-y-2"
+              style={{
+                width: isHovered ? '100%' : 'calc(100% + 17px)',
+                paddingRight: isHovered ? '0' : '17px',
+                transition: 'width 0.2s ease, padding-right 0.2s ease'
+              }}
+            >
             {calls.map((call) => {
               const soon = isCallSoon(call.start_time);
 
@@ -158,6 +166,7 @@ const UpcomingCallsWidget = ({ settings = {} }) => {
                 </button>
               );
             })}
+            </div>
           </div>
 
           <div className="mt-3 pt-3 border-t border-gray-100">

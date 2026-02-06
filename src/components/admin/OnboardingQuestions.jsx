@@ -142,6 +142,8 @@ export default function OnboardingQuestions() {
   const [setSelectedQuestion] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState(null);
+  const [deleteWarning, setDeleteWarning] = useState(null); // Stores warning about existing answers
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [statistics, setStatistics] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [answersPage, setAnswersPage] = useState(1);
@@ -259,20 +261,34 @@ export default function OnboardingQuestions() {
     }
   };
 
-  const handleDeleteQuestion = async () => {
+  const handleDeleteQuestion = async (forceDelete = false) => {
     if (!questionToDelete) return;
 
-    setLoading(true);
+    setDeleteLoading(true);
     try {
-      await adminAPI.deleteCustomizationQuestion(questionToDelete.id);
+      await adminAPI.deleteCustomizationQuestion(questionToDelete.id, forceDelete);
       await loadQuestions();
       setShowDeleteModal(false);
       setQuestionToDelete(null);
+      setDeleteWarning(null);
     } catch (err) {
-      setError(err.message);
-      console.error('Failed to delete question:', err);
+      // Check if the error is about existing answers
+      const errorMessage = err.message || '';
+      const existingAnswersMatch = errorMessage.match(/(\d+) existing answers?/i);
+
+      if (existingAnswersMatch && !forceDelete) {
+        // Show warning about existing answers
+        const answerCount = parseInt(existingAnswersMatch[1], 10);
+        setDeleteWarning({
+          answerCount,
+          message: `This question has ${answerCount} existing user answer${answerCount === 1 ? '' : 's'}. Deleting it will also remove ${answerCount === 1 ? 'this answer' : 'these answers'}.`
+        });
+      } else {
+        setError(err.message);
+        console.error('Failed to delete question:', err);
+      }
     } finally {
-      setLoading(false);
+      setDeleteLoading(false);
     }
   };
 
@@ -1031,25 +1047,63 @@ export default function OnboardingQuestions() {
         {showDeleteModal && (
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Question</h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Are you sure you want to delete "{questionToDelete?.question_text}"? This action cannot be undone.
-              </p>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                {deleteWarning ? 'Confirm Force Delete' : 'Delete Question'}
+              </h3>
+
+              {deleteWarning ? (
+                <>
+                  <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">Warning: Existing Answers</p>
+                        <p className="text-sm text-amber-700 mt-1">{deleteWarning.message}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-6">
+                    Are you sure you want to delete "{questionToDelete?.question_text}" and all associated answers? This action cannot be undone.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500 mb-6">
+                  Are you sure you want to delete "{questionToDelete?.question_text}"? This action cannot be undone.
+                </p>
+              )}
+
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => {
                     setShowDeleteModal(false);
                     setQuestionToDelete(null);
+                    setDeleteWarning(null);
                   }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={deleteLoading}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleDeleteQuestion}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  onClick={() => handleDeleteQuestion(!!deleteWarning)}
+                  disabled={deleteLoading}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  Delete
+                  {deleteLoading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Deleting...
+                    </>
+                  ) : deleteWarning ? (
+                    'Force Delete'
+                  ) : (
+                    'Delete'
+                  )}
                 </button>
               </div>
             </div>

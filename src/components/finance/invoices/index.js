@@ -21,3 +21,4 @@ export { default as AddPaymentModal } from './AddPaymentModal';
 export { default as LinkPaymentModal } from './LinkPaymentModal';
 export { default as InvoiceActionsMenu } from './InvoiceActionsMenu';
 export { default as InvoiceHistory } from './InvoiceHistory';
+export { default as SendReminderDialog } from './SendReminderDialog';

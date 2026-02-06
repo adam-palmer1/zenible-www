@@ -4,6 +4,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import NewSidebar from '../sidebar/NewSidebar';
 import ExpertSidebar from './ExpertSidebar';
 import BoardroomArea from './BoardroomArea';
+import PersonalizeAIBanner from '../shared/PersonalizeAIBanner';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import aiCharacterAPI from '../../services/aiCharacterAPI';
 
@@ -56,7 +57,12 @@ export default function Boardroom() {
         <NewSidebar />
 
         {/* Main Content Area with Expert Sidebar and Boardroom */}
-        <div className="flex-1 flex transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
+        <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
+          {/* Personalize AI Banner */}
+          <div className="px-4 pt-4">
+            <PersonalizeAIBanner darkMode={darkMode} />
+          </div>
+
           <div className="flex-1 flex p-4 gap-3.5">
             {/* Expert Sidebar */}
             <ExpertSidebar

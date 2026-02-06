@@ -19,6 +19,7 @@ export default function PlanFeatureAssignment({ darkMode }) {
   const [displayFeatureAssignments, setDisplayFeatureAssignments] = useState([]);
   const [systemFeatureAssignments, setSystemFeatureAssignments] = useState([]);
   const [characterAccessAssignments, setCharacterAccessAssignments] = useState([]);
+  const [toolAccessAssignments, setToolAccessAssignments] = useState([]);
 
   useEffect(() => {
     fetchInitialData();
@@ -110,11 +111,29 @@ export default function PlanFeatureAssignment({ darkMode }) {
           is_accessible: existing ? existing.is_accessible : false,
           daily_message_limit: existing ? existing.daily_message_limit : null,
           daily_token_limit: existing ? existing.daily_token_limit : null,
+          monthly_message_limit: existing ? existing.monthly_message_limit : null,
+          monthly_token_limit: existing ? existing.monthly_token_limit : null,
           rate_limit_per_minute: existing ? existing.rate_limit_per_minute : 10,
           priority: existing ? existing.priority : 1,
         };
       });
       setCharacterAccessAssignments(characterAssignments);
+
+      // Fetch tool access for this plan
+      try {
+        const toolAccessResponse = await adminAPI.getPlanToolAccess(planId);
+        // Response is an array directly with all tool data
+        const toolAssignments = (Array.isArray(toolAccessResponse) ? toolAccessResponse : []).map(tool => ({
+          tool_name: tool.tool_name,
+          tool_description: tool.tool_description,
+          is_enabled: tool.is_enabled ?? false,
+          monthly_usage_limit: tool.monthly_usage_limit,
+        }));
+        setToolAccessAssignments(toolAssignments);
+      } catch {
+        // If tool access endpoint fails, set empty
+        setToolAccessAssignments([]);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -180,6 +199,8 @@ export default function PlanFeatureAssignment({ darkMode }) {
         is_accessible: assignment.is_accessible,
         daily_message_limit: assignment.daily_message_limit,
         daily_token_limit: assignment.daily_token_limit,
+        monthly_message_limit: assignment.monthly_message_limit,
+        monthly_token_limit: assignment.monthly_token_limit,
         rate_limit_per_minute: assignment.rate_limit_per_minute,
         priority: assignment.priority,
       }));
@@ -215,6 +236,31 @@ export default function PlanFeatureAssignment({ darkMode }) {
   const updateCharacterAccess = (characterId, field, value) => {
     setCharacterAccessAssignments(prev =>
       prev.map(c => c.character_id === characterId ? { ...c, [field]: value } : c)
+    );
+  };
+
+  const handleSaveToolAccess = async () => {
+    setSaving(true);
+    try {
+      const tools = toolAccessAssignments.map((assignment) => ({
+        tool_name: assignment.tool_name,
+        is_enabled: assignment.is_enabled,
+        monthly_usage_limit: assignment.monthly_usage_limit,
+      }));
+
+      await adminAPI.updatePlanToolAccess(selectedPlanId, tools);
+      setSuccessModal({ isOpen: true, message: 'Tool limits updated successfully!' });
+      fetchPlanFeatures(selectedPlanId);
+    } catch (err) {
+      alert(`Error saving tool limits: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateToolAccess = (toolName, field, value) => {
+    setToolAccessAssignments(prev =>
+      prev.map(t => t.tool_name === toolName ? { ...t, [field]: value } : t)
     );
   };
 
@@ -298,6 +344,18 @@ export default function PlanFeatureAssignment({ darkMode }) {
               }`}
             >
               Character Access
+            </button>
+            <button
+              onClick={() => setActiveTab('tools')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === 'tools'
+                  ? 'bg-zenible-primary text-white'
+                  : darkMode
+                  ? 'bg-zenible-dark-tab-bg text-zenible-dark-text hover:bg-zenible-dark-border'
+                  : 'bg-gray-100 text-zinc-700 hover:bg-gray-200'
+              }`}
+            >
+              Tool Limits
             </button>
           </div>
 
@@ -640,6 +698,8 @@ export default function PlanFeatureAssignment({ darkMode }) {
                       <ul className="space-y-1 list-disc list-inside">
                         <li><strong>Daily Message Limit:</strong> Maximum messages per day (leave empty for unlimited)</li>
                         <li><strong>Daily Token Limit:</strong> Maximum tokens per day (leave empty for unlimited)</li>
+                        <li><strong>Monthly Message Limit:</strong> Maximum messages per month (leave empty for unlimited)</li>
+                        <li><strong>Monthly Token Limit:</strong> Maximum tokens per month (leave empty for unlimited)</li>
                         <li><strong>Rate Limit:</strong> Maximum messages per minute (prevents abuse)</li>
                         <li><strong>Priority:</strong> Queue priority 1-100 (higher = faster response times)</li>
                       </ul>
@@ -689,7 +749,7 @@ export default function PlanFeatureAssignment({ darkMode }) {
                           </div>
 
                           {assignment.is_accessible && (
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 ml-8">
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 ml-8">
                               <div>
                                 <label className={`block text-xs font-medium mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
                                   Daily Message Limit
@@ -722,6 +782,52 @@ export default function PlanFeatureAssignment({ darkMode }) {
                                     type="number"
                                     value={assignment.daily_token_limit || ''}
                                     onChange={(e) => updateCharacterAccess(assignment.character_id, 'daily_token_limit', e.target.value ? parseInt(e.target.value) : null)}
+                                    placeholder="Unlimited"
+                                    min="0"
+                                    className={`w-full px-3 py-2 rounded border ${
+                                      darkMode
+                                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                                        : 'bg-white border-neutral-300 text-zinc-950'
+                                    } focus:outline-none focus:ring-1 focus:ring-zenible-primary`}
+                                  />
+                                  <span className={`absolute right-2 top-2.5 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-400'}`}>
+                                    tokens
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className={`block text-xs font-medium mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
+                                  Monthly Message Limit
+                                </label>
+                                <div className="relative">
+                                  <input
+                                    type="number"
+                                    value={assignment.monthly_message_limit || ''}
+                                    onChange={(e) => updateCharacterAccess(assignment.character_id, 'monthly_message_limit', e.target.value ? parseInt(e.target.value) : null)}
+                                    placeholder="Unlimited"
+                                    min="0"
+                                    className={`w-full px-3 py-2 rounded border ${
+                                      darkMode
+                                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                                        : 'bg-white border-neutral-300 text-zinc-950'
+                                    } focus:outline-none focus:ring-1 focus:ring-zenible-primary`}
+                                  />
+                                  <span className={`absolute right-2 top-2.5 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-400'}`}>
+                                    /mo
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className={`block text-xs font-medium mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
+                                  Monthly Token Limit
+                                </label>
+                                <div className="relative">
+                                  <input
+                                    type="number"
+                                    value={assignment.monthly_token_limit || ''}
+                                    onChange={(e) => updateCharacterAccess(assignment.character_id, 'monthly_token_limit', e.target.value ? parseInt(e.target.value) : null)}
                                     placeholder="Unlimited"
                                     min="0"
                                     className={`w-full px-3 py-2 rounded border ${
@@ -796,6 +902,118 @@ export default function PlanFeatureAssignment({ darkMode }) {
                     className="mt-6 px-6 py-2 bg-zenible-primary text-white rounded-lg hover:bg-zenible-primary-dark transition-colors disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save Character Access'}
+                  </button>
+                </div>
+              )}
+
+              {/* Tool Limits Tab */}
+              {activeTab === 'tools' && (
+                <div className={`rounded-xl p-6 border ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-card' : 'border-neutral-200 bg-white'}`}>
+                  <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                    Tool Limits Configuration
+                  </h3>
+                  <p className={`text-sm mb-6 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
+                    Configure which AI tools are available for this plan and set their monthly usage limits.
+                  </p>
+
+                  {/* Info Box */}
+                  <div className={`mb-6 p-4 rounded-lg ${darkMode ? 'bg-purple-500/10 border border-purple-500/30' : 'bg-purple-50 border border-purple-200'}`}>
+                    <div className={`text-sm ${darkMode ? 'text-purple-200' : 'text-purple-900'}`}>
+                      <p className="font-semibold mb-2">Tool Settings:</p>
+                      <ul className="space-y-1 list-disc list-inside">
+                        <li><strong>Enabled:</strong> Toggle to enable/disable the tool for this plan</li>
+                        <li><strong>Monthly Usage Limit:</strong> Maximum times the tool can be used per month (leave empty for unlimited)</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {toolAccessAssignments.length === 0 ? (
+                      <div className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
+                        No tools available. Please ensure tools are configured in the system.
+                      </div>
+                    ) : (
+                      toolAccessAssignments.map((assignment) => (
+                        <div
+                          key={assignment.tool_name}
+                          className={`p-4 rounded-lg border transition-all ${
+                            assignment.is_enabled
+                              ? darkMode
+                                ? 'bg-zenible-dark-sidebar border-zenible-primary/50'
+                                : 'bg-purple-50 border-purple-200'
+                              : darkMode
+                                ? 'bg-zenible-dark-sidebar/50 border-zenible-dark-border'
+                                : 'bg-gray-50 border-neutral-200'
+                          }`}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="flex items-center gap-3 pt-1">
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={assignment.is_enabled}
+                                  onChange={(e) => updateToolAccess(assignment.tool_name, 'is_enabled', e.target.checked)}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-zenible-primary rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-zenible-primary"></div>
+                              </label>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <h4 className={`font-medium text-base ${
+                                  assignment.is_enabled
+                                    ? darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'
+                                    : darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'
+                                }`}>
+                                  {assignment.tool_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                </h4>
+                                <code className={`text-xs px-2 py-0.5 rounded ${
+                                  darkMode ? 'bg-zenible-dark-bg text-zenible-primary' : 'bg-gray-100 text-zenible-primary'
+                                }`}>
+                                  {assignment.tool_name}
+                                </code>
+                              </div>
+                              {assignment.tool_description && (
+                                <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
+                                  {assignment.tool_description}
+                                </p>
+                              )}
+                              {assignment.is_enabled && (
+                                <div className="mt-3">
+                                  <label className={`block text-xs font-medium mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
+                                    Monthly Usage Limit
+                                  </label>
+                                  <div className="relative w-48">
+                                    <input
+                                      type="number"
+                                      value={assignment.monthly_usage_limit || ''}
+                                      onChange={(e) => updateToolAccess(assignment.tool_name, 'monthly_usage_limit', e.target.value ? parseInt(e.target.value) : null)}
+                                      placeholder="Unlimited"
+                                      min="0"
+                                      className={`w-full px-3 py-2 rounded border ${
+                                        darkMode
+                                          ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                                          : 'bg-white border-neutral-300 text-zinc-950'
+                                      } focus:outline-none focus:ring-1 focus:ring-zenible-primary`}
+                                    />
+                                    <span className={`absolute right-3 top-2.5 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-400'}`}>
+                                      /mo
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    onClick={handleSaveToolAccess}
+                    disabled={saving}
+                    className="mt-6 px-6 py-2 bg-zenible-primary text-white rounded-lg hover:bg-zenible-primary-dark transition-colors disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Save Tool Limits'}
                   </button>
                 </div>
               )}

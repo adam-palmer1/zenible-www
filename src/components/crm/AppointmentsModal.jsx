@@ -115,11 +115,10 @@ const AppointmentsModal = ({ isOpen, onClose, contact }) => {
     if (!appointment) return;
 
     try {
-      await appointmentsAPI.update(appointment.id, {
-        status: 'cancelled'
-      });
+      await appointmentsAPI.delete(appointment.id);
 
       showSuccess('Appointment cancelled successfully');
+      setCancelConfirmModal({ isOpen: false, appointment: null });
 
       // Refresh contacts to get updated appointments
       if (refreshContacts) {

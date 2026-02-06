@@ -4,6 +4,7 @@ import DraftPostSection from './DraftPostSection';
 import StrategyInputSection from './StrategyInputSection';
 import PlatformContentOptions from './PlatformContentOptions';
 import AIFeedbackSection from '../shared/AIFeedbackSection';
+import PersonalizeAIBanner from '../shared/PersonalizeAIBanner';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useViralPostAnalysis } from '../../hooks/useViralPostAnalysis';
 import { WebSocketContext } from '../../contexts/WebSocketContext';
@@ -11,6 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import aiCharacterAPI from '../../services/aiCharacterAPI';
 import userAPI from '../../services/userAPI';
 import { getCharacterTools } from '../../services/toolDiscoveryAPI';
+import UsageLimitBadge from '../ui/UsageLimitBadge';
 
 export default function ViralPostGenerator() {
   const { darkMode } = usePreferences();
@@ -372,9 +374,22 @@ export default function ViralPostGenerator() {
       <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
         {/* Header */}
         <div className={`border-b ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-neutral-200 bg-white'} px-4 py-3`}>
-          <h1 className={`text-2xl font-semibold ${darkMode ? 'text-gray-100' : 'text-zinc-950'}`}>
-            Viral Post Generator
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className={`text-2xl font-semibold ${darkMode ? 'text-gray-100' : 'text-zinc-950'}`}>
+              Viral Post Generator
+            </h1>
+            <UsageLimitBadge
+              characterId={selectedCharacterId}
+              variant="compact"
+              showUpgradeLink={true}
+              darkMode={darkMode}
+            />
+          </div>
+        </div>
+
+        {/* Personalize AI Banner */}
+        <div className="px-4 pt-4">
+          <PersonalizeAIBanner darkMode={darkMode} />
         </div>
 
         {/* Main Content */}

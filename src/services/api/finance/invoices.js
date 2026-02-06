@@ -157,6 +157,21 @@ class InvoicesAPI {
   }
 
   /**
+   * Send invoice reminder via email
+   * Uses INVOICE_REMINDER template (includes {{days_overdue}} variable)
+   * Only works for invoices with status: sent, viewed, or partially_paid
+   * @param {string|number} invoiceId - Invoice ID
+   * @param {Object} emailData - Email data { to_email, additional_recipients, email_subject, email_body, attach_pdf, template_id }
+   * @returns {Promise<Object>} Send result with updated reminder_count
+   */
+  async sendReminder(invoiceId, emailData) {
+    return request(`${this.baseEndpoint}/${invoiceId}/send-reminder`, {
+      method: 'POST',
+      body: JSON.stringify(emailData),
+    });
+  }
+
+  /**
    * Create and send invoice in one step
    * @param {Object} invoiceData - Invoice data (all invoice fields)
    * @param {Object} sendOptions - Send options { to_email, cc_emails, email_subject, email_body, attach_pdf, template_id }

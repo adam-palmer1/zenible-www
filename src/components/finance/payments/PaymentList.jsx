@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Search,
   Filter,
@@ -8,7 +9,10 @@ import {
   RotateCcw,
   CreditCard,
   Plus,
-  Trash2
+  Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
@@ -26,6 +30,7 @@ import KPICard from '../shared/KPICard';
 import DateRangeFilter from '../expenses/DateRangeFilter';
 
 const PaymentList = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     payments,
     loading,
@@ -43,14 +48,57 @@ const PaymentList = () => {
   } = usePayments();
   const { showSuccess, showError } = useNotification();
 
-  // Local state
-  const [searchQuery, setSearchQuery] = useState(filters.search || '');
+  // Local state - search is client-side only (backend doesn't support search param)
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState(filters.status || 'all');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState(null);
+
+  // Handle payment query parameter - open payment detail modal
+  const urlPaymentId = searchParams.get('payment');
+  useEffect(() => {
+    if (urlPaymentId && payments.length > 0 && !loading) {
+      const payment = payments.find(p => p.id === urlPaymentId);
+      if (payment) {
+        openDetailModal(payment);
+      }
+      // Clear the URL param after opening
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('payment');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [urlPaymentId, payments, loading, openDetailModal, searchParams, setSearchParams]);
+
+  // Sync filterStatus with context filters when they change (e.g., from preferences)
+  useEffect(() => {
+    setFilterStatus(filters.status || 'all');
+  }, [filters.status]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showFilterDropdown && !e.target.closest('.relative')) {
+        setShowFilterDropdown(false);
+      }
+      if (showSortDropdown && !e.target.closest('.relative')) {
+        setShowSortDropdown(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showFilterDropdown, showSortDropdown]);
+
+  // Sort options that backend supports
+  const SORT_OPTIONS = [
+    { value: 'payment_date', label: 'Payment Date' },
+    { value: 'created_at', label: 'Created Date' },
+    { value: 'amount', label: 'Amount' },
+    { value: 'payment_number', label: 'Payment Number' },
+  ];
 
   // Format converted total for main display
   const getConvertedDisplay = (convertedObj) => {
@@ -111,21 +159,37 @@ const PaymentList = () => {
     return result;
   }, [payments, searchQuery]);
 
-  // Handle search
+  // Handle search - client-side only (backend doesn't support search param)
   const handleSearch = (value) => {
     setSearchQuery(value);
-    // Debounce API call
-    clearTimeout(window.paymentSearchTimeout);
-    window.paymentSearchTimeout = setTimeout(() => {
-      updateFilters({ search: value });
-    }, 300);
   };
 
-  // Handle status filter
+  // Handle status filter - server-side
   const handleStatusFilter = (status) => {
     setFilterStatus(status);
     setShowFilterDropdown(false);
     updateFilters({ status: status === 'all' ? null : status });
+  };
+
+  // Handle sort - server-side
+  const handleSort = (sortBy) => {
+    const currentSortBy = filters.sort_by;
+    const currentDirection = filters.sort_direction;
+
+    // If clicking the same column, toggle direction
+    if (sortBy === currentSortBy) {
+      updateFilters({ sort_direction: currentDirection === 'asc' ? 'desc' : 'asc' });
+    } else {
+      // New column, default to desc
+      updateFilters({ sort_by: sortBy, sort_direction: 'desc' });
+    }
+    setShowSortDropdown(false);
+  };
+
+  // Get current sort label
+  const getSortLabel = () => {
+    const option = SORT_OPTIONS.find(o => o.value === filters.sort_by);
+    return option ? option.label : 'Sort';
   };
 
   // Handle page change
@@ -303,6 +367,35 @@ const PaymentList = () => {
               )}
             </div>
 
+            {/* Sort Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                {filters.sort_direction === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                {getSortLabel()}
+              </button>
+              {showSortDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 dark:bg-gray-800 dark:border-gray-600">
+                  <div className="py-1">
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleSort(option.value)}
+                        className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between ${filters.sort_by === option.value ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-50 dark:hover:bg-gray-700`}
+                      >
+                        <span>{option.label}</span>
+                        {filters.sort_by === option.value && (
+                          filters.sort_direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Record Payment Button */}
             <button
               onClick={openCreateModal}
@@ -357,11 +450,16 @@ const PaymentList = () => {
                       <div className="flex flex-col items-center gap-2">
                         <CreditCard className="h-8 w-8 text-gray-400" />
                         <p>No payments found</p>
-                        {(searchQuery || filterStatus !== 'all') && (
+                        {(searchQuery || filterStatus !== 'all' || filters.start_date || filters.end_date) && (
                           <button
                             onClick={() => {
                               setSearchQuery('');
-                              handleStatusFilter('all');
+                              setFilterStatus('all');
+                              updateFilters({
+                                status: null,
+                                start_date: null,
+                                end_date: null
+                              });
                             }}
                             className="text-purple-600 hover:text-purple-700 text-sm font-medium"
                           >

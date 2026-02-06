@@ -27,14 +27,16 @@ export const PaymentsProvider = ({ children }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
-  // Filters
+  // Filters - these are sent to the server for server-side filtering
   const [filters, setFilters] = useState({
-    search: '',
     status: null,
     contact_id: null,
+    project_id: null,
     unallocated_only: false,
     start_date: null,
     end_date: null,
+    sort_by: 'payment_date',
+    sort_direction: 'desc',
   });
 
   // Pagination
@@ -49,8 +51,9 @@ export const PaymentsProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       const savedFilters = {
-        search: getPreference('payment_search', ''),
         status: getPreference('payment_filter_status', null),
+        sort_by: getPreference('payment_sort_by', 'payment_date'),
+        sort_direction: getPreference('payment_sort_direction', 'desc'),
       };
 
       setFilters(prev => ({ ...prev, ...savedFilters }));
@@ -251,14 +254,21 @@ export const PaymentsProvider = ({ children }) => {
   // Update filters
   const updateFilters = useCallback((newFilters) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
-    setPagination(prev => ({ ...prev, page: 1 }));
+    // Reset to page 1 when filters change (except for sort which doesn't need reset)
+    if (!('sort_by' in newFilters && Object.keys(newFilters).length === 1) &&
+        !('sort_direction' in newFilters && Object.keys(newFilters).length === 1)) {
+      setPagination(prev => ({ ...prev, page: 1 }));
+    }
 
     // Save to preferences
     if (newFilters.status !== undefined) {
       updatePreference('payment_filter_status', newFilters.status, 'finance');
     }
-    if (newFilters.search !== undefined) {
-      updatePreference('payment_search', newFilters.search, 'finance');
+    if (newFilters.sort_by !== undefined) {
+      updatePreference('payment_sort_by', newFilters.sort_by, 'finance');
+    }
+    if (newFilters.sort_direction !== undefined) {
+      updatePreference('payment_sort_direction', newFilters.sort_direction, 'finance');
     }
   }, [updatePreference]);
 

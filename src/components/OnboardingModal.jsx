@@ -526,12 +526,12 @@ export default function OnboardingModal({ isOpen, onClose }) {
                 <h3 className={`text-xl font-semibold ${
                   darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'
                 }`}>
-                  Welcome to Your Profile Setup
+                  Personalize Your Business Intelligence Features
                 </h3>
                 <p className={`text-sm ${
                   darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'
                 }`}>
-                  Help Zenible to personalize all content that it creates for you, ensuring that feedback and guidance are always relevant to your experience and background.
+                  Help Zenible to personalize the content that it creates for your business, ensuring that feedback and guidance are always relevant to your experience and background.
                 </p>
                 <p className={`text-sm mt-2 ${
                   darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'

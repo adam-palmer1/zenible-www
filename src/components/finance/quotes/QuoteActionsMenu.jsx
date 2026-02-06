@@ -40,7 +40,7 @@ const QuoteActionsMenu = ({
     },
     {
       id: 'projects',
-      label: 'Manage Projects',
+      label: 'Link Projects',
       icon: FolderIcon,
       onClick: onProjects,
     },

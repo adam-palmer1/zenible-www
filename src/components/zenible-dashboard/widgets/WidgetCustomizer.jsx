@@ -90,7 +90,7 @@ const WidgetCustomizer = ({ open, onOpenChange }) => {
       description="Choose which widgets to display on your dashboard"
       size="lg"
     >
-      <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
+      <div className="space-y-6">
         {sortedCategories.map(categoryKey => {
           const category = WIDGET_CATEGORIES[categoryKey];
           const categoryWidgets = widgetsByCategory[categoryKey] || [];

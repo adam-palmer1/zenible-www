@@ -25,7 +25,7 @@ const formatCurrencyBreakdown = (currencyArray) => {
   return currencyArray
     .map((item) => {
       const symbol = item.currency_symbol || '$';
-      const amount = parseFloat(item.amount || 0).toLocaleString('en-US', {
+      const amount = parseFloat(item.total_amount || 0).toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });

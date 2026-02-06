@@ -132,7 +132,7 @@ const CreditNotesDashboard = () => {
       page: currentPage,
       per_page: itemsPerPage,
       sort_by: 'created_at',
-      sort_order: 'desc'
+      sort_direction: 'desc'
     };
 
     // Add status filter

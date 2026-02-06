@@ -22,6 +22,30 @@ export default function PaymentHistory() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  // Dropdown visibility state
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+
+  // Filter options
+  const statusOptions = [
+    { value: '', label: 'All Status' },
+    { value: 'succeeded', label: 'Succeeded' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'failed', label: 'Failed' },
+    { value: 'refunded', label: 'Refunded' },
+    { value: 'canceled', label: 'Canceled' },
+    { value: 'processing', label: 'Processing' },
+  ];
+
+  const typeOptions = [
+    { value: '', label: 'All Types' },
+    { value: 'subscription', label: 'Subscription' },
+    { value: 'refund', label: 'Refund' },
+    { value: 'adjustment', label: 'Adjustment' },
+    { value: 'manual', label: 'Manual' },
+    { value: 'one_time', label: 'One Time' },
+  ];
+
   useEffect(() => {
     if (activeView === 'payments') {
       fetchPayments();
@@ -88,6 +112,8 @@ export default function PaymentHistory() {
     setStartDate('');
     setEndDate('');
     setCurrentPage(1);
+    setShowStatusDropdown(false);
+    setShowTypeDropdown(false);
   };
 
   const formatDate = (dateString) => {
@@ -197,55 +223,132 @@ export default function PaymentHistory() {
         {activeView === 'payments' && (
           <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
+              {/* Status Dropdown */}
+              <div className="relative">
                 <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                   Status
                 </label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setCurrentPage(1);
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowStatusDropdown(!showStatusDropdown);
+                    setShowTypeDropdown(false);
                   }}
-                  className={`w-full px-3 py-2 rounded-lg border ${
+                  className={`w-full px-3 py-2 rounded-lg border text-left flex items-center justify-between ${
                     darkMode
-                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                      : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text hover:border-zenible-primary/50'
+                      : 'bg-white border-gray-300 text-gray-900 hover:border-gray-400'
                   }`}
                 >
-                  <option value="">All Status</option>
-                  <option value="succeeded">Succeeded</option>
-                  <option value="pending">Pending</option>
-                  <option value="failed">Failed</option>
-                  <option value="refunded">Refunded</option>
-                  <option value="canceled">Canceled</option>
-                  <option value="processing">Processing</option>
-                </select>
+                  <span className={statusFilter ? '' : darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}>
+                    {statusOptions.find(opt => opt.value === statusFilter)?.label || 'All Status'}
+                  </span>
+                  <svg className={`w-4 h-4 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showStatusDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setShowStatusDropdown(false)} />
+                    <div className={`absolute left-0 right-0 mt-1 rounded-lg shadow-lg border z-40 max-h-64 overflow-y-auto ${
+                      darkMode
+                        ? 'bg-zenible-dark-card border-zenible-dark-border'
+                        : 'bg-white border-gray-200'
+                    }`}>
+                      {statusOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setStatusFilter(option.value);
+                            setCurrentPage(1);
+                            setShowStatusDropdown(false);
+                          }}
+                          className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between ${
+                            statusFilter === option.value
+                              ? darkMode
+                                ? 'bg-zenible-primary/20 text-zenible-primary'
+                                : 'bg-zenible-primary/10 text-zenible-primary'
+                              : darkMode
+                                ? 'text-zenible-dark-text hover:bg-zenible-dark-bg'
+                                : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {option.label}
+                          {statusFilter === option.value && (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
-              <div>
+              {/* Type Dropdown */}
+              <div className="relative">
                 <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                   Type
                 </label>
-                <select
-                  value={typeFilter}
-                  onChange={(e) => {
-                    setTypeFilter(e.target.value);
-                    setCurrentPage(1);
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTypeDropdown(!showTypeDropdown);
+                    setShowStatusDropdown(false);
                   }}
-                  className={`w-full px-3 py-2 rounded-lg border ${
+                  className={`w-full px-3 py-2 rounded-lg border text-left flex items-center justify-between ${
                     darkMode
-                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                      : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text hover:border-zenible-primary/50'
+                      : 'bg-white border-gray-300 text-gray-900 hover:border-gray-400'
                   }`}
                 >
-                  <option value="">All Types</option>
-                  <option value="subscription">Subscription</option>
-                  <option value="refund">Refund</option>
-                  <option value="adjustment">Adjustment</option>
-                  <option value="manual">Manual</option>
-                  <option value="one_time">One Time</option>
-                </select>
+                  <span className={typeFilter ? '' : darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}>
+                    {typeOptions.find(opt => opt.value === typeFilter)?.label || 'All Types'}
+                  </span>
+                  <svg className={`w-4 h-4 transition-transform ${showTypeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showTypeDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setShowTypeDropdown(false)} />
+                    <div className={`absolute left-0 right-0 mt-1 rounded-lg shadow-lg border z-40 max-h-64 overflow-y-auto ${
+                      darkMode
+                        ? 'bg-zenible-dark-card border-zenible-dark-border'
+                        : 'bg-white border-gray-200'
+                    }`}>
+                      {typeOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setTypeFilter(option.value);
+                            setCurrentPage(1);
+                            setShowTypeDropdown(false);
+                          }}
+                          className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between ${
+                            typeFilter === option.value
+                              ? darkMode
+                                ? 'bg-zenible-primary/20 text-zenible-primary'
+                                : 'bg-zenible-primary/10 text-zenible-primary'
+                              : darkMode
+                                ? 'text-zenible-dark-text hover:bg-zenible-dark-bg'
+                                : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {option.label}
+                          {typeFilter === option.value && (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
               <div>

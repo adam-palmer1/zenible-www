@@ -101,6 +101,17 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
   const [sendPaymentReceipt, setSendPaymentReceipt] = useState(true);
   const [receivePaymentNotifications, setReceivePaymentNotifications] = useState(true);
 
+  // Reminder override settings
+  const [overrideReminderSettings, setOverrideReminderSettings] = useState(false);
+  const [invoiceRemindersEnabled, setInvoiceRemindersEnabled] = useState(null);
+  const [invoiceReminderFrequencyDays, setInvoiceReminderFrequencyDays] = useState(null);
+  const [maxInvoiceReminders, setMaxInvoiceReminders] = useState(null);
+  const [remindersStopped, setRemindersStopped] = useState(false);
+  // Read-only reminder status (from loaded invoice)
+  const [reminderCount, setReminderCount] = useState(0);
+  const [lastReminderSentAt, setLastReminderSentAt] = useState(null);
+  const [nextReminderDueAt, setNextReminderDueAt] = useState(null);
+
   // Change tracking
   const [changeReason, setChangeReason] = useState('');
 
@@ -234,6 +245,20 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
       setAttachPdfToEmail(invoice.attach_pdf_to_email !== undefined ? invoice.attach_pdf_to_email : true);
       setSendPaymentReceipt(invoice.send_payment_receipt !== undefined ? invoice.send_payment_receipt : true);
       setReceivePaymentNotifications(invoice.receive_payment_notifications !== undefined ? invoice.receive_payment_notifications : true);
+
+      // Reminder override settings
+      const hasOverrides = invoice.invoice_reminders_enabled !== null ||
+        invoice.invoice_reminder_frequency_days !== null ||
+        invoice.max_invoice_reminders !== null;
+      setOverrideReminderSettings(hasOverrides);
+      setInvoiceRemindersEnabled(invoice.invoice_reminders_enabled);
+      setInvoiceReminderFrequencyDays(invoice.invoice_reminder_frequency_days);
+      setMaxInvoiceReminders(invoice.max_invoice_reminders);
+      setRemindersStopped(invoice.reminders_stopped || false);
+      // Read-only status
+      setReminderCount(invoice.reminder_count || 0);
+      setLastReminderSentAt(invoice.last_reminder_sent_at || null);
+      setNextReminderDueAt(invoice.next_reminder_due_at || null);
     }
   }, [invoice]);
 
@@ -576,15 +601,8 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         pendingInvoiceResult.id
       );
 
-      // Link invoice to project(s)
-      if (pendingProjectAllocations.length > 0) {
-        try {
-          await invoicesAPI.updateAllocations(pendingInvoiceResult.id, pendingProjectAllocations);
-        } catch (allocError) {
-          console.error('Failed to link invoice to project:', allocError);
-          // Don't fail the whole operation for allocation errors
-        }
-      }
+      // Note: Project allocations are already saved during invoice creation
+      // so we don't need to save them again here
 
       showSuccess('Hours marked as billed');
     } catch (error) {
@@ -689,6 +707,11 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         attach_pdf_to_email: attachPdfToEmail !== false, // Default true
         send_payment_receipt: sendPaymentReceipt !== false, // Default true
         receive_payment_notifications: receivePaymentNotifications !== false, // Default true
+        // Reminder override settings - only include if overriding
+        invoice_reminders_enabled: overrideReminderSettings ? invoiceRemindersEnabled : null,
+        invoice_reminder_frequency_days: overrideReminderSettings ? invoiceReminderFrequencyDays : null,
+        max_invoice_reminders: overrideReminderSettings ? maxInvoiceReminders : null,
+        reminders_stopped: remindersStopped,
       };
 
       let result;
@@ -702,6 +725,17 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         showSuccess('Invoice created successfully');
         // Switch to edit mode so subsequent saves update instead of create
         setInvoice(result);
+      }
+
+      // Save project allocations immediately after invoice creation (links invoice to project)
+      // This ensures the invoice is linked even if user declines marking hours as billed
+      if (pendingProjectAllocations.length > 0 && result?.id) {
+        try {
+          await invoicesAPI.updateAllocations(result.id, pendingProjectAllocations);
+        } catch (allocError) {
+          console.error('Failed to link invoice to project:', allocError);
+          // Don't fail the whole operation for allocation errors
+        }
       }
 
       // Check if we have pending billable hours to mark as billed
@@ -1060,6 +1094,16 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
         receivePaymentNotifications={receivePaymentNotifications}
         invoiceStatus={invoice?.status || 'draft'}
         isEditing={isEditing && isRecurring}
+        // Reminder settings
+        overrideReminderSettings={overrideReminderSettings}
+        invoiceRemindersEnabled={invoiceRemindersEnabled}
+        invoiceReminderFrequencyDays={invoiceReminderFrequencyDays}
+        maxInvoiceReminders={maxInvoiceReminders}
+        remindersStopped={remindersStopped}
+        reminderCount={reminderCount}
+        lastReminderSentAt={lastReminderSentAt}
+        nextReminderDueAt={nextReminderDueAt}
+        contact={allContacts.find(c => c.id === contactId)}
         onChange={(updates) => {
           if ('isRecurring' in updates) {
             setIsRecurring(updates.isRecurring);
@@ -1084,6 +1128,20 @@ const InvoiceForm = ({ invoice: invoiceProp = null, onSuccess, isInModal = false
           if ('attachPdfToEmail' in updates) setAttachPdfToEmail(updates.attachPdfToEmail);
           if ('sendPaymentReceipt' in updates) setSendPaymentReceipt(updates.sendPaymentReceipt);
           if ('receivePaymentNotifications' in updates) setReceivePaymentNotifications(updates.receivePaymentNotifications);
+          // Reminder settings
+          if ('overrideReminderSettings' in updates) {
+            setOverrideReminderSettings(updates.overrideReminderSettings);
+            if (!updates.overrideReminderSettings) {
+              // Clear overrides when disabling
+              setInvoiceRemindersEnabled(null);
+              setInvoiceReminderFrequencyDays(null);
+              setMaxInvoiceReminders(null);
+            }
+          }
+          if ('invoiceRemindersEnabled' in updates) setInvoiceRemindersEnabled(updates.invoiceRemindersEnabled);
+          if ('invoiceReminderFrequencyDays' in updates) setInvoiceReminderFrequencyDays(updates.invoiceReminderFrequencyDays);
+          if ('maxInvoiceReminders' in updates) setMaxInvoiceReminders(updates.maxInvoiceReminders);
+          if ('remindersStopped' in updates) setRemindersStopped(updates.remindersStopped);
         }}
       />
 

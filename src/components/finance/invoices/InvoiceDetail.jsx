@@ -11,6 +11,7 @@ import invoicesAPI from '../../../services/api/finance/invoices';
 import companiesAPI from '../../../services/api/crm/companies';
 import RecurringInvoiceSettings from './RecurringInvoiceSettings';
 import SendInvoiceDialog from './SendInvoiceDialog';
+import SendReminderDialog from './SendReminderDialog';
 import InvoiceHistory from './InvoiceHistory';
 import RecurringTemplateCard from './RecurringTemplateCard';
 import AddPaymentModal from './AddPaymentModal';
@@ -31,6 +32,7 @@ const InvoiceDetail = () => {
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showSendModal, setShowSendModal] = useState(false);
+  const [showReminderModal, setShowReminderModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showLinkPaymentModal, setShowLinkPaymentModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -387,10 +389,12 @@ const InvoiceDetail = () => {
           onLinkPayment={() => setShowLinkPaymentModal(true)}
           onExpenses={() => setShowExpenseModal(true)}
           onProjects={() => setShowProjectModal(true)}
+          onSendReminder={() => setShowReminderModal(true)}
           onMarkAsSent={handleMarkAsSent}
           onRevertToDraft={handleRevertToDraft}
           onChargeCard={handleChargeCard}
           showLinkPayment={hasOutstandingBalance}
+          showSendReminder={['sent', 'viewed', 'partially_paid'].includes(status)}
           showMarkAsSent={status === INVOICE_STATUS.DRAFT}
           showRevertToDraft={status === INVOICE_STATUS.SENT}
           showChargeCard={canChargeCard}
@@ -999,6 +1003,14 @@ const InvoiceDetail = () => {
       <SendInvoiceDialog
         isOpen={showSendModal}
         onClose={() => setShowSendModal(false)}
+        invoice={invoice}
+        contact={invoice.contact}
+        onSuccess={loadInvoice}
+      />
+
+      <SendReminderDialog
+        isOpen={showReminderModal}
+        onClose={() => setShowReminderModal(false)}
         invoice={invoice}
         contact={invoice.contact}
         onSuccess={loadInvoice}

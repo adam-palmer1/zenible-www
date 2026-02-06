@@ -28,6 +28,7 @@ import { applyNumberFormat } from '../../../utils/numberFormatUtils';
 import { useInvoiceStats } from '../../../hooks/finance/useInvoiceStats';
 import KPICard from '../shared/KPICard';
 import SendInvoiceDialog from './SendInvoiceDialog';
+import SendReminderDialog from './SendReminderDialog';
 import ConfirmationModal from '../../shared/ConfirmationModal';
 import ActionMenu from '../../shared/ActionMenu';
 import invoicesAPI from '../../../services/api/finance/invoices';
@@ -35,10 +36,16 @@ import invoicesAPI from '../../../services/api/finance/invoices';
 const InvoiceList = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { invoices, loading, deleteInvoice, updateFilters, cloneInvoice } = useInvoices();
+  const { invoices, loading, deleteInvoice, updateFilters, cloneInvoice, filters } = useInvoices();
+
+  // Derive filterStatus from context filters for UI display
+  const filterStatus = filters.overdue_only ? 'overdue'
+    : (filters.outstanding_only ? 'outstanding'
+    : (filters.status || 'all'));
 
   // URL-based filters
   const parentInvoiceId = searchParams.get('parent_id');
+  const urlStatus = searchParams.get('status');
   const { showSuccess, showError } = useNotification();
   const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true });
   const { numberFormats } = useCRMReferenceData();
@@ -73,7 +80,6 @@ const InvoiceList = () => {
 
   // State
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
   const [selectedClientIds, setSelectedClientIds] = useState([]);
   const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [showRecurringOnly, setShowRecurringOnly] = useState(false);
@@ -88,6 +94,8 @@ const InvoiceList = () => {
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [invoiceToSend, setInvoiceToSend] = useState(null);
+  const [showReminderDialog, setShowReminderDialog] = useState(false);
+  const [invoiceForReminder, setInvoiceForReminder] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null); // 'bulk' or invoice object
   const [isDownloading, setIsDownloading] = useState(false);
@@ -95,17 +103,44 @@ const InvoiceList = () => {
   const [itemsPerPage] = useState(10);
   const [parentTemplateInfo, setParentTemplateInfo] = useState(null);
 
+  // Track previous parentInvoiceId to detect changes from value -> null
+  const prevParentIdRef = useRef(parentInvoiceId);
+
   // Apply parent_id filter from URL params
   useEffect(() => {
+    const prevParentId = prevParentIdRef.current;
+    prevParentIdRef.current = parentInvoiceId;
+
     if (parentInvoiceId) {
       updateFilters({ parent_invoice_id: parentInvoiceId });
       // Load parent template info for display
       invoicesAPI.get(parentInvoiceId).then(setParentTemplateInfo).catch(() => {});
-    } else {
+    } else if (prevParentId && !parentInvoiceId) {
+      // Only clear if there was a previous parent filter and now it's null
       updateFilters({ parent_invoice_id: null });
       setParentTemplateInfo(null);
     }
-  }, [parentInvoiceId, updateFilters]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parentInvoiceId]);
+
+  // Apply status filter from URL params (supports comma-separated values and special filters)
+  useEffect(() => {
+    if (urlStatus) {
+      // Handle special filter types
+      if (urlStatus === 'outstanding') {
+        updateFilters({ outstanding_only: true, overdue_only: null, status: null });
+      } else if (urlStatus === 'overdue') {
+        updateFilters({ overdue_only: true, outstanding_only: null, status: null });
+      } else {
+        updateFilters({ status: urlStatus, outstanding_only: null, overdue_only: null });
+      }
+      // Clear the URL param after applying so it doesn't persist on navigation
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('status');
+      setSearchParams(newParams, { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlStatus]);
 
   // Clear parent filter
   const clearParentFilter = () => {
@@ -351,11 +386,11 @@ const InvoiceList = () => {
     return preset ? preset.label : 'All Time';
   };
 
-  // Filter and search invoices
+  // Filter and search invoices (client-side search only, status filtering is server-side)
   const filteredInvoices = useMemo(() => {
     let result = [...invoices];
 
-    // Apply search
+    // Apply search (client-side)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(inv =>
@@ -368,23 +403,18 @@ const InvoiceList = () => {
       );
     }
 
-    // Apply status filter
-    if (filterStatus !== 'all') {
-      result = result.filter(inv => inv.status === filterStatus);
-    }
-
-    // Apply recurring filter
+    // Apply recurring filter (client-side)
     if (showRecurringOnly) {
       result = result.filter(inv => inv.pricing_type === 'recurring' || inv.is_recurring);
     }
 
     return result;
-  }, [invoices, searchQuery, filterStatus, showRecurringOnly]);
+  }, [invoices, searchQuery, showRecurringOnly]);
 
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterStatus, datePreset, customDateFrom, customDateTo, selectedClientIds, showRecurringOnly]);
+  }, [searchQuery, filters.status, filters.outstanding_only, filters.overdue_only, datePreset, customDateFrom, customDateTo, selectedClientIds, showRecurringOnly]);
 
   // Pagination
   const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
@@ -512,6 +542,17 @@ const InvoiceList = () => {
     setInvoiceToSend(invoice);
     setShowSendDialog(true);
     setOpenActionMenuId(null);
+  };
+
+  const handleSendReminder = (invoice) => {
+    setInvoiceForReminder(invoice);
+    setShowReminderDialog(true);
+    setOpenActionMenuId(null);
+  };
+
+  // Check if invoice can receive a reminder (status: sent, viewed, or partially_paid)
+  const canSendReminder = (invoice) => {
+    return ['sent', 'viewed', 'partially_paid'].includes(invoice?.status);
   };
 
   const handleSendSuccess = () => {
@@ -907,9 +948,15 @@ const InvoiceList = () => {
             {filterStatus !== 'all' && (
               <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm">
                 <span>Status:</span>
-                <span className="font-medium">{INVOICE_STATUS_LABELS[filterStatus] || filterStatus}</span>
+                <span className="font-medium">
+                  {filterStatus === 'outstanding'
+                    ? 'Outstanding'
+                    : filterStatus === 'overdue'
+                      ? 'Overdue'
+                      : INVOICE_STATUS_LABELS[filterStatus] || filterStatus}
+                </span>
                 <button
-                  onClick={() => setFilterStatus('all')}
+                  onClick={() => updateFilters({ status: null, outstanding_only: null, overdue_only: null })}
                   className="ml-1 p-0.5 hover:bg-purple-200 rounded-full"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -978,34 +1025,40 @@ const InvoiceList = () => {
                       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Status</div>
                       <div className="space-y-1">
                         <button
-                          onClick={() => setFilterStatus('all')}
+                          onClick={() => updateFilters({ status: null, outstanding_only: null, overdue_only: null })}
                           className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === 'all' ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           All Invoices
                         </button>
                         <button
-                          onClick={() => setFilterStatus(INVOICE_STATUS.DRAFT)}
+                          onClick={() => updateFilters({ outstanding_only: true, overdue_only: null, status: null })}
+                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === 'outstanding' ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                        >
+                          Outstanding
+                        </button>
+                        <button
+                          onClick={() => updateFilters({ overdue_only: true, outstanding_only: null, status: null })}
+                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === 'overdue' ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                        >
+                          Overdue
+                        </button>
+                        <button
+                          onClick={() => updateFilters({ status: INVOICE_STATUS.DRAFT, outstanding_only: null, overdue_only: null })}
                           className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === INVOICE_STATUS.DRAFT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Draft
                         </button>
                         <button
-                          onClick={() => setFilterStatus(INVOICE_STATUS.SENT)}
+                          onClick={() => updateFilters({ status: INVOICE_STATUS.SENT, outstanding_only: null, overdue_only: null })}
                           className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === INVOICE_STATUS.SENT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Sent
                         </button>
                         <button
-                          onClick={() => setFilterStatus(INVOICE_STATUS.PAID)}
+                          onClick={() => updateFilters({ status: INVOICE_STATUS.PAID, outstanding_only: null, overdue_only: null })}
                           className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === INVOICE_STATUS.PAID ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Paid
-                        </button>
-                        <button
-                          onClick={() => setFilterStatus(INVOICE_STATUS.OVERDUE)}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === INVOICE_STATUS.OVERDUE ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                        >
-                          Overdue
                         </button>
                       </div>
                     </div>
@@ -1029,7 +1082,7 @@ const InvoiceList = () => {
                     <div className="p-3 flex items-center justify-between">
                       <button
                         onClick={() => {
-                          setFilterStatus('all');
+                          updateFilters({ status: null, outstanding_only: null, overdue_only: null });
                           setShowRecurringOnly(false);
                         }}
                         className="text-sm text-gray-600 hover:text-gray-900"
@@ -1254,6 +1307,7 @@ const InvoiceList = () => {
                                   { label: 'View', onClick: () => handleView(invoice) },
                                   { label: 'Edit', onClick: () => handleEdit(invoice) },
                                   { label: 'Send', onClick: () => handleSend(invoice) },
+                                  { label: 'Send Reminder', onClick: () => handleSendReminder(invoice), condition: canSendReminder(invoice) },
                                   { label: 'Download PDF', onClick: () => handleDownloadPDF(invoice) },
                                   { label: 'Clone', onClick: () => handleClone(invoice) },
                                   { label: 'Delete', onClick: () => handleDeleteClick(invoice), variant: 'danger' },
@@ -1378,6 +1432,18 @@ const InvoiceList = () => {
         invoice={invoiceToSend}
         contact={invoiceToSend?.contact}
         onSuccess={handleSendSuccess}
+      />
+
+      {/* Send Reminder Dialog */}
+      <SendReminderDialog
+        isOpen={showReminderDialog}
+        onClose={() => setShowReminderDialog(false)}
+        invoice={invoiceForReminder}
+        contact={invoiceForReminder?.contact}
+        onSuccess={() => {
+          setShowReminderDialog(false);
+          showSuccess('Reminder sent successfully');
+        }}
       />
 
       {/* Delete Confirmation Modal */}

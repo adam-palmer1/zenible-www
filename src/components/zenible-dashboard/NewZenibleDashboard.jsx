@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Squares2X2Icon } from '@heroicons/react/24/outline';
 import NewSidebar from '../sidebar/NewSidebar';
 import { SortableWidgetGrid, WidgetCustomizer } from './widgets';
-import mainIcon from '../../assets/icons/dashboard/icon.svg';
+import PersonalizeAIBanner from '../shared/PersonalizeAIBanner';
 
 export default function NewZenibleDashboard() {
   const { user } = useAuth();
@@ -47,26 +47,7 @@ export default function NewZenibleDashboard() {
 
         {/* Profile Setup Card - "Personalize Your AI Experience" */}
         <div className="px-4 py-3 shrink-0 w-full">
-          <div className="bg-violet-50 border border-[#c4b4ff] rounded-xl p-4">
-            <div className="flex gap-4 items-center">
-              <div className="bg-white p-2 rounded-lg shrink-0">
-                <img alt="" className="w-6 h-6" src={mainIcon} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-lg text-zinc-950">
-                  Personalize Your AI Experience
-                </p>
-                <p className="text-xs text-zinc-500">
-                  Complete your professional profile to get more relevant and tailored proposal feedback.
-                </p>
-              </div>
-              <button className="bg-[#8e51ff] px-4 py-2.5 rounded-lg shrink-0 hover:bg-[#7b3ff0] transition-colors">
-                <span className="font-medium text-white">
-                  Setup Profile
-                </span>
-              </button>
-            </div>
-          </div>
+          <PersonalizeAIBanner />
         </div>
 
         {/* Sortable Widget Grid */}

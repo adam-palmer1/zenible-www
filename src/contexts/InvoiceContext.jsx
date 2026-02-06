@@ -30,6 +30,8 @@ export const InvoiceProvider = ({ children }) => {
   const [filters, setFilters] = useState({
     search: '',
     status: null,
+    outstanding_only: null, // Filter for outstanding/unpaid invoices (boolean)
+    overdue_only: null, // Filter for overdue invoices (boolean)
     contact_ids: null, // comma-separated list of contact IDs
     issue_date_from: null,
     issue_date_to: null,
@@ -49,22 +51,25 @@ export const InvoiceProvider = ({ children }) => {
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
 
-  // Load filters from preferences
+  // Load filters from preferences (only once on mount)
   useEffect(() => {
-    if (user) {
-      const savedFilters = {
-        search: getPreference('invoice_search', ''),
-        status: getPreference('invoice_filter_status', null),
-      };
+    if (user && !preferencesLoaded) {
+      const savedSearch = getPreference('invoice_search', '');
+      const savedStatus = getPreference('invoice_filter_status', null);
       const savedSort = getPreference('invoice_sort_by', 'created_at');
       const savedOrder = getPreference('invoice_sort_order', 'desc');
 
-      setFilters(savedFilters);
+      // Merge saved preferences with current filters (don't replace entire object)
+      setFilters(prev => ({
+        ...prev,
+        search: savedSearch,
+        status: savedStatus,
+      }));
       setSortBy(savedSort);
       setSortOrder(savedOrder);
       setPreferencesLoaded(true);
     }
-  }, [user, getPreference]);
+  }, [user, getPreference, preferencesLoaded]);
 
   // Serialize filters for stable dependency comparison
   const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
@@ -187,6 +192,28 @@ export const InvoiceProvider = ({ children }) => {
     }
   }, []);
 
+  // Send invoice reminder
+  const sendReminder = useCallback(async (invoiceId, emailData) => {
+    try {
+      setLoading(true);
+      const result = await invoicesAPI.sendReminder(invoiceId, emailData);
+      // Update invoice with new reminder info
+      setInvoices(prev => prev.map(inv =>
+        inv.id === invoiceId ? {
+          ...inv,
+          reminder_count: (inv.reminder_count || 0) + 1,
+          last_reminder_sent_at: new Date().toISOString()
+        } : inv
+      ));
+      return result;
+    } catch (err) {
+      console.error('[InvoiceContext] Error sending invoice reminder:', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Mark as paid
   const markAsPaid = useCallback(async (invoiceId, paymentData) => {
     try {
@@ -282,6 +309,7 @@ export const InvoiceProvider = ({ children }) => {
     updateInvoice,
     deleteInvoice,
     sendInvoice,
+    sendReminder,
     markAsPaid,
     cloneInvoice,
     updateFilters,
@@ -309,6 +337,7 @@ export const InvoiceProvider = ({ children }) => {
     updateInvoice,
     deleteInvoice,
     sendInvoice,
+    sendReminder,
     markAsPaid,
     cloneInvoice,
     updateFilters,

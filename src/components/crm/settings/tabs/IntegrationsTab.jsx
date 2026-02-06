@@ -1,16 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  CreditCardIcon,
-  CalendarIcon,
-  EnvelopeIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowTopRightOnSquareIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import paymentIntegrationsAPI from '../../../../services/api/finance/paymentIntegrations';
-import ZoomConnectCard from './integrations/ZoomConnectCard';
 
 // Stripe logo SVG component
 const StripeLogo = ({ className = 'h-6 w-6' }) => (
@@ -718,28 +714,6 @@ const PayPalConnectCard = ({ onStatusChange }) => {
 };
 
 /**
- * Coming Soon Integration Card Component
- */
-const ComingSoonCard = ({ name, description, icon: Icon }) => (
-  <div className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg opacity-75">
-    <div className="flex items-start gap-4">
-      <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-        <Icon className="h-6 w-6 text-gray-600 dark:text-gray-400" />
-      </div>
-      <div className="flex-1">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="font-medium text-gray-900 dark:text-white">{name}</h4>
-          <span className="text-xs px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded">
-            Coming Soon
-          </span>
-        </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400">{description}</p>
-      </div>
-    </div>
-  </div>
-);
-
-/**
  * Integrations Tab - Third-party service integrations
  */
 const IntegrationsTab = () => {
@@ -778,50 +752,6 @@ const IntegrationsTab = () => {
             </p>
           </div>
         )}
-      </div>
-
-      {/* Video Conferencing Section */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          Video Conferencing
-        </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Connect video conferencing services to auto-generate meeting links for call bookings.
-        </p>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ZoomConnectCard onStatusChange={handleStatusChange} />
-        </div>
-      </div>
-
-      {/* Other Integrations Section */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          Other Integrations
-        </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Connect your favorite tools and services to enhance Zenible CRM
-        </p>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ComingSoonCard
-            name="Google Calendar"
-            description="Sync meetings and appointments with Google Calendar"
-            icon={CalendarIcon}
-          />
-          <ComingSoonCard
-            name="Email Service"
-            description="Configure email sending (SMTP, SendGrid, etc.)"
-            icon={EnvelopeIcon}
-          />
-        </div>
-      </div>
-
-      <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <p className="text-sm text-blue-800 dark:text-blue-200">
-          More integrations are coming soon! If you have a specific integration request, please
-          contact support.
-        </p>
       </div>
     </div>
   );

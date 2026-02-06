@@ -281,7 +281,7 @@ const LocalizationTab = () => {
                       {countrySearch ? `No countries matching "${countrySearch}"` : 'All countries added'}
                     </div>
                   ) : (
-                    filteredCountries.slice(0, 50).map((country) => (
+                    filteredCountries.map((country) => (
                       <button
                         key={country.id}
                         onClick={() => handleAddCountry(country.id)}
@@ -340,7 +340,7 @@ const LocalizationTab = () => {
                       {currencySearch ? `No currencies matching "${currencySearch}"` : 'All currencies added'}
                     </div>
                   ) : (
-                    filteredCurrencies.slice(0, 50).map((currency) => (
+                    filteredCurrencies.map((currency) => (
                       <button
                         key={currency.id}
                         onClick={() => handleAddCurrency(currency.id)}

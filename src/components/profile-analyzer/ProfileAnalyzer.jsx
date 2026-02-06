@@ -5,6 +5,7 @@ import NewSidebar from '../sidebar/NewSidebar';
 import PlatformSelector from '../proposal-wizard/PlatformSelector';
 import ProfileInput from './ProfileInput';
 import AIFeedbackSection from '../shared/AIFeedbackSection';
+import PersonalizeAIBanner from '../shared/PersonalizeAIBanner';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useProfileAnalysis } from '../../hooks/useProfileAnalysis';
 import { WebSocketContext } from '../../contexts/WebSocketContext';
@@ -12,6 +13,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import aiCharacterAPI from '../../services/aiCharacterAPI';
 import userAPI from '../../services/userAPI';
 import { getCharacterTools } from '../../services/toolDiscoveryAPI';
+import UsageLimitBadge from '../ui/UsageLimitBadge';
 
 export default function ProfileAnalyzer() {
   const { darkMode } = usePreferences();
@@ -510,6 +512,14 @@ export default function ProfileAnalyzer() {
           </h1>
 
           <div className="flex items-center gap-2">
+            {/* Usage Limit Badge */}
+            <UsageLimitBadge
+              characterId={selectedCharacterId}
+              variant="compact"
+              showUpgradeLink={true}
+              darkMode={darkMode}
+            />
+
             {/* Character Selector Dropdown */}
             {loadingCharacters ? (
               <div className={`text-sm px-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -557,6 +567,11 @@ export default function ProfileAnalyzer() {
               History
             </button>
           </div>
+        </div>
+
+        {/* Personalize AI Banner */}
+        <div className="px-4 sm:px-6 pt-4">
+          <PersonalizeAIBanner darkMode={darkMode} />
         </div>
 
         {/* Content Area */}

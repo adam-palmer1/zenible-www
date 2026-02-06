@@ -42,10 +42,10 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signup = async (email, password, name) => {
+  const signup = async (email, password, firstName, lastName = null) => {
     setError(null);
     try {
-      const response = await authAPI.signup(email, password, name);
+      const response = await authAPI.signup(email, password, firstName, lastName);
       tokenStorage.setTokens(response.access_token, response.refresh_token);
       setUser(response.user);
       return { success: true, user: response.user };
@@ -133,6 +133,25 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Set password with auto-login (for password reset and invitation acceptance)
+  const setPassword = async (token, newPassword, firstName = null, lastName = null) => {
+    setError(null);
+    try {
+      const response = await authAPI.setPassword(token, newPassword, firstName, lastName);
+      // Auto-login with returned tokens
+      if (response.access_token && response.refresh_token) {
+        tokenStorage.setTokens(response.access_token, response.refresh_token);
+        // Fetch user data
+        const userData = await authAPI.getCurrentUser();
+        setUser(userData);
+      }
+      return { success: true, data: response };
+    } catch (error) {
+      setError(error.message);
+      return { success: false, error: error.message };
+    }
+  };
+
   const googleLogin = async (redirectPath) => {
     setError(null);
     try {
@@ -186,6 +205,7 @@ export function AuthProvider({ children }) {
     verifyEmail,
     forgotPassword,
     resetPassword,
+    setPassword,
     googleLogin,
     handleGoogleCallback,
     checkAuth,

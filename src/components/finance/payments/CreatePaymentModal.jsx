@@ -57,6 +57,7 @@ const CurrencyDropdown = ({ isOpen, onClose, currencies, selectedCurrencyId, onS
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             autoFocus
+            autoComplete="off"
           />
         </div>
       </div>
@@ -298,7 +299,7 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 space-y-4" autoComplete="off">
           {/* Contact Selection */}
           <div className="relative">
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -342,6 +343,7 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
                 min="0"
                 placeholder="0.00"
                 required
+                autoComplete="off"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
@@ -387,6 +389,7 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
                 name="payment_date"
                 value={formData.payment_date}
                 onChange={handleChange}
+                autoComplete="off"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
@@ -427,6 +430,7 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
               value={formData.reference_number}
               onChange={handleChange}
               placeholder="e.g., check number, transaction ID"
+              autoComplete="off"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
@@ -443,6 +447,7 @@ const CreatePaymentModal = ({ isOpen, onClose }) => {
               onChange={handleChange}
               rows={3}
               placeholder="Add notes about this payment..."
+              autoComplete="off"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>

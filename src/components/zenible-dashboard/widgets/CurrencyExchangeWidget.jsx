@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowsRightLeftIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
 import { useCurrencyConversion } from '../../../hooks/crm/useCurrencyConversion';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
+import { usePreferences } from '../../../contexts/PreferencesContext';
 import currencyConversionAPI from '../../../services/api/crm/currencyConversion';
 import { AVAILABLE_CURRENCIES } from './WidgetRegistry';
 
@@ -15,20 +16,31 @@ import { AVAILABLE_CURRENCIES } from './WidgetRegistry';
  * - showGraph: Whether to show historical graph (default: true)
  * - graphDays: Number of days for graph (default: 7, max: 365)
  */
-const CurrencyExchangeWidget = ({ settings = {} }) => {
+const CurrencyExchangeWidget = ({ settings = {}, widgetId = 'currency-exchange' }) => {
   const { convert } = useCurrencyConversion();
   const { defaultCurrency: companyDefaultCurrency, loading: currencyLoading } = useCompanyCurrencies();
+  const { updatePreference, getPreference } = usePreferences();
   const [rate, setRate] = useState(null);
   const [historicalData, setHistoricalData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hoveredPoint, setHoveredPoint] = useState(null);
+  const [isSwapped, setIsSwapped] = useState(false);
   const chartRef = useRef(null);
 
   // Determine currencies - wait for company currency to load
   const companyCode = companyDefaultCurrency?.currency?.code;
-  const fromCurrency = settings.fromCurrency || companyCode || 'GBP';
-  const toCurrency = settings.toCurrency || (fromCurrency === 'EUR' ? 'USD' : 'EUR');
+  const baseFromCurrency = settings.fromCurrency || companyCode || 'GBP';
+  const baseToCurrency = settings.toCurrency || (baseFromCurrency === 'EUR' ? 'USD' : 'EUR');
+
+  // Apply swap if active
+  const fromCurrency = isSwapped ? baseToCurrency : baseFromCurrency;
+  const toCurrency = isSwapped ? baseFromCurrency : baseToCurrency;
+
+  // Handle swap click
+  const handleSwap = () => {
+    setIsSwapped(!isSwapped);
+  };
   const showGraph = settings.showGraph !== false;
   const graphDays = settings.graphDays || 7;
 
@@ -129,8 +141,9 @@ const CurrencyExchangeWidget = ({ settings = {} }) => {
     const max = Math.max(...rates);
     const range = max - min || 0.0001;
 
-    const width = 280;
-    const height = 80;
+    // Responsive dimensions - chart will scale with container
+    const width = 320;
+    const height = 100;
     const paddingLeft = 45;
     const paddingRight = 10;
     const paddingTop = 10;
@@ -165,7 +178,10 @@ const CurrencyExchangeWidget = ({ settings = {} }) => {
     const handleMouseMove = (e) => {
       if (!chartRef.current) return;
       const rect = chartRef.current.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
+
+      // Convert screen coordinates to viewBox coordinates
+      const scaleX = width / rect.width;
+      const mouseX = (e.clientX - rect.left) * scaleX;
 
       // Find closest point
       let closestPoint = null;
@@ -173,7 +189,7 @@ const CurrencyExchangeWidget = ({ settings = {} }) => {
 
       points.forEach(p => {
         const dist = Math.abs(p.x - mouseX);
-        if (dist < closestDist && dist < 20) {
+        if (dist < closestDist && dist < 30 * scaleX) {
           closestDist = dist;
           closestPoint = p;
         }
@@ -190,10 +206,9 @@ const CurrencyExchangeWidget = ({ settings = {} }) => {
       <div className="relative">
         <svg
           ref={chartRef}
-          width={width}
-          height={height}
-          className="w-full"
-          style={{ maxWidth: `${width}px` }}
+          viewBox={`0 0 ${width} ${height}`}
+          className="w-full h-auto"
+          preserveAspectRatio="xMidYMid meet"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
         >
@@ -294,7 +309,7 @@ const CurrencyExchangeWidget = ({ settings = {} }) => {
 
   if (loading || currencyLoading) {
     return (
-      <div className="flex items-center justify-center h-[180px]">
+      <div className="flex items-center justify-center h-full min-h-[100px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
       </div>
     );
@@ -302,7 +317,7 @@ const CurrencyExchangeWidget = ({ settings = {} }) => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-[180px] text-center">
+      <div className="flex flex-col items-center justify-center h-full min-h-[100px] text-center">
         <ArrowsRightLeftIcon className="w-12 h-12 text-gray-300 mb-2" />
         <p className="text-sm text-gray-500">{error}</p>
       </div>
@@ -310,49 +325,55 @@ const CurrencyExchangeWidget = ({ settings = {} }) => {
   }
 
   return (
-    <div className="flex flex-col h-[180px]">
-      {/* Exchange Rate Display */}
-      <div className="flex-1">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-base font-semibold text-gray-900">{fromCurrency}</span>
-            <ArrowsRightLeftIcon className="w-4 h-4 text-gray-400" />
-            <span className="text-base font-semibold text-gray-900">{toCurrency}</span>
-          </div>
-          {trend && (
-            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-              trend.direction === 'up'
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-700'
-            }`}>
-              {trend.direction === 'up' ? (
-                <ArrowTrendingUpIcon className="w-3 h-3" />
-              ) : (
-                <ArrowTrendingDownIcon className="w-3 h-3" />
-              )}
-              {trend.percentage}%
-            </div>
-          )}
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Header with currencies and trend */}
+      <div className="flex items-center justify-between mb-1 flex-shrink-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm font-semibold text-gray-900">{fromCurrency}</span>
+          <button
+            onClick={handleSwap}
+            className="p-0.5 rounded hover:bg-gray-100 transition-colors"
+            title="Swap currencies"
+          >
+            <ArrowsRightLeftIcon className="w-3.5 h-3.5 text-gray-400 hover:text-[#8e51ff] transition-colors" />
+          </button>
+          <span className="text-sm font-semibold text-gray-900">{toCurrency}</span>
         </div>
-
-        {/* Rate */}
-        <div className="bg-gray-50 rounded-lg p-3 mb-2">
-          <p className="text-xs text-gray-500 mb-0.5">Current Rate</p>
-          <p className="text-xl font-bold text-gray-900">
-            {fromSymbol}1 = {toSymbol}{typeof rate === 'number' ? rate.toFixed(4) : '—'}
-          </p>
-        </div>
-
-        {/* Historical Graph */}
-        {showGraph && historicalData.length > 1 && (
-          <div>
-            {renderChart()}
-            <p className="text-[10px] text-gray-400 text-center">
-              Last {graphDays} {graphDays === 1 ? 'day' : 'days'}
-            </p>
+        {trend && (
+          <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+            trend.direction === 'up'
+              ? 'bg-green-100 text-green-700'
+              : 'bg-red-100 text-red-700'
+          }`}>
+            {trend.direction === 'up' ? (
+              <ArrowTrendingUpIcon className="w-2.5 h-2.5" />
+            ) : (
+              <ArrowTrendingDownIcon className="w-2.5 h-2.5" />
+            )}
+            {trend.percentage}%
           </div>
         )}
       </div>
+
+      {/* Rate display - compact */}
+      <div className="bg-gray-50 rounded-lg p-2 mb-1 flex-shrink-0">
+        <p className="text-[10px] text-gray-500 leading-tight">Current Rate</p>
+        <p className="text-lg font-bold text-gray-900 leading-tight">
+          {fromSymbol}1 = {toSymbol}{typeof rate === 'number' ? rate.toFixed(4) : '—'}
+        </p>
+      </div>
+
+      {/* Historical Graph - takes remaining space */}
+      {showGraph && historicalData.length > 1 && (
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="flex-1 min-h-[60px]">
+            {renderChart()}
+          </div>
+          <p className="text-[9px] text-gray-400 text-center flex-shrink-0">
+            Last {graphDays} {graphDays === 1 ? 'day' : 'days'}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

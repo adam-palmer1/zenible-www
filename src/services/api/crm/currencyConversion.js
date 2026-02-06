@@ -1,118 +1,74 @@
-// API service for Currency Conversion endpoints
+/**
+ * Currency Conversion API Service
+ */
 
-import { API_BASE_URL } from '@/config/api';
+import { createRequest } from '../httpClient';
 
-class CurrencyConversionAPI {
-  async request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+const request = createRequest('CurrencyConversionAPI');
 
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
+const currencyConversionAPI = {
+  /** Convert single amount */
+  convert: (amount, fromCurrency, toCurrency) => request('/crm/currency/convert', {
+    method: 'POST',
+    body: JSON.stringify({
+      amount,
+      from_currency: fromCurrency,
+      to_currency: toCurrency,
+    }),
+  }),
 
-    // Add auth token
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+  /** Batch convert multiple amounts */
+  batchConvert: (conversions) => request('/crm/currency/batch-convert', {
+    method: 'POST',
+    body: JSON.stringify({ conversions }),
+  }),
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
+  /** Get exchange rates for multiple currencies */
+  getRates: (baseCurrency, currencies) => request('/crm/currency/rates', {
+    method: 'POST',
+    body: JSON.stringify({
+      base_currency: baseCurrency,
+      currencies,
+    }),
+  }),
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        throw new Error(error.detail || `Request failed with status ${response.status}`);
-      }
+  /** Get cache information (for monitoring) */
+  getCacheInfo: () => request('/crm/currency/cache/info', { method: 'GET' }),
 
-      return await response.json();
-    } catch (error) {
-      console.error('Currency Conversion API request failed:', error);
-      throw error;
-    }
-  }
+  /** Clear cache (admin only) */
+  clearCache: () => request('/crm/currency/cache/clear', { method: 'POST' }),
 
-  // Convert single amount
-  async convert(amount, fromCurrency, toCurrency) {
-    return this.request('/crm/currency/convert', {
-      method: 'POST',
-      body: JSON.stringify({
-        amount,
-        from_currency: fromCurrency,
-        to_currency: toCurrency,
-      }),
-    });
-  }
+  /** Get historical exchange rate for a specific date */
+  getHistoricalRate: (fromCurrency, toCurrency, date) => request('/crm/currency/historical/rate', {
+    method: 'POST',
+    body: JSON.stringify({
+      from_currency: fromCurrency,
+      to_currency: toCurrency,
+      date,
+    }),
+  }),
 
-  // Batch convert multiple amounts
-  async batchConvert(conversions) {
-    return this.request('/crm/currency/batch-convert', {
-      method: 'POST',
-      body: JSON.stringify({ conversions }),
-    });
-  }
+  /** Get historical exchange rates for a date range (for charting) */
+  getHistoricalRange: (fromCurrency, toCurrency, startDate, endDate) => request('/crm/currency/historical/range', {
+    method: 'POST',
+    body: JSON.stringify({
+      from_currency: fromCurrency,
+      to_currency: toCurrency,
+      start_date: startDate,
+      end_date: endDate,
+    }),
+  }),
 
-  // Get exchange rates for multiple currencies
-  async getRates(baseCurrency, currencies) {
-    return this.request('/crm/currency/rates', {
-      method: 'POST',
-      body: JSON.stringify({
-        base_currency: baseCurrency,
-        currencies,
-      }),
-    });
-  }
+  /** Convert amount using historical rate */
+  historicalConvert: (amount, fromCurrency, toCurrency, date) => request('/crm/currency/historical/convert', {
+    method: 'POST',
+    body: JSON.stringify({
+      amount,
+      from_currency: fromCurrency,
+      to_currency: toCurrency,
+      date,
+    }),
+  }),
+};
 
-  // Get cache information (for monitoring)
-  async getCacheInfo() {
-    return this.request('/crm/currency/cache/info', { method: 'GET' });
-  }
-
-  // Clear cache (admin only)
-  async clearCache() {
-    return this.request('/crm/currency/cache/clear', { method: 'POST' });
-  }
-
-  // Get historical exchange rate for a specific date
-  async getHistoricalRate(fromCurrency, toCurrency, date) {
-    return this.request('/crm/currency/historical/rate', {
-      method: 'POST',
-      body: JSON.stringify({
-        from_currency: fromCurrency,
-        to_currency: toCurrency,
-        date,
-      }),
-    });
-  }
-
-  // Get historical exchange rates for a date range (for charting)
-  async getHistoricalRange(fromCurrency, toCurrency, startDate, endDate) {
-    return this.request('/crm/currency/historical/range', {
-      method: 'POST',
-      body: JSON.stringify({
-        from_currency: fromCurrency,
-        to_currency: toCurrency,
-        start_date: startDate,
-        end_date: endDate,
-      }),
-    });
-  }
-
-  // Convert amount using historical rate
-  async historicalConvert(amount, fromCurrency, toCurrency, date) {
-    return this.request('/crm/currency/historical/convert', {
-      method: 'POST',
-      body: JSON.stringify({
-        amount,
-        from_currency: fromCurrency,
-        to_currency: toCurrency,
-        date,
-      }),
-    });
-  }
-}
-
-export default new CurrencyConversionAPI();
+export default currencyConversionAPI;

@@ -10,7 +10,7 @@ import contactsAPI from '../../../services/api/crm/contacts';
  * Settings:
  * - limit: Number of clients to display (default: 5)
  */
-const RecentClientsWidget = ({ settings = {} }) => {
+const RecentClientsWidget = ({ settings = {}, isHovered = false }) => {
   const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +22,7 @@ const RecentClientsWidget = ({ settings = {} }) => {
         setLoading(true);
         const response = await contactsAPI.list({
           is_client: true,
-          sort_by: 'created_at',
+          sort_by: 'last_used',
           sort_order: 'desc',
           limit: limit,
         });
@@ -41,7 +41,7 @@ const RecentClientsWidget = ({ settings = {} }) => {
   const getInitials = (client) => {
     const firstName = client.first_name || '';
     const lastName = client.last_name || '';
-    const company = client.company_name || '';
+    const company = client.business_name || '';
 
     if (firstName || lastName) {
       return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -49,27 +49,36 @@ const RecentClientsWidget = ({ settings = {} }) => {
     return company.charAt(0).toUpperCase() || 'C';
   };
 
-  // Get display name
+  // Get display name: "Firstname Lastname (Company)" or just "Company"
   const getDisplayName = (client) => {
-    if (client.first_name || client.last_name) {
-      return `${client.first_name || ''} ${client.last_name || ''}`.trim();
+    const firstName = client.first_name || '';
+    const lastName = client.last_name || '';
+    const company = client.business_name || '';
+
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    if (fullName && company) {
+      return `${fullName} (${company})`;
     }
-    return client.company_name || 'Unnamed Client';
+    if (fullName) {
+      return fullName;
+    }
+    return company || 'Unnamed Client';
   };
 
-  const handleViewAll = () => navigate('/crm?tab=clients');
-  const handleClientClick = (id) => navigate(`/crm?tab=clients&contact=${id}`);
+  const handleViewAll = () => navigate('/crm/clients');
+  const handleClientClick = (id) => navigate(`/crm/clients?contact=${id}`);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[180px]">
+      <div className="flex items-center justify-center h-full min-h-[100px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[180px]">
+    <div className="flex flex-col h-full">
       {clients.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 text-center">
           <UserGroupIcon className="w-12 h-12 text-gray-300 mb-2" />
@@ -83,7 +92,15 @@ const RecentClientsWidget = ({ settings = {} }) => {
         </div>
       ) : (
         <>
-          <div className="space-y-2 flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-hidden">
+            <div
+              className="h-full overflow-y-auto space-y-2"
+              style={{
+                width: isHovered ? '100%' : 'calc(100% + 17px)',
+                paddingRight: isHovered ? '0' : '17px',
+                transition: 'width 0.2s ease, padding-right 0.2s ease'
+              }}
+            >
             {clients.map((client) => (
               <button
                 key={client.id}
@@ -101,13 +118,14 @@ const RecentClientsWidget = ({ settings = {} }) => {
                       {getDisplayName(client)}
                     </p>
                     <p className="text-xs text-gray-500 truncate">
-                      {client.email || client.company_name || 'No email'}
+                      {client.email || 'No email'}
                     </p>
                   </div>
                   <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-[#8e51ff] flex-shrink-0" />
                 </div>
               </button>
             ))}
+            </div>
           </div>
 
           <div className="mt-3 pt-3 border-t border-gray-100">

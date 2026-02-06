@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TrashIcon, PencilIcon, LinkIcon } from '@heroicons/react/24/outline';
 import EstimatedValue from './EstimatedValue';
+import ConfirmationModal from '../common/ConfirmationModal';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS } from '../../constants/crm';
 
@@ -34,6 +35,19 @@ const getServiceProgress = (service) => {
  * Component to display list of services assigned to a contact
  */
 const ServicesList = ({ services = [], onEdit, onDelete, onServiceClick }) => {
+  const [serviceToDelete, setServiceToDelete] = useState(null);
+
+  const handleDeleteClick = (service) => {
+    setServiceToDelete(service);
+  };
+
+  const handleConfirmDelete = () => {
+    if (serviceToDelete && onDelete) {
+      onDelete(serviceToDelete);
+    }
+    setServiceToDelete(null);
+  };
+
   if (services.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -44,6 +58,7 @@ const ServicesList = ({ services = [], onEdit, onDelete, onServiceClick }) => {
   }
 
   return (
+    <>
     <div className="space-y-2">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-medium text-gray-900">Services</h3>
@@ -141,7 +156,7 @@ const ServicesList = ({ services = [], onEdit, onDelete, onServiceClick }) => {
                 )}
                 {onDelete && !service.is_locked && (
                   <button
-                    onClick={() => onDelete(service)}
+                    onClick={() => handleDeleteClick(service)}
                     className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                     title="Remove service"
                   >
@@ -154,6 +169,29 @@ const ServicesList = ({ services = [], onEdit, onDelete, onServiceClick }) => {
         );
       })}
     </div>
+
+    <ConfirmationModal
+      isOpen={!!serviceToDelete}
+      onClose={() => setServiceToDelete(null)}
+      onConfirm={handleConfirmDelete}
+      title="Remove Service?"
+      message={
+        <div>
+          <p className="mb-2">
+            Are you sure you want to remove "{serviceToDelete?.name}" from this contact?
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            This will unassign the service but won't delete it from your service catalog.
+          </p>
+        </div>
+      }
+      confirmText="Remove"
+      cancelText="Cancel"
+      confirmColor="red"
+      icon={TrashIcon}
+      iconColor="text-red-600"
+    />
+    </>
   );
 };
 

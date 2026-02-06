@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../ui/modal/Modal';
 import ContactFormTabbed from './forms/ContactFormTabbed';
 import { useCRM } from '../../contexts/CRMContext';
 import { useContacts, useContactStatuses, useCompanyCurrencies } from '../../hooks/crm';
+import taxesAPI from '../../services/api/crm/taxes';
 
 /**
  * Modal for adding/editing contacts
@@ -20,11 +21,14 @@ const AddContactModal = ({ isOpen, onClose, contact = null }) => {
   const [submitError, setSubmitError] = useState(null);
   const [fullContact, setFullContact] = useState(null);
   const [fetchingContact, setFetchingContact] = useState(false);
+  const [companyTaxes, setCompanyTaxes] = useState([]);
 
-  // Load currencies when modal opens
-  React.useEffect(() => {
+  // Load currencies and company taxes when modal opens
+  useEffect(() => {
     if (isOpen) {
       loadCurrencies();
+      // Fetch company taxes
+      taxesAPI.list().then(setCompanyTaxes).catch(console.error);
     }
   }, [isOpen, loadCurrencies]);
 
@@ -59,18 +63,13 @@ const AddContactModal = ({ isOpen, onClose, contact = null }) => {
       setSubmitError(null);
 
       if (fullContact) {
-        // Update contact - useContacts already updates local state with API response
         await updateContact(fullContact.id, formData);
       } else {
-        // Create contact - useContacts already adds to local state
         await createContact(formData);
       }
 
-      // Only refresh if creating a new contact (to ensure it appears in filtered views)
-      // For updates, the local state is already updated, so no need to refetch
-      if (!fullContact) {
-        refresh();
-      }
+      // Refresh CRM list to reflect changes
+      refresh();
 
       onClose();
     } catch (error) {
@@ -103,6 +102,7 @@ const AddContactModal = ({ isOpen, onClose, contact = null }) => {
           initialContactType={initialContactType}
           allStatuses={allStatuses}
           companyCurrencies={companyCurrencies}
+          companyTaxes={companyTaxes}
           onSubmit={handleSubmit}
           loading={loading}
           submitError={submitError}

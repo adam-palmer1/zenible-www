@@ -156,6 +156,34 @@ body {
   background: #9ca3af;
 }
 
+/* Widget scrollbar - no scroll by default, scrollable on widget-card hover */
+.widget-scrollbar {
+  overflow-y: hidden !important;
+}
+
+.widget-card:hover .widget-scrollbar {
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.widget-card:hover .widget-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.widget-card:hover .widget-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.widget-card:hover .widget-scrollbar::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.widget-card:hover .widget-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
 
 /* Hide number input spinners */
 input[type="number"]::-webkit-inner-spin-button,
@@ -335,3 +363,89 @@ input[type="number"] {
 .hover\:design-bg-tertiary:hover { background-color: var(--bg-tertiary); }
 .hover\:design-bg-quaternary:hover { background-color: var(--bg-tertiary); }
 .hover\:design-text-primary:hover { color: var(--text-primary); }
+
+/* ================================================
+   React Grid Layout - Dashboard Widget Styling
+   ================================================ */
+
+/* Grid item container */
+.react-grid-item {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+/* Widget being dragged */
+.react-grid-item.react-draggable-dragging {
+  z-index: 100;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  opacity: 0.9;
+}
+
+/* Widget being resized */
+.react-grid-item.resizing {
+  z-index: 100;
+  opacity: 0.9;
+}
+
+/* Placeholder for where widget will drop */
+.react-grid-placeholder {
+  background: #8e51ff !important;
+  opacity: 0.15 !important;
+  border-radius: 12px !important;
+  transition: all 200ms ease;
+}
+
+/* Resize handle - bottom right corner */
+.react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  bottom: 4px;
+  right: 4px;
+  cursor: se-resize;
+  z-index: 10;
+}
+
+/* Resize handle visual indicator */
+.react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #d1d5db;
+  border-bottom: 2px solid #d1d5db;
+  border-radius: 0 0 2px 0;
+  transition: border-color 150ms ease;
+}
+
+/* Show resize handle on hover */
+.react-grid-item:hover .react-resizable-handle::after {
+  border-color: #8e51ff;
+}
+
+/* Widget grid item inner wrapper */
+.widget-grid-item {
+  width: 100%;
+  height: 100%;
+}
+
+/* Ensure widget cards fill the grid cell */
+.widget-grid-item > div {
+  width: 100%;
+  height: 100%;
+}
+
+/* Dark mode adjustments */
+.dark .react-grid-placeholder {
+  background: #a684ff !important;
+  opacity: 0.2 !important;
+}
+
+.dark .react-resizable-handle::after {
+  border-color: #4b5563;
+}
+
+.dark .react-grid-item:hover .react-resizable-handle::after {
+  border-color: #a684ff;
+}

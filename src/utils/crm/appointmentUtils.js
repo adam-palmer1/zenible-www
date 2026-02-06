@@ -102,7 +102,7 @@ export const getNextHour = () => {
 
 /**
  * Get the next/closest appointment from an appointments array
- * Only considers scheduled appointments, sorted by soonest first
+ * Only considers active appointments (not deleted), sorted by soonest first
  * @param {Array} appointments - Array of appointment objects
  * @returns {Object|null} The next appointment or null if none
  */
@@ -111,17 +111,17 @@ export const getNextAppointment = (appointments) => {
     return null;
   }
 
-  // Filter to only scheduled appointments
-  const scheduledAppointments = appointments.filter(
-    apt => apt.status === 'scheduled' && apt.start_datetime
+  // Filter to active appointments (not deleted)
+  const activeAppointments = appointments.filter(
+    apt => !apt.deleted_at && apt.start_datetime
   );
 
-  if (scheduledAppointments.length === 0) {
+  if (activeAppointments.length === 0) {
     return null;
   }
 
   // Sort by start_datetime ascending (soonest first)
-  const sorted = [...scheduledAppointments].sort((a, b) => {
+  const sorted = [...activeAppointments].sort((a, b) => {
     const dateA = new Date(a.start_datetime);
     const dateB = new Date(b.start_datetime);
     return dateA - dateB;
@@ -132,18 +132,18 @@ export const getNextAppointment = (appointments) => {
 };
 
 /**
- * Get all scheduled appointments sorted by date
+ * Get all active appointments sorted by date
  * @param {Array} appointments - Array of appointment objects
- * @returns {Array} Sorted scheduled appointments
+ * @returns {Array} Sorted active appointments (not deleted)
  */
 export const getScheduledAppointments = (appointments) => {
   if (!appointments || !Array.isArray(appointments)) {
     return [];
   }
 
-  const scheduled = appointments.filter(apt => apt.status === 'scheduled');
+  const active = appointments.filter(apt => !apt.deleted_at && apt.start_datetime);
 
-  return [...scheduled].sort((a, b) => {
+  return [...active].sort((a, b) => {
     const dateA = new Date(a.start_datetime);
     const dateB = new Date(b.start_datetime);
     return dateA - dateB;

@@ -1,6 +1,7 @@
-import React from 'react';
-import { X, Settings } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { X, Settings, Bell, AlertTriangle, Clock, Calendar, StopCircle } from 'lucide-react';
 import RecurringInvoiceSettings from './RecurringInvoiceSettings';
+import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 
 const InvoiceSettingsModal = ({
   isOpen,
@@ -22,9 +23,66 @@ const InvoiceSettingsModal = ({
   sendPaymentReceipt = true,
   receivePaymentNotifications = true,
   invoiceStatus = 'draft',
+  // Reminder settings
+  overrideReminderSettings = false,
+  invoiceRemindersEnabled = null,
+  invoiceReminderFrequencyDays = null,
+  maxInvoiceReminders = null,
+  remindersStopped = false,
+  reminderCount = 0,
+  lastReminderSentAt = null,
+  nextReminderDueAt = null,
+  contact = null,
   onChange,
   isEditing = false,
 }) => {
+  // Get company settings for inheritance display
+  const { companyAttributes } = useCompanyAttributes();
+
+  // Calculate effective settings with priority cascade
+  const effectiveSettings = useMemo(() => {
+    const companyEnabled = companyAttributes?.invoice_reminders_enabled ?? false;
+    const companyFrequency = companyAttributes?.invoice_reminder_frequency_days ?? 7;
+    const companyMax = companyAttributes?.max_invoice_reminders ?? 3;
+
+    const contactEnabled = contact?.invoice_reminders_enabled;
+    const contactFrequency = contact?.invoice_reminder_frequency_days;
+    const contactMax = contact?.max_invoice_reminders;
+
+    // Determine effective values following priority cascade
+    const enabled = invoiceRemindersEnabled ?? contactEnabled ?? companyEnabled;
+    const frequency = invoiceReminderFrequencyDays ?? contactFrequency ?? companyFrequency;
+    const max = maxInvoiceReminders ?? contactMax ?? companyMax;
+
+    // Determine source for each setting
+    const enabledSource = invoiceRemindersEnabled !== null ? 'invoice'
+      : contactEnabled !== null && contactEnabled !== undefined ? 'contact'
+      : companyEnabled !== undefined ? 'company' : 'default';
+    const frequencySource = invoiceReminderFrequencyDays !== null ? 'invoice'
+      : contactFrequency !== null && contactFrequency !== undefined ? 'contact'
+      : companyFrequency !== undefined ? 'company' : 'default';
+    const maxSource = maxInvoiceReminders !== null ? 'invoice'
+      : contactMax !== null && contactMax !== undefined ? 'contact'
+      : companyMax !== undefined ? 'company' : 'default';
+
+    return {
+      enabled,
+      frequency,
+      max,
+      sources: { enabled: enabledSource, frequency: frequencySource, max: maxSource },
+      inheritedFrom: contactEnabled !== null && contactEnabled !== undefined ? 'contact' : 'company'
+    };
+  }, [invoiceRemindersEnabled, invoiceReminderFrequencyDays, maxInvoiceReminders, contact, companyAttributes]);
+
+  // Format date for display
+  const formatDate = (dateStr) => {
+    if (!dateStr) return null;
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
   if (!isOpen) return null;
 
   return (
@@ -176,6 +234,178 @@ const InvoiceSettingsModal = ({
                     </div>
                   </label>
                 </div>
+              </div>
+
+              {/* Reminder Settings */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Bell className="h-4 w-4 text-orange-500" />
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Reminder Settings</h4>
+                </div>
+
+                {/* Reminders Stopped Warning */}
+                {remindersStopped && (
+                  <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
+                    <StopCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <span className="text-sm font-medium text-red-700 dark:text-red-400">Reminders Stopped</span>
+                      <p className="text-xs text-red-600 dark:text-red-300">All automatic reminders have been stopped for this invoice.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Override Toggle */}
+                <label className="flex items-center gap-3 cursor-pointer mb-4">
+                  <input
+                    type="checkbox"
+                    checked={overrideReminderSettings}
+                    onChange={(e) => onChange({ overrideReminderSettings: e.target.checked })}
+                    className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-300 rounded"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">Override contact/company settings</span>
+                    <p className="text-xs text-gray-600 dark:text-gray-300">Use custom reminder settings for this invoice</p>
+                  </div>
+                </label>
+
+                {overrideReminderSettings ? (
+                  /* Custom Settings */
+                  <div className="space-y-4 pl-7">
+                    {/* Enable Reminders */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Enable reminders
+                      </label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="remindersEnabled"
+                            checked={invoiceRemindersEnabled === true}
+                            onChange={() => onChange({ invoiceRemindersEnabled: true })}
+                            className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-300"
+                          />
+                          <span className="text-sm text-gray-900 dark:text-white">Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="remindersEnabled"
+                            checked={invoiceRemindersEnabled === false}
+                            onChange={() => onChange({ invoiceRemindersEnabled: false })}
+                            className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-300"
+                          />
+                          <span className="text-sm text-gray-900 dark:text-white">No</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Frequency */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Frequency (days between reminders)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={invoiceReminderFrequencyDays || ''}
+                        onChange={(e) => onChange({ invoiceReminderFrequencyDays: e.target.value ? parseInt(e.target.value) : null })}
+                        placeholder={`${effectiveSettings.frequency} (inherited)`}
+                        className="w-24 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Valid range: 1-60 days</p>
+                    </div>
+
+                    {/* Max Reminders */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Maximum reminders
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="5"
+                        value={maxInvoiceReminders !== null ? maxInvoiceReminders : ''}
+                        onChange={(e) => onChange({ maxInvoiceReminders: e.target.value !== '' ? parseInt(e.target.value) : null })}
+                        placeholder={`${effectiveSettings.max} (inherited)`}
+                        className="w-24 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Valid range: 0-5 reminders</p>
+                    </div>
+                  </div>
+                ) : (
+                  /* Inherited Settings Display */
+                  <div className="pl-7 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      Inherited from: <span className="font-medium capitalize">{effectiveSettings.inheritedFrom}</span>
+                    </p>
+                    <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                      <p>Enabled: <span className="font-medium">{effectiveSettings.enabled ? 'Yes' : 'No'}</span></p>
+                      <p>Frequency: <span className="font-medium">{effectiveSettings.frequency} days</span></p>
+                      <p>Max: <span className="font-medium">{effectiveSettings.max} reminders</span></p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Current Status - only show if invoice has been sent */}
+                {(invoiceStatus !== 'draft' && (reminderCount > 0 || lastReminderSentAt || nextReminderDueAt)) && (
+                  <div className="mt-4 pl-7 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-2">Current status</p>
+                    <div className="space-y-1 text-sm text-blue-600 dark:text-blue-300">
+                      <p className="flex items-center gap-2">
+                        <Bell className="h-3.5 w-3.5" />
+                        Reminders sent: <span className="font-medium">{reminderCount} of {effectiveSettings.max}</span>
+                      </p>
+                      {lastReminderSentAt && (
+                        <p className="flex items-center gap-2">
+                          <Clock className="h-3.5 w-3.5" />
+                          Last sent: <span className="font-medium">{formatDate(lastReminderSentAt)}</span>
+                        </p>
+                      )}
+                      {nextReminderDueAt && !remindersStopped && (
+                        <p className="flex items-center gap-2">
+                          <Calendar className="h-3.5 w-3.5" />
+                          Next scheduled: <span className="font-medium">{formatDate(nextReminderDueAt)}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Stop All Reminders Button - only show for non-draft invoices */}
+                {invoiceStatus !== 'draft' && !remindersStopped && (
+                  <div className="mt-4 pl-7">
+                    <button
+                      type="button"
+                      onClick={() => onChange({ remindersStopped: true })}
+                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg transition-colors"
+                    >
+                      <StopCircle className="h-4 w-4" />
+                      Stop All Reminders
+                    </button>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Permanently stop all automatic reminders for this invoice
+                    </p>
+                  </div>
+                )}
+
+                {/* Resume Reminders Button - show when stopped */}
+                {remindersStopped && (
+                  <div className="mt-4 pl-7">
+                    <button
+                      type="button"
+                      onClick={() => onChange({ remindersStopped: false })}
+                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg transition-colors"
+                    >
+                      <Bell className="h-4 w-4" />
+                      Resume Reminders
+                    </button>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Re-enable automatic reminders for this invoice
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

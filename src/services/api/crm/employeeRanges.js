@@ -1,49 +1,17 @@
-// API service for Employee Range endpoints
+/**
+ * Employee Ranges API Service
+ */
 
-import { API_BASE_URL } from '@/config/api';
+import { createRequest } from '../httpClient';
 
-class EmployeeRangesAPI {
-  async request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+const request = createRequest('EmployeeRangesAPI');
 
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
+const employeeRangesAPI = {
+  /** Get list of all employee ranges */
+  list: () => request('/crm/employee-ranges/', { method: 'GET' }),
 
-    // Add auth token
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+  /** Get specific employee range by ID */
+  get: (rangeId) => request(`/crm/employee-ranges/${rangeId}`, { method: 'GET' }),
+};
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        throw new Error(error.detail || `Request failed with status ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Employee Ranges API request failed:', error);
-      throw error;
-    }
-  }
-
-  // Get list of all employee ranges
-  async list() {
-    return this.request('/crm/employee-ranges/', { method: 'GET' });
-  }
-
-  // Get specific employee range by ID
-  async get(rangeId) {
-    return this.request(`/crm/employee-ranges/${rangeId}`, { method: 'GET' });
-  }
-}
-
-export default new EmployeeRangesAPI();
+export default employeeRangesAPI;

@@ -103,6 +103,30 @@ const BillableHourModal = ({
   };
 
   const handleInputChange = (field, value) => {
+    // When hours is populated, auto-set start_time = now - hours, end_time = now
+    if (field === 'hours' && value) {
+      const hours = parseFloat(value);
+      if (hours > 0) {
+        const now = new Date();
+        const startTime = new Date(now.getTime() - (hours * 60 * 60 * 1000));
+        // Format to datetime-local format (YYYY-MM-DDTHH:MM)
+        const formatForInput = (date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hr = String(date.getHours()).padStart(2, '0');
+          const min = String(date.getMinutes()).padStart(2, '0');
+          return `${year}-${month}-${day}T${hr}:${min}`;
+        };
+        setFormData(prev => ({
+          ...prev,
+          [field]: value,
+          start_time: formatForInput(startTime),
+          end_time: formatForInput(now),
+        }));
+        return;
+      }
+    }
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

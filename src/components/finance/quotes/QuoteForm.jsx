@@ -522,6 +522,7 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
             value={quoteNumber}
             onChange={(e) => setQuoteNumber(e.target.value)}
             placeholder="QTE-0001"
+            autoComplete="off"
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>
@@ -536,6 +537,7 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
               type="date"
               value={quoteDate}
               onChange={(e) => setQuoteDate(e.target.value)}
+              autoComplete="off"
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               required
             />
@@ -554,6 +556,7 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
               value={validUntil}
               onChange={(e) => setValidUntil(e.target.value)}
               min={quoteDate}
+              autoComplete="off"
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
             <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -639,6 +642,7 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Internal Note (Not Visible To Client)"
             rows={4}
+            autoComplete="off"
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>
@@ -652,6 +656,7 @@ const QuoteForm = ({ quote: quoteProp = null, onSuccess, isInModal = false }) =>
             onChange={(e) => setTerms(e.target.value)}
             placeholder="Write Quote Terms and Conditions"
             rows={4}
+            autoComplete="off"
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>

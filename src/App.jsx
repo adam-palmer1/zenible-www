@@ -19,6 +19,7 @@ import VerifyEmail from './pages/signup/VerifyEmail';
 import VerifyEmailToken from './pages/signup/VerifyEmailToken';
 import EmailConfirmed from './pages/signup/EmailConfirmed';
 import ForgotPassword from './pages/forgot-password/ForgotPassword';
+import ResetPassword from './pages/forgot-password/ResetPassword';
 import GoogleCallback from './components/GoogleCallback';
 import UserSettings from './components/UserSettings';
 import StripeOAuthCallback from './components/settings/StripeOAuthCallback';
@@ -52,6 +53,7 @@ import { ReportsDashboard } from './components/finance/reports';
 import { FinanceClientsDashboard } from './components/finance/clients';
 import { PaymentsProvider } from './contexts/PaymentsContext';
 import { ReportsProvider } from './contexts/ReportsContext';
+import { UsageDashboardProvider } from './contexts/UsageDashboardContext';
 
 // Booking pages
 import { PublicUserPage, PublicBookingPage, BookingConfirmation, BookingCancellation, ZoomCallback } from './pages/booking';
@@ -78,12 +80,14 @@ import HostsManagement from './components/admin/HostsManagement';
 import QuizzesManagement from './components/admin/QuizzesManagement';
 import QuizTagsManagement from './components/admin/QuizTagsManagement';
 
-// Root layout component with WebSocket provider
+// Root layout component with WebSocket and UsageDashboard providers
 function RootLayout() {
   return (
-    <WebSocketProvider>
-      <Outlet />
-    </WebSocketProvider>
+    <UsageDashboardProvider>
+      <WebSocketProvider>
+        <Outlet />
+      </WebSocketProvider>
+    </UsageDashboardProvider>
   );
 }
 
@@ -127,6 +131,10 @@ const router = createBrowserRouter([
       {
         path: 'forgot-password',
         element: <ForgotPassword />
+      },
+      {
+        path: 'auth/reset-password',
+        element: <ResetPassword />
       },
       {
         path: 'dashboard',

@@ -4,8 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { authAPI, userAPI } from '../utils/auth';
 import planAPI from '../services/planAPI';
+import companyUsersAPI from '../services/api/crm/companyUsers';
 import UpdatePaymentModal from './UpdatePaymentModal';
 import PaymentHistory from './PaymentHistory';
+import UsageDashboard from './UsageDashboard';
 import CustomizationQuestions from './CustomizationQuestions';
 import ProfileTab from './crm/settings/tabs/ProfileTab';
 import LocalizationTab from './crm/settings/tabs/LocalizationTab';
@@ -55,10 +57,100 @@ export default function UserSettings() {
   const [lastName, setLastName] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
+  // Company admin state
+  const [isCompanyAdmin, setIsCompanyAdmin] = useState(false);
+
+  // Plan selection state
+  const [availablePlans, setAvailablePlans] = useState([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState(null);
+  const [subscribing, setSubscribing] = useState(false);
+
   useEffect(() => {
     fetchUserProfile();
     loadUsername();
   }, []);
+
+  // Fetch available plans when subscription tab is active
+  useEffect(() => {
+    if (activeTab === 'subscription' && availablePlans.length === 0) {
+      fetchAvailablePlans();
+    }
+  }, [activeTab]);
+
+  const fetchAvailablePlans = async () => {
+    try {
+      setLoadingPlans(true);
+      const response = await planAPI.getPublicPlans();
+      // API returns { plans: [...], total, page, ... }
+      const plansArray = response.plans || response.items || response || [];
+      // Sort plans by price (lowest first) and filter active ones
+      const sortedPlans = plansArray
+        .filter(plan => plan.is_active !== false)
+        .sort((a, b) => (parseFloat(a.monthly_price) || 0) - (parseFloat(b.monthly_price) || 0));
+      setAvailablePlans(sortedPlans);
+    } catch (err) {
+      console.error('Failed to fetch plans:', err);
+    } finally {
+      setLoadingPlans(false);
+    }
+  };
+
+  const handleSelectPlan = async (planId) => {
+    if (subscribing) return;
+
+    try {
+      setSubscribing(true);
+      setSelectedPlanId(planId);
+      setError(null);
+
+      // Check if user has an existing subscription
+      if (currentSubscription && Object.keys(currentSubscription).length > 0) {
+        // Find the selected plan to determine if it's an upgrade or downgrade
+        const selectedPlan = availablePlans.find(p => p.id === planId);
+        const currentPrice = parseFloat(currentSubscription.plan?.monthly_price) || 0;
+        const newPrice = parseFloat(selectedPlan?.monthly_price) || 0;
+
+        if (newPrice > currentPrice) {
+          // Upgrade - change immediately
+          await planAPI.upgradeSubscription(planId, true);
+          setSuccessMessage('Subscription upgraded successfully!');
+        } else {
+          // Downgrade - change at period end
+          await planAPI.downgradeSubscription(planId, true);
+          setSuccessMessage('Subscription will be changed at the end of your billing period.');
+        }
+      } else {
+        // New subscription
+        await planAPI.createSubscription(planId, 'monthly');
+        setSuccessMessage('Subscription created successfully!');
+      }
+
+      // Refresh subscription data
+      await fetchUserProfile();
+    } catch (err) {
+      setError(err.message || 'Failed to update subscription');
+    } finally {
+      setSubscribing(false);
+      setSelectedPlanId(null);
+    }
+  };
+
+  // Check if user is a company admin
+  useEffect(() => {
+    const fetchCompanyPermissions = async () => {
+      try {
+        const permissions = await companyUsersAPI.getMyPermissions();
+        setIsCompanyAdmin(permissions?.is_company_admin || false);
+      } catch (error) {
+        // User may not be part of a company, default to false
+        setIsCompanyAdmin(false);
+      }
+    };
+    if (user) {
+      fetchCompanyPermissions();
+    }
+  }, [user]);
 
   // Cleanup username check timeout on unmount
   useEffect(() => {
@@ -477,28 +569,8 @@ export default function UserSettings() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                  Account Status
-                </label>
-                <div className={`px-3 py-2 rounded-lg border ${
-                  darkMode
-                    ? 'bg-zenible-dark-bg border-zenible-dark-border'
-                    : 'bg-gray-50 border-gray-200'
-                }`}>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    profile?.status === 'verified'
-                      ? 'bg-green-100 text-green-800'
-                      : profile?.status === 'subscriber'
-                      ? 'bg-purple-100 text-purple-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {profile?.status || 'Unknown'}
-                  </span>
-                </div>
-              </div>
-
+            {/* Row 3: Role + Member Since */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                   Role
@@ -517,18 +589,18 @@ export default function UserSettings() {
                   </span>
                 </div>
               </div>
-            </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                Member Since
-              </label>
-              <div className={`px-3 py-2 rounded-lg border ${
-                darkMode
-                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
-                  : 'bg-gray-50 border-gray-200 text-gray-600'
-              }`}>
-                {profile?.created_at ? formatDate(profile.created_at) : 'Unknown'}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  Member Since
+                </label>
+                <div className={`px-3 py-2 rounded-lg border ${
+                  darkMode
+                    ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
+                    : 'bg-gray-50 border-gray-200 text-gray-600'
+                }`}>
+                  {profile?.created_at ? formatDate(profile.created_at) : 'Unknown'}
+                </div>
               </div>
             </div>
 
@@ -671,7 +743,7 @@ export default function UserSettings() {
                       Price:
                     </span>
                     <span className={`ml-2 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                      ${currentSubscription.plan?.monthly_price || 'N/A'}/month
+                      ${parseFloat(currentSubscription.plan?.monthly_price).toFixed(2) || 'N/A'}/month
                     </span>
                   </div>
                   <div>
@@ -779,36 +851,107 @@ export default function UserSettings() {
           </div>
         )}
 
-        {/* No Subscription Message */}
-        {(!currentSubscription || Object.keys(currentSubscription).length === 0) && !loading && (
-          <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
-            <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-              <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-                Subscription
-              </h2>
-            </div>
-
-            <div className="p-6 text-center">
-              <div className={`p-8 rounded-lg ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
-                <svg className={`w-12 h-12 mx-auto mb-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 0v1m0 0V9a2 2 0 11-2 0V8.001" />
-                </svg>
-                <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                  No Active Subscription
-                </h3>
-                <p className={`text-sm mb-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                  You don't currently have an active subscription. Upgrade to unlock premium features.
-                </p>
-                <a
-                  href="/pricing"
-                  className="inline-flex items-center px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium"
-                >
-                  View Plans
-                </a>
-              </div>
-            </div>
+        {/* Plan Selection */}
+        <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+          <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+            <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+              {currentSubscription && Object.keys(currentSubscription).length > 0 ? 'Change Plan' : 'Select a Plan'}
+            </h2>
+            <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+              Choose the plan that best fits your needs
+            </p>
           </div>
-        )}
+
+          <div className="p-6">
+            {loadingPlans ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary"></div>
+              </div>
+            ) : availablePlans.length === 0 ? (
+              <p className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                No plans available at the moment.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {availablePlans.map((plan) => {
+                  const isCurrentPlan = currentSubscription?.plan?.id === plan.id;
+                  const isSelecting = subscribing && selectedPlanId === plan.id;
+
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`relative p-5 rounded-xl border-2 transition-all ${
+                        isCurrentPlan
+                          ? darkMode
+                            ? 'border-zenible-primary bg-zenible-primary/10'
+                            : 'border-zenible-primary bg-purple-50'
+                          : darkMode
+                            ? 'border-zenible-dark-border hover:border-zenible-primary/50 bg-zenible-dark-bg'
+                            : 'border-gray-200 hover:border-zenible-primary/50 bg-gray-50'
+                      }`}
+                    >
+                      {isCurrentPlan && (
+                        <span className="absolute -top-3 left-4 px-2 py-0.5 text-xs font-medium bg-zenible-primary text-white rounded-full">
+                          Current Plan
+                        </span>
+                      )}
+
+                      <h3 className={`text-lg font-semibold mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {plan.name}
+                      </h3>
+
+                      <div className="mb-3">
+                        <span className={`text-2xl font-bold ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                          ${(parseFloat(plan.monthly_price) || 0).toFixed(2)}
+                        </span>
+                        <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                          /month
+                        </span>
+                      </div>
+
+                      {plan.description && (
+                        <p className={`text-sm mb-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                          {plan.description}
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => !isCurrentPlan && handleSelectPlan(plan.id)}
+                        disabled={isCurrentPlan || subscribing}
+                        className={`w-full py-2 px-4 rounded-lg font-medium text-sm transition-colors ${
+                          isCurrentPlan
+                            ? darkMode
+                              ? 'bg-zenible-dark-border text-zenible-dark-text-secondary cursor-not-allowed'
+                              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            : 'bg-zenible-primary text-white hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed'
+                        }`}
+                      >
+                        {isSelecting ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            Processing...
+                          </span>
+                        ) : isCurrentPlan ? (
+                          'Current Plan'
+                        ) : currentSubscription && Object.keys(currentSubscription).length > 0 ? (
+                          (parseFloat(plan.monthly_price) || 0) > (parseFloat(currentSubscription.plan?.monthly_price) || 0) ? 'Upgrade' : 'Switch Plan'
+                        ) : (
+                          'Select Plan'
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+            {/* Usage Dashboard */}
+            <UsageDashboard />
 
             {/* Payment History */}
             <PaymentHistory />
@@ -818,7 +961,7 @@ export default function UserSettings() {
             <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
               <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
                 <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-                  Customization Preferences
+                  AI Intelligence
                 </h2>
                 <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                   Help Zenible to personalize all content that it creates for you, ensuring that
@@ -895,16 +1038,34 @@ export default function UserSettings() {
             </div>
           </div>
         ) : activeTab === 'users' ? (
-          <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
-            <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-              <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-                Users & Permissions
-              </h2>
+          isCompanyAdmin ? (
+            <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+              <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+                <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                  Users & Permissions
+                </h2>
+              </div>
+              <div className="p-6">
+                <UsersPermissionsTab />
+              </div>
             </div>
-            <div className="p-6">
-              <UsersPermissionsTab />
+          ) : (
+            <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+              <div className="p-8 text-center">
+                <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${darkMode ? 'bg-red-900/20' : 'bg-red-50'}`}>
+                  <svg className={`w-8 h-8 ${darkMode ? 'text-red-400' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                  Access Denied
+                </h3>
+                <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                  You need company admin permissions to access Users & Permissions settings.
+                </p>
+              </div>
             </div>
-          </div>
+          )
         ) : activeTab === 'advanced' ? (
           <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>

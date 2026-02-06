@@ -166,10 +166,22 @@ const QuoteList = () => {
       dateTo = range.to;
     }
 
-    updateFilters({
-      from_date: dateFrom,
-      to_date: dateTo,
-    });
+    // Use server-side filter params based on dateType
+    if (dateType === 'valid') {
+      updateFilters({
+        valid_until_from: dateFrom,
+        valid_until_to: dateTo,
+        issue_date_from: null,
+        issue_date_to: null,
+      });
+    } else {
+      updateFilters({
+        issue_date_from: dateFrom,
+        issue_date_to: dateTo,
+        valid_until_from: null,
+        valid_until_to: null,
+      });
+    }
 
     if (closeDropdown && preset !== 'custom') {
       setShowDateDropdown(false);
@@ -183,10 +195,22 @@ const QuoteList = () => {
 
     if (from && to) {
       setDatePreset('custom');
-      updateFilters({
-        from_date: from,
-        to_date: to,
-      });
+      // Use server-side filter params based on dateType
+      if (dateType === 'valid') {
+        updateFilters({
+          valid_until_from: from,
+          valid_until_to: to,
+          issue_date_from: null,
+          issue_date_to: null,
+        });
+      } else {
+        updateFilters({
+          issue_date_from: from,
+          issue_date_to: to,
+          valid_until_from: null,
+          valid_until_to: null,
+        });
+      }
     }
   };
 
@@ -196,8 +220,10 @@ const QuoteList = () => {
     setCustomDateFrom('');
     setCustomDateTo('');
     updateFilters({
-      from_date: null,
-      to_date: null,
+      issue_date_from: null,
+      issue_date_to: null,
+      valid_until_from: null,
+      valid_until_to: null,
     });
     setShowDateDropdown(false);
   };
@@ -209,9 +235,23 @@ const QuoteList = () => {
         ? prev.filter(id => id !== clientId)
         : [...prev, clientId];
 
-      updateFilters({
-        contact_id: newSelection.length === 1 ? newSelection[0] : null,
-      });
+      // Use contact_ids for multiple contacts, contact_id for single
+      if (newSelection.length === 0) {
+        updateFilters({
+          contact_id: null,
+          contact_ids: null,
+        });
+      } else if (newSelection.length === 1) {
+        updateFilters({
+          contact_id: newSelection[0],
+          contact_ids: null,
+        });
+      } else {
+        updateFilters({
+          contact_id: null,
+          contact_ids: newSelection.join(','),
+        });
+      }
 
       return newSelection;
     });
@@ -220,7 +260,15 @@ const QuoteList = () => {
   // Clear client filter
   const clearClientFilter = () => {
     setSelectedClientIds([]);
-    updateFilters({ contact_id: null });
+    updateFilters({ contact_id: null, contact_ids: null });
+  };
+
+  // Handle status filter change (server-side)
+  const handleStatusFilterChange = (newStatus) => {
+    setFilterStatus(newStatus);
+    updateFilters({
+      status: newStatus === 'all' ? null : newStatus,
+    });
   };
 
   // Filter clients by search query
@@ -256,11 +304,11 @@ const QuoteList = () => {
     return preset ? preset.label : 'All Time';
   };
 
-  // Filter and search quotes
+  // Filter quotes - most filtering is done server-side, only search is client-side
   const filteredQuotes = useMemo(() => {
     let result = [...quotes];
 
-    // Apply search
+    // Apply search (client-side since backend doesn't have full-text search)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(q =>
@@ -273,13 +321,10 @@ const QuoteList = () => {
       );
     }
 
-    // Apply status filter
-    if (filterStatus !== 'all') {
-      result = result.filter(q => q.status === filterStatus);
-    }
+    // Status filtering is now done server-side
 
     return result;
-  }, [quotes, searchQuery, filterStatus]);
+  }, [quotes, searchQuery]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -637,7 +682,7 @@ const QuoteList = () => {
                 <span>Status:</span>
                 <span className="font-medium">{QUOTE_STATUS_LABELS[filterStatus] || filterStatus}</span>
                 <button
-                  onClick={() => setFilterStatus('all')}
+                  onClick={() => handleStatusFilterChange('all')}
                   className="ml-1 p-0.5 hover:bg-purple-200 rounded-full"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -675,40 +720,52 @@ const QuoteList = () => {
                       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Status</div>
                       <div className="space-y-1">
                         <button
-                          onClick={() => setFilterStatus('all')}
+                          onClick={() => handleStatusFilterChange('all')}
                           className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === 'all' ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           All Quotes
                         </button>
                         <button
-                          onClick={() => setFilterStatus(QUOTE_STATUS.DRAFT)}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.DRAFT)}
                           className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.DRAFT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Draft
                         </button>
                         <button
-                          onClick={() => setFilterStatus(QUOTE_STATUS.SENT)}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.SENT)}
                           className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.SENT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Sent
                         </button>
                         <button
-                          onClick={() => setFilterStatus(QUOTE_STATUS.ACCEPTED)}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.ACCEPTED)}
                           className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.ACCEPTED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Accepted
                         </button>
                         <button
-                          onClick={() => setFilterStatus(QUOTE_STATUS.REJECTED)}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.REJECTED)}
                           className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.REJECTED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Rejected
                         </button>
                         <button
-                          onClick={() => setFilterStatus(QUOTE_STATUS.EXPIRED)}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.EXPIRED)}
                           className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.EXPIRED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Expired
+                        </button>
+                        <button
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.VIEWED)}
+                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.VIEWED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                        >
+                          Viewed
+                        </button>
+                        <button
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.INVOICED)}
+                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.INVOICED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                        >
+                          Invoiced
                         </button>
                       </div>
                     </div>
@@ -770,7 +827,7 @@ const QuoteList = () => {
                     <div className="p-3 flex items-center justify-between">
                       <button
                         onClick={() => {
-                          setFilterStatus('all');
+                          handleStatusFilterChange('all');
                           clearClientFilter();
                         }}
                         className="text-sm text-gray-600 hover:text-gray-900"

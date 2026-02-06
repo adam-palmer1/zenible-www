@@ -57,8 +57,22 @@ class QuotesAPI {
 
   /**
    * List quotes with filtering and pagination
-   * @param {Object} params - Query parameters (contact_id, status, expired_only, skip, limit, sort_by, sort_order)
-   * @returns {Promise<Object>} Paginated list of quotes
+   * @param {Object} params - Query parameters
+   * @param {string} [params.contact_id] - Filter by single contact UUID
+   * @param {string} [params.contact_ids] - Filter by multiple contacts (comma-separated UUIDs)
+   * @param {string} [params.project_id] - Filter by project UUID (via allocations)
+   * @param {string} [params.status] - Filter by status: draft, sent, viewed, accepted, rejected, expired, invoiced
+   * @param {string} [params.pricing_type] - Filter by pricing type: fixed, recurring
+   * @param {boolean} [params.expired_only] - Show only expired quotes
+   * @param {string} [params.issue_date_from] - Quotes issued on or after this date (YYYY-MM-DD)
+   * @param {string} [params.issue_date_to] - Quotes issued on or before this date (YYYY-MM-DD)
+   * @param {string} [params.valid_until_from] - Quotes valid until on or after this date (YYYY-MM-DD)
+   * @param {string} [params.valid_until_to] - Quotes valid until on or before this date (YYYY-MM-DD)
+   * @param {number} [params.page=1] - Page number (1-indexed)
+   * @param {number} [params.per_page=20] - Items per page (max 100)
+   * @param {string} [params.sort_by] - Sort field: created_at, issue_date, valid_until, total, quote_number
+   * @param {string} [params.sort_direction] - Sort direction: asc, desc
+   * @returns {Promise<Object>} Paginated list of quotes with items, total, page, per_page, total_pages, stats
    */
   async list(params = {}) {
     const queryString = new URLSearchParams(params).toString();

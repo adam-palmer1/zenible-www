@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useCRMReferenceData } from '../../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../../hooks/crm/useCompanyAttributes';
 import { useNotification } from '../../../../contexts/NotificationContext';
-import { ExclamationTriangleIcon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { usePreferences } from '../../../../contexts/PreferencesContext';
+import { ExclamationTriangleIcon, XMarkIcon, ChevronDownIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 /**
  * Advanced Tab - Advanced settings and preferences
@@ -18,6 +19,7 @@ const AdvancedTab = ({ onUnsavedChanges }) => {
   } = useCompanyAttributes();
 
   const { showSuccess, showError } = useNotification();
+  const { getPreference, updatePreference, reloadPreferences } = usePreferences();
 
   const [selectedFormat, setSelectedFormat] = useState(null);
   const [selectedTimezone, setSelectedTimezone] = useState('Europe/London');
@@ -25,6 +27,8 @@ const AdvancedTab = ({ onUnsavedChanges }) => {
   const [saving, setSaving] = useState(false);
   const [showTimezoneModal, setShowTimezoneModal] = useState(false);
   const [timezoneSearch, setTimezoneSearch] = useState('');
+  const [showNumberFormatModal, setShowNumberFormatModal] = useState(false);
+  const [resettingSetup, setResettingSetup] = useState(false);
 
   // Update selected values when attributes finish loading
   useEffect(() => {
@@ -97,6 +101,13 @@ const AdvancedTab = ({ onUnsavedChanges }) => {
     return value;
   };
 
+  // Get display info for selected number format
+  const getNumberFormatInfo = (formatId) => {
+    const format = numberFormats.find(f => f.id === formatId);
+    if (format) return { name: format.name, example: format.format_string };
+    return { name: 'Select format', example: '' };
+  };
+
   const handleFormatChange = (formatId) => {
     setSelectedFormat(formatId);
     setHasChanges(true);
@@ -133,6 +144,24 @@ const AdvancedTab = ({ onUnsavedChanges }) => {
     }
   };
 
+  const handleResetSetupWizard = async () => {
+    setResettingSetup(true);
+    try {
+      await updatePreference('onboarding_status', null, 'user');
+      await updatePreference('onboarding_reminder_date', null, 'user');
+      await reloadPreferences();
+      showSuccess('Setup wizard reset. It will appear on your next dashboard visit.');
+    } catch (error) {
+      showError('Failed to reset setup wizard');
+      console.error('Reset failed:', error);
+    } finally {
+      setResettingSetup(false);
+    }
+  };
+
+  // Check current onboarding status
+  const onboardingStatus = getPreference('onboarding_status');
+
   if (formatsLoading || attributesLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -152,31 +181,21 @@ const AdvancedTab = ({ onUnsavedChanges }) => {
           Choose how numbers are displayed throughout the application (decimals and thousands separators)
         </p>
 
-        <div className="space-y-2">
-          {numberFormats.map((format) => (
-            <label
-              key={format.id}
-              className="flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
-            >
-              <input
-                type="radio"
-                name="number_format"
-                value={format.id}
-                checked={selectedFormat === format.id}
-                onChange={(e) => handleFormatChange(e.target.value)}
-                className="h-4 w-4 text-zenible-primary focus:ring-zenible-primary"
-              />
-              <div>
-                <div className="font-medium text-gray-900 dark:text-white">
-                  {format.name}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Example: {format.format_string}
-                </div>
-              </div>
-            </label>
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowNumberFormatModal(true)}
+          className="w-full md:w-96 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-left flex items-center justify-between hover:border-zenible-primary transition-colors"
+        >
+          <div>
+            <span className="text-gray-900 dark:text-white">{getNumberFormatInfo(selectedFormat).name}</span>
+            {getNumberFormatInfo(selectedFormat).example && (
+              <span className="text-gray-500 dark:text-gray-400 ml-2 text-sm">
+                (e.g. {getNumberFormatInfo(selectedFormat).example})
+              </span>
+            )}
+          </div>
+          <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+        </button>
       </div>
 
       {/* Timezone */}
@@ -220,6 +239,47 @@ const AdvancedTab = ({ onUnsavedChanges }) => {
           >
             Export Services (Coming Soon)
           </button>
+        </div>
+      </div>
+
+      {/* Setup Wizard */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Setup Wizard
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Re-run the initial setup wizard to update your profile and company information.
+        </p>
+
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleResetSetupWizard}
+            disabled={resettingSetup || !onboardingStatus}
+            className="flex items-center gap-2 px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <ArrowPathIcon className={`h-4 w-4 ${resettingSetup ? 'animate-spin' : ''}`} />
+            {resettingSetup ? 'Resetting...' : 'Reset Setup Wizard'}
+          </button>
+          {!onboardingStatus && (
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              Setup wizard is already pending
+            </span>
+          )}
+          {onboardingStatus === 'complete' && (
+            <span className="text-sm text-green-600 dark:text-green-400">
+              Setup completed
+            </span>
+          )}
+          {onboardingStatus === 'ignored' && (
+            <span className="text-sm text-amber-600 dark:text-amber-400">
+              Setup was skipped
+            </span>
+          )}
+          {onboardingStatus === 'deferred' && (
+            <span className="text-sm text-blue-600 dark:text-blue-400">
+              Setup was deferred
+            </span>
+          )}
         </div>
       </div>
 
@@ -327,6 +387,59 @@ const AdvancedTab = ({ onUnsavedChanges }) => {
                       </button>
                     ))
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Number Format Modal */}
+      {showNumberFormatModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+              onClick={() => setShowNumberFormatModal(false)}
+            />
+            <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Select Number Format
+                </h3>
+                <button
+                  onClick={() => setShowNumberFormatModal(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="p-4">
+                <div className="max-h-64 overflow-y-auto">
+                  {numberFormats.map((format) => (
+                    <button
+                      key={format.id}
+                      onClick={() => {
+                        handleFormatChange(format.id);
+                        setShowNumberFormatModal(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-between rounded-lg ${
+                        selectedFormat === format.id ? 'bg-zenible-primary/10 text-zenible-primary' : ''
+                      }`}
+                    >
+                      <div>
+                        <div className={`font-medium ${selectedFormat === format.id ? 'text-zenible-primary' : 'text-gray-900 dark:text-white'}`}>
+                          {format.name}
+                        </div>
+                        <div className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">
+                          Example: {format.format_string}
+                        </div>
+                      </div>
+                      {selectedFormat === format.id && (
+                        <div className="h-2 w-2 rounded-full bg-zenible-primary" />
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>

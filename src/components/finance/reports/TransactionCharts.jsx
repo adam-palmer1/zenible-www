@@ -12,7 +12,6 @@ import {
 } from 'chart.js';
 import { BarChart3, PieChart } from 'lucide-react';
 import { useReports } from '../../../contexts/ReportsContext';
-import { formatCurrency } from '../../../utils/currency';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
@@ -56,7 +55,7 @@ const formatTypeLabel = (type) => {
 /**
  * Income vs Expense Bar Chart
  */
-const IncomeExpenseChart = ({ data, loading }) => {
+const IncomeExpenseChart = ({ data, loading, currencySymbol = '$' }) => {
   if (loading) {
     return (
       <div className="bg-white border border-[#e5e5e5] rounded-xl p-6">
@@ -85,11 +84,7 @@ const IncomeExpenseChart = ({ data, loading }) => {
     datasets: [
       {
         label: 'Income',
-        data: data.map((item) => {
-          const invoice = parseFloat(item.by_type?.invoice || 0);
-          const payment = parseFloat(item.by_type?.payment || 0);
-          return invoice + payment;
-        }),
+        data: data.map((item) => parseFloat(item.income_total || 0)),
         backgroundColor: 'rgba(34, 197, 94, 0.8)',
         borderColor: '#22c55e',
         borderWidth: 1,
@@ -97,7 +92,7 @@ const IncomeExpenseChart = ({ data, loading }) => {
       },
       {
         label: 'Expenses',
-        data: data.map((item) => parseFloat(item.by_type?.expense || 0)),
+        data: data.map((item) => parseFloat(item.expense_total || 0)),
         backgroundColor: 'rgba(239, 68, 68, 0.8)',
         borderColor: '#ef4444',
         borderWidth: 1,
@@ -125,7 +120,14 @@ const IncomeExpenseChart = ({ data, loading }) => {
         bodyColor: '#F9FAFB',
         cornerRadius: 8,
         callbacks: {
-          label: (context) => `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`,
+          label: (context) => {
+            const value = context.parsed.y;
+            const formatted = value.toLocaleString('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            });
+            return `${context.dataset.label}: ${currencySymbol}${formatted}`;
+          },
         },
       },
     },
@@ -139,7 +141,13 @@ const IncomeExpenseChart = ({ data, loading }) => {
         ticks: {
           color: '#6B7280',
           font: { size: 11 },
-          callback: (value) => formatCurrency(value),
+          callback: (value) => {
+            const formatted = value.toLocaleString('en-US', {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            });
+            return `${currencySymbol}${formatted}`;
+          },
         },
       },
     },
@@ -158,7 +166,7 @@ const IncomeExpenseChart = ({ data, loading }) => {
 /**
  * Transaction Type Breakdown Pie Chart
  */
-const TypeBreakdownChart = ({ data, loading }) => {
+const TypeBreakdownChart = ({ data, loading, currencySymbol = '$' }) => {
   if (loading) {
     return (
       <div className="bg-white border border-[#e5e5e5] rounded-xl p-6">
@@ -221,7 +229,11 @@ const TypeBreakdownChart = ({ data, loading }) => {
             const value = context.parsed;
             const total = context.dataset.data.reduce((a, b) => a + b, 0);
             const percentage = ((value / total) * 100).toFixed(1);
-            return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
+            const formatted = value.toLocaleString('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            });
+            return `${context.label}: ${currencySymbol}${formatted} (${percentage}%)`;
           },
         },
       },
@@ -245,15 +257,20 @@ const TypeBreakdownChart = ({ data, loading }) => {
 const TransactionCharts = () => {
   const { summary, summaryLoading } = useReports();
 
+  // Get default currency symbol from summary
+  const currencySymbol = summary?.default_currency?.symbol || '$';
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <IncomeExpenseChart
         data={summary?.by_period || []}
         loading={summaryLoading}
+        currencySymbol={currencySymbol}
       />
       <TypeBreakdownChart
         data={summary?.by_type || []}
         loading={summaryLoading}
+        currencySymbol={currencySymbol}
       />
     </div>
   );

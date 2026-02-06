@@ -84,6 +84,7 @@ const DocumentLineItems = ({
                         }}
                         placeholder="Item description"
                         rows={1}
+                        autoComplete="off"
                         className="auto-grow-textarea w-full px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none bg-transparent"
                         style={{ minHeight: '24px' }}
                       />
@@ -102,6 +103,7 @@ const DocumentLineItems = ({
                         placeholder="Additional details (optional)"
                         maxLength={500}
                         rows={1}
+                        autoComplete="off"
                         className="auto-grow-textarea w-full px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none bg-transparent"
                         style={{ minHeight: '20px' }}
                       />
@@ -115,6 +117,7 @@ const DocumentLineItems = ({
                       min="0"
                       step="0.01"
                       placeholder="0"
+                      autoComplete="off"
                       className="w-full px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-purple-500 bg-transparent"
                     />
                   </td>
@@ -125,6 +128,7 @@ const DocumentLineItems = ({
                       onChange={(e) => onUpdateItem(index, 'quantity', e.target.value)}
                       min="0"
                       step="1"
+                      autoComplete="off"
                       className="w-full px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500 bg-transparent"
                     />
                   </td>

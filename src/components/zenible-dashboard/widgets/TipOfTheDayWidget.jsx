@@ -51,7 +51,7 @@ const TipOfTheDayWidget = ({ settings = {} }) => {
   return (
     <div className="flex items-start gap-4">
       {/* Character or Icon */}
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 flex flex-col items-center">
         {character?.avatar_url ? (
           <img
             src={character.avatar_url}
@@ -63,15 +63,20 @@ const TipOfTheDayWidget = ({ settings = {} }) => {
             <LightBulbIcon className="w-6 h-6 text-amber-600" />
           </div>
         )}
+        {character?.name && (
+          <span className="text-xs font-medium text-gray-700 text-center mt-1">
+            {character.name}
+          </span>
+        )}
+        {character?.description && (
+          <div className="px-2 py-1.5 rounded-lg text-xs max-w-[140px] bg-gray-100 text-gray-600 mt-1 text-center">
+            {character.description}
+          </div>
+        )}
       </div>
 
       {/* Tip Content */}
       <div className="flex-1 min-w-0">
-        {character?.name && (
-          <p className="text-xs font-medium text-gray-500 mb-1">
-            {character.name} says:
-          </p>
-        )}
         <p className="text-sm text-gray-700 leading-relaxed">
           {tipData?.content}
         </p>

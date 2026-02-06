@@ -199,7 +199,7 @@ export default function ForgotPassword() {
                 {success && (
                   <div className="w-full p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                     <p className="text-sm text-green-600 dark:text-green-400 font-inter text-center">
-                      Reset instructions sent! Check your email.
+                      If an account matches the email address provided, you will receive instructions to reset your password shortly.
                     </p>
                   </div>
                 )}

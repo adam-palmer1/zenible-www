@@ -47,6 +47,9 @@ export const ExpenseProvider = ({ children }) => {
     start_date: defaultRange.start_date,
     end_date: defaultRange.end_date,
     date_field: 'entry', // 'entry' (expense_date) or 'paid' (paid_at)
+    status: null, // pending, paid, completed, cancelled
+    pricing_type: null, // fixed, recurring
+    is_template: null, // true to show only recurring templates
   });
 
   const [pagination, setPagination] = useState({
@@ -67,6 +70,9 @@ export const ExpenseProvider = ({ children }) => {
         vendor_id: getPreference('expense_filter_vendor', null),
         vendor_ids: getPreference('expense_filter_vendor_ids', null),
         date_field: savedDateField,
+        status: getPreference('expense_filter_status', null),
+        pricing_type: getPreference('expense_filter_pricing_type', null),
+        is_template: getPreference('expense_filter_is_template', null),
       };
       const savedSort = getPreference('expense_sort_by', 'expense_date');
       const savedOrder = getPreference('expense_sort_order', 'desc');
@@ -303,6 +309,15 @@ export const ExpenseProvider = ({ children }) => {
     }
     if (newFilters.date_field !== undefined) {
       updatePreference('expense_date_field', newFilters.date_field, 'finance');
+    }
+    if (newFilters.status !== undefined) {
+      updatePreference('expense_filter_status', newFilters.status, 'finance');
+    }
+    if (newFilters.pricing_type !== undefined) {
+      updatePreference('expense_filter_pricing_type', newFilters.pricing_type, 'finance');
+    }
+    if (newFilters.is_template !== undefined) {
+      updatePreference('expense_filter_is_template', newFilters.is_template, 'finance');
     }
   }, [updatePreference]);
 

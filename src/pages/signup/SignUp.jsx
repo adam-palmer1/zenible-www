@@ -69,7 +69,8 @@ const Checkbox = ({ checked = false, onChange = () => {} }) => {
 };
 
 export default function SignUp() {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -110,8 +111,8 @@ export default function SignUp() {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!name.trim()) {
-      newErrors.name = 'Name is required';
+    if (!firstName.trim()) {
+      newErrors.firstName = 'First name is required';
     }
 
     if (!email.trim()) {
@@ -142,7 +143,7 @@ export default function SignUp() {
     setIsLoading(true);
 
     try {
-      const result = await signup(email, password, name);
+      const result = await signup(email, password, firstName, lastName);
 
       if (result.success) {
         // Navigate to email verification page
@@ -233,23 +234,38 @@ export default function SignUp() {
 
                 {/* Form Fields */}
                 <div className="flex flex-col gap-[16px] w-full">
-                  {/* Name Field */}
-                  <div className="flex flex-col gap-[4px] w-full">
-                    <InputField
-                      writeHeading="Name"
-                      writeInput="Enter your name"
-                      type="text"
-                      name="name"
-                      value={name}
-                      onChange={(e) => {
-                        setName(e.target.value);
-                        if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
-                        if (apiError) setApiError('');
-                      }}
-                    />
-                    {errors.name && (
-                      <p className="text-sm text-red-600 dark:text-red-400 font-inter px-1">{errors.name}</p>
-                    )}
+                  {/* Name Fields */}
+                  <div className="grid grid-cols-2 gap-4 w-full">
+                    <div className="flex flex-col gap-[4px]">
+                      <InputField
+                        writeHeading="First Name"
+                        writeInput="First name"
+                        type="text"
+                        name="firstName"
+                        value={firstName}
+                        onChange={(e) => {
+                          setFirstName(e.target.value);
+                          if (errors.firstName) setErrors(prev => ({ ...prev, firstName: '' }));
+                          if (apiError) setApiError('');
+                        }}
+                      />
+                      {errors.firstName && (
+                        <p className="text-sm text-red-600 dark:text-red-400 font-inter px-1">{errors.firstName}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-[4px]">
+                      <InputField
+                        writeHeading="Last Name"
+                        writeInput="Last name"
+                        type="text"
+                        name="lastName"
+                        value={lastName}
+                        onChange={(e) => {
+                          setLastName(e.target.value);
+                          if (apiError) setApiError('');
+                        }}
+                      />
+                    </div>
                   </div>
 
                   {/* Email Field */}

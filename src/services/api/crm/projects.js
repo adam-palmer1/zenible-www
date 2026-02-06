@@ -127,6 +127,13 @@ class ProjectsAPI {
       method: 'DELETE',
     });
   }
+
+  async updateServiceAssignment(projectId, assignmentId, data) {
+    return this.request(`/crm/projects/${projectId}/services/${assignmentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const projectsAPI = new ProjectsAPI();
