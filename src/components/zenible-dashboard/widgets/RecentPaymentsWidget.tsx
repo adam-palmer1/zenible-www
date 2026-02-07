@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CreditCardIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { formatCurrency } from '../../../utils/currency';
+import { LoadingSpinner } from '../../shared';
 
 interface RecentPaymentsWidgetProps {
   settings?: Record<string, any>;
@@ -15,7 +16,7 @@ interface RecentPaymentsWidgetProps {
  */
 const RecentPaymentsWidget = ({ settings = {}, isHovered = false }: RecentPaymentsWidgetProps) => {
   const navigate = useNavigate();
-  const { payments, loading, initialized, fetchPayments } = usePayments() as any;
+  const { payments, loading, initialized, fetchPayments } = usePayments();
   const limit = settings.limit || 5;
 
   useEffect(() => {
@@ -34,26 +35,11 @@ const RecentPaymentsWidget = ({ settings = {}, isHovered = false }: RecentPaymen
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const getStatusColor = (status: string): string => {
-    const colors: Record<string, string> = {
-      pending: 'bg-amber-100 text-amber-700',
-      completed: 'bg-green-100 text-green-700',
-      failed: 'bg-red-100 text-red-700',
-      refunded: 'bg-gray-100 text-gray-700',
-      partially_refunded: 'bg-orange-100 text-orange-700',
-    };
-    return colors[status] || colors.pending;
-  };
-
   const handleViewAll = () => navigate('/finance/payments');
   const handlePaymentClick = (id: string) => navigate(`/finance/payments?payment=${id}`);
 
   if (loading && !initialized) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[100px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 
   return (

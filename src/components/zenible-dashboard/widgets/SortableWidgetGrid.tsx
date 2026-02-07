@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { DndProvider, useDrag, useDrop, type XYCoord } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import WidgetWrapper from './WidgetWrapper';
@@ -37,11 +37,10 @@ interface DraggableWidgetProps {
  */
 const DraggableWidget = ({ widget, index, moveWidget, onHide, onOpenSettings, getWidgetSize }: DraggableWidgetProps) => {
   const ref = useRef<HTMLDivElement>(null);
-  const config = WIDGET_REGISTRY[widget.id];
   const { width, height } = getWidgetSize(widget.id);
 
   // Drag source
-  const [{ isDragging }, drag, preview] = useDrag({
+  const [{ isDragging }, drag] = useDrag({
     type: WIDGET_ITEM_TYPE,
     item: (): DragItem => ({ id: widget.id, index }),
     collect: (monitor) => ({
@@ -68,10 +67,11 @@ const DraggableWidget = ({ widget, index, moveWidget, onHide, onOpenSettings, ge
       const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
 
       // Determine mouse position
-      const clientOffset = monitor.getClientOffset();
+      const clientOffset = monitor.getClientOffset() as XYCoord | null;
+      if (!clientOffset) return;
 
       // Get pixels to the top
-      const hoverClientY = (clientOffset as any).y - hoverBoundingRect.top;
+      const hoverClientY = clientOffset.y - hoverBoundingRect.top;
 
       // Only perform the move when the mouse has crossed half of the items height
       // When dragging downwards, only move when the cursor is below 50%
@@ -147,7 +147,7 @@ interface WidgetGridProps {
  * WidgetGrid - The actual grid container
  */
 const WidgetGrid = ({ onOpenCustomizer }: WidgetGridProps) => {
-  const { getPreference, updatePreference, initialized } = usePreferences() as any;
+  const { getPreference, updatePreference, initialized } = usePreferences();
 
   // State for settings modal
   const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
@@ -156,7 +156,7 @@ const WidgetGrid = ({ onOpenCustomizer }: WidgetGridProps) => {
   const widgetLayout = getPreference('dashboard_widgets', {
     widgets: getWidgetDefaults(),
     version: 1,
-  });
+  }) as { widgets: any[]; version: number };
 
   // Get visible widgets
   const visibleWidgets = (widgetLayout.widgets || [])
@@ -169,7 +169,7 @@ const WidgetGrid = ({ onOpenCustomizer }: WidgetGridProps) => {
     const settings = getPreference(
       `dashboard_widget_settings_${widgetId}`,
       defaults
-    );
+    ) as { widgetWidth?: number; widgetHeight?: number; [key: string]: unknown };
 
     return {
       width: settings.widgetWidth ?? config?.defaultSize?.w ?? 1,

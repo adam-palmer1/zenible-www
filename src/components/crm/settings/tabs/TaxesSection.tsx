@@ -27,6 +27,27 @@ import { useNotification } from '../../../../contexts/NotificationContext';
 import ConfirmationModal from '../../../common/ConfirmationModal';
 import { useDeleteConfirmation } from '../../../../hooks/useDeleteConfirmation';
 
+interface Tax {
+  id: string;
+  tax_name: string;
+  tax_rate: number | string;
+  sort_order: number;
+  [key: string]: unknown;
+}
+
+interface SortableTaxItemProps {
+  tax: Tax;
+  isEditing: boolean;
+  editForm: { tax_name: string; tax_rate: string };
+  setEditForm: React.Dispatch<React.SetStateAction<{ tax_name: string; tax_rate: string }>>;
+  onStartEdit: (tax: Tax) => void;
+  onSaveEdit: (taxId: string) => void;
+  onCancelEdit: () => void;
+  onDelete: (taxId: string) => void;
+  loading: boolean;
+  formatRate: (rate: number | string) => string;
+}
+
 /**
  * Sortable Tax Item Component
  */
@@ -41,7 +62,7 @@ const SortableTaxItem = ({
   onDelete,
   loading,
   formatRate,
-}) => {
+}: SortableTaxItemProps) => {
   const {
     attributes,
     listeners,
@@ -160,11 +181,16 @@ const SortableTaxItem = ({
 /**
  * TaxesSection - Manages multiple company taxes with drag-to-reorder
  */
-const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
-  const [taxes, setTaxes] = useState(
+interface TaxesSectionProps {
+  initialTaxes?: Tax[];
+  onTaxesChange?: (taxes: Tax[]) => void;
+}
+
+const TaxesSection = ({ initialTaxes = [], onTaxesChange }: TaxesSectionProps) => {
+  const [taxes, setTaxes] = useState<Tax[]>(
     [...initialTaxes].sort((a, b) => a.sort_order - b.sort_order)
   );
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ tax_name: '', tax_rate: '' });
   const [newTax, setNewTax] = useState({ tax_name: '', tax_rate: '' });
   const [loading, setLoading] = useState(false);
@@ -203,24 +229,24 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
         tax_name: newTax.tax_name.trim(),
         tax_rate: rate,
         sort_order: taxes.length,
-      });
+      }) as Tax;
       const updatedTaxes = [...taxes, created];
       setTaxes(updatedTaxes);
       setNewTax({ tax_name: '', tax_rate: '' });
       onTaxesChange?.(updatedTaxes);
       showSuccess('Tax added successfully');
     } catch (error) {
-      showError(error.message || 'Failed to add tax');
+      showError((error as Error).message || 'Failed to add tax');
     } finally {
       setAddingTax(false);
     }
   };
 
-  const handleStartEdit = (tax) => {
+  const handleStartEdit = (tax: Tax) => {
     setEditingId(tax.id);
     setEditForm({
       tax_name: tax.tax_name,
-      tax_rate: tax.tax_rate,
+      tax_rate: String(tax.tax_rate),
     });
   };
 
@@ -229,7 +255,7 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
     setEditForm({ tax_name: '', tax_rate: '' });
   };
 
-  const handleSaveEdit = async (taxId) => {
+  const handleSaveEdit = async (taxId: string) => {
     if (!editForm.tax_name.trim() || editForm.tax_rate === '') {
       showError('Please enter both tax name and rate');
       return;
@@ -246,20 +272,20 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
       const updated = await taxesAPI.update(taxId, {
         tax_name: editForm.tax_name.trim(),
         tax_rate: rate,
-      });
+      }) as Tax;
       const updatedTaxes = taxes.map((t) => (t.id === taxId ? updated : t));
       setTaxes(updatedTaxes);
       setEditingId(null);
       onTaxesChange?.(updatedTaxes);
       showSuccess('Tax updated successfully');
     } catch (error) {
-      showError(error.message || 'Failed to update tax');
+      showError((error as Error).message || 'Failed to update tax');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = (taxId) => {
+  const handleDelete = (taxId: string) => {
     deleteConfirmation.requestDelete(taxId);
   };
 
@@ -273,7 +299,7 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
         onTaxesChange?.(updatedTaxes);
         showSuccess('Tax deleted successfully');
       } catch (error) {
-        showError(error.message || 'Failed to delete tax');
+        showError((error as Error).message || 'Failed to delete tax');
         throw error;
       } finally {
         setLoading(false);
@@ -281,7 +307,7 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
     });
   };
 
-  const handleDragEnd = async (event) => {
+  const handleDragEnd = async (event: any) => {
     const { active, over } = event;
 
     if (!over || active.id === over.id) return;
@@ -307,12 +333,12 @@ const TaxesSection = ({ initialTaxes = [], onTaxesChange }) => {
     } catch (error) {
       // Revert on failure
       setTaxes(taxes);
-      showError(error.message || 'Failed to reorder taxes');
+      showError((error as Error).message || 'Failed to reorder taxes');
     }
   };
 
-  const formatRate = (rate) => {
-    const num = parseFloat(rate);
+  const formatRate = (rate: number | string) => {
+    const num = parseFloat(String(rate));
     return isNaN(num) ? '0.00' : num.toFixed(2);
   };
 

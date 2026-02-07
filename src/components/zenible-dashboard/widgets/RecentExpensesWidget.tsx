@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ReceiptRefundIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { useExpenses } from '../../../contexts/ExpenseContext';
 import { formatCurrency } from '../../../utils/currency';
+import { LoadingSpinner } from '../../shared';
 
 interface RecentExpensesWidgetProps {
   settings?: Record<string, any>;
@@ -15,7 +16,7 @@ interface RecentExpensesWidgetProps {
  */
 const RecentExpensesWidget = ({ settings = {}, isHovered = false }: RecentExpensesWidgetProps) => {
   const navigate = useNavigate();
-  const { expenses, loading, initialized, fetchExpenses } = useExpenses() as any;
+  const { expenses, loading, initialized, fetchExpenses } = useExpenses();
   const limit = settings.limit || 5;
 
   useEffect(() => {
@@ -55,11 +56,7 @@ const RecentExpensesWidget = ({ settings = {}, isHovered = false }: RecentExpens
   };
 
   if (loading && !initialized) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[100px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 
   return (

@@ -33,8 +33,8 @@ const GenericDropdown: React.FC<GenericDropdownProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Get the modal portal container if we're inside a modal
-  const modalPortalRef = useModalPortal() as any;
-  const portalTarget = modalPortalRef?.current || document.body;
+  const modalPortal = useModalPortal();
+  const portalTarget = modalPortal || document.body;
 
   // Calculate dropdown position when opening
   useEffect(() => {

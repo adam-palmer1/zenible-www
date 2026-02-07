@@ -213,8 +213,8 @@ const ProjectAllocationModal: React.FC<ProjectAllocationModalProps> = ({
   currentAllocations = [],
   onUpdate,
 }) => {
-  const { showSuccess, showError } = useNotification() as any;
-  const { projects, loading: projectsLoading } = useProjects() as any;
+  const { showSuccess, showError } = useNotification();
+  const { projects, loading: projectsLoading } = useProjects();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

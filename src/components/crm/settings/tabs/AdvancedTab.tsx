@@ -13,10 +13,10 @@ interface AdvancedTabProps {
  * Advanced Tab - Advanced settings and preferences
  */
 const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
-  const { numberFormats, loading: formatsLoading } = useCRMReferenceData() as any;
-  const { getNumberFormat, setNumberFormat, getTimezone, setTimezone, loading: attributesLoading } = useCompanyAttributes() as any;
-  const { showSuccess, showError } = useNotification() as any;
-  const { getPreference, updatePreference, reloadPreferences } = usePreferences() as any;
+  const { numberFormats, loading: formatsLoading } = useCRMReferenceData();
+  const { getNumberFormat, setNumberFormat, getTimezone, setTimezone, loading: attributesLoading } = useCompanyAttributes();
+  const { showSuccess, showError } = useNotification();
+  const { getPreference, updatePreference, reloadPreferences } = usePreferences();
 
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
   const [selectedTimezone, setSelectedTimezone] = useState('Europe/London');

@@ -34,7 +34,7 @@ export const getServiceDefaultValues = (service: any = null, defaultCurrency: an
 
   return {
     frequency_type: 'one_off',
-    status: (SERVICE_STATUS as any).ACTIVE,
+    status: SERVICE_STATUS.ACTIVE,
     is_hidden: false,
     currency_id: defaultCurrency?.id || '',
   };

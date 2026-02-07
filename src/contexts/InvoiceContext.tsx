@@ -1,8 +1,7 @@
-import { createContext, useState, useCallback, useMemo, useContext, useEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from 'react';
+import { createContext, useState, useCallback, useMemo, useContext, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { usePreferences } from './PreferencesContext';
 import invoicesAPI from '../services/api/finance/invoices';
-import { DEFAULT_PAGE_SIZE } from '../constants/pagination';
+import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
 
 interface InvoiceFilters {
   search: string;
@@ -17,15 +16,31 @@ interface InvoiceFilters {
   parent_invoice_id: string | null;
 }
 
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
+export interface Invoice {
+  id: string;
+  invoice_number?: string;
+  status?: string;
+  total_amount?: number | string;
+  amount_paid?: number | string;
+  balance_due?: number | string;
+  contact_name?: string;
+  issue_date?: string;
+  due_date?: string;
+  [key: string]: unknown;
+}
+
+export interface InvoiceStats {
+  total_count?: number;
+  total_value?: number | string;
+  outstanding_value?: number | string;
+  overdue_value?: number | string;
+  paid_value?: number | string;
+  [key: string]: unknown;
 }
 
 interface InvoiceContextValue {
-  invoices: unknown[];
-  stats: unknown;
+  invoices: Invoice[];
+  stats: InvoiceStats | null;
   loading: boolean;
   error: string | null;
   initialized: boolean;
@@ -34,11 +49,12 @@ interface InvoiceContextValue {
   sortBy: string;
   sortOrder: string;
   showInvoiceModal: boolean;
-  editingInvoice: unknown;
-  selectedInvoice: unknown;
+  editingInvoice: Invoice | null;
+  selectedInvoice: Invoice | null;
   fetchInvoices: () => Promise<void>;
+  getInvoice: (invoiceId: string) => Promise<unknown>;
   createInvoice: (invoiceData: unknown) => Promise<unknown>;
-  updateInvoice: (invoiceId: string, invoiceData: unknown) => Promise<unknown>;
+  updateInvoice: (invoiceId: string, invoiceData: unknown, changeReason?: string) => Promise<unknown>;
   deleteInvoice: (invoiceId: string) => Promise<void>;
   sendInvoice: (invoiceId: string, emailData: unknown) => Promise<unknown>;
   sendReminder: (invoiceId: string, emailData: unknown) => Promise<unknown>;
@@ -56,346 +72,219 @@ interface InvoiceContextValue {
 export const InvoiceContext = createContext<InvoiceContextValue | null>(null);
 
 export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
-  const { getPreference, updatePreference } = usePreferences();
+  useAuth();
 
-  // Ref to prevent duplicate in-flight requests
-  const fetchingRef = useRef(false);
+  // -------------------------------------------------------------------------
+  // Invoice-specific state: stats (returned inline from list endpoint)
+  // -------------------------------------------------------------------------
+  const [stats, setStats] = useState<InvoiceStats | null>(null);
 
-  // State
-  const [invoices, setInvoices] = useState<unknown[]>([]);
-  const [stats, setStats] = useState<unknown>(null); // Stats from backend
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // Modal state
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [editingInvoice, setEditingInvoice] = useState<unknown>(null);
-  const [selectedInvoice, setSelectedInvoice] = useState<unknown>(null);
-
-  // Filters
-  const [filters, setFilters] = useState<InvoiceFilters>({
-    search: '',
-    status: null,
-    outstanding_only: null, // Filter for outstanding/unpaid invoices (boolean)
-    overdue_only: null, // Filter for overdue invoices (boolean)
-    contact_ids: null, // comma-separated list of contact IDs
-    issue_date_from: null,
-    issue_date_to: null,
-    due_date_from: null,
-    due_date_to: null,
-    parent_invoice_id: null, // Filter by parent template ID
-  });
-
-  // Pagination
-  const [pagination, setPagination] = useState<Pagination>({
-    page: 1,
-    limit: DEFAULT_PAGE_SIZE,
-    total: 0,
-  });
-
-  // Sort
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState('desc');
-
-  // Load filters from preferences (only once on mount)
-  useEffect(() => {
-    if (user && !preferencesLoaded) {
-      const savedSearch = getPreference('invoice_search', '');
-      const savedStatus = getPreference('invoice_filter_status', null);
-      const savedSort = getPreference('invoice_sort_by', 'created_at');
-      const savedOrder = getPreference('invoice_sort_order', 'desc');
-
-      // Merge saved preferences with current filters (don't replace entire object)
-      setFilters(prev => ({
-        ...prev,
-        search: savedSearch as string,
-        status: savedStatus as string | null,
-      }));
-      setSortBy(savedSort as string);
-      setSortOrder(savedOrder as string);
-      setPreferencesLoaded(true);
-    }
-  }, [user, getPreference, preferencesLoaded]);
-
-  // Serialize filters for stable dependency comparison
-  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
-
-  // Fetch invoices
-  const fetchInvoices = useCallback(async () => {
-    if (!user) return;
-
-    // Prevent duplicate in-flight requests (React StrictMode can cause double-renders)
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Build params, filtering out null/undefined values
-      const params: Record<string, unknown> = {
-        skip: (pagination.page - 1) * pagination.limit,
-        limit: pagination.limit,
-        sort_by: sortBy,
-        sort_order: sortOrder,
-      };
-
-      // Only add filter params if they have actual values
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-          params[key] = value;
-        }
-      });
-
-      const response = await invoicesAPI.list(params as Record<string, string>) as any;
-      setInvoices(response.items || response);
-      setPagination(prev => ({
-        ...prev,
-        total: response.total || response.length,
-      }));
-      // Store stats from backend if available
+  // -------------------------------------------------------------------------
+  // Shared document state (filters, pagination, sort, CRUD, modal, fetch)
+  // -------------------------------------------------------------------------
+  const doc = useDocumentState<InvoiceFilters>({
+    name: 'Invoice',
+    apiService: invoicesAPI as unknown as DocumentStateConfig<InvoiceFilters>['apiService'],
+    paginationStyle: 'skip-limit',
+    defaultSort: 'created_at',
+    preferencePrefix: 'invoice',
+    defaultFilters: {
+      search: '',
+      status: null,
+      outstanding_only: null,
+      overdue_only: null,
+      contact_ids: null,
+      issue_date_from: null,
+      issue_date_to: null,
+      due_date_from: null,
+      due_date_to: null,
+      parent_invoice_id: null,
+    },
+    onFetchSuccess: (response) => {
       if (response.stats) {
-        setStats(response.stats);
+        setStats(response.stats as InvoiceStats);
       }
-      setInitialized(true);
-    } catch (err) {
-      console.error('[InvoiceContext] Error fetching invoices:', err);
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-      fetchingRef.current = false;
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, pagination.page, pagination.limit, sortBy, sortOrder, filtersKey]);
+    },
+  });
 
-  // Auto-fetch on dependencies change (only after preferences are loaded)
-  useEffect(() => {
-    if (preferencesLoaded) {
-      fetchInvoices();
-    }
-  }, [fetchInvoices, refreshKey, preferencesLoaded]);
-
-  // Create invoice
-  const createInvoice = useCallback(async (invoiceData: unknown) => {
+  // -------------------------------------------------------------------------
+  // Invoice-specific: deleteInvoice triggers refresh to update stats
+  // -------------------------------------------------------------------------
+  const deleteInvoice = useCallback(async (invoiceId: string) => {
     try {
-      setLoading(true);
-      const created = await invoicesAPI.create(invoiceData);
-      setInvoices(prev => [created, ...prev]);
-      return created;
+      doc.setLoading(true);
+      await invoicesAPI.delete(invoiceId);
+      doc.setItems(prev => prev.filter((inv) => (inv as Invoice).id !== invoiceId));
+      // Trigger refresh to update stats from backend
+      doc.refresh();
     } catch (err) {
-      console.error('[InvoiceContext] Error creating invoice:', err);
+      console.error('[InvoiceContext] Error deleting invoice:', err);
       throw err;
     } finally {
-      setLoading(false);
+      doc.setLoading(false);
     }
+  }, [doc.setLoading, doc.setItems, doc.refresh]);
+
+  // -------------------------------------------------------------------------
+  // Get a single invoice by ID
+  // -------------------------------------------------------------------------
+  const getInvoice = useCallback(async (invoiceId: string) => {
+    return invoicesAPI.get(invoiceId);
   }, []);
 
-  // Update invoice
-  const updateInvoice = useCallback(async (invoiceId: string, invoiceData: unknown) => {
+  // -------------------------------------------------------------------------
+  // Invoice update with optional change reason
+  // -------------------------------------------------------------------------
+  const updateInvoice = useCallback(async (invoiceId: string, invoiceData: unknown, changeReason?: string) => {
     try {
-      setLoading(true);
-      const updated = await invoicesAPI.update(invoiceId, invoiceData);
-      setInvoices(prev => prev.map((inv: any) => inv.id === invoiceId ? updated : inv));
+      doc.setLoading(true);
+      const updated = await invoicesAPI.update(invoiceId, invoiceData as import('@/types').InvoiceUpdate, changeReason);
+      doc.setItems(prev => prev.map((inv) => (inv as Invoice).id === invoiceId ? updated : inv));
       return updated;
     } catch (err) {
       console.error('[InvoiceContext] Error updating invoice:', err);
       throw err;
     } finally {
-      setLoading(false);
+      doc.setLoading(false);
     }
-  }, []);
+  }, [doc.setLoading, doc.setItems]);
 
-  // Delete invoice
-  const deleteInvoice = useCallback(async (invoiceId: string) => {
-    try {
-      setLoading(true);
-      await invoicesAPI.delete(invoiceId);
-      setInvoices(prev => prev.filter((inv: any) => inv.id !== invoiceId));
-      // Trigger refresh to update stats from backend
-      setRefreshKey(prev => prev + 1);
-    } catch (err) {
-      console.error('[InvoiceContext] Error deleting invoice:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Send invoice
+  // -------------------------------------------------------------------------
+  // Invoice-specific actions (using doc.setItems and doc.setLoading)
+  // -------------------------------------------------------------------------
   const sendInvoice = useCallback(async (invoiceId: string, emailData: unknown) => {
     try {
-      setLoading(true);
+      doc.setLoading(true);
       const result = await invoicesAPI.send(invoiceId, emailData);
-      setInvoices(prev => prev.map((inv: any) =>
-        inv.id === invoiceId ? { ...inv, status: 'sent', sent_at: new Date().toISOString() } : inv
-      ));
+      doc.setItems(prev => prev.map((inv) => {
+        const item = inv as Invoice;
+        return item.id === invoiceId ? { ...item, status: 'sent', sent_at: new Date().toISOString() } : inv;
+      }));
       return result;
     } catch (err) {
       console.error('[InvoiceContext] Error sending invoice:', err);
       throw err;
     } finally {
-      setLoading(false);
+      doc.setLoading(false);
     }
-  }, []);
+  }, [doc.setLoading, doc.setItems]);
 
-  // Send invoice reminder
   const sendReminder = useCallback(async (invoiceId: string, emailData: unknown) => {
     try {
-      setLoading(true);
+      doc.setLoading(true);
       const result = await invoicesAPI.sendReminder(invoiceId, emailData);
-      // Update invoice with new reminder info
-      setInvoices(prev => prev.map((inv: any) =>
-        inv.id === invoiceId ? {
-          ...inv,
-          reminder_count: (inv.reminder_count || 0) + 1,
+      doc.setItems(prev => prev.map((inv) => {
+        const item = inv as Invoice;
+        return item.id === invoiceId ? {
+          ...item,
+          reminder_count: ((item.reminder_count as number) || 0) + 1,
           last_reminder_sent_at: new Date().toISOString()
-        } : inv
-      ));
+        } : inv;
+      }));
       return result;
     } catch (err) {
       console.error('[InvoiceContext] Error sending invoice reminder:', err);
       throw err;
     } finally {
-      setLoading(false);
+      doc.setLoading(false);
     }
-  }, []);
+  }, [doc.setLoading, doc.setItems]);
 
-  // Mark as paid
   const markAsPaid = useCallback(async (invoiceId: string, paymentData: unknown) => {
     try {
-      setLoading(true);
+      doc.setLoading(true);
       const result = await invoicesAPI.markPaid(invoiceId, paymentData);
-      setInvoices(prev => prev.map((inv: any) =>
-        inv.id === invoiceId ? { ...inv, status: 'paid', paid_at: new Date().toISOString() } : inv
-      ));
+      doc.setItems(prev => prev.map((inv) => {
+        const item = inv as Invoice;
+        return item.id === invoiceId ? { ...item, status: 'paid', paid_at: new Date().toISOString() } : inv;
+      }));
       return result;
     } catch (err) {
       console.error('[InvoiceContext] Error marking invoice as paid:', err);
       throw err;
     } finally {
-      setLoading(false);
+      doc.setLoading(false);
     }
-  }, []);
+  }, [doc.setLoading, doc.setItems]);
 
-  // Clone invoice
   const cloneInvoice = useCallback(async (invoiceId: string) => {
     try {
-      setLoading(true);
+      doc.setLoading(true);
       const cloned = await invoicesAPI.clone(invoiceId);
-      setInvoices(prev => [cloned, ...prev]);
+      doc.setItems(prev => [cloned, ...prev]);
       return cloned;
     } catch (err) {
       console.error('[InvoiceContext] Error cloning invoice:', err);
       throw err;
     } finally {
-      setLoading(false);
+      doc.setLoading(false);
     }
-  }, []);
+  }, [doc.setLoading, doc.setItems]);
 
-  // Update filters
-  const updateFilters = useCallback((newFilters: Partial<InvoiceFilters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-    setPagination(prev => ({ ...prev, page: 1 }));
-
-    // Save to preferences
-    if (newFilters.status !== undefined) {
-      updatePreference('invoice_filter_status', newFilters.status, 'finance');
-    }
-    if (newFilters.search !== undefined) {
-      updatePreference('invoice_search', newFilters.search, 'finance');
-    }
-  }, [updatePreference]);
-
-  // Update sort
-  const updateSort = useCallback((field: string, order: string) => {
-    setSortBy(field);
-    setSortOrder(order);
-    updatePreference('invoice_sort_by', field, 'finance');
-    updatePreference('invoice_sort_order', order, 'finance');
-  }, [updatePreference]);
-
-  // Refresh
-  const refresh = useCallback(() => {
-    setRefreshKey(prev => prev + 1);
-  }, []);
-
-  // Modal helpers
-  const openInvoiceModal = useCallback((invoice: unknown = null) => {
-    setEditingInvoice(invoice);
-    setShowInvoiceModal(true);
-  }, []);
-
-  const closeInvoiceModal = useCallback(() => {
-    setShowInvoiceModal(false);
-    setEditingInvoice(null);
-  }, []);
-
-  const selectInvoice = useCallback((invoice: unknown) => {
-    setSelectedInvoice(invoice);
-  }, []);
-
+  // -------------------------------------------------------------------------
+  // Context value - map shared doc state to InvoiceContext's existing API
+  // -------------------------------------------------------------------------
   const value = useMemo(() => ({
-    // State
-    invoices,
+    // State (aliased to match existing InvoiceContextValue interface)
+    invoices: doc.items as Invoice[],
     stats,
-    loading,
-    error,
-    initialized,
-    filters,
-    pagination,
-    sortBy,
-    sortOrder,
-    showInvoiceModal,
-    editingInvoice,
-    selectedInvoice,
-
-    // Methods
-    fetchInvoices,
-    createInvoice,
+    loading: doc.loading,
+    error: doc.error,
+    initialized: doc.initialized,
+    filters: doc.filters,
+    pagination: doc.pagination,
+    sortBy: doc.sortBy,
+    sortOrder: doc.sortOrder,
+    showInvoiceModal: doc.showModal,
+    editingInvoice: doc.editingEntity as Invoice | null,
+    selectedInvoice: doc.selectedEntity as Invoice | null,
+    // Shared CRUD (aliased)
+    fetchInvoices: doc.fetchItems,
+    getInvoice,
+    createInvoice: doc.createItem,
     updateInvoice,
     deleteInvoice,
+    // Invoice-specific actions
     sendInvoice,
     sendReminder,
     markAsPaid,
     cloneInvoice,
-    updateFilters,
-    updateSort,
-    setPagination,
-    refresh,
-    openInvoiceModal,
-    closeInvoiceModal,
-    selectInvoice,
+    // Shared UI actions (aliased)
+    updateFilters: doc.updateFilters,
+    updateSort: doc.updateSort,
+    setPagination: doc.setPagination,
+    refresh: doc.refresh,
+    openInvoiceModal: doc.openModal,
+    closeInvoiceModal: doc.closeModal,
+    selectInvoice: doc.selectEntity,
   }), [
-    invoices,
+    doc.items,
     stats,
-    loading,
-    error,
-    initialized,
-    filters,
-    pagination,
-    sortBy,
-    sortOrder,
-    showInvoiceModal,
-    editingInvoice,
-    selectedInvoice,
-    fetchInvoices,
-    createInvoice,
+    doc.loading,
+    doc.error,
+    doc.initialized,
+    doc.filters,
+    doc.pagination,
+    doc.sortBy,
+    doc.sortOrder,
+    doc.showModal,
+    doc.editingEntity,
+    doc.selectedEntity,
+    doc.fetchItems,
+    getInvoice,
+    doc.createItem,
     updateInvoice,
     deleteInvoice,
     sendInvoice,
     sendReminder,
     markAsPaid,
     cloneInvoice,
-    updateFilters,
-    updateSort,
-    refresh,
-    openInvoiceModal,
-    closeInvoiceModal,
-    selectInvoice,
+    doc.updateFilters,
+    doc.updateSort,
+    doc.refresh,
+    doc.openModal,
+    doc.closeModal,
+    doc.selectEntity,
   ]);
 
   return <InvoiceContext.Provider value={value}>{children}</InvoiceContext.Provider>;

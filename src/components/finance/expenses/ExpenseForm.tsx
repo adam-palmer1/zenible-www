@@ -14,7 +14,7 @@ import companiesAPI from '../../../services/api/crm/companies';
 import contactsAPI from '../../../services/api/crm/contacts';
 import expensesAPI from '../../../services/api/finance/expenses';
 import FinanceLayout from '../layout/FinanceLayout';
-const FinanceLayoutAny = FinanceLayout as any;
+// FinanceLayout accepts { header?: ReactNode; children: ReactNode }
 import RecurringExpenseSettings from './RecurringExpenseSettings';
 import ReceiptUpload from './ReceiptUpload';
 import Combobox from '../../ui/combobox/Combobox';
@@ -38,13 +38,13 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!expense || !!id;
-  const { createExpense, updateExpense, categories, uploadAttachment, createCategory, refreshCategories } = useExpenses() as any;
-  const { contacts: vendors, createContact: createVendorContact } = useContacts({ is_vendor: true }) as any;
-  const { contacts: clients } = useContacts({ is_client: true }) as any;
-  const { projects, createProject } = useProjects() as any;
-  const { showSuccess, showError } = useNotification() as any;
-  const { numberFormats } = useCRMReferenceData() as any;
-  const { getNumberFormat } = useCompanyAttributes() as any;
+  const { createExpense, updateExpense, categories, createCategory, refreshCategories } = useExpenses();
+  const { contacts: vendors, createContact: createVendorContact } = useContacts({ is_vendor: true });
+  const { contacts: clients } = useContacts({ is_client: true });
+  const { projects, createProject } = useProjects();
+  const { showSuccess, showError } = useNotification();
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
 
   const numberFormat = useMemo(() => {
     const formatId = getNumberFormat();
@@ -58,7 +58,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
     return applyNumberFormat(parseFloat(value || 0), numberFormat);
   };
 
-  const { companyCurrencies: currencies, defaultCurrency: defaultCurrencyAssoc, loading: currenciesLoading } = useCompanyCurrencies() as any;
+  const { companyCurrencies: currencies, defaultCurrency: defaultCurrencyAssoc, loading: currenciesLoading } = useCompanyCurrencies();
   const [company, setCompany] = useState<any>(null);
 
   const [expenseNumber, setExpenseNumber] = useState(expense?.expense_number || '');
@@ -163,10 +163,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
   }, [currencies]);
 
   const paymentMethodOptions = useMemo(() => [
-    { id: (PAYMENT_METHOD as any).CREDIT_CARD, label: 'Credit Card' },
-    { id: (PAYMENT_METHOD as any).BANK_TRANSFER, label: 'Bank Transfer' },
-    { id: (PAYMENT_METHOD as any).CASH, label: 'Cash' },
-    { id: (PAYMENT_METHOD as any).CHECK, label: 'Check' },
+    { id: PAYMENT_METHOD.CREDIT_CARD, label: 'Credit Card' },
+    { id: PAYMENT_METHOD.BANK_TRANSFER, label: 'Bank Transfer' },
+    { id: PAYMENT_METHOD.CASH, label: 'Cash' },
+    { id: PAYMENT_METHOD.CHECK, label: 'Check' },
   ], []);
 
   const statusOptions = useMemo(() => [
@@ -203,7 +203,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
       }
       const newProject = await createProject(projectData);
       if (contactId) {
-        const projectsData = await (contactsAPI as any).getProjects(contactId);
+        const projectsData = await contactsAPI.getProjects(contactId);
         setClientProjects(projectsData || []);
       }
       showSuccess(`Project "${name}" created${contactId && selectedClientName ? ` for ${selectedClientName}` : ''}`);
@@ -223,7 +223,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
         business_name: name,
         is_vendor: true,
       };
-      const newVendor = await createVendorContact(vendorData);
+      const newVendor = await createVendorContact(vendorData as Parameters<typeof createVendorContact>[0]);
       showSuccess(`Vendor "${name}" created`);
       return newVendor;
     } catch (error: any) {
@@ -237,7 +237,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
   useEffect(() => {
     const loadCompanyData = async () => {
       try {
-        const companyData = await (companiesAPI as any).getCurrent();
+        const companyData = await companiesAPI.getCurrent();
         setCompany(companyData);
       } catch (error) {
         console.error('Failed to load company data:', error);
@@ -261,7 +261,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
     const loadNextNumber = async () => {
       if (!expense) {
         try {
-          const data = await (expensesAPI as any).getNextNumber();
+          const data = await expensesAPI.getNextNumber();
           if (data?.next_number) {
             setExpenseNumber(data.next_number);
           }
@@ -279,7 +279,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
       if (contactId) {
         try {
           setLoadingClientProjects(true);
-          const projectsData = await (contactsAPI as any).getProjects(contactId);
+          const projectsData = await contactsAPI.getProjects(contactId);
           setClientProjects(projectsData || []);
           if (projectId && projectsData && !projectsData.some((p: any) => p.id === projectId)) {
             setProjectId('');
@@ -303,7 +303,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
 
     if (newVendorId) {
       try {
-        const selectedVendor = await (contactsAPI as any).get(newVendorId);
+        const selectedVendor = await contactsAPI.get(newVendorId);
 
         if (!currencyManuallyChanged && selectedVendor?.preferred_currency_id) {
           const vendorCurrency = currencies.find((c: any) => c.currency.id === selectedVendor.preferred_currency_id);
@@ -321,10 +321,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
               setTaxRate(primaryTax.tax_rate);
               setTaxName(primaryTax.tax_name);
             }
-          } else if (selectedVendor?.tax_rate != null) {
+          } else if ((selectedVendor as Record<string, unknown>)?.tax_rate != null) {
             setIncludeTax(true);
-            setTaxRate(selectedVendor.tax_rate);
-            setTaxName(selectedVendor.tax_name || 'Tax');
+            setTaxRate((selectedVendor as Record<string, unknown>).tax_rate as string);
+            setTaxName(((selectedVendor as Record<string, unknown>).tax_name as string) || 'Tax');
           }
         }
 
@@ -410,7 +410,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
     }
 
     try {
-      const result = await (expensesAPI as any).uploadReceipt(expense.id, receiptData);
+      const result = await expensesAPI.uploadReceipt(expense.id, receiptData);
       setReceipt({
         receipt_url: result.receipt_url,
         attachment_filename: result.attachment_filename,
@@ -432,7 +432,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
     }
 
     try {
-      await (expensesAPI as any).deleteReceipt(expense.id);
+      await expensesAPI.deleteReceipt(expense.id);
       setReceipt(null);
       showSuccess('Receipt deleted');
     } catch (error) {
@@ -622,7 +622,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
                 placeholder="Select vendor"
                 searchPlaceholder="Search vendors..."
                 emptyMessage="No vendors found"
-                onCreate={handleCreateVendor}
+                onCreate={handleCreateVendor as (name: string) => Promise<{ id: string }> }
                 createLabel="Add new vendor"
                 creating={creatingVendor}
               />
@@ -818,7 +818,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
                       placeholder={contactId ? `Select ${selectedClientName}'s project` : "Select project (optional)"}
                       searchPlaceholder="Search projects..."
                       emptyMessage={contactId ? `No projects for ${selectedClientName}` : "No projects found"}
-                      onCreate={handleCreateProject}
+                      onCreate={handleCreateProject as (name: string) => Promise<{ id: string }> }
                       createLabel={contactId && selectedClientName ? `Add new project (${selectedClientName})` : "Add new project"}
                       creating={creatingProject}
                     />
@@ -897,7 +897,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
   }
 
   return (
-    <FinanceLayoutAny
+    <FinanceLayout
       header={
         <div className="px-6 py-4">
           <div className="flex items-center gap-4">
@@ -921,7 +921,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
       }
     >
       {formContent}
-    </FinanceLayoutAny>
+    </FinanceLayout>
   );
 };
 

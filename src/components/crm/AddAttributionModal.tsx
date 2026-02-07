@@ -3,6 +3,7 @@ import Modal from '../ui/modal/Modal';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { useContacts } from '../../hooks/crm';
 import { useNotification } from '../../contexts/NotificationContext';
+import type { ContactResponse, PaginatedResponse } from '../../types';
 
 interface AddAttributionModalProps {
   isOpen: boolean;
@@ -30,8 +31,8 @@ const AddAttributionModal: React.FC<AddAttributionModalProps> = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
 
-  const { fetchContacts } = useContacts({}, 0, { skipInitialFetch: true }) as any;
-  const { showError } = useNotification() as any;
+  const { fetchContacts } = useContacts({}, 0, { skipInitialFetch: true });
+  const { showError } = useNotification();
 
   // Reset form when modal opens
   useEffect(() => {
@@ -54,7 +55,7 @@ const AddAttributionModal: React.FC<AddAttributionModalProps> = ({
 
       try {
         setSearching(true);
-        const response = await fetchContacts({ search: searchQuery, per_page: 10 });
+        const response = await fetchContacts({ search: searchQuery, per_page: 10 }) as PaginatedResponse<ContactResponse> | undefined;
         setSearchResults(response?.items || []);
       } catch (error) {
         console.error('Failed to search contacts:', error);

@@ -3,7 +3,6 @@ import DOMPurify from 'dompurify';
 import { X } from 'lucide-react';
 import VariableHelper from './VariableHelper';
 import {
-  useEmailTemplateQuery,
   useTemplateVariablesQuery,
   useEffectiveTemplateQuery,
   useCreateEmailTemplate,
@@ -20,6 +19,31 @@ interface EmailTemplate {
   body?: string;
   template_type?: string;
   is_system_default?: boolean;
+}
+
+interface EffectiveTemplateData {
+  name?: string;
+  subject?: string;
+  body?: string;
+  [key: string]: unknown;
+}
+
+interface TemplateVariable {
+  variable?: string;
+  name?: string;
+  description?: string;
+  example?: string;
+}
+
+interface TemplateVariablesData {
+  variables?: (string | TemplateVariable)[];
+  [key: string]: unknown;
+}
+
+interface TemplatePreviewData {
+  subject?: string;
+  body?: string;
+  [key: string]: unknown;
 }
 
 interface EmailTemplateEditorProps {
@@ -77,7 +101,7 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
       showSuccess('Email template created successfully');
       onSave?.();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       showError(error.message || 'Failed to create template');
     }
   });
@@ -87,16 +111,16 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
       showSuccess('Email template updated successfully');
       onSave?.();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       showError(error.message || 'Failed to update template');
     }
   });
 
   const previewMutation = usePreviewEmailTemplate({
-    onSuccess: (data: any) => {
+    onSuccess: (_data: unknown) => {
       setShowPreview(true);
     },
-    onError: (error: any) => {
+    onError: (_error: Error) => {
       showError('Failed to generate preview');
     }
   });
@@ -112,25 +136,28 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
       });
     } else if (effectiveTemplate && !formData.subject && !formData.body) {
       // Load default template content for new templates
+      const effective = effectiveTemplate as EffectiveTemplateData;
       setFormData(prev => ({
         ...prev,
-        subject: (effectiveTemplate as any).subject || '',
-        body: (effectiveTemplate as any).body || '',
-        name: `Custom ${(effectiveTemplate as any).name || 'Template'}`,
-        description: `Customized version of ${(effectiveTemplate as any).name || 'template'}`
+        subject: effective.subject || '',
+        body: effective.body || '',
+        name: `Custom ${effective.name || 'Template'}`,
+        description: `Customized version of ${effective.name || 'template'}`
       }));
     }
   }, [template, effectiveTemplate]);
 
   // Initialize sample data from variables
   useEffect(() => {
-    if ((variablesData as any)?.variables) {
+    const varsData = variablesData as TemplateVariablesData | undefined;
+    if (varsData?.variables) {
       const samples: Record<string, string> = {};
-      (variablesData as any).variables.forEach((variable: any) => {
+      varsData.variables.forEach((variable: string | TemplateVariable) => {
         const key = typeof variable === 'string'
           ? variable.replace(/[{}]/g, '')
           : (variable.variable || variable.name || '').replace(/[{}]/g, '');
-        samples[key] = variable.example || '';
+        const example = typeof variable === 'string' ? '' : (variable.example || '');
+        samples[key] = example;
       });
       setSampleData(samples);
     }
@@ -190,7 +217,7 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
 
     if (template?.id) {
       // Preview existing template via API
-      previewMutation.mutate({ id: template.id, variables: sampleData } as any);
+      previewMutation.mutate({ id: template.id, variables: sampleData });
     } else {
       // Local preview for new template
       let previewSubject = formData.subject;
@@ -204,9 +231,9 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
       });
 
       previewMutation.mutate({
-        id: null,
+        id: '',
         variables: { subject: previewSubject, body: previewBody }
-      } as any);
+      });
       setShowPreview(true);
     }
   };
@@ -230,10 +257,10 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
 
     if (template?.id && !template.is_system_default) {
       // Update existing template
-      updateMutation.mutate({ id: template.id, data: templateData } as any);
+      updateMutation.mutate({ id: template.id, data: templateData });
     } else {
       // Create new template
-      createMutation.mutate(templateData as any);
+      createMutation.mutate(templateData);
     }
   };
 
@@ -346,7 +373,7 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
           {/* Variables Panel */}
           <div>
             <VariableHelper
-              variables={(variablesData as any)?.variables || []}
+              variables={(variablesData as TemplateVariablesData | undefined)?.variables || []}
               onInsert={insertVariable}
               loading={loadingVariables}
               disabled={isSystemTemplate}
@@ -387,7 +414,7 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
       </form>
 
       {/* Preview Modal */}
-      {showPreview && previewMutation.data && (
+      {showPreview && !!previewMutation.data && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
           onClick={() => setShowPreview(false)}
@@ -408,7 +435,7 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
                   Subject
                 </label>
                 <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                  {(previewMutation.data as any).subject || 'No subject'}
+                  {String((previewMutation.data as TemplatePreviewData)?.subject || 'No subject')}
                 </div>
               </div>
 
@@ -417,7 +444,7 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
                   Body
                 </label>
                 <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((previewMutation.data as any).body || 'No content') }} />
+                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(String((previewMutation.data as TemplatePreviewData)?.body || 'No content')) }} />
                 </div>
               </div>
             </div>

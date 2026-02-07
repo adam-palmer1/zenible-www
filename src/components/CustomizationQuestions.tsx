@@ -2,6 +2,50 @@ import React, { useState, useEffect, useMemo } from 'react';
 import customizationAPI from '../services/customizationAPI';
 import { usePreferences } from '../contexts/PreferencesContext';
 
+interface QuestionsApiResponse {
+  questions: CustomizationQuestion[];
+}
+
+interface AnswersApiResponse {
+  answers: AnswerItem[];
+}
+
+interface AnswerItem {
+  question_id: string;
+  answer_text?: string | null;
+  [key: string]: unknown;
+}
+
+interface CompletionStatusResponse {
+  is_complete?: boolean;
+  completion_percentage?: number;
+  [key: string]: unknown;
+}
+
+interface ValidationRules {
+  min_length?: number;
+  max_length?: number;
+  regex?: string;
+  min_value?: number;
+  max_value?: number;
+  step?: number;
+  allowed_domains?: string[];
+  [key: string]: unknown;
+}
+
+interface CustomizationQuestion {
+  id: string;
+  question_text: string;
+  question_type: string;
+  is_required: boolean;
+  options?: string[];
+  validation_rules?: ValidationRules;
+  metadata?: Record<string, unknown>;
+  help_text?: string;
+  placeholder?: string;
+  [key: string]: unknown;
+}
+
 interface CustomizationQuestionsProps {
   onComplete?: (() => void) | null;
   showProgress?: boolean;
@@ -16,7 +60,7 @@ const CustomizationQuestions: React.FC<CustomizationQuestionsProps> = ({
   autoSave = true,
   className = ''
 }) => {
-  const { darkMode } = usePreferences() as any;
+  const { darkMode } = usePreferences();
   const [questions, setQuestions] = useState<any[]>([]);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
@@ -25,7 +69,7 @@ const CustomizationQuestions: React.FC<CustomizationQuestionsProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isDirty, setIsDirty] = useState(false);
-  const [completionStatus, setCompletionStatus] = useState<any>(null);
+  const [, setCompletionStatus] = useState<any>(null);
 
   useEffect(() => {
     loadQuestionsAndAnswers();
@@ -41,12 +85,12 @@ const CustomizationQuestions: React.FC<CustomizationQuestionsProps> = ({
         customizationAPI.getCompletionStatus(),
       ]);
 
-      setQuestions((questionsData as any).questions || []);
+      setQuestions((questionsData as QuestionsApiResponse).questions || []);
 
       // Convert answers array to object keyed by question_id
       const answersMap: Record<string, any> = {};
       // Handle both array and object response formats
-      const answersArray = Array.isArray(answersData) ? answersData : ((answersData as any).answers || []);
+      const answersArray = Array.isArray(answersData) ? answersData : ((answersData as AnswersApiResponse).answers || []);
 
       answersArray.forEach((item: any) => {
         // Use answer_text from the API response
@@ -203,7 +247,7 @@ const CustomizationQuestions: React.FC<CustomizationQuestionsProps> = ({
       setCompletionStatus(statusData);
 
       // Call onComplete callback if all required questions are answered
-      if (onComplete && statusData && (statusData as any).is_complete) {
+      if (onComplete && statusData && (statusData as CompletionStatusResponse).is_complete) {
         onComplete();
       }
     } catch (err) {

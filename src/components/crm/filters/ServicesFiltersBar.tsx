@@ -44,10 +44,10 @@ const ServicesFiltersBar: React.FC<ServicesFiltersBarProps> = ({
 }) => {
   const statusOptions = [
     { value: '', label: 'All Statuses' },
-    { value: (SERVICE_STATUS as any).ACTIVE, label: (SERVICE_STATUS_LABELS as any)[(SERVICE_STATUS as any).ACTIVE] },
-    { value: (SERVICE_STATUS as any).PENDING, label: (SERVICE_STATUS_LABELS as any)[(SERVICE_STATUS as any).PENDING] },
-    { value: (SERVICE_STATUS as any).COMPLETED, label: (SERVICE_STATUS_LABELS as any)[(SERVICE_STATUS as any).COMPLETED] },
-    { value: (SERVICE_STATUS as any).INACTIVE, label: (SERVICE_STATUS_LABELS as any)[(SERVICE_STATUS as any).INACTIVE] },
+    { value: SERVICE_STATUS.ACTIVE, label: SERVICE_STATUS_LABELS[SERVICE_STATUS.ACTIVE] },
+    { value: SERVICE_STATUS.PENDING, label: SERVICE_STATUS_LABELS[SERVICE_STATUS.PENDING] },
+    { value: SERVICE_STATUS.COMPLETED, label: SERVICE_STATUS_LABELS[SERVICE_STATUS.COMPLETED] },
+    { value: SERVICE_STATUS.INACTIVE, label: SERVICE_STATUS_LABELS[SERVICE_STATUS.INACTIVE] },
   ];
 
   const frequencyOptions = [
@@ -128,7 +128,7 @@ const ServicesFiltersBar: React.FC<ServicesFiltersBarProps> = ({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
                 <div className="space-y-1">
-                  {statusOptions.map((option: any) => (
+                  {statusOptions.map((option) => (
                     <label
                       key={option.value}
                       className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors"
@@ -144,7 +144,7 @@ const ServicesFiltersBar: React.FC<ServicesFiltersBarProps> = ({
                         {option.value && (
                           <span
                             className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: (SERVICE_STATUS_HEX_COLORS as any)[option.value] || '#6B7280' }}
+                            style={{ backgroundColor: SERVICE_STATUS_HEX_COLORS[option.value as keyof typeof SERVICE_STATUS_HEX_COLORS] || '#6B7280' }}
                           />
                         )}
                         {option.label}
@@ -158,7 +158,7 @@ const ServicesFiltersBar: React.FC<ServicesFiltersBarProps> = ({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Frequency</label>
                 <div className="space-y-1">
-                  {frequencyOptions.map((option: any) => (
+                  {frequencyOptions.map((option) => (
                     <label
                       key={option.value}
                       className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors"

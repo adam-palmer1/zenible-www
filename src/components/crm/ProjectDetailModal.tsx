@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, FileText, Receipt, CreditCard, FileMinus, Loader2, Settings2, ChevronDown, ChevronUp, Trash2, Plus } from 'lucide-react';
+import { X, FileText, Receipt, CreditCard, FileMinus, Loader2, Settings2, ChevronDown, ChevronUp, Trash2, Plus, type LucideProps } from 'lucide-react';
 import BillableHoursTab from './BillableHoursTab';
-import { PROJECT_STATUS_LABELS, SERVICE_STATUS, SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS } from '../../constants/crm';
+import { PROJECT_STATUS_LABELS, SERVICE_STATUS, SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS, type ProjectStatus, type ServiceStatus } from '../../constants/crm';
 import { formatCurrency } from '../../utils/currency';
 import { useNotification } from '../../contexts/NotificationContext';
 import projectsAPI from '../../services/api/crm/projects';
@@ -9,10 +9,128 @@ import ConfirmationModal from '../common/ConfirmationModal';
 import AssignExpenseModal from '../finance/expenses/AssignExpenseModal';
 import AssignFinanceItemModal from '../finance/allocations/AssignFinanceItemModal';
 
+/** Nested finance entity shape (invoice, quote, credit note) */
+interface FinanceEntityBase {
+  status?: string;
+  total?: number;
+  issue_date?: string;
+  currency?: { code?: string } | null;
+  [key: string]: unknown;
+}
+
+interface InvoiceEntity extends FinanceEntityBase {
+  invoice_number?: string;
+}
+
+interface QuoteEntity extends FinanceEntityBase {
+  quote_number?: string;
+}
+
+interface PaymentEntity {
+  payment_number?: string;
+  payment_date?: string;
+  amount?: number;
+  status?: string;
+  currency?: { code?: string } | null;
+  [key: string]: unknown;
+}
+
+interface CreditNoteEntity extends FinanceEntityBase {
+  credit_note_number?: string;
+}
+
+interface ExpenseEntity {
+  expense_number?: string;
+  expense_date?: string;
+  amount?: number;
+  status?: string;
+  currency?: { code?: string } | null;
+  [key: string]: unknown;
+}
+
+/** Allocation record as returned by the project detail API */
+interface ProjectFinanceAllocation {
+  id?: string;
+  allocated_amount: string;
+  percentage?: number;
+  entity_number?: string;
+  entity_total?: number;
+  date?: string;
+  invoice?: InvoiceEntity;
+  quote?: QuoteEntity;
+  payment?: PaymentEntity;
+  credit_note?: CreditNoteEntity;
+  expense?: ExpenseEntity;
+  [key: string]: unknown;
+}
+
+/** Accumulator for finance totals */
+interface FinanceTotals {
+  count: number;
+  total: number;
+}
+
+/** Contact info nested inside the project response */
+interface ProjectContact {
+  first_name?: string | null;
+  last_name?: string | null;
+  business_name?: string | null;
+  currency_id?: string | null;
+  currency?: { code?: string } | null;
+}
+
+/** Project data as returned by the detail API (extends generated schema with runtime fields) */
+interface ProjectData {
+  id: string;
+  name: string;
+  status: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  currency?: string | null;
+  services_count?: number;
+  default_hourly_rate?: string | null;
+  default_currency_id?: string | null;
+  default_currency?: { code?: string } | null;
+  contact?: ProjectContact | null;
+  contact_id?: string;
+  invoice_allocations?: ProjectFinanceAllocation[];
+  quote_allocations?: ProjectFinanceAllocation[];
+  payment_allocations?: ProjectFinanceAllocation[];
+  credit_note_allocations?: ProjectFinanceAllocation[];
+  expense_allocations?: ProjectFinanceAllocation[];
+  [key: string]: unknown;
+}
+
+/** Service assignment as returned by project services endpoint */
+interface ProjectServiceAssignment {
+  id: string;
+  status?: string;
+  assigned_at?: string;
+  assignment_notes?: string | null;
+  price?: string | number | null;
+  contact_service?: {
+    name?: string;
+    price?: string | number | null;
+    description?: string | null;
+    currency_id?: string | null;
+    currency?: { code?: string } | null;
+    template_service?: {
+      name?: string;
+      description?: string | null;
+    } | null;
+  } | null;
+  service?: {
+    name?: string;
+    rate?: string | number | null;
+    description?: string | null;
+  } | null;
+  [key: string]: unknown;
+}
+
 interface ProjectDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  project: any;
+  project: ProjectData | null;
   onUpdate?: () => void;
 }
 
@@ -23,16 +141,16 @@ const TABS = [
   { id: 'finance', label: 'Finance' },
 ];
 
-const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose, project: projectProp, onUpdate }) => {
-  const { showError, showSuccess } = useNotification() as any;
-  const [project, setProject] = useState<any>(null);
+const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose, project: projectProp, onUpdate: _onUpdate }) => {
+  const { showError, showSuccess } = useNotification();
+  const [project, setProject] = useState<ProjectData | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<ProjectServiceAssignment[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({});
   const [updatingServiceId, setUpdatingServiceId] = useState<string | null>(null);
-  const [detachConfirm, setDetachConfirm] = useState<{ isOpen: boolean; service: any }>({ isOpen: false, service: null });
+  const [detachConfirm, setDetachConfirm] = useState<{ isOpen: boolean; service: ProjectServiceAssignment | null }>({ isOpen: false, service: null });
   const [statusDropdown, setStatusDropdown] = useState<{ isOpen: boolean; serviceId: string | null }>({ isOpen: false, serviceId: null });
   const statusButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -46,7 +164,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
 
     try {
       if (showLoading) setLoadingDetails(true);
-      const data = await (projectsAPI as any).get(projectProp.id);
+      const data = await projectsAPI.get(projectProp.id) as ProjectData;
       setProject(data);
     } catch (err) {
       console.error('Error fetching project details:', err);
@@ -62,8 +180,9 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
 
     try {
       setLoadingServices(true);
-      const data = await (projectsAPI as any).listServices(projectProp.id);
-      setServices(data.items || data || []);
+      const data = await projectsAPI.listServices(projectProp.id) as { items?: ProjectServiceAssignment[] } | ProjectServiceAssignment[];
+      const items = Array.isArray(data) ? data : (data.items || []);
+      setServices(items);
     } catch (err) {
       console.error('Error fetching project services:', err);
       setServices([]);
@@ -81,35 +200,35 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
 
   // Calculate totals for financial tabs - hooks must be called before any returns
   const invoiceTotals = useMemo(() => {
-    return invoiceAllocations.reduce((acc: any, alloc: any) => ({
+    return invoiceAllocations.reduce((acc: FinanceTotals, alloc: ProjectFinanceAllocation) => ({
       count: acc.count + 1,
       total: acc.total + (parseFloat(alloc.allocated_amount) || 0)
     }), { count: 0, total: 0 });
   }, [invoiceAllocations]);
 
   const quoteTotals = useMemo(() => {
-    return quoteAllocations.reduce((acc: any, alloc: any) => ({
+    return quoteAllocations.reduce((acc: FinanceTotals, alloc: ProjectFinanceAllocation) => ({
       count: acc.count + 1,
       total: acc.total + (parseFloat(alloc.allocated_amount) || 0)
     }), { count: 0, total: 0 });
   }, [quoteAllocations]);
 
   const paymentTotals = useMemo(() => {
-    return paymentAllocations.reduce((acc: any, alloc: any) => ({
+    return paymentAllocations.reduce((acc: FinanceTotals, alloc: ProjectFinanceAllocation) => ({
       count: acc.count + 1,
       total: acc.total + (parseFloat(alloc.allocated_amount) || 0)
     }), { count: 0, total: 0 });
   }, [paymentAllocations]);
 
   const creditNoteTotals = useMemo(() => {
-    return creditNoteAllocations.reduce((acc: any, alloc: any) => ({
+    return creditNoteAllocations.reduce((acc: FinanceTotals, alloc: ProjectFinanceAllocation) => ({
       count: acc.count + 1,
       total: acc.total + (parseFloat(alloc.allocated_amount) || 0)
     }), { count: 0, total: 0 });
   }, [creditNoteAllocations]);
 
   const expenseTotals = useMemo(() => {
-    return expenseAllocations.reduce((acc: any, alloc: any) => ({
+    return expenseAllocations.reduce((acc: FinanceTotals, alloc: ProjectFinanceAllocation) => ({
       count: acc.count + 1,
       total: acc.total + (parseFloat(alloc.allocated_amount) || 0)
     }), { count: 0, total: 0 });
@@ -201,14 +320,14 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
         <div className="flex-1">
           <p className="text-sm text-[#71717a] dark:text-gray-400 leading-[22px]">Start Date</p>
           <p className="text-lg font-semibold text-[#09090b] dark:text-white leading-[26px]">
-            {formatDate(project.start_date)}
+            {formatDate(project.start_date ?? '')}
           </p>
         </div>
         <div className="w-px h-[52px] bg-[#e5e5e5] dark:bg-gray-700" />
         <div className="flex-1">
           <p className="text-sm text-[#71717a] dark:text-gray-400 leading-[22px]">End Date</p>
           <p className="text-lg font-semibold text-[#09090b] dark:text-white leading-[26px]">
-            {formatDate(project.end_date)}
+            {formatDate(project.end_date ?? '')}
           </p>
         </div>
       </div>
@@ -261,7 +380,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
   );
 
   // Helper to get service name from various possible sources
-  const getServiceName = (service: any) => {
+  const getServiceName = (service: Partial<ProjectServiceAssignment>) => {
     // Try template_service name first
     if (service.contact_service?.template_service?.name) {
       return service.contact_service.template_service.name;
@@ -279,12 +398,12 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
   };
 
   // Helper to get service price
-  const getServicePrice = (service: any) => {
+  const getServicePrice = (service: Partial<ProjectServiceAssignment>) => {
     return service.contact_service?.price || service.service?.rate || service.price || null;
   };
 
   // Helper to get service description
-  const getServiceDescription = (service: any) => {
+  const getServiceDescription = (service: Partial<ProjectServiceAssignment>) => {
     return service.contact_service?.template_service?.description ||
            service.contact_service?.description ||
            service.service?.description ||
@@ -300,14 +419,14 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
   };
 
   // Change service status
-  const handleChangeServiceStatus = async (service: any, newStatus: string) => {
+  const handleChangeServiceStatus = async (service: ProjectServiceAssignment, newStatus: string) => {
     if (!project?.id || !service?.id) return;
 
     try {
       setUpdatingServiceId(service.id);
       setStatusDropdown({ isOpen: false, serviceId: null });
 
-      await (projectsAPI as any).updateServiceAssignment(project.id, service.id, {
+      await projectsAPI.updateServiceAssignment(project.id, service.id, {
         status: newStatus
       });
 
@@ -316,10 +435,10 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
         s.id === service.id ? { ...s, status: newStatus } : s
       ));
 
-      showSuccess(`Service status updated to ${(SERVICE_STATUS_LABELS as any)[newStatus]}`);
-    } catch (err: any) {
+      showSuccess(`Service status updated to ${SERVICE_STATUS_LABELS[newStatus as ServiceStatus]}`);
+    } catch (err: unknown) {
       console.error('Error updating service status:', err);
-      showError(err.message || 'Failed to update service status');
+      showError((err instanceof Error ? err.message : null) || 'Failed to update service status');
     } finally {
       setUpdatingServiceId(null);
     }
@@ -332,16 +451,16 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
 
     try {
       setUpdatingServiceId(service.id);
-      await (projectsAPI as any).unassignService(project.id, service.id);
+      await projectsAPI.unassignService(project.id, service.id);
 
       // Remove from local state
       setServices(prev => prev.filter(s => s.id !== service.id));
 
       showSuccess('Service detached from project');
       // Modal closes automatically via ConfirmationModal's onConfirm handler
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error detaching service:', err);
-      showError(err.message || 'Failed to detach service');
+      showError((err instanceof Error ? err.message : null) || 'Failed to detach service');
     } finally {
       setUpdatingServiceId(null);
       setDetachConfirm({ isOpen: false, service: null });
@@ -369,8 +488,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
           const isExpanded = expandedServices[service.id];
           const isUpdating = updatingServiceId === service.id;
 
-          const isActiveStatus = service.status === (SERVICE_STATUS as any).ACTIVE;
-          const isInactiveStatus = service.status === (SERVICE_STATUS as any).INACTIVE;
+          const isInactiveStatus = service.status === SERVICE_STATUS.INACTIVE;
 
           return (
             <div
@@ -403,8 +521,8 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
                       }`}>
                         {serviceName}
                       </span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${(SERVICE_STATUS_COLORS as any)[service.status] || (SERVICE_STATUS_COLORS as any)[(SERVICE_STATUS as any).ACTIVE]}`}>
-                        {(SERVICE_STATUS_LABELS as any)[service.status] || 'Active'}
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${SERVICE_STATUS_COLORS[service.status as ServiceStatus] || SERVICE_STATUS_COLORS[SERVICE_STATUS.ACTIVE]}`}>
+                        {SERVICE_STATUS_LABELS[service.status as ServiceStatus] || 'Active'}
                       </span>
                     </div>
                   </div>
@@ -477,8 +595,8 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
                             <Loader2 className="h-4 w-4 animate-spin text-[#71717a]" />
                           ) : (
                             <>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${(SERVICE_STATUS_COLORS as any)[service.status] || (SERVICE_STATUS_COLORS as any)[(SERVICE_STATUS as any).ACTIVE]}`}>
-                                {(SERVICE_STATUS_LABELS as any)[service.status] || 'Active'}
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${SERVICE_STATUS_COLORS[service.status as ServiceStatus] || SERVICE_STATUS_COLORS[SERVICE_STATUS.ACTIVE]}`}>
+                                {SERVICE_STATUS_LABELS[service.status as ServiceStatus] || 'Active'}
                               </span>
                               <ChevronDown className="h-4 w-4 text-[#71717a]" />
                             </>
@@ -488,19 +606,19 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
                         {/* Status Dropdown Menu */}
                         {statusDropdown.isOpen && statusDropdown.serviceId === service.id && (
                           <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 border border-[#e5e5e5] dark:border-gray-600 rounded-lg shadow-lg z-50">
-                            {Object.entries(SERVICE_STATUS as any).map(([key, value]) => (
+                            {(Object.entries(SERVICE_STATUS) as [string, ServiceStatus][]).map(([_key, value]) => (
                               <button
-                                key={value as string}
+                                key={value}
                                 onClick={(e: React.MouseEvent) => {
                                   e.stopPropagation();
-                                  handleChangeServiceStatus(service, value as string);
+                                  handleChangeServiceStatus(service, value);
                                 }}
                                 className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg flex items-center justify-between ${
                                   service.status === value ? 'bg-purple-50 dark:bg-purple-900/20' : ''
                                 }`}
                               >
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${(SERVICE_STATUS_COLORS as any)[value as string]}`}>
-                                  {(SERVICE_STATUS_LABELS as any)[value as string]}
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${SERVICE_STATUS_COLORS[value]}`}>
+                                  {SERVICE_STATUS_LABELS[value]}
                                 </span>
                                 {service.status === value && (
                                   <span className="text-purple-600 dark:text-purple-400">&#10003;</span>
@@ -645,12 +763,12 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
                 {React.createElement(section.emptyIcon, {
                   className: "h-6 w-6 mx-auto mb-2 opacity-30",
                   style: { color: section.color }
-                } as any)}
+                } as LucideProps)}
                 <p className="text-xs text-[#71717a] dark:text-gray-400">{section.emptyMessage}</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {section.allocations.map((alloc: any, idx: number) => {
+                {section.allocations.map((alloc: ProjectFinanceAllocation, idx: number) => {
                   let number = '';
                   let date = '';
                   let total = 0;
@@ -660,37 +778,37 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
                   switch (section.entityType) {
                     case 'invoice':
                       number = alloc.invoice?.invoice_number || alloc.entity_number || `#${idx + 1}`;
-                      date = alloc.invoice?.issue_date || alloc.date;
+                      date = alloc.invoice?.issue_date || alloc.date || '';
                       total = alloc.invoice?.total || alloc.entity_total || 0;
-                      status = alloc.invoice?.status;
+                      status = alloc.invoice?.status || '';
                       currency = alloc.invoice?.currency?.code || currency;
                       break;
                     case 'quote':
                       number = alloc.quote?.quote_number || alloc.entity_number || `#${idx + 1}`;
-                      date = alloc.quote?.issue_date || alloc.date;
+                      date = alloc.quote?.issue_date || alloc.date || '';
                       total = alloc.quote?.total || alloc.entity_total || 0;
-                      status = alloc.quote?.status;
+                      status = alloc.quote?.status || '';
                       currency = alloc.quote?.currency?.code || currency;
                       break;
                     case 'payment':
                       number = alloc.payment?.payment_number || alloc.entity_number || `#${idx + 1}`;
-                      date = alloc.payment?.payment_date || alloc.date;
+                      date = alloc.payment?.payment_date || alloc.date || '';
                       total = alloc.payment?.amount || alloc.entity_total || 0;
-                      status = alloc.payment?.status;
+                      status = alloc.payment?.status || '';
                       currency = alloc.payment?.currency?.code || currency;
                       break;
                     case 'credit_note':
                       number = alloc.credit_note?.credit_note_number || alloc.entity_number || `#${idx + 1}`;
-                      date = alloc.credit_note?.issue_date || alloc.date;
+                      date = alloc.credit_note?.issue_date || alloc.date || '';
                       total = alloc.credit_note?.total || alloc.entity_total || 0;
-                      status = alloc.credit_note?.status;
+                      status = alloc.credit_note?.status || '';
                       currency = alloc.credit_note?.currency?.code || currency;
                       break;
                     case 'expense':
                       number = alloc.expense?.expense_number || alloc.entity_number || `#${idx + 1}`;
-                      date = alloc.expense?.expense_date || alloc.date;
+                      date = alloc.expense?.expense_date || alloc.date || '';
                       total = alloc.expense?.amount || alloc.entity_total || 0;
-                      status = alloc.expense?.status;
+                      status = alloc.expense?.status || '';
                       currency = alloc.expense?.currency?.code || currency;
                       break;
                   }
@@ -750,7 +868,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
           <BillableHoursTab
             projectId={project.id}
             defaultRate={project.default_hourly_rate}
-            defaultCurrencyId={project.default_currency_id}
+            defaultCurrencyId={project.default_currency_id ?? ''}
             currency={project.default_currency?.code || project.currency || 'USD'}
             contactCurrencyId={project.contact?.currency_id}
             contactCurrencyCode={project.contact?.currency?.code}
@@ -777,7 +895,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
               {project.name}
             </h2>
             <span className="inline-flex items-center px-2 py-0.5 h-6 bg-[#e5e5e5] dark:bg-gray-700 rounded-md text-xs font-normal text-[#09090b] dark:text-gray-300">
-              {(PROJECT_STATUS_LABELS as any)[project.status] || project.status}
+              {PROJECT_STATUS_LABELS[project.status as ProjectStatus] || project.status}
             </span>
           </div>
           <button
@@ -830,21 +948,21 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
       />
 
       {/* Expense Allocation Modal */}
-      {React.createElement(AssignExpenseModal as any, {
-        open: showExpenseModal,
-        onOpenChange: setShowExpenseModal,
-        entityType: "project",
-        entityId: project.id,
-        entityName: project.name,
-        currency: project.currency || 'USD',
-        onUpdate: handleAllocationUpdate,
-      })}
+      <AssignExpenseModal
+        open={showExpenseModal}
+        onOpenChange={setShowExpenseModal}
+        entityType="project"
+        entityId={project.id}
+        entityName={project.name}
+        currency={project.currency || 'USD'}
+        onUpdate={handleAllocationUpdate}
+      />
 
       {/* Finance Item Allocation Modal (Invoice, Quote, Payment, Credit Note) */}
       <AssignFinanceItemModal
         open={financeModal.open}
         onOpenChange={(open: boolean) => setFinanceModal({ open, type: open ? financeModal.type : null })}
-        entityType={financeModal.type}
+        entityType={financeModal.type ?? ''}
         projectId={project.id}
         projectName={project.name}
         currency={project.currency || 'USD'}

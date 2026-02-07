@@ -3,9 +3,29 @@ import { useParams, Link } from 'react-router-dom';
 import { ClockIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import publicBookingAPI from '../../services/api/public/booking';
 
+interface CallType {
+  id: string;
+  shortcode: string;
+  name: string;
+  description?: string;
+  duration_minutes: number;
+  color?: string;
+}
+
+interface HostInfo {
+  name: string;
+  avatar_url?: string;
+  bio?: string;
+}
+
+interface UserPageData {
+  host: HostInfo;
+  call_types: CallType[];
+}
+
 const PublicUserPage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
-  const [pageData, setPageData] = useState<any>(null);
+  const [pageData, setPageData] = useState<UserPageData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,16 +34,17 @@ const PublicUserPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await (publicBookingAPI as any).getUserPage(username);
+        const data = await publicBookingAPI.getUserPage(username!) as UserPageData;
         setPageData(data);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error fetching user page:', err);
-        if (err.status === 404) {
+        const error = err as Error & { status?: number };
+        if (error.status === 404) {
           setError('User not found');
-        } else if (err.status === 403) {
+        } else if (error.status === 403) {
           setError('Booking page is not available');
         } else {
-          setError(err.message || 'Failed to load booking page');
+          setError(error.message || 'Failed to load booking page');
         }
       } finally {
         setLoading(false);
@@ -68,6 +89,7 @@ const PublicUserPage: React.FC = () => {
     );
   }
 
+  if (!pageData) return null;
   const { host, call_types } = pageData;
 
   return (
@@ -108,7 +130,7 @@ const PublicUserPage: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Schedule a call
             </h2>
-            {call_types.map((callType: any) => (
+            {call_types.map((callType: CallType) => (
               <Link
                 key={callType.id}
                 to={`/book/${username}/${callType.shortcode}`}

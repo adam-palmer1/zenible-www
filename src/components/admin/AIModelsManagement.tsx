@@ -1,21 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import { request as apiRequest } from '../../services/api/httpClient';
 import OpenAIModelSyncModal from './OpenAIModelSyncModal';
 import ModelPricingModal from './ModelPricingModal';
+import { useModalState } from '../../hooks/useModalState';
+import { LoadingSpinner } from '../shared';
 
 interface AdminOutletContext {
   darkMode: boolean;
 }
 
+interface OpenAIModel {
+  model_id: string;
+  name: string;
+  supports_chat: boolean;
+  supports_completion: boolean;
+  supports_embedding: boolean;
+  supports_assistant: boolean;
+  supports_vision: boolean;
+  supports_function_calling: boolean;
+  max_tokens?: number | null;
+  pricing_input?: string | null;
+  pricing_output?: string | null;
+  is_active: boolean;
+  is_deprecated: boolean;
+}
+
+interface OpenAIModelListResponse {
+  models?: OpenAIModel[];
+  total_pages?: number;
+}
+
 export default function AIModelsManagement() {
   const { darkMode } = useOutletContext<AdminOutletContext>();
-  const [models, setModels] = useState<any[]>([]);
+  const [models, setModels] = useState<OpenAIModel[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
-  const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
-  const [editingModel, setEditingModel] = useState<any>(null);
+  const syncModal = useModalState();
+  const pricingModal = useModalState();
+  const [editingModel, setEditingModel] = useState<OpenAIModel | null>(null);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -56,21 +80,22 @@ export default function AIModelsManagement() {
         }
         const queryString = params.toString();
         const url = `/admin/openai/models/by-feature/${featureFilter}${queryString ? `?${queryString}` : ''}`;
-        response = await (adminAPI as any).request(url, {
+        response = await apiRequest(url, {
           method: 'GET'
         });
       } else {
         // Use general paginated endpoint
         response = await adminAPI.getOpenAIModels({
-          page,
-          per_page: perPage,
-          active_only: activeOnly
-        } as any);
+          page: String(page),
+          per_page: String(perPage),
+          active_only: String(activeOnly)
+        });
       }
 
-      if ((response as any).models) {
-        setModels((response as any).models);
-        setTotalPages((response as any).total_pages || 1);
+      const typedResponse = response as OpenAIModelListResponse;
+      if (typedResponse.models) {
+        setModels(typedResponse.models);
+        setTotalPages(typedResponse.total_pages || 1);
       } else {
         setModels([]);
       }
@@ -101,16 +126,16 @@ export default function AIModelsManagement() {
       });
       fetchModels();
     } catch (err) {
-      throw new Error(`Failed to update pricing: ${(err as any).message}`);
+      throw new Error(`Failed to update pricing: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
-  const handleEditPricing = (model: any) => {
+  const handleEditPricing = (model: OpenAIModel) => {
     setEditingModel(model);
-    setShowPricingModal(true);
+    pricingModal.open();
   };
 
-  const getCapabilityBadges = (model: any): string[] => {
+  const getCapabilityBadges = (model: OpenAIModel): string[] => {
     const badges: string[] = [];
     if (model.supports_chat) badges.push('Chat');
     if (model.supports_embedding) badges.push('Embedding');
@@ -121,9 +146,9 @@ export default function AIModelsManagement() {
     return badges;
   };
 
-  const formatPrice = (price: any): string => {
+  const formatPrice = (price: string | number | null | undefined): string => {
     if (!price) return 'N/A';
-    const numPrice = parseFloat(price);
+    const numPrice = parseFloat(String(price));
     if (isNaN(numPrice)) return 'N/A';
     return `$${numPrice.toFixed(4)}`;
   };
@@ -157,7 +182,7 @@ export default function AIModelsManagement() {
         </h1>
 
         <button
-          onClick={() => setShowSyncModal(true)}
+          onClick={() => syncModal.open()}
           className="px-4 py-2 bg-zenible-primary text-white rounded-lg text-sm font-medium hover:bg-zenible-primary-dark transition-colors flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -230,9 +255,7 @@ export default function AIModelsManagement() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-          </div>
+          <LoadingSpinner height="h-full" />
         ) : error ? (
           <div className={`p-4 rounded-lg ${
             darkMode ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-700'
@@ -433,9 +456,9 @@ export default function AIModelsManagement() {
 
       {/* OpenAI Model Sync Modal */}
       <OpenAIModelSyncModal
-        isOpen={showSyncModal}
+        isOpen={syncModal.isOpen}
         onClose={() => {
-          setShowSyncModal(false);
+          syncModal.close();
           fetchModels(); // Refresh models after sync
         }}
         darkMode={darkMode}
@@ -443,9 +466,9 @@ export default function AIModelsManagement() {
 
       {/* Model Pricing Modal */}
       <ModelPricingModal
-        isOpen={showPricingModal}
+        isOpen={pricingModal.isOpen}
         onClose={() => {
-          setShowPricingModal(false);
+          pricingModal.close();
           setEditingModel(null);
         }}
         onSave={handleUpdatePricing}

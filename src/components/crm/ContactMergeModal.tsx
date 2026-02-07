@@ -12,26 +12,27 @@ import { Z_INDEX } from '../../constants/crm';
 import contactsAPI from '../../services/api/crm/contacts';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
 import { useNotification } from '../../contexts/NotificationContext';
+import type { ContactResponse, ContactMergeResponse } from '../../types/crm';
 
 interface ContactMergeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  sourceContact: any;
-  onMergeComplete?: (result: any) => void;
+  sourceContact: ContactResponse;
+  onMergeComplete?: (result: ContactMergeResponse) => void;
 }
 
 const ContactMergeModal: React.FC<ContactMergeModalProps> = ({ isOpen, onClose, sourceContact, onMergeComplete }) => {
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // State
   const [step, setStep] = useState<'select' | 'confirm' | 'result'>('select');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<ContactResponse[]>([]);
   const [searching, setSearching] = useState(false);
-  const [selectedTarget, setSelectedTarget] = useState<any>(null);
+  const [selectedTarget, setSelectedTarget] = useState<ContactResponse | null>(null);
   const [merging, setMerging] = useState(false);
-  const [mergeResult, setMergeResult] = useState<any>(null);
+  const [mergeResult, setMergeResult] = useState<ContactMergeResponse | null>(null);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -55,7 +56,7 @@ const ContactMergeModal: React.FC<ContactMergeModalProps> = ({ isOpen, onClose, 
 
     setSearching(true);
     try {
-      const result = await (contactsAPI as any).searchForMerge(query, sourceContact?.id);
+      const result = await contactsAPI.searchForMerge(query, sourceContact?.id);
       setSearchResults(result.items || []);
     } catch (error) {
       console.error('Failed to search contacts:', error);
@@ -79,7 +80,7 @@ const ContactMergeModal: React.FC<ContactMergeModalProps> = ({ isOpen, onClose, 
 
     setMerging(true);
     try {
-      const result = await (contactsAPI as any).merge(selectedTarget.id, sourceContact.id);
+      const result = await contactsAPI.merge(selectedTarget.id, sourceContact.id);
       setMergeResult(result);
       setStep('result');
 
@@ -135,9 +136,9 @@ const ContactMergeModal: React.FC<ContactMergeModalProps> = ({ isOpen, onClose, 
     : null;
 
   // Calculate total records transferred
-  const getTotalRecords = (records: any): number => {
+  const getTotalRecords = (records: Record<string, number> | undefined): number => {
     if (!records) return 0;
-    return (Object.values(records) as number[]).reduce((sum: number, count: number) => sum + count, 0);
+    return Object.values(records).reduce((sum, count) => sum + count, 0);
   };
 
   // Format field name for display
@@ -151,7 +152,7 @@ const ContactMergeModal: React.FC<ContactMergeModalProps> = ({ isOpen, onClose, 
   const modal = (
     <div
       className="fixed inset-0 flex items-center justify-center"
-      style={{ zIndex: (Z_INDEX as any).MODAL_BACKDROP }}
+      style={{ zIndex: Z_INDEX.MODAL_BACKDROP }}
       onClick={(e: React.MouseEvent<HTMLDivElement>) => {
         if (e.target === e.currentTarget && !merging) {
           handleClose();
@@ -164,7 +165,7 @@ const ContactMergeModal: React.FC<ContactMergeModalProps> = ({ isOpen, onClose, 
       {/* Modal Content */}
       <div
         className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4 overflow-hidden"
-        style={{ zIndex: (Z_INDEX as any).MODAL }}
+        style={{ zIndex: Z_INDEX.MODAL }}
         onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
       >
         {/* Header */}
@@ -271,7 +272,7 @@ const ContactMergeModal: React.FC<ContactMergeModalProps> = ({ isOpen, onClose, 
                             No contacts found
                           </div>
                         ) : (
-                          searchResults.map((contact: any) => (
+                          searchResults.map((contact) => (
                             <button
                               key={contact.id}
                               onClick={() => setSelectedTarget(contact)}
@@ -422,13 +423,13 @@ const ContactMergeModal: React.FC<ContactMergeModalProps> = ({ isOpen, onClose, 
               )}
 
               {/* Fields Updated */}
-              {mergeResult.attributes_filled?.length > 0 && (
+              {(mergeResult.attributes_filled?.length ?? 0) > 0 && (
                 <div>
                   <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
                     Fields Updated on {targetDisplayName}
                   </h4>
                   <div className="flex flex-wrap gap-2">
-                    {mergeResult.attributes_filled.map((field: string) => (
+                    {mergeResult.attributes_filled!.map((field: string) => (
                       <span
                         key={field}
                         className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded"

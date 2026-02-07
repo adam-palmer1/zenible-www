@@ -9,7 +9,7 @@ interface PersonalizeAIBannerProps {
 
 export default function PersonalizeAIBanner({ darkMode = false }: PersonalizeAIBannerProps) {
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const { getPreference } = usePreferences() as any;
+  const { getPreference } = usePreferences();
 
   // Check if user has completed onboarding
   const onboardingStatus = getPreference('onboarding_status');

@@ -6,7 +6,7 @@ import { SortableWidgetGrid, WidgetCustomizer } from './widgets';
 import PersonalizeAIBanner from '../shared/PersonalizeAIBanner';
 
 export default function NewZenibleDashboard() {
-  const { user } = useAuth() as any;
+  const { user } = useAuth();
   const firstName = user?.first_name || user?.email?.split('@')[0] || 'there';
 
   // State for widget customizer modal

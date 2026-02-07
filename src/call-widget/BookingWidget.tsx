@@ -414,6 +414,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
             visitorTime: visitorTimeFormatted, // Pre-formatted for display
           });
         } catch (e) {
+          console.error('[ZenibleBooking] Error converting timezone for slot:', e);
           // On error, keep original date
           if (!visitorSlots[hostDate]) {
             visitorSlots[hostDate] = [];
@@ -512,7 +513,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
     );
   }
 
-  const { host, call_type } = pageData || {} as any;
+  const { host, call_type } = pageData || ({} as Record<string, unknown>);
 
   // Confirmed state
   if (step === 'confirmed' && bookingResult) {

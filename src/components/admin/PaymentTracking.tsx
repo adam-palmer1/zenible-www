@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import adminAPI from '../../services/adminAPI';
+import { adminPaymentsAPI } from '../../services/adminAPI';
+import { useModalState } from '../../hooks/useModalState';
+import { LoadingSpinner } from '../shared';
+import type { PaymentStats, PaymentList } from '../../types/auth';
+import type { PaymentResponse } from '../../types/finance';
 
 export default function PaymentTracking() {
-  const { darkMode } = useOutletContext() as any;
+  const { darkMode } = useOutletContext<{ darkMode: boolean }>();
   const [activeTab, setActiveTab] = useState<string>('overview'); // 'overview' or 'list'
 
   // Payment list state
@@ -16,7 +20,7 @@ export default function PaymentTracking() {
   const [totalPayments, setTotalPayments] = useState<number>(0);
 
   // Statistics state
-  const [statistics, setStatistics] = useState<any>(null);
+  const [statistics, setStatistics] = useState<PaymentStats | null>(null);
   const [statsLoading, setStatsLoading] = useState<boolean>(true);
   const [statsDateRange, setStatsDateRange] = useState<string>('month'); // month, quarter, year, custom
   const [customStartDate, setCustomStartDate] = useState<string>('');
@@ -31,8 +35,7 @@ export default function PaymentTracking() {
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Refund modal
-  const [showRefundModal, setShowRefundModal] = useState<boolean>(false);
-  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const refundModal = useModalState<PaymentResponse>();
   const [refundAmount, setRefundAmount] = useState<string>('');
   const [refundReason, setRefundReason] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
@@ -83,7 +86,7 @@ export default function PaymentTracking() {
     setStatsLoading(true);
     try {
       const params = getDateRangeParams();
-      const response = await (adminAPI as any).getPaymentStats(params);
+      const response = await adminPaymentsAPI.getPaymentStats(params) as PaymentStats;
       setStatistics(response);
     } catch (err: any) {
       console.error('Failed to fetch statistics:', err);
@@ -98,9 +101,9 @@ export default function PaymentTracking() {
     setError(null);
 
     try {
-      const params: any = {
-        page,
-        per_page: perPage,
+      const params: Record<string, string> = {
+        page: String(page),
+        per_page: String(perPage),
       };
 
       if (statusFilter) params.status = statusFilter;
@@ -109,7 +112,7 @@ export default function PaymentTracking() {
       if (endDate) params.end_date = new Date(endDate).toISOString();
       if (userIdFilter) params.user_id = userIdFilter;
 
-      const response = await (adminAPI as any).getAllPayments(params);
+      const response = await adminPaymentsAPI.getAllPayments(params) as PaymentList;
       setPayments(response.payments || []);
       setTotalPages(response.pages || 1);
       setTotalPayments(response.total || 0);
@@ -122,18 +125,17 @@ export default function PaymentTracking() {
   };
 
   const handleRefund = async () => {
-    if (!selectedPayment) return;
+    if (!refundModal.data) return;
 
     setProcessing(true);
     try {
       const data = {
-        amount: refundAmount || selectedPayment.amount,
+        amount: refundAmount || refundModal.data.amount,
         reason: refundReason
       };
 
-      await (adminAPI as any).refundPayment(selectedPayment.id, data);
-      setShowRefundModal(false);
-      setSelectedPayment(null);
+      await adminPaymentsAPI.refundPayment(refundModal.data.id, data);
+      refundModal.close();
       setRefundAmount('');
       setRefundReason('');
       await fetchPayments();
@@ -319,9 +321,7 @@ export default function PaymentTracking() {
           </div>
 
           {statsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-            </div>
+            <LoadingSpinner height="py-12" />
           ) : statistics ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Total Revenue Card */}
@@ -589,9 +589,7 @@ export default function PaymentTracking() {
           {/* Payments Table */}
           <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
             {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-              </div>
+              <LoadingSpinner height="py-12" />
             ) : error ? (
               <div className="text-red-500 text-center py-12">Error: {error}</div>
             ) : filteredPayments.length === 0 ? (
@@ -661,10 +659,7 @@ export default function PaymentTracking() {
                         <td className="px-6 py-4">
                           {payment.status === 'succeeded' && (
                             <button
-                              onClick={() => {
-                                setSelectedPayment(payment);
-                                setShowRefundModal(true);
-                              }}
+                              onClick={() => refundModal.open(payment)}
                               className="text-red-600 hover:text-red-900 text-sm font-medium"
                             >
                               Refund
@@ -718,7 +713,7 @@ export default function PaymentTracking() {
       )}
 
       {/* Refund Modal */}
-      {showRefundModal && selectedPayment && (
+      {refundModal.isOpen && refundModal.data && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`w-full max-w-md mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
@@ -735,13 +730,13 @@ export default function PaymentTracking() {
                   </label>
                   <div className={`p-3 rounded-lg ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'} space-y-1 text-sm`}>
                     <div className={darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}>
-                      <span className="font-medium">Amount:</span> {formatCurrency(selectedPayment.amount, selectedPayment.currency)}
+                      <span className="font-medium">Amount:</span> {formatCurrency(refundModal.data.amount, refundModal.data.currency)}
                     </div>
                     <div className={darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}>
-                      <span className="font-medium">User:</span> {selectedPayment.user_name} ({selectedPayment.user_email})
+                      <span className="font-medium">User:</span> {refundModal.data.user_name} ({refundModal.data.user_email})
                     </div>
                     <div className={darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}>
-                      <span className="font-medium">Date:</span> {formatDate(selectedPayment.created_at)}
+                      <span className="font-medium">Date:</span> {formatDate(refundModal.data.created_at)}
                     </div>
                   </div>
                 </div>
@@ -755,8 +750,8 @@ export default function PaymentTracking() {
                     step="0.01"
                     value={refundAmount}
                     onChange={(e) => setRefundAmount(e.target.value)}
-                    placeholder={selectedPayment.amount}
-                    max={selectedPayment.amount}
+                    placeholder={refundModal.data.amount}
+                    max={refundModal.data.amount}
                     className={`w-full px-3 py-2 border rounded-lg ${
                       darkMode
                         ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
@@ -786,8 +781,7 @@ export default function PaymentTracking() {
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={() => {
-                    setShowRefundModal(false);
-                    setSelectedPayment(null);
+                    refundModal.close();
                     setRefundAmount('');
                     setRefundReason('');
                   }}

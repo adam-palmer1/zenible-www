@@ -13,9 +13,19 @@ interface SyncOptions {
   deactivate_missing: boolean;
 }
 
+interface SyncResult {
+  models_added: number;
+  models_updated: number;
+  models_deactivated: number;
+  models_total: number;
+  sync_timestamp: string;
+  sync_duration_ms: number;
+  errors?: string[];
+}
+
 export default function OpenAIModelSyncModal({ isOpen, onClose, darkMode }: OpenAIModelSyncModalProps) {
   const [syncing, setSyncing] = useState<boolean>(false);
-  const [lastSync, setLastSync] = useState<any>(null);
+  const [lastSync, setLastSync] = useState<SyncResult | null>(null);
   const [options, setOptions] = useState<SyncOptions>({
     force: false,
     update_pricing: true,
@@ -44,7 +54,7 @@ export default function OpenAIModelSyncModal({ isOpen, onClose, darkMode }: Open
     setSuccess(null);
 
     try {
-      const result = await (adminAPI as any).syncOpenAIModels(options);
+      const result = await adminAPI.syncOpenAIModels(options) as SyncResult;
       setLastSync(result);
 
       // Check if it was cached
@@ -55,8 +65,8 @@ export default function OpenAIModelSyncModal({ isOpen, onClose, darkMode }: Open
           `Sync complete: ${result.models_added} new, ${result.models_updated} updated, ${result.models_deactivated} deactivated`
         );
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setSyncing(false);
     }

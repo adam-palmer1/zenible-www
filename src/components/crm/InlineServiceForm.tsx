@@ -9,7 +9,7 @@ interface InlineServiceFormProps {
   services?: any[];
   currencies?: any[];
   defaultCurrency?: string | null;
-  onUpdate?: (serviceId: string, data: any) => Promise<void>;
+  onUpdate?: (serviceId: string, data: any) => Promise<unknown>;
   onAdd?: (data: any) => Promise<void>;
   onRemove?: (service: any) => void;
 }
@@ -34,7 +34,7 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
   const hasInitializedRef = useRef(false);
 
   // Fetch dynamic service statuses
-  const { serviceStatuses, getStatusLabel } = useServiceEnums() as any;
+  const { serviceStatuses, getStatusLabel } = useServiceEnums();
 
   // Helper to map a backend service to form format
   const mapServiceToForm = useCallback((service: any, index: number) => ({
@@ -217,9 +217,9 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
       }
 
       // Find currency ID
-      const currency = currencies.find((c: any) => c.code === service.currency);
+      const currency = currencies.find((c: any) => c.code === service.currency) as { code: string; id: string } | undefined;
       if (currency) {
-        baseService.currency_id = (currency as any).id;
+        baseService.currency_id = currency.id;
       }
 
       if (service.pricingType === 'Fixed') {
@@ -280,7 +280,6 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
     <div className="space-y-2">
       {serviceItems.map((serviceItem: any, index: number) => {
         const isExpanded = expandedServices.has(serviceItem.id);
-        const isNewService = serviceItem.id.toString().startsWith('new-');
         const priceDisplay = formatServicePrice(serviceItem);
 
         return (
@@ -513,7 +512,7 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
                     onSelect={(value: any) => handleServiceChange(serviceItem.id, 'status', value)}
                     selectedStatus={serviceItem.status || 'active'}
                     statuses={serviceStatuses}
-                    anchorRef={{ current: statusButtonRefs.current[serviceItem.id] }}
+                    anchorRef={{ current: statusButtonRefs.current[serviceItem.id] } as React.RefObject<HTMLElement>}
                   />
                 </div>
 

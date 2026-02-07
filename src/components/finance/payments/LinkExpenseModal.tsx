@@ -5,20 +5,35 @@ import { usePayments } from '../../../contexts/PaymentsContext';
 import { formatCurrency } from '../../../utils/currency';
 import { formatDate } from '../../../utils/dateUtils';
 import expensesAPI from '../../../services/api/finance/expenses';
+import type { ExpenseListItemResponse, ExpenseUpdate } from '../../../types/finance';
+
+interface PaymentProp {
+  id: string;
+  amount: string | number;
+  payment_number?: string;
+  currency?: { code?: string } | null;
+  currency_code?: string;
+}
+
+/** Expense item as returned by the list endpoint, with optional payment_id for filtering. */
+interface ExpenseItem extends ExpenseListItemResponse {
+  payment_id?: string | null;
+  currency_code?: string;
+}
 
 interface LinkExpenseModalProps {
   isOpen: boolean;
   onClose: (linked?: boolean) => void;
-  payment: any;
+  payment: PaymentProp;
 }
 
 const LinkExpenseModal: React.FC<LinkExpenseModalProps> = ({ isOpen, onClose, payment }) => {
-  const { showSuccess, showError } = useNotification() as any;
-  const { refresh } = usePayments() as any;
+  const { showSuccess, showError } = useNotification();
+  const { refresh } = usePayments();
 
   const [loading, setLoading] = useState(false);
   const [linking, setLinking] = useState(false);
-  const [expenses, setExpenses] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(null);
 
@@ -42,25 +57,25 @@ const LinkExpenseModal: React.FC<LinkExpenseModalProps> = ({ isOpen, onClose, pa
     try {
       setLoading(true);
       // Fetch expenses without a payment_id (unlinked)
-      const response = await (expensesAPI as any).list({
-        per_page: 100,
+      const response = await expensesAPI.list({
+        per_page: '100',
         payment_id: 'null', // Fetch only unlinked expenses
       });
 
-      const items = response.items || response.data || response;
-      setExpenses(Array.isArray(items) ? items : []);
+      const items = response.items || [];
+      setExpenses(Array.isArray(items) ? items as ExpenseItem[] : []);
     } catch (err) {
       console.error('Error fetching expenses:', err);
       // If the filter doesn't work, try fetching all and filter client-side
       try {
-        const response = await (expensesAPI as any).list({ per_page: 100 });
-        const items = response.items || response.data || response;
+        const response = await expensesAPI.list({ per_page: '100' });
+        const items = response.items || [];
         // Filter out expenses that already have a payment_id
-        const unlinked = (Array.isArray(items) ? items : []).filter(
-          (exp: any) => !exp.payment_id
+        const unlinked = (Array.isArray(items) ? items as ExpenseItem[] : []).filter(
+          (exp: ExpenseItem) => !exp.payment_id
         );
         setExpenses(unlinked);
-      } catch (fallbackErr) {
+      } catch (_fallbackErr) {
         showError('Failed to load expenses');
       }
     } finally {
@@ -82,7 +97,7 @@ const LinkExpenseModal: React.FC<LinkExpenseModalProps> = ({ isOpen, onClose, pa
 
     try {
       setLinking(true);
-      await (expensesAPI as any).update(selectedExpenseId, { payment_id: payment.id });
+      await expensesAPI.update(selectedExpenseId, { payment_id: payment.id } as ExpenseUpdate);
       showSuccess('Expense linked successfully');
       refresh();
       onClose(true); // Signal that an expense was successfully linked
@@ -94,7 +109,7 @@ const LinkExpenseModal: React.FC<LinkExpenseModalProps> = ({ isOpen, onClose, pa
   };
 
   // Filter expenses based on search query
-  const filteredExpenses = expenses.filter((expense: any) => {
+  const filteredExpenses = expenses.filter((expense: ExpenseItem) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -168,7 +183,7 @@ const LinkExpenseModal: React.FC<LinkExpenseModalProps> = ({ isOpen, onClose, pa
             </div>
           ) : (
             <div className="space-y-2">
-              {filteredExpenses.map((expense: any) => {
+              {filteredExpenses.map((expense: ExpenseItem) => {
                 const expenseCurrency =
                   expense.currency?.code || expense.currency_code || 'USD';
                 return (

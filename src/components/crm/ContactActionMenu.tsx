@@ -35,7 +35,7 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
   const [successContactName, setSuccessContactName] = useState('');
   const mergeModal = useModalState();
 
-  const { editContact, deleteContact, markAsLost, toggleHidden, dismissFollowUp, toggleClient, refreshContacts } = useContactActions() as any;
+  const { editContact, deleteContact, markAsLost, toggleHidden, dismissFollowUp, toggleClient, refreshContacts } = useContactActions();
 
   // Get display name using shared utility
   const displayName = getContactDisplayName(contact, 'Contact');
@@ -47,7 +47,7 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
   const handleAddToClientList = async () => {
     const result = await toggleClient(contact);
     if (result.success && result.added) {
-      setSuccessContactName(result.contactName);
+      setSuccessContactName(result.contactName ?? '');
       successModal.open();
       // Don't refresh immediately - wait for modal to close
     }
@@ -80,7 +80,15 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
   };
 
   // Menu items configuration
-  const menuItems = [
+  interface MenuItem {
+    id: string;
+    label: string;
+    icon: React.ForwardRefExoticComponent<React.SVGProps<SVGSVGElement> & { title?: string; titleId?: string }>;
+    onClick: () => void | Promise<void>;
+    destructive?: boolean;
+  }
+
+  const menuItems: MenuItem[] = ([
     {
       id: 'edit',
       label: 'Edit Contact',
@@ -93,36 +101,36 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
       icon: ArrowsRightLeftIcon,
       onClick: () => mergeModal.open(),
     },
-    !contact.is_client && {
+    !contact.is_client ? {
       id: 'add_to_client_list',
       label: 'Add to Client List',
       icon: UserPlusIcon,
       onClick: handleAddToClientList,
-    },
-    contact.is_client && {
+    } : null,
+    contact.is_client ? {
       id: 'remove_from_client_list',
       label: 'Remove from Client List',
       icon: UserMinusIcon,
       onClick: () => setConfirmationModal('remove_client'),
-    },
-    showMarkLost && {
+    } : null,
+    showMarkLost ? {
       id: 'mark_lost',
       label: 'Mark Lost',
       icon: XCircleIcon,
       onClick: () => setConfirmationModal('lost'),
-    },
+    } : null,
     {
       id: 'toggle_hidden',
       label: contact.is_hidden ? 'Unhide Contact' : 'Hide Contact',
       icon: contact.is_hidden ? EyeIcon : EyeSlashIcon,
       onClick: () => toggleHidden(contact),
     },
-    nextAppointment && {
+    nextAppointment ? {
       id: 'dismiss_follow_up',
       label: 'Dismiss Appointment',
       icon: BellSlashIcon,
       onClick: () => dismissFollowUp(contact),
-    },
+    } : null,
     {
       id: 'delete',
       label: 'Delete Contact',
@@ -130,7 +138,7 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
       onClick: () => setConfirmationModal('delete'),
       destructive: true,
     }
-  ].filter(Boolean) as any[]; // Remove falsy items
+  ] as (MenuItem | null)[]).filter((item): item is MenuItem => Boolean(item));
 
   return (
     <>
@@ -147,10 +155,10 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
         align="end"
         side="bottom"
       >
-        {menuItems.map((item: any, index: number) => (
+        {menuItems.map((item: MenuItem, index: number) => (
           <Dropdown.Item
             key={item.id}
-            onSelect={(e: any) => {
+            onSelect={(e: Event) => {
               e.stopPropagation();
               item.onClick();
             }}

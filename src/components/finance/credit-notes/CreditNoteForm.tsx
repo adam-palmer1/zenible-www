@@ -18,6 +18,21 @@ import SendCreditNoteModal from './SendCreditNoteModal';
 import FinanceLayout from '../layout/FinanceLayout';
 import TaxModal from '../invoices/TaxModal';
 
+interface CreditNotePrefill {
+  contact_id?: string;
+  invoice_id?: string;
+  currency_id?: string;
+  reason?: string;
+  reference?: string;
+  items?: Array<{
+    name?: string;
+    description?: string;
+    quantity?: number | string;
+    price?: number | string;
+    taxes?: unknown[];
+  }>;
+}
+
 interface CreditNoteFormProps {
   creditNote?: any;
   onSuccess?: (result: any) => void;
@@ -28,10 +43,10 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
-  const { contacts: allContacts, loading: contactsLoading } = useContacts({ is_client: true }) as any;
-  const { showSuccess, showError } = useNotification() as any;
-  const { numberFormats } = useCRMReferenceData() as any;
-  const { getNumberFormat } = useCompanyAttributes() as any;
+  const { contacts: allContacts, loading: contactsLoading } = useContacts({ is_client: true });
+  const { showSuccess, showError } = useNotification();
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
 
   const numberFormat = useMemo(() => {
     const formatId = getNumberFormat();
@@ -47,7 +62,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
   const [creditNote, setCreditNote] = useState<any>(creditNoteProp);
   const [loading, setLoading] = useState(!!id && !creditNoteProp);
 
-  const { companyCurrencies: currencies, defaultCurrency: defaultCurrencyAssoc, loading: currenciesLoading } = useCompanyCurrencies() as any;
+  const { companyCurrencies: currencies, defaultCurrency: defaultCurrencyAssoc, loading: currenciesLoading } = useCompanyCurrencies();
 
   const isEditing = !!creditNote || !!id;
 
@@ -87,7 +102,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
       if (id && !creditNoteProp) {
         try {
           setLoading(true);
-          const data = await (creditNotesAPI as any).get(id);
+          const data = await creditNotesAPI.get(id);
           setCreditNote(data);
         } catch (error: any) {
           console.error('Failed to load credit note:', error);
@@ -102,20 +117,20 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
   }, [id, creditNoteProp]);
 
   useEffect(() => {
-    if (!creditNote && (location.state as any)?.prefill) {
-      const prefill = (location.state as any).prefill;
+    if (!creditNote && (location.state as { prefill?: CreditNotePrefill })?.prefill) {
+      const prefill = (location.state as { prefill: CreditNotePrefill }).prefill;
       if (prefill.contact_id) setContactId(prefill.contact_id);
       if (prefill.invoice_id) setLinkedInvoiceId(prefill.invoice_id);
       if (prefill.currency_id) setCurrency(prefill.currency_id);
       if (prefill.reason) setReason(prefill.reason);
       if (prefill.reference) setReference(prefill.reference);
       if (prefill.items && prefill.items.length > 0) {
-        const normalizedItems = prefill.items.map((item: any) => ({
+        const normalizedItems = prefill.items.map((item) => ({
           description: item.name || item.description || '',
           subtext: item.description || '',
-          quantity: parseFloat(item.quantity || 1),
-          price: parseFloat(item.price || 0),
-          amount: parseFloat(item.quantity || 1) * parseFloat(item.price || 0),
+          quantity: parseFloat(String(item.quantity || 1)),
+          price: parseFloat(String(item.price || 0)),
+          amount: parseFloat(String(item.quantity || 1)) * parseFloat(String(item.price || 0)),
           taxes: item.taxes || [],
           tax_amount: 0,
         }));
@@ -173,7 +188,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
         const contactCurrencyId =
           selectedContact.preferred_currency_id ||
           selectedContact.currency_id ||
-          selectedContact.default_currency_id ||
+          (selectedContact as Record<string, unknown>).default_currency_id as string ||
           selectedContact.currency?.id;
 
         if (contactCurrencyId) {
@@ -190,7 +205,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
     const loadNextNumber = async () => {
       if (!creditNote && !id) {
         try {
-          const data = await (creditNotesAPI as any).getNextNumber();
+          const data = await creditNotesAPI.getNextNumber() as { next_number?: string };
           if (data?.next_number) {
             setCreditNoteNumber(data.next_number);
           }
@@ -207,8 +222,8 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
       if (linkedInvoiceId && !invoiceLookup[linkedInvoiceId]) {
         try {
           setLoadingInvoice(true);
-          const invoice = await (invoicesAPI as any).get(linkedInvoiceId);
-          setInvoiceLookup((prev: any) => ({ ...prev, [linkedInvoiceId]: invoice }));
+          const invoice = await invoicesAPI.get(linkedInvoiceId);
+          setInvoiceLookup((prev) => ({ ...prev, [linkedInvoiceId]: invoice }));
         } catch (error: any) {
           console.error('Failed to load linked invoice:', error);
         } finally {
@@ -219,7 +234,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
     loadInvoice();
   }, [linkedInvoiceId]);
 
-  const totals = calculateInvoiceTotal(items, documentTaxes, discountType, discountValue) as any;
+  const totals = calculateInvoiceTotal(items, documentTaxes, discountType, discountValue);
 
   const getCurrencyCode = (): string => {
     if (!currency || !currencies.length) return 'USD';
@@ -302,7 +317,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
     }
   };
 
-  const handleSave = async (saveStatus: string = (CREDIT_NOTE_STATUS as any).DRAFT, openSendModal: boolean = false) => {
+  const handleSave = async (_saveStatus: string = CREDIT_NOTE_STATUS.DRAFT, openSendModal: boolean = false) => {
     if (!contactId) { showError('Please select a client'); return; }
     if (!issueDate) { showError('Please select an issue date'); return; }
     if (!currency) { showError('Please select a currency'); return; }
@@ -348,10 +363,10 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
 
       let result;
       if (creditNote?.id) {
-        result = await (creditNotesAPI as any).update(creditNote.id, creditNoteData);
+        result = await creditNotesAPI.update(creditNote.id, creditNoteData);
         showSuccess('Credit note updated successfully');
       } else {
-        result = await (creditNotesAPI as any).create(creditNoteData);
+        result = await creditNotesAPI.create(creditNoteData);
         showSuccess('Credit note created successfully');
       }
 
@@ -426,7 +441,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
               selectedClientId={contactId}
               onSelect={handleClientSelect}
               loading={contactsLoading}
-              triggerRef={clientButtonRef}
+              triggerRef={clientButtonRef as React.RefObject<HTMLElement>}
             />
           </div>
         </div>
@@ -455,7 +470,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
               </span>
               <ChevronDown className="h-4 w-4 text-gray-400" />
             </button>
-            <CurrencySelectModal isOpen={showCurrencyModal} onClose={() => setShowCurrencyModal(false)} currencies={currencies} selectedCurrencyId={currency} onSelect={setCurrency} loading={currenciesLoading} triggerRef={currencyButtonRef} />
+            <CurrencySelectModal isOpen={showCurrencyModal} onClose={() => setShowCurrencyModal(false)} currencies={currencies} selectedCurrencyId={currency} onSelect={setCurrency} loading={currenciesLoading} triggerRef={currencyButtonRef as React.RefObject<HTMLElement>} />
           </div>
         </div>
 
@@ -503,11 +518,11 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
 
       {isInModal && (
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-          <button onClick={() => handleSave(creditNote?.status && creditNote.status !== 'draft' ? creditNote.status : (CREDIT_NOTE_STATUS as any).DRAFT)} disabled={saving} className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
+          <button onClick={() => handleSave(creditNote?.status && creditNote.status !== 'draft' ? creditNote.status : CREDIT_NOTE_STATUS.DRAFT)} disabled={saving} className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
             {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
             {getSaveButtonText()}
           </button>
-          <button onClick={() => handleSave((CREDIT_NOTE_STATUS as any).ISSUED, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
+          <button onClick={() => handleSave(CREDIT_NOTE_STATUS.ISSUED, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
             {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
             Save & Send
           </button>
@@ -543,11 +558,11 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button onClick={() => handleSave(creditNote?.status && creditNote.status !== 'draft' ? creditNote.status : (CREDIT_NOTE_STATUS as any).DRAFT)} disabled={saving} className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
+              <button onClick={() => handleSave(creditNote?.status && creditNote.status !== 'draft' ? creditNote.status : CREDIT_NOTE_STATUS.DRAFT)} disabled={saving} className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
                 {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
                 {getSaveButtonText()}
               </button>
-              <button onClick={() => handleSave((CREDIT_NOTE_STATUS as any).ISSUED, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
+              <button onClick={() => handleSave(CREDIT_NOTE_STATUS.ISSUED, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
                 {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
                 Save & Send
               </button>

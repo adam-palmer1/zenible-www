@@ -1,16 +1,92 @@
 import React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form } from '../../ui/form';
 import { contactSchema, getContactDefaultValues } from '../schemas/contactSchema';
 import ProgressBar from '../../ui/ProgressBar';
 import ChipSelector from '../../ui/ChipSelector';
 
+/** Contact data shape for the form (partial ContactResponse) */
+interface ContactFormContact {
+  id?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  business_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  country_code?: string | null;
+  address_line_1?: string | null;
+  address_line_2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postcode?: string | null;
+  country?: string | null;
+  country_id?: string | null;
+  registration_number?: string | null;
+  tax_number?: string | null;
+  tax_id?: string | null;
+  is_client?: boolean;
+  is_vendor?: boolean;
+  vendor_type?: string | null;
+  default_payment_terms?: number | null;
+  current_global_status_id?: string | null;
+  current_custom_status_id?: string | null;
+  currency_id?: string | null;
+  preferred_currency_id?: string | null;
+  invoice_payment_terms?: number | null;
+  invoice_notes?: string | null;
+  hourly_rate?: string | null;
+  notes?: string | null;
+  [key: string]: unknown;
+}
+
+/** Status option from the statuses API */
+interface StatusOption {
+  id: string;
+  name: string;
+  friendly_name: string;
+  color: string;
+}
+
+/** Form field values matching the contactSchema */
+interface ContactFormValues {
+  first_name?: string;
+  last_name?: string;
+  business_name?: string;
+  email?: string | null;
+  country_code?: string;
+  phone?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  state?: string;
+  postcode?: string;
+  country?: string;
+  country_id?: string | null;
+  registration_number?: string;
+  tax_number?: string;
+  tax_id?: string;
+  is_client?: boolean;
+  is_vendor?: boolean;
+  is_active?: boolean;
+  vendor_type?: string;
+  default_payment_terms?: number | null;
+  current_global_status_id?: string | null;
+  current_custom_status_id?: string | null;
+  currency_id?: string | null;
+  preferred_currency_id?: string | null;
+  invoice_payment_terms?: number | null;
+  invoice_notes?: string;
+  hourly_rate?: number | null;
+  notes?: string;
+  [key: string]: unknown;
+}
+
 interface ContactFormSinglePageProps {
-  contact?: any;
+  contact?: ContactFormContact | null;
   initialStatus?: string | null;
-  allStatuses?: any[];
-  onSubmit: (data: any) => void;
+  allStatuses?: StatusOption[];
+  onSubmit: (data: ContactFormValues) => void;
   onCancel: () => void;
   loading?: boolean;
   submitError?: string | null;
@@ -33,7 +109,8 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
     defaultValues: getContactDefaultValues(contact, initialStatus),
   });
 
-  const { watch, setValue, register, reset, formState: { errors } } = methods;
+  const { watch, setValue, register, reset, formState: { errors: rawErrors } } = methods;
+  const errors = rawErrors as FieldErrors<ContactFormValues>;
 
   // Reset form when contact changes (important for edit mode)
   React.useEffect(() => {
@@ -66,7 +143,7 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
 
   // Handle status change
   const handleStatusChange = (statusId: string) => {
-    const selectedStatus = allStatuses.find((s: any) => s.id === statusId);
+    const selectedStatus = allStatuses.find((s: StatusOption) => s.id === statusId);
     if (selectedStatus) {
       const isCustom = selectedStatus.name.startsWith('custom_');
       setValue('current_global_status_id', isCustom ? null : selectedStatus.id);
@@ -75,7 +152,7 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
   };
 
   // Get status options with colors
-  const statusOptions = allStatuses.map((status: any) => ({
+  const statusOptions = allStatuses.map((status: StatusOption) => ({
     value: status.id,
     label: status.friendly_name,
     color: status.color,
@@ -114,8 +191,8 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
               {...register('first_name')}
               className="w-full px-3 py-2.5 border-[1.5px] border-[#e5e5e5] rounded-[10px] text-sm focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white text-gray-900"
             />
-            {(errors as any).first_name && (
-              <p className="mt-1 text-sm text-red-600">{(errors as any).first_name.message}</p>
+            {errors.first_name && (
+              <p className="mt-1 text-sm text-red-600">{errors.first_name.message}</p>
             )}
           </div>
           <div>
@@ -128,8 +205,8 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
               {...register('last_name')}
               className="w-full px-3 py-2.5 border-[1.5px] border-[#e5e5e5] rounded-[10px] text-sm focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white text-gray-900"
             />
-            {(errors as any).last_name && (
-              <p className="mt-1 text-sm text-red-600">{(errors as any).last_name.message}</p>
+            {errors.last_name && (
+              <p className="mt-1 text-sm text-red-600">{errors.last_name.message}</p>
             )}
           </div>
         </div>
@@ -145,8 +222,8 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
             {...register('business_name')}
             className="w-full px-3 py-2.5 border-[1.5px] border-[#e5e5e5] rounded-[10px] text-sm focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white text-gray-900"
           />
-          {(errors as any).business_name && (
-            <p className="mt-1 text-sm text-red-600">{(errors as any).business_name.message}</p>
+          {errors.business_name && (
+            <p className="mt-1 text-sm text-red-600">{errors.business_name.message}</p>
           )}
         </div>
 
@@ -161,8 +238,8 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
             {...register('email')}
             className="w-full px-3 py-2.5 border-[1.5px] border-[#e5e5e5] rounded-[10px] text-sm focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white text-gray-900"
           />
-          {(errors as any).email && (
-            <p className="mt-1 text-sm text-red-600">{(errors as any).email.message}</p>
+          {errors.email && (
+            <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
           )}
         </div>
 
@@ -185,9 +262,9 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
               className="flex-1 px-3 py-2.5 border-[1.5px] border-[#e5e5e5] rounded-[10px] text-sm focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white text-gray-900"
             />
           </div>
-          {((errors as any).country_code || (errors as any).phone) && (
+          {(errors.country_code || errors.phone) && (
             <p className="mt-1 text-sm text-red-600">
-              {(errors as any).country_code?.message || (errors as any).phone?.message}
+              {errors.country_code?.message || errors.phone?.message}
             </p>
           )}
         </div>
@@ -275,7 +352,7 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
           <ChipSelector
             options={contactTypeOptions}
             value={getContactTypes()}
-            onChange={handleContactTypeChange}
+            onChange={(value: string | string[] | null) => handleContactTypeChange(Array.isArray(value) ? value : value ? [value] : [])}
             multiple={true}
           />
         </div>
@@ -288,7 +365,7 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
           <ChipSelector
             options={statusOptions}
             value={getSelectedStatusId()}
-            onChange={handleStatusChange}
+            onChange={(value: string | string[] | null) => handleStatusChange(typeof value === 'string' ? value : Array.isArray(value) ? value[0] ?? '' : '')}
             multiple={false}
             useColors={true}
           />

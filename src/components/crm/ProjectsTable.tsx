@@ -10,10 +10,13 @@ import { ExpenseProvider } from '../../contexts/ExpenseContext';
 import ConfirmationModal from '../common/ConfirmationModal';
 import AssignExpenseModal from '../finance/expenses/AssignExpenseModal';
 import ProjectDetailModal from './ProjectDetailModal';
+import { LoadingSpinner } from '../shared';
 import {
   PROJECT_STATUS_LABELS,
   PROJECT_STATUS_COLORS,
+  type ProjectStatus,
 } from '../../constants/crm';
+import type { ProjectListItemResponse } from '../../types/crm';
 
 interface ProjectsTableProps {
   selectedStatuses?: string[];
@@ -21,22 +24,23 @@ interface ProjectsTableProps {
 
 export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const deleteConfirm = useDeleteConfirmation<any>();
+  const deleteConfirm = useDeleteConfirmation<ProjectListItemResponse>();
   const [showExpensesModal, setShowExpensesModal] = useState(false);
-  const [projectForExpenses, setProjectForExpenses] = useState<any>(null);
-  const detailModal = useModalState<any>();
+  const [projectForExpenses, setProjectForExpenses] = useState<ProjectListItemResponse | null>(null);
+  const detailModal = useModalState<ProjectListItemResponse>();
 
-  const { projects, loading, deleteProject } = useProjects(
+  const { projects: rawProjects, loading, deleteProject } = useProjects(
     selectedStatuses.length > 0 ? { statuses: selectedStatuses } : {}
-  ) as any;
-  const { openProjectModal } = useCRM() as any;
-  const { showSuccess, showError } = useNotification() as any;
+  );
+  const projects = rawProjects as unknown as ProjectListItemResponse[];
+  const { openProjectModal } = useCRM();
+  const { showSuccess, showError } = useNotification();
 
   // Handle projectId query parameter - open project detail modal
   const urlProjectId = searchParams.get('projectId');
   useEffect(() => {
     if (urlProjectId && projects.length > 0 && !loading) {
-      const project = projects.find((p: any) => p.id === urlProjectId);
+      const project = projects.find((p) => p.id === urlProjectId);
       if (project) {
         detailModal.open(project);
       }
@@ -47,16 +51,16 @@ export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTablePr
     }
   }, [urlProjectId, projects, loading, searchParams, setSearchParams]);
 
-  const handleDeleteClick = (project: any) => {
+  const handleDeleteClick = (project: ProjectListItemResponse) => {
     deleteConfirm.requestDelete(project);
   };
 
-  const handleExpensesClick = (project: any) => {
+  const handleExpensesClick = (project: ProjectListItemResponse) => {
     setProjectForExpenses(project);
     setShowExpensesModal(true);
   };
 
-  const handleViewProject = (project: any) => {
+  const handleViewProject = (project: ProjectListItemResponse) => {
     detailModal.open(project);
   };
 
@@ -77,11 +81,7 @@ export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTablePr
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="py-12" />;
   }
 
   if (projects.length === 0) {
@@ -128,7 +128,7 @@ export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTablePr
               </tr>
             </thead>
             <tbody>
-              {projects.map((project: any, index: number) => (
+              {projects.map((project, index) => (
                 <tr
                   key={project.id}
                   onClick={() => handleViewProject(project)}
@@ -152,8 +152,8 @@ export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTablePr
                     </div>
                   </td>
                   <td className="px-4 py-4">
-                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${(PROJECT_STATUS_COLORS as any)[project.status]}`}>
-                      {(PROJECT_STATUS_LABELS as any)[project.status]}
+                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${PROJECT_STATUS_COLORS[project.status as ProjectStatus]}`}>
+                      {PROJECT_STATUS_LABELS[project.status as ProjectStatus]}
                     </span>
                   </td>
                   <td className="px-4 py-4">
@@ -223,7 +223,7 @@ export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTablePr
       {/* Assign Expenses to Project Modal */}
       {projectForExpenses && (
         <ExpenseProvider>
-          {React.createElement(AssignExpenseModal as any, {
+          {React.createElement(AssignExpenseModal as React.ComponentType<{ open: boolean; onOpenChange: (open: boolean) => void; entityType: string; entityId: string; entityName: string; onUpdate: () => void }>, {
             open: showExpensesModal,
             onOpenChange: (open: boolean) => {
               setShowExpensesModal(open);

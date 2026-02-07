@@ -28,7 +28,7 @@ interface WidgetCustomizerProps {
  * - Reset to defaults option
  */
 const WidgetCustomizer = ({ open, onOpenChange }: WidgetCustomizerProps) => {
-  const { getPreference, updatePreference } = usePreferences() as any;
+  const { getPreference, updatePreference } = usePreferences();
   const [widgets, setWidgets] = useState<WidgetItem[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -38,7 +38,7 @@ const WidgetCustomizer = ({ open, onOpenChange }: WidgetCustomizerProps) => {
       const layout = getPreference('dashboard_widgets', {
         widgets: getWidgetDefaults(),
         version: 1,
-      });
+      }) as { widgets: any[]; version: number };
       setWidgets(layout.widgets || getWidgetDefaults());
     }
   }, [open, getPreference]);

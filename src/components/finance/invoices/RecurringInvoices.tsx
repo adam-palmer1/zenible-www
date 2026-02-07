@@ -19,8 +19,6 @@ import KPICard from '../shared/KPICard';
 import ActionMenu from '../../shared/ActionMenu';
 import ConfirmationModal from '../../common/ConfirmationModal';
 
-const invoicesAPIAny = invoicesAPI as any;
-
 // Recurring status configuration
 const RECURRING_STATUS = {
   ACTIVE: 'active',
@@ -53,7 +51,7 @@ interface StatusBadgeProps {
 
 const RecurringInvoices: React.FC = () => {
   const navigate = useNavigate();
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
 
   // State
   const [templates, setTemplates] = useState<any[]>([]);
@@ -73,15 +71,15 @@ const RecurringInvoices: React.FC = () => {
   const fetchTemplates = async () => {
     try {
       setLoading(true);
-      const params: Record<string, any> = {
+      const params: Record<string, string> = {
         pricing_type: 'recurring',
-        is_parent_only: true,
+        is_parent_only: 'true',
       };
       if (filterStatus !== 'all') {
         params.recurring_status = filterStatus;
       }
-      const response = await invoicesAPIAny.list(params);
-      setTemplates(response.items || response || []);
+      const response = await invoicesAPI.list(params);
+      setTemplates(response.items || []);
     } catch (error: any) {
       console.error('Failed to fetch recurring templates:', error);
       showError('Failed to load recurring invoices');
@@ -110,13 +108,6 @@ const RecurringInvoices: React.FC = () => {
     return { total: templates.length, active, paused, totalValue };
   }, [templates]);
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-  };
-
   // Get frequency label
   const getFrequencyLabel = (invoice: any) => {
     if (invoice.recurring_type === 'custom' && invoice.custom_every && invoice.custom_period) {
@@ -137,7 +128,7 @@ const RecurringInvoices: React.FC = () => {
   const handleGenerateNext = async (invoice: any) => {
     try {
       setActionLoading(invoice.id);
-      const newInvoice = await invoicesAPIAny.generateNext(invoice.id);
+      const newInvoice = await invoicesAPI.generateNext(invoice.id);
       showSuccess(`Generated invoice #${newInvoice.invoice_number}`);
       fetchTemplates();
     } catch (error: any) {
@@ -151,7 +142,7 @@ const RecurringInvoices: React.FC = () => {
   const handlePause = async (invoice: any) => {
     try {
       setActionLoading(invoice.id);
-      await invoicesAPIAny.update(invoice.id, { recurring_status: 'paused' });
+      await invoicesAPI.update(invoice.id, { recurring_status: 'paused' });
       showSuccess('Recurring invoice paused');
       fetchTemplates();
     } catch (error: any) {
@@ -165,7 +156,7 @@ const RecurringInvoices: React.FC = () => {
   const handleResume = async (invoice: any) => {
     try {
       setActionLoading(invoice.id);
-      await invoicesAPIAny.update(invoice.id, { recurring_status: 'active' });
+      await invoicesAPI.update(invoice.id, { recurring_status: 'active' });
       showSuccess('Recurring invoice resumed');
       fetchTemplates();
     } catch (error: any) {
@@ -186,7 +177,7 @@ const RecurringInvoices: React.FC = () => {
 
     try {
       setActionLoading(invoice.id);
-      await invoicesAPIAny.update(invoice.id, { recurring_status: 'cancelled' });
+      await invoicesAPI.update(invoice.id, { recurring_status: 'cancelled' });
       showSuccess('Recurring invoice cancelled');
       fetchTemplates();
     } catch (error: any) {

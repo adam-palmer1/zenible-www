@@ -24,12 +24,51 @@ import {
   PAYMENT_STATUS_COLORS,
   PAYMENT_TYPE_LABELS,
   PAYMENT_TYPE_COLORS,
-  PAYMENT_METHOD_LABELS
+  PAYMENT_METHOD_LABELS,
+  type PaymentStatus,
+  type PaymentType,
+  type PaymentMethod,
 } from '../../../constants/finance';
 import { formatCurrency } from '../../../utils/currency';
 import { formatDate } from '../../../utils/dateUtils';
 import KPICard from '../shared/KPICard';
 import DateRangeFilter from '../expenses/DateRangeFilter';
+import type { PaymentCurrencyTotal } from '../../../types/finance';
+
+/** Shape of a payment item as returned from the PaymentsContext (backend list). */
+interface PaymentItem {
+  id: string;
+  payment_number?: string;
+  payment_date?: string;
+  created_at?: string;
+  amount: string | number;
+  status: string;
+  type?: string;
+  payment_method?: string;
+  description?: string;
+  customer_name?: string;
+  customer_email?: string;
+  currency_code?: string;
+  contact?: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    business_name: string | null;
+    email: string | null;
+  } | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+  } | null;
+}
+
+/** Shape of the converted total objects in stats. */
+interface ConvertedTotal {
+  total: string | number;
+  currency_code: string;
+}
 
 interface StatusBadgeProps {
   status: string;
@@ -55,8 +94,8 @@ const PaymentList: React.FC = () => {
     openEditModal,
     deletePayment,
     refresh
-  } = usePayments() as any;
-  const { showSuccess, showError } = useNotification() as any;
+  } = usePayments();
+  const { showSuccess, showError } = useNotification();
 
   // Local state - search is client-side only (backend doesn't support search param)
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,13 +104,13 @@ const PaymentList: React.FC = () => {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
-  const deleteConfirmation = useDeleteConfirmation<any>();
+  const deleteConfirmation = useDeleteConfirmation<PaymentItem>();
 
   // Handle payment query parameter - open payment detail modal
   const urlPaymentId = searchParams.get('payment');
   useEffect(() => {
     if (urlPaymentId && payments.length > 0 && !loading) {
-      const payment = payments.find((p: any) => p.id === urlPaymentId);
+      const payment = (payments as PaymentItem[]).find((p) => p.id === urlPaymentId);
       if (payment) {
         openDetailModal(payment);
       }
@@ -110,21 +149,21 @@ const PaymentList: React.FC = () => {
   ];
 
   // Format converted total for main display
-  const getConvertedDisplay = (convertedObj: any) => {
+  const getConvertedDisplay = (convertedObj: ConvertedTotal | null | undefined) => {
     if (!convertedObj || !convertedObj.total) return '0.00';
     return formatCurrency(convertedObj.total, convertedObj.currency_code);
   };
 
   // Get subtitle for multi-currency breakdown (shows original amounts)
-  const getCurrencySubtitle = (currencyArray: any[]) => {
+  const getCurrencySubtitle = (currencyArray: PaymentCurrencyTotal[]) => {
     if (!currencyArray || currencyArray.length === 0) return null;
     return currencyArray
-      .map((item: any) => `${item.currency_symbol}${parseFloat(item.total).toLocaleString()}`)
+      .map((item: PaymentCurrencyTotal) => `${item.currency_symbol}${parseFloat(item.total).toLocaleString()}`)
       .join(' + ');
   };
 
   // Helper to get customer display name from contact object
-  const getCustomerName = (payment: any) => {
+  const getCustomerName = (payment: PaymentItem) => {
     if (payment.contact) {
       const { first_name, last_name, business_name } = payment.contact;
       if (first_name || last_name) {
@@ -136,22 +175,22 @@ const PaymentList: React.FC = () => {
   };
 
   // Helper to get customer email from contact object
-  const getCustomerEmail = (payment: any) => {
+  const getCustomerEmail = (payment: PaymentItem) => {
     return payment.contact?.email || payment.customer_email || null;
   };
 
   // Helper to get currency code
-  const getCurrencyCode = (payment: any) => {
+  const getCurrencyCode = (payment: PaymentItem) => {
     return payment.currency?.code || payment.currency_code || 'USD';
   };
 
   // Filter payments locally for search
   const filteredPayments = useMemo(() => {
-    let result = [...payments];
+    let result = [...payments] as PaymentItem[];
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter((p: any) => {
+      result = result.filter((p: PaymentItem) => {
         const customerName = getCustomerName(p).toLowerCase();
         const customerEmail = getCustomerEmail(p)?.toLowerCase() || '';
         return (
@@ -203,24 +242,24 @@ const PaymentList: React.FC = () => {
 
   // Handle page change
   const handlePageChange = (page: number) => {
-    setPagination((prev: any) => ({ ...prev, page }));
+    setPagination((prev) => ({ ...prev, page }));
   };
 
   // Handle view payment
-  const handleViewPayment = (payment: any) => {
+  const handleViewPayment = (payment: PaymentItem) => {
     openDetailModal(payment);
     setOpenActionMenuId(null);
   };
 
   // Handle edit payment
-  const handleEditPayment = (payment: any) => {
+  const handleEditPayment = (payment: PaymentItem) => {
     openEditModal(payment);
     setOpenActionMenuId(null);
   };
 
   // Handle refund
-  const handleRefund = (payment: any) => {
-    if (payment.status !== (PAYMENT_STATUS as any).COMPLETED && payment.status !== (PAYMENT_STATUS as any).SUCCEEDED) {
+  const handleRefund = (payment: PaymentItem) => {
+    if (payment.status !== PAYMENT_STATUS.COMPLETED && payment.status !== PAYMENT_STATUS.SUCCEEDED) {
       showError('Only completed payments can be refunded');
       return;
     }
@@ -229,20 +268,20 @@ const PaymentList: React.FC = () => {
   };
 
   // Handle delete - show confirmation
-  const handleDeleteClick = (payment: any) => {
+  const handleDeleteClick = (payment: PaymentItem) => {
     deleteConfirmation.requestDelete(payment);
     setOpenActionMenuId(null);
   };
 
   // Confirm delete
   const handleConfirmDelete = async () => {
-    await deleteConfirmation.confirmDelete(async (payment: any) => {
+    await deleteConfirmation.confirmDelete(async (payment: PaymentItem) => {
       setDeletingPaymentId(payment.id);
       try {
         await deletePayment(payment.id);
         showSuccess('Payment deleted successfully');
-      } catch (err: any) {
-        showError(err.message || 'Failed to delete payment');
+      } catch (err: unknown) {
+        showError((err as Error).message || 'Failed to delete payment');
         throw err;
       } finally {
         setDeletingPaymentId(null);
@@ -258,15 +297,15 @@ const PaymentList: React.FC = () => {
 
   // Status badge component
   const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${(PAYMENT_STATUS_COLORS as any)[status] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}>
-      {(PAYMENT_STATUS_LABELS as any)[status] || status}
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${PAYMENT_STATUS_COLORS[status as PaymentStatus] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}>
+      {PAYMENT_STATUS_LABELS[status as PaymentStatus] || status}
     </span>
   );
 
   // Type badge component
   const TypeBadge: React.FC<TypeBadgeProps> = ({ type }) => (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${(PAYMENT_TYPE_COLORS as any)[type] || 'bg-gray-100 text-gray-700'}`}>
-      {(PAYMENT_TYPE_LABELS as any)[type] || type}
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PAYMENT_TYPE_COLORS[type as PaymentType] || 'bg-gray-100 text-gray-700'}`}>
+      {PAYMENT_TYPE_LABELS[type as PaymentType] || type}
     </span>
   );
 
@@ -285,15 +324,15 @@ const PaymentList: React.FC = () => {
         />
         <KPICard
           title="Total Received"
-          value={loading ? '...' : getConvertedDisplay(stats?.converted_total)}
-          subtitle={!loading && stats?.total_by_currency?.length > 0 ? getCurrencySubtitle(stats.total_by_currency) : undefined}
+          value={loading ? '...' : getConvertedDisplay(stats?.converted_total as ConvertedTotal | undefined)}
+          subtitle={!loading && (stats?.total_by_currency as PaymentCurrencyTotal[] | undefined)?.length ? getCurrencySubtitle(stats!.total_by_currency as PaymentCurrencyTotal[]) : undefined}
           icon={CheckCircle}
           iconColor="green"
         />
         <KPICard
           title="Refunded"
-          value={loading ? '...' : getConvertedDisplay(stats?.converted_refunded)}
-          subtitle={!loading && stats?.refunded_by_currency?.length > 0 ? getCurrencySubtitle(stats.refunded_by_currency) : undefined}
+          value={loading ? '...' : getConvertedDisplay(stats?.converted_refunded as ConvertedTotal | undefined)}
+          subtitle={!loading && (stats?.refunded_by_currency as PaymentCurrencyTotal[] | undefined)?.length ? getCurrencySubtitle(stats!.refunded_by_currency as PaymentCurrencyTotal[]) : undefined}
           icon={RotateCcw}
           iconColor="orange"
         />
@@ -330,7 +369,7 @@ const PaymentList: React.FC = () => {
             <DateRangeFilter
               startDate={filters.start_date}
               endDate={filters.end_date}
-              onChange={({ start_date, end_date }: { start_date: string; end_date: string }) => {
+              onChange={({ start_date, end_date }: { start_date: string | null; end_date: string | null }) => {
                 updateFilters({ start_date, end_date });
               }}
             />
@@ -342,7 +381,7 @@ const PaymentList: React.FC = () => {
                 className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 <Filter className="h-4 w-4" />
-                {filterStatus === 'all' ? 'All Status' : (PAYMENT_STATUS_LABELS as any)[filterStatus]}
+                {filterStatus === 'all' ? 'All Status' : PAYMENT_STATUS_LABELS[filterStatus as PaymentStatus]}
               </button>
               {showFilterDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 dark:bg-gray-800 dark:border-gray-600">
@@ -470,7 +509,7 @@ const PaymentList: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredPayments.map((payment: any) => {
+                  filteredPayments.map((payment: PaymentItem) => {
                     const customerName = getCustomerName(payment);
                     const customerEmail = getCustomerEmail(payment);
                     const currencyCode = getCurrencyCode(payment);
@@ -499,7 +538,7 @@ const PaymentList: React.FC = () => {
                         {formatCurrency(payment.amount, currencyCode)}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                        {(PAYMENT_METHOD_LABELS as any)[payment.payment_method] || payment.payment_method || '-'}
+                        {PAYMENT_METHOD_LABELS[payment.payment_method as PaymentMethod] || payment.payment_method || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <div className="flex flex-wrap gap-1">
@@ -526,7 +565,7 @@ const PaymentList: React.FC = () => {
                               {
                                 label: 'Refund',
                                 onClick: () => handleRefund(payment),
-                                condition: payment.status === (PAYMENT_STATUS as any).COMPLETED || payment.status === (PAYMENT_STATUS as any).SUCCEEDED,
+                                condition: payment.status === PAYMENT_STATUS.COMPLETED || payment.status === PAYMENT_STATUS.SUCCEEDED,
                                 variant: 'warning'
                               },
                               { label: 'Delete', onClick: () => handleDeleteClick(payment), variant: 'danger' },

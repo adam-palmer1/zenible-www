@@ -10,14 +10,13 @@ const CountriesTab: React.FC = () => {
   const {
     countries,
     companyCountries,
-    defaultCountry,
     loading,
     addCountry,
     removeCountry,
     setDefaultCountry: setDefault,
-  } = useCountries() as any;
+  } = useCountries();
 
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

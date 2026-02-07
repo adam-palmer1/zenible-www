@@ -9,8 +9,8 @@ import { ExpenseProvider } from '../contexts/ExpenseContext';
 import { PaymentsProvider } from '../contexts/PaymentsContext';
 
 export default function ProtectedDashboard() {
-  const { user, loading } = useAuth() as any;
-  const { preferences, loading: prefsLoading } = usePreferences() as any;
+  const { user, loading } = useAuth();
+  const { preferences, loading: prefsLoading } = usePreferences();
   const navigate = useNavigate();
   const [showFirstSignIn, setShowFirstSignIn] = useState(false);
   const hasCheckedOnboarding = useRef(false);
@@ -36,7 +36,7 @@ export default function ProtectedDashboard() {
       } else if (onboardingStatus === 'deferred' && reminderDate) {
         // Check if it's time to show the reminder
         const now = new Date();
-        const reminder = new Date(reminderDate);
+        const reminder = new Date(reminderDate as string);
         setShowFirstSignIn(now >= reminder);
       } else {
         // For null, undefined, or any other value - show the modal

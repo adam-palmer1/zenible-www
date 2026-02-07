@@ -6,6 +6,11 @@ let attributesCache: Record<string, string> | null = null;
 let cacheTimestamp: number | null = null;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes (attributes rarely change)
 
+interface CompanyAttribute {
+  attribute_name: string;
+  attribute_value: string;
+}
+
 interface SetResult {
   success: boolean;
   error?: string;
@@ -36,8 +41,8 @@ export const useCompanyAttributes = () => {
     try {
       const result = await companyAttributesAPI.getAll();
       // Convert array to object for easier access
-      const attributesObj = (result as any[]).reduce((acc: Record<string, string>, attr: unknown) => {
-        acc[(attr as any).attribute_name] = (attr as any).attribute_value;
+      const attributesObj = (result as CompanyAttribute[]).reduce((acc: Record<string, string>, attr: CompanyAttribute) => {
+        acc[attr.attribute_name] = attr.attribute_value;
         return acc;
       }, {} as Record<string, string>);
 

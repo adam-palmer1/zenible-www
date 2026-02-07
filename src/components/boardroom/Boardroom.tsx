@@ -24,7 +24,7 @@ export default function Boardroom() {
       setLoadingCharacters(true);
       const data = await aiCharacterAPI.getUserCharacters({
         per_page: '50' // Get more characters for variety
-      } as any);
+      });
 
       setCharacters(data || []);
     } catch (error) {

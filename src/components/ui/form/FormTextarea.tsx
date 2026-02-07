@@ -39,7 +39,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary ${
           error ? 'border-red-500' : 'border-gray-300'
         }`}
-        {...register(name, registerOptions as any)}
+        {...register(name, registerOptions)}
         {...textareaProps}
       />
       {error && (

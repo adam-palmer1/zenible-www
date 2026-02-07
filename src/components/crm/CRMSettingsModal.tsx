@@ -5,6 +5,11 @@ import statusesAPI from '../../services/api/crm/statuses';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useModalState } from '../../hooks/useModalState';
 import ConfirmationModal from '../common/ConfirmationModal';
+import type { SimpleStatusResponse, AvailableStatuses } from '../../types/crm';
+
+interface StatusData extends SimpleStatusResponse {
+  isGlobal?: boolean;
+}
 
 interface CRMSettingsModalProps {
   isOpen: boolean;
@@ -13,38 +18,38 @@ interface CRMSettingsModalProps {
 }
 
 interface StatusRowProps {
-  status: any;
+  status: SimpleStatusResponse;
   isSystem: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
 }
 
 interface StatusFormModalProps {
-  status: any;
+  status: StatusData | null;
   onClose: () => void;
   onSuccess: () => void;
 }
 
 interface DeleteStatusModalProps {
-  status: any;
+  status: SimpleStatusResponse;
   onClose: () => void;
   onSuccess: () => void;
 }
 
 const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [globalStatuses, setGlobalStatuses] = useState<any[]>([]);
-  const [customStatuses, setCustomStatuses] = useState<any[]>([]);
+  const [globalStatuses, setGlobalStatuses] = useState<SimpleStatusResponse[]>([]);
+  const [customStatuses, setCustomStatuses] = useState<SimpleStatusResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const createModal = useModalState();
-  const [editingStatus, setEditingStatus] = useState<any>(null);
-  const [deletingStatus, setDeletingStatus] = useState<any>(null);
-  const { showSuccess, showError } = useNotification() as any;
+  const [editingStatus, setEditingStatus] = useState<StatusData | null>(null);
+  const [deletingStatus, setDeletingStatus] = useState<SimpleStatusResponse | null>(null);
+  const { showError } = useNotification();
 
   // Fetch statuses
   const fetchStatuses = async () => {
     try {
       setLoading(true);
-      const data = await (statusesAPI as any).getAvailable();
+      const data = await statusesAPI.getAvailable() as AvailableStatuses;
       setGlobalStatuses(data.global_statuses || []);
       setCustomStatuses(data.custom_statuses || []);
     } catch (error) {
@@ -88,7 +93,7 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
                     </div>
 
                     <div className="space-y-0 border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
-                      {globalStatuses.map((status: any) => (
+                      {globalStatuses.map((status) => (
                         <StatusRow
                           key={status.id}
                           status={status}
@@ -127,7 +132,7 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
                       </div>
                     ) : (
                       <div className="space-y-0 border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
-                        {customStatuses.map((status: any) => (
+                        {customStatuses.map((status) => (
                           <StatusRow
                             key={status.id}
                             status={status}
@@ -232,7 +237,7 @@ const StatusRow: React.FC<StatusRowProps> = ({ status, isSystem, onEdit, onDelet
 const StatusFormModal: React.FC<StatusFormModalProps> = ({ status, onClose, onSuccess }) => {
   const isEdit = !!status;
   const isGlobal = status?.isGlobal || false;
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
 
   const [formData, setFormData] = useState({
     name: status?.name || '',
@@ -279,7 +284,7 @@ const StatusFormModal: React.FC<StatusFormModalProps> = ({ status, onClose, onSu
     try {
       if (isEdit) {
         // Update existing status
-        const updateData: any = {
+        const updateData: { friendly_name: string; color: string; name?: string } = {
           friendly_name: formData.friendly_name,
           color: formData.color,
         };
@@ -289,14 +294,14 @@ const StatusFormModal: React.FC<StatusFormModalProps> = ({ status, onClose, onSu
         }
 
         if (isGlobal) {
-          await (statusesAPI as any).updateGlobal(status.id, updateData);
+          await statusesAPI.updateGlobal(status.id, updateData);
         } else {
-          await (statusesAPI as any).updateCustom(status.id, updateData);
+          await statusesAPI.updateCustom(status.id, updateData);
         }
         showSuccess('Status updated successfully');
       } else {
         // Create new custom status
-        await (statusesAPI as any).createCustom(formData);
+        await statusesAPI.createCustom(formData);
         showSuccess('Status created successfully');
       }
 
@@ -402,15 +407,15 @@ const StatusFormModal: React.FC<StatusFormModalProps> = ({ status, onClose, onSu
 
 // Delete Status Modal
 const DeleteStatusModal: React.FC<DeleteStatusModalProps> = ({ status, onClose, onSuccess }) => {
-  const { showSuccess, showError } = useNotification() as any;
-  const [deleting, setDeleting] = useState(false);
+  const { showSuccess, showError } = useNotification();
+  const [, setDeleting] = useState(false);
   const [contactCount, setContactCount] = useState<number | null>(null);
 
   const handleDelete = async () => {
     setDeleting(true);
 
     try {
-      await (statusesAPI as any).deleteCustom(status.id);
+      await statusesAPI.deleteCustom(status.id);
       showSuccess('Status deleted successfully');
       onSuccess();
     } catch (error: any) {

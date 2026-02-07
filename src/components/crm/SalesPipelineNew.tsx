@@ -60,15 +60,15 @@ const SalesPipelineNew: React.FC<SalesPipelineNewProps> = ({
   statuses = [],
   globalStatuses = [],
   customStatuses = [],
-  onAddContact,
+  onAddContact: _onAddContact,
   onContactClick,
   onUpdateContact,
   sortOrder = null,
   onStatusUpdate,
   onColumnReorder,
 }) => {
-  const { openContactModal } = useCRM() as any;
-  const { showError } = useNotification() as any;
+  const { openContactModal } = useCRM();
+  const { showError } = useNotification();
 
   // Track active dragging item
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -112,15 +112,15 @@ const SalesPipelineNew: React.FC<SalesPipelineNewProps> = ({
           const nextAppointmentA = getNextAppointment(a.appointments);
           const nextAppointmentB = getNextAppointment(b.appointments);
 
-          const hasAppointmentA = !!(nextAppointmentA as any)?.start_datetime;
-          const hasAppointmentB = !!(nextAppointmentB as any)?.start_datetime;
+          const hasAppointmentA = !!nextAppointmentA?.start_datetime;
+          const hasAppointmentB = !!nextAppointmentB?.start_datetime;
 
           if (!hasAppointmentA && !hasAppointmentB) return 0;
           if (!hasAppointmentA) return 1;
           if (!hasAppointmentB) return -1;
 
-          const dateA = new Date((nextAppointmentA as any).start_datetime);
-          const dateB = new Date((nextAppointmentB as any).start_datetime);
+          const dateA = new Date(nextAppointmentA!.start_datetime!);
+          const dateB = new Date(nextAppointmentB!.start_datetime!);
           return dateA.getTime() - dateB.getTime();
         });
       } else {

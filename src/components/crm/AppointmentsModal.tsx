@@ -9,10 +9,30 @@ import appointmentsAPI from '../../services/api/crm/appointments';
 import { useNotification } from '../../contexts/NotificationContext';
 import ConfirmationModal from '../common/ConfirmationModal';
 
+interface AppointmentItem {
+  id: string;
+  start_datetime?: string | null;
+  appointment_type?: string;
+  deleted_at?: string | null;
+  [key: string]: unknown;
+}
+
+interface AppointmentsContact {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  business_name?: string | null;
+  email?: string | null;
+  is_hidden?: boolean;
+  is_client?: boolean;
+  appointments?: AppointmentItem[] | null;
+  [key: string]: unknown;
+}
+
 interface AppointmentsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  contact: any;
+  contact: AppointmentsContact;
 }
 
 /**
@@ -21,16 +41,16 @@ interface AppointmentsModalProps {
  */
 const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, contact }) => {
   const [mode, setMode] = useState<'list' | 'create' | 'edit'>('list');
-  const [editingAppointment, setEditingAppointment] = useState<any>(null);
+  const [editingAppointment, setEditingAppointment] = useState<AppointmentItem | null>(null);
   const [appointmentType, setAppointmentType] = useState('call');
   const [appointmentDate, setAppointmentDate] = useState(new Date().toISOString().split('T')[0]);
   const [appointmentTime, setAppointmentTime] = useState(getNextHour());
-  const { setFollowUp, refreshContacts } = useContactActions() as any;
-  const { showSuccess, showError } = useNotification() as any;
-  const [cancelConfirmModal, setCancelConfirmModal] = useState<{ isOpen: boolean; appointment: any }>({ isOpen: false, appointment: null });
+  const { setFollowUp, refreshContacts } = useContactActions();
+  const { showSuccess, showError } = useNotification();
+  const [cancelConfirmModal, setCancelConfirmModal] = useState<{ isOpen: boolean; appointment: AppointmentItem | null }>({ isOpen: false, appointment: null });
 
   const displayName = getContactDisplayName(contact);
-  const scheduledAppointments = getScheduledAppointments(contact.appointments);
+  const scheduledAppointments = getScheduledAppointments(contact.appointments) as AppointmentItem[];
 
   // Reset to list mode when modal opens/closes
   useEffect(() => {
@@ -50,7 +70,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   };
 
   // Initialize form when editing appointment
-  const handleEdit = (appointment: any) => {
+  const handleEdit = (appointment: AppointmentItem) => {
     setMode('edit');
     setEditingAppointment(appointment);
 
@@ -91,7 +111,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       const endDate = new Date(startDate.getTime() + 60 * 60000);
       const endDateTime = endDate.toISOString().slice(0, 19);
 
-      await (appointmentsAPI as any).update(editingAppointment.id, {
+      await appointmentsAPI.update(editingAppointment.id, {
         start_datetime: dateTimeValue,
         end_datetime: endDateTime,
         appointment_type: appointmentType
@@ -112,7 +132,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   };
 
   // Handle cancelling appointment
-  const handleCancel = (appointment: any) => {
+  const handleCancel = (appointment: AppointmentItem) => {
     setCancelConfirmModal({ isOpen: true, appointment });
   };
 
@@ -121,7 +141,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
     if (!appointment) return;
 
     try {
-      await (appointmentsAPI as any).delete(appointment.id);
+      await appointmentsAPI.delete(appointment.id);
 
       showSuccess('Appointment cancelled successfully');
       setCancelConfirmModal({ isOpen: false, appointment: null });
@@ -141,9 +161,9 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: (Z_INDEX as any).MODAL_BACKDROP }}>
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: Z_INDEX.MODAL_BACKDROP }}>
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 p-6" style={{ zIndex: (Z_INDEX as any).MODAL }}>
+      <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 p-6" style={{ zIndex: Z_INDEX.MODAL }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -171,9 +191,9 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                   Scheduled Appointments ({scheduledAppointments.length})
                 </h4>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {scheduledAppointments.map((appointment: any) => {
+                  {scheduledAppointments.map((appointment) => {
                     const isCall = appointment.appointment_type === 'call';
-                    const date = new Date(appointment.start_datetime);
+                    const date = new Date(appointment.start_datetime ?? '');
 
                     return (
                       <div

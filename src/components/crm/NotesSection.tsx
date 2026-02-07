@@ -3,13 +3,14 @@ import { PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/
 import { useContactNotes } from '../../hooks/crm';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
 import ConfirmationModal from '../common/ConfirmationModal';
+import { LoadingSpinner } from '../shared';
 
 interface NotesSectionProps {
   contactId: string;
 }
 
 const NotesSection: React.FC<NotesSectionProps> = ({ contactId }) => {
-  const { notes, loading, fetchNotes, createNote, updateNote, deleteNote } = useContactNotes(contactId) as any;
+  const { notes, loading, fetchNotes, createNote, updateNote, deleteNote } = useContactNotes(contactId);
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ title: '', content: '' });
@@ -81,11 +82,7 @@ const NotesSection: React.FC<NotesSectionProps> = ({ contactId }) => {
   };
 
   if (loading && (notes || []).length === 0) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="py-8" />;
   }
 
   return (

@@ -67,7 +67,7 @@ const PaymentCallback: React.FC = () => {
       // Complete OAuth flow with backend
       setMessage(`Connecting ${provider === 'stripe' ? 'Stripe' : 'PayPal'}...`);
 
-      await (paymentIntegrationsAPI as any).handleOAuthCallback({
+      await paymentIntegrationsAPI.handleOAuthCallback({
         provider,
         code,
         state,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { PieChart } from 'lucide-react';
+import type { ExpenseAllocationResponse } from '../../../types/finance';
 
 const ENTITY_COLORS: Record<string, { bg: string; text: string; light: string }> = {
   invoice: { bg: 'bg-blue-500', text: 'text-blue-600', light: 'bg-blue-100' },
@@ -8,9 +9,14 @@ const ENTITY_COLORS: Record<string, { bg: string; text: string; light: string }>
   contact: { bg: 'bg-purple-500', text: 'text-purple-600', light: 'bg-purple-100' },
 };
 
+interface AllocationSegmentData {
+  percentage: number;
+  count: number;
+}
+
 interface ExpenseAllocationBarProps {
   totalPercentage?: number;
-  allocations?: any[];
+  allocations?: ExpenseAllocationResponse[];
   compact?: boolean;
   showLabel?: boolean;
   showTooltip?: boolean;
@@ -30,7 +36,7 @@ const ExpenseAllocationBar: React.FC<ExpenseAllocationBarProps> = ({
   const hasAllocations = total > 0;
   const barHeight = compact ? 'h-1.5' : 'h-2';
 
-  const allocationsByType = allocations.reduce((acc: Record<string, { percentage: number; count: number }>, alloc: any) => {
+  const allocationsByType = allocations.reduce((acc: Record<string, AllocationSegmentData>, alloc: ExpenseAllocationResponse) => {
     const type = alloc.entity_type;
     if (!acc[type]) {
       acc[type] = { percentage: 0, count: 0 };
@@ -42,15 +48,15 @@ const ExpenseAllocationBar: React.FC<ExpenseAllocationBarProps> = ({
 
   const segments = Object.entries(allocationsByType).map(([type, data]) => ({
     type,
-    percentage: (data as any).percentage,
-    count: (data as any).count,
+    percentage: data.percentage,
+    count: data.count,
     color: ENTITY_COLORS[type]?.bg || 'bg-gray-500',
   }));
 
   return (
     <div
       className={`group relative ${onClick ? 'cursor-pointer' : ''}`}
-      onClick={onClick as any}
+      onClick={onClick ? (e: React.MouseEvent<HTMLDivElement>) => onClick(e) : undefined}
       title={showTooltip ? `${total.toFixed(0)}% allocated` : undefined}
     >
       <div className="flex items-center gap-2">

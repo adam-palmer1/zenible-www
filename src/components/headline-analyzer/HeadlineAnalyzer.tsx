@@ -5,16 +5,106 @@ import NewSidebar from '../sidebar/NewSidebar';
 import PlatformSelector from '../proposal-wizard/PlatformSelector';
 import HeadlineInput from './HeadlineInput';
 import AIFeedbackSection from '../shared/AIFeedbackSection';
+import type { FeedbackData, MetricsData } from '../shared/ai-feedback/types';
 import PersonalizeAIBanner from '../shared/PersonalizeAIBanner';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useHeadlineAnalysis } from '../../hooks/useHeadlineAnalysis';
-import { WebSocketContext } from '../../contexts/WebSocketContext';
+import { WebSocketContext, WebSocketContextValue } from '../../contexts/WebSocketContext';
 import { useAuth } from '../../contexts/AuthContext';
 import aiCharacterAPI from '../../services/aiCharacterAPI';
 import userAPI from '../../services/userAPI';
 import { getCharacterTools } from '../../services/toolDiscoveryAPI';
 import UsageLimitBadge from '../ui/UsageLimitBadge';
 import { useModalState } from '../../hooks/useModalState';
+
+interface AICharacter {
+  id: string;
+  name: string;
+  internal_name: string;
+  description?: string | null;
+  avatar_url?: string | null;
+}
+
+interface UserFeatures {
+  headline_analyzer?: { enabled?: boolean };
+  system_features?: { headline_analyzer_model?: string[] };
+  [key: string]: unknown;
+}
+
+interface ConversationListResponse {
+  conversations?: ConversationSummary[];
+  total_pages?: number;
+  [key: string]: unknown;
+}
+
+interface ConversationSummary {
+  id: string;
+  created_at: string;
+  message_count: number;
+  [key: string]: unknown;
+}
+
+interface ConversationMessagesResponse {
+  messages?: RawConversationMessage[];
+  total_pages?: number;
+  [key: string]: unknown;
+}
+
+interface RawConversationMessage {
+  id: string;
+  content: string;
+  sender_type: string;
+  created_at: string;
+  metadata?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+interface ConversationMessage {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string;
+  sender_type?: string;
+  metadata?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+interface AnalysisFeedback {
+  isProcessing: boolean;
+  score?: number | null;
+  analysis?: unknown;
+  structured?: unknown;
+  raw?: string;
+  messageId?: string | null;
+  usage?: unknown;
+  contentType?: unknown;
+  error?: string;
+}
+
+interface FollowUpMessage {
+  role: string;
+  content: string;
+  timestamp: string;
+  messageId?: string | null;
+  usage?: unknown;
+}
+
+interface CompletionQuestion {
+  id: string | number;
+  question_text: string;
+  order_index: number;
+}
+
+interface AnalysisHistoryEntry {
+  role: string;
+  type?: string;
+  content: string;
+  structured?: unknown;
+  messageId?: string;
+  usage?: unknown;
+  timestamp: string;
+  isStreaming?: boolean;
+}
 
 export default function HeadlineAnalyzer() {
   const { darkMode } = usePreferences();
@@ -23,29 +113,29 @@ export default function HeadlineAnalyzer() {
   // State
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [headline, setHeadline] = useState('');
-  const [feedback, setFeedback] = useState<any>(null);
-  const [availableCharacters, setAvailableCharacters] = useState<any[]>([]);
+  const [feedback, setFeedback] = useState<AnalysisFeedback | null>(null);
+  const [availableCharacters, setAvailableCharacters] = useState<AICharacter[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [selectedCharacterName, setSelectedCharacterName] = useState('');
   const [selectedCharacterAvatar, setSelectedCharacterAvatar] = useState<string | null>(null);
   const [selectedCharacterDescription, setSelectedCharacterDescription] = useState('');
   const [loadingCharacters, setLoadingCharacters] = useState(true);
-  const [userFeatures, setUserFeatures] = useState<any>(null);
-  const [featureEnabled, setFeatureEnabled] = useState(true);
-  const [followUpMessages, setFollowUpMessages] = useState<any[]>([]);
+  const [, setUserFeatures] = useState<UserFeatures | null>(null);
+  const [, setFeatureEnabled] = useState(true);
+  const [followUpMessages, setFollowUpMessages] = useState<FollowUpMessage[]>([]);
   const [isFollowUpStreaming, setIsFollowUpStreaming] = useState(false);
   const [followUpStreamingContent, setFollowUpStreamingContent] = useState('');
-  const [characterTools, setCharacterTools] = useState<any>(null);
-  const [analysisHistory, setAnalysisHistory] = useState<any[]>([]);
+  const [characterTools, setCharacterTools] = useState<{ available_tools?: { name: string; is_enabled: boolean; completion_questions?: CompletionQuestion[] }[] } | null>(null);
+  const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryEntry[]>([]);
 
   // History modal state
   const historyModal = useModalState();
-  const [conversations, setConversations] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [conversationPage, setConversationPage] = useState(1);
   const [totalConversationPages, setTotalConversationPages] = useState(1);
-  const [selectedHistoryConversation, setSelectedHistoryConversation] = useState<any>(null);
-  const [conversationMessages, setConversationMessages] = useState<any[]>([]);
+  const [selectedHistoryConversation, setSelectedHistoryConversation] = useState<ConversationSummary | null>(null);
+  const [conversationMessages, setConversationMessages] = useState<ConversationMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
   // Message pagination and filtering state
@@ -57,10 +147,8 @@ export default function HeadlineAnalyzer() {
   // Get WebSocket context
   const {
     isConnected,
-    sendMessage,
     onConversationEvent,
-    conversationManager
-  } = useContext(WebSocketContext) as any;
+  } = useContext(WebSocketContext) as WebSocketContextValue;
 
   // Use Headline Analysis hook
   const {
@@ -70,7 +158,6 @@ export default function HeadlineAnalyzer() {
     streamingContent,
     analysis,
     structuredAnalysis,
-    error: analysisError,
     metrics,
     messageId,
     analyzeHeadline: sendAnalysis,
@@ -79,35 +166,36 @@ export default function HeadlineAnalyzer() {
     reset: resetAnalysis,
     clearConversation
   } = useHeadlineAnalysis({
-    characterId: selectedCharacterId,
+    characterId: selectedCharacterId || '',
     panelId: 'headline_analyzer',
-    onAnalysisStarted: (data: any) => {
+    onAnalysisStarted: (_data: { conversationId: string; toolName: string }) => {
       setFeedback({
         isProcessing: true,
         score: null,
         analysis: null
       });
     },
-    onAnalysisComplete: (data: any) => {
+    onAnalysisComplete: (data: unknown) => {
+      const typed = data as { analysis: { raw: string; structured: unknown }; messageId: string | null; usage: unknown; contentType: unknown; toolName: string };
       // Set current feedback
       setFeedback({
         isProcessing: false,
-        analysis: data.analysis,
-        structured: data.analysis?.structured,
-        raw: data.analysis?.raw,
-        messageId: data.messageId,
-        usage: data.usage,
-        contentType: data.contentType
+        analysis: typed.analysis,
+        structured: typed.analysis?.structured,
+        raw: typed.analysis?.raw,
+        messageId: typed.messageId,
+        usage: typed.usage,
+        contentType: typed.contentType
       });
 
       // Add to analysis history
-      const newAnalysis = {
+      const newAnalysis: AnalysisHistoryEntry = {
         role: 'assistant',
         type: 'analysis',
-        content: data.analysis?.raw,
-        structured: data.analysis?.structured,
-        messageId: data.messageId,
-        usage: data.usage,
+        content: typed.analysis?.raw || '',
+        structured: typed.analysis?.structured,
+        messageId: typed.messageId || undefined,
+        usage: typed.usage,
         timestamp: new Date().toISOString()
       };
       setAnalysisHistory(prev => {
@@ -115,10 +203,10 @@ export default function HeadlineAnalyzer() {
         return newHistory;
       });
     },
-    onStreamingChunk: (data: any) => {
+    onStreamingChunk: (_data: { chunk: string; fullContent: string; chunkIndex: number; toolName: string }) => {
       // Optional: handle streaming chunks if needed
     },
-    onError: (error: any) => {
+    onError: (error: { error: string; validationErrors?: unknown[]; toolName?: string }) => {
       console.error('[HeadlineAnalyzer] Analysis error:', error);
       setFeedback({
         isProcessing: false,
@@ -135,7 +223,8 @@ export default function HeadlineAnalyzer() {
 
     // Handle follow-up message chunks
     unsubscribers.push(
-      onConversationEvent(conversationId, 'chunk', (data: any) => {
+      onConversationEvent(conversationId, 'chunk', (...args: unknown[]) => {
+        const data = args[0] as { toolName?: string; fullContent?: string };
         // Only handle non-tool responses (regular messages)
         if (!data.toolName) {
           setIsFollowUpStreaming(true);
@@ -146,7 +235,8 @@ export default function HeadlineAnalyzer() {
 
     // Handle follow-up message completion
     unsubscribers.push(
-      onConversationEvent(conversationId, 'complete', (data: any) => {
+      onConversationEvent(conversationId, 'complete', (...args: unknown[]) => {
+        const data = args[0] as { toolName?: string; fullResponse?: string; messageId?: string; usage?: unknown };
         // Only handle non-tool responses (regular messages)
         if (!data.toolName) {
           setIsFollowUpStreaming(false);
@@ -155,7 +245,7 @@ export default function HeadlineAnalyzer() {
           // Add completed message to follow-up messages
           setFollowUpMessages(prev => [...prev, {
             role: 'assistant',
-            content: data.fullResponse,
+            content: data.fullResponse || '',
             timestamp: new Date().toISOString(),
             messageId: data.messageId,
             usage: data.usage
@@ -166,7 +256,8 @@ export default function HeadlineAnalyzer() {
 
     // Handle errors
     unsubscribers.push(
-      onConversationEvent(conversationId, 'error', (data: any) => {
+      onConversationEvent(conversationId, 'error', (...args: unknown[]) => {
+        const data = args[0];
         console.error('[HeadlineAnalyzer] Follow-up error:', data);
         setIsFollowUpStreaming(false);
         setFollowUpStreamingContent('');
@@ -182,9 +273,9 @@ export default function HeadlineAnalyzer() {
   useEffect(() => {
     const loadUserFeatures = async () => {
       try {
-        const features = await userAPI.getCurrentUserFeatures();
+        const features = await userAPI.getCurrentUserFeatures() as UserFeatures;
         setUserFeatures(features);
-        const isEnabled = (features as any)?.headline_analyzer?.enabled ?? true;
+        const isEnabled = features?.headline_analyzer?.enabled ?? true;
         setFeatureEnabled(isEnabled);
       } catch (error) {
         console.error('Failed to load user features:', error);
@@ -202,17 +293,17 @@ export default function HeadlineAnalyzer() {
         setLoadingCharacters(true);
 
         // Get user features to see which characters are available for headline analyzer
-        const userFeatures = await userAPI.getCurrentUserFeatures();
-        const allowedCharacterNames = (userFeatures as any)?.system_features?.headline_analyzer_model || [];
+        const userFeatures = await userAPI.getCurrentUserFeatures() as UserFeatures;
+        const allowedCharacterNames = userFeatures?.system_features?.headline_analyzer_model || [];
 
         // Get all characters
-        const characters = await aiCharacterAPI.getUserCharacters();
+        const characters = await aiCharacterAPI.getUserCharacters() as AICharacter[];
 
         // Filter characters based on what's allowed for headline analyzer
         // If no specific characters are defined, show all characters
         let headlineCharacters = characters;
         if (allowedCharacterNames.length > 0) {
-          headlineCharacters = characters.filter((char: any) =>
+          headlineCharacters = characters.filter((char: AICharacter) =>
             allowedCharacterNames.includes(char.internal_name) ||
             allowedCharacterNames.includes(char.name.toLowerCase())
           );
@@ -221,10 +312,10 @@ export default function HeadlineAnalyzer() {
         setAvailableCharacters(headlineCharacters);
 
         if (headlineCharacters.length > 0 && !selectedCharacterId) {
-          const defaultChar = headlineCharacters[0] as any;
+          const defaultChar = headlineCharacters[0];
           setSelectedCharacterId(defaultChar.id);
           setSelectedCharacterName(defaultChar.name);
-          setSelectedCharacterAvatar(defaultChar.avatar_url);
+          setSelectedCharacterAvatar(defaultChar.avatar_url || null);
           setSelectedCharacterDescription(defaultChar.description || '');
         }
       } catch (error) {
@@ -232,15 +323,15 @@ export default function HeadlineAnalyzer() {
 
         // Fallback: if features endpoint fails, just load all characters
         try {
-          const characters = await aiCharacterAPI.getUserCharacters();
+          const characters = await aiCharacterAPI.getUserCharacters() as AICharacter[];
           setAvailableCharacters(characters);
 
           if (characters.length > 0 && !selectedCharacterId) {
-            const defaultChar = characters[0] as any;
+            const defaultChar = characters[0];
             setSelectedCharacterId(defaultChar.id);
             setSelectedCharacterName(defaultChar.name);
-            setSelectedCharacterAvatar(defaultChar.avatar_url);
-            setSelectedCharacterDescription(defaultChar.description);
+            setSelectedCharacterAvatar(defaultChar.avatar_url || null);
+            setSelectedCharacterDescription(defaultChar.description || '');
           }
         } catch (fallbackError) {
           console.error('Failed to load characters even in fallback:', fallbackError);
@@ -264,11 +355,11 @@ export default function HeadlineAnalyzer() {
         setCharacterTools(tools);
 
         // Check if character has both required tools
-        const hasAnalyzeTool = (tools as any).available_tools?.some(
-          (tool: any) => tool.name === 'analyze_headline' && tool.is_enabled
+        const hasAnalyzeTool = tools.available_tools?.some(
+          (tool) => tool.name === 'analyze_headline' && tool.is_enabled
         );
-        const hasGenerateTool = (tools as any).available_tools?.some(
-          (tool: any) => tool.name === 'generate_headline' && tool.is_enabled
+        const hasGenerateTool = tools.available_tools?.some(
+          (tool) => tool.name === 'generate_headline' && tool.is_enabled
         );
 
         if (!hasAnalyzeTool) {
@@ -286,10 +377,15 @@ export default function HeadlineAnalyzer() {
   }, [selectedCharacterId]);
 
   // Handle character selection
-  const handleCharacterSelect = (character: any) => {
+  const handleCharacterSelect = (character: AICharacter | string) => {
+    if (typeof character === 'string') {
+      const found = availableCharacters.find(c => c.id === character);
+      if (!found) return;
+      character = found;
+    }
     setSelectedCharacterId(character.id);
     setSelectedCharacterName(character.name);
-    setSelectedCharacterAvatar(character.avatar_url);
+    setSelectedCharacterAvatar(character.avatar_url || null);
     setSelectedCharacterDescription(character.description || '');
 
     // Clear conversation when switching characters
@@ -320,21 +416,21 @@ export default function HeadlineAnalyzer() {
       setFollowUpStreamingContent('');
 
       // Conditional tool selection based on headline content
-      let convId;
+      let _convId;
       if (headline && headline.trim()) {
         // Analyze existing headline
-        convId = await sendAnalysis(
+        _convId = await sendAnalysis(
           headline,
           selectedPlatform || 'linkedin'
         );
       } else {
         // Generate headline suggestions
-        convId = await sendGeneration(
+        _convId = await sendGeneration(
           '',
           selectedPlatform || 'linkedin'
         );
       }
-    } catch (error) {
+    } catch (_error) {
       setFeedback({
         isProcessing: false,
         error: 'Failed to process request. Please try again.'
@@ -352,13 +448,9 @@ export default function HeadlineAnalyzer() {
       throw new Error('Not connected to server');
     }
 
-    try {
-      // Send message using the hook
-      // Note: User message is added to conversationHistory in AIFeedbackSection
-      await sendFollowUp(message);
-    } catch (error) {
-      throw error;
-    }
+    // Send message using the hook
+    // Note: User message is added to conversationHistory in AIFeedbackSection
+    await sendFollowUp(message);
   };
 
   // Load conversation history
@@ -369,9 +461,9 @@ export default function HeadlineAnalyzer() {
         tool_type: 'headline_analyzer',
         page: String(page),
         per_page: '10'
-      });
-      setConversations((response as any).conversations || []);
-      setTotalConversationPages((response as any).total_pages || 1);
+      }) as ConversationListResponse;
+      setConversations(response.conversations || []);
+      setTotalConversationPages(response.total_pages || 1);
       setConversationPage(page);
     } catch (error) {
       console.error('Failed to load conversations:', error);
@@ -387,10 +479,10 @@ export default function HeadlineAnalyzer() {
       const response = await userAPI.getConversationMessages(
         convId,
         { page: String(page), per_page: '20', filter: messageFilter, order: messageOrder }
-      );
+      ) as ConversationMessagesResponse;
 
       // Transform messages to match expected format
-      const transformedMessages = ((response as any).messages || []).map((msg: any) => {
+      const transformedMessages = (response.messages || []).map((msg: RawConversationMessage) => {
         let content = msg.content;
 
         // Parse AI message content if it's wrapped in JSON
@@ -400,7 +492,7 @@ export default function HeadlineAnalyzer() {
             if (parsed.answer) {
               content = parsed.answer;
             }
-          } catch (e) {
+          } catch (_e) {
             // If parsing fails, use content as-is
           }
         }
@@ -413,7 +505,7 @@ export default function HeadlineAnalyzer() {
       });
 
       setConversationMessages(transformedMessages);
-      setTotalMessagePages((response as any).total_pages || 1);
+      setTotalMessagePages(response.total_pages || 1);
       setMessagePage(page);
     } catch (error) {
       console.error('Failed to load messages:', error);
@@ -429,7 +521,7 @@ export default function HeadlineAnalyzer() {
   };
 
   // Handle conversation selection
-  const handleSelectConversation = async (conv: any) => {
+  const handleSelectConversation = async (conv: ConversationSummary) => {
     setSelectedHistoryConversation(conv);
     setMessagePage(1);
     setMessageFilter('');
@@ -441,11 +533,7 @@ export default function HeadlineAnalyzer() {
   const handleLoadConversation = () => {
     if (selectedHistoryConversation && conversationMessages.length > 0) {
       // Find the initial headline data from the messages
-      const firstUserMessage = conversationMessages.find((msg: any) => msg.role === 'user');
-      const firstAnalysis = conversationMessages.find((msg: any) =>
-        msg.role === 'assistant' && msg.message_type === 'headline_analysis'
-      );
-
+      const firstUserMessage = conversationMessages.find((msg: ConversationMessage) => msg.role === 'user');
       if (firstUserMessage?.metadata?.headline) {
         setHeadline(firstUserMessage.metadata.headline);
       }
@@ -454,7 +542,7 @@ export default function HeadlineAnalyzer() {
       }
 
       // Load the conversation messages as follow-ups
-      const formattedMessages = conversationMessages.map((msg: any) => ({
+      const formattedMessages = conversationMessages.map((msg: ConversationMessage) => ({
         role: msg.role,
         content: msg.content,
         timestamp: msg.created_at,
@@ -472,8 +560,8 @@ export default function HeadlineAnalyzer() {
     if (!conversationId) return;
 
     try {
-      const blob = await userAPI.exportUserConversation(conversationId, 'markdown');
-      const url = window.URL.createObjectURL(blob as Blob);
+      const blob = await userAPI.exportUserConversation(conversationId, 'markdown') as Blob;
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `headline-analysis-${conversationId}.md`;
@@ -508,7 +596,7 @@ export default function HeadlineAnalyzer() {
           <div className="flex items-center gap-2">
             {/* Usage Limit Badge */}
             <UsageLimitBadge
-              characterId={selectedCharacterId}
+              characterId={selectedCharacterId ?? undefined}
               variant="compact"
               showUpgradeLink={true}
               darkMode={darkMode}
@@ -595,29 +683,29 @@ export default function HeadlineAnalyzer() {
             <div className="w-full lg:w-1/2 h-full min-h-0 lg:min-h-[400px]">
               <AIFeedbackSection
                 darkMode={darkMode}
-                feedback={feedback}
+                feedback={feedback ? { ...feedback, analysis: feedback.analysis as FeedbackData['analysis'] } as FeedbackData : null}
                 analyzing={analyzing}
-                isProcessing={feedback?.isProcessing}
+                isProcessing={feedback?.isProcessing ?? false}
                 isStreaming={isStreaming}
                 streamingContent={streamingContent}
                 structuredAnalysis={structuredAnalysis}
-                rawAnalysis={analysis?.raw}
-                metrics={metrics}
-                usage={feedback?.usage}
-                conversationId={conversationId}
-                messageId={messageId}
+                rawAnalysis={analysis?.raw ?? ''}
+                metrics={metrics as MetricsData | null}
+                usage={(feedback?.usage as MetricsData) ?? null}
+                conversationId={conversationId ?? ''}
+                messageId={messageId ?? ''}
                 onCancel={resetAnalysis}
                 onSendMessage={handleSendFollowUpMessage}
-                characterId={selectedCharacterId}
+                characterId={selectedCharacterId ?? ''}
                 characterName={selectedCharacterName}
                 characterAvatarUrl={selectedCharacterAvatar}
                 characterDescription={selectedCharacterDescription}
-                followUpMessages={followUpMessages}
+                followUpMessages={followUpMessages.map(m => ({ ...m, messageId: m.messageId ?? undefined }))}
                 isFollowUpStreaming={isFollowUpStreaming}
                 followUpStreamingContent={followUpStreamingContent}
                 completionQuestions={
                   characterTools?.available_tools
-                    ?.find((t: any) => t.name === 'analyze_headline')
+                    ?.find((t) => t.name === 'analyze_headline')
                     ?.completion_questions || []
                 }
                 isAdmin={isAdmin}
@@ -775,7 +863,7 @@ export default function HeadlineAnalyzer() {
                         <div className="text-center text-gray-500">No messages</div>
                       ) : (
                         <div className="space-y-4">
-                          {conversationMessages.map((msg: any, idx: number) => (
+                          {conversationMessages.map((msg: ConversationMessage, idx: number) => (
                             <div key={msg.id || idx} className={`flex ${
                               msg.role === 'user' ? 'justify-end' : 'justify-start'
                             }`}>

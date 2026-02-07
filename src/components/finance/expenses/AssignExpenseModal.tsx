@@ -20,7 +20,15 @@ import expensesAPI from '../../../services/api/finance/expenses';
  * Entity type configuration for display
  * All entities use Zenible purple for consistent branding
  */
-const ENTITY_CONFIG: Record<string, any> = {
+interface EntityConfig {
+  label: string;
+  headerColor: string;
+  iconBg: string;
+  iconShadow: string;
+  accentColor: string;
+}
+
+const ENTITY_CONFIG: Record<string, EntityConfig> = {
   invoice: {
     label: 'Invoice',
     headerColor: 'from-[#f5f0ff] to-[#ede5ff] dark:from-purple-900/20 dark:to-purple-900/30',
@@ -59,7 +67,7 @@ interface AssignExpenseModalProps {
   entityName: string;
   currency?: string;
   onUpdate?: () => void;
-  numberFormat?: any;
+  numberFormat?: Record<string, unknown>;
 }
 
 const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
@@ -72,7 +80,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
   onUpdate,
   numberFormat,
 }) => {
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -98,10 +106,11 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
     try {
       // Fetch all expenses and assignments in parallel
       const [expensesResult] = await Promise.all([
-        (expensesAPI as any).list({ per_page: 500 }),
+        expensesAPI.list({ per_page: '500' }),
         loadAssignments(),
       ]);
-      setAllExpenses((expensesResult as any).items || expensesResult || []);
+      const listResult = expensesResult as { items?: unknown[] };
+      setAllExpenses(listResult.items || []);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -112,8 +121,8 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
 
   const loadAssignments = async () => {
     try {
-      const result = await (expensesAPI as any).getExpensesByEntity(entityType, entityId);
-      const expenses = (result as any).items || result || [];
+      const result = await expensesAPI.getExpensesByEntity(entityType, entityId);
+      const expenses = result.items || [];
 
       const assignments: any[] = [];
       const newCache: Record<string, any[]> = {};
@@ -219,7 +228,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
           });
         }
 
-        return (expensesAPI as any).updateAllocations(
+        return expensesAPI.updateAllocations(
           assignment.expense_id,
           allocations.map(({ entity_type, entity_id, percentage }: any) => ({
             entity_type,

@@ -284,7 +284,7 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
         return JSON.parse(metaField);
       }
       return metaField;
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   };

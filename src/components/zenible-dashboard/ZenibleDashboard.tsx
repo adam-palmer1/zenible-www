@@ -8,7 +8,7 @@ import RecentSales from './RecentSales';
 import { usePreferences } from '../../contexts/PreferencesContext';
 
 export default function ZenibleDashboard() {
-  const { darkMode, toggleDarkMode } = usePreferences() as any;
+  const { darkMode } = usePreferences();
 
   return (
     <div className={`flex h-screen font-inter ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>

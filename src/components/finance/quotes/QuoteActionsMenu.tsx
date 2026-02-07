@@ -10,6 +10,14 @@ import {
 import { MoreVertical } from 'lucide-react';
 import Dropdown from '../../ui/dropdown/Dropdown';
 
+interface MenuItemType {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  onClick: () => void;
+  destructive?: boolean;
+}
+
 interface QuoteActionsMenuProps {
   quote: any;
   onEdit: () => void;
@@ -27,7 +35,7 @@ interface QuoteActionsMenuProps {
  * Contains actions not shown in the main action bar
  */
 const QuoteActionsMenu: React.FC<QuoteActionsMenuProps> = ({
-  quote,
+  quote: _quote,
   onEdit,
   onClone,
   onDelete,
@@ -75,7 +83,7 @@ const QuoteActionsMenu: React.FC<QuoteActionsMenuProps> = ({
       onClick: onDelete,
       destructive: true,
     },
-  ].filter(Boolean) as any[];
+  ].filter(Boolean) as MenuItemType[];
 
   return (
     <Dropdown
@@ -90,7 +98,7 @@ const QuoteActionsMenu: React.FC<QuoteActionsMenuProps> = ({
       align="end"
       side="bottom"
     >
-      {menuItems.map((item: any, index: number) => (
+      {menuItems.map((item, index: number) => (
         <Dropdown.Item
           key={item.id}
           onSelect={item.onClick}

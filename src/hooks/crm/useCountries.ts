@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import countriesAPI from '../../services/api/crm/countries';
 
+export interface Country {
+  id: string;
+  name: string;
+  code: string;
+  [key: string]: unknown;
+}
+
+export interface CompanyCountry {
+  id: string;
+  country: Country;
+  is_default: boolean;
+  [key: string]: unknown;
+}
+
 interface MutationResult {
   success: boolean;
   error?: string;
@@ -10,8 +24,8 @@ interface MutationResult {
  * Hook for managing countries and company-country associations
  */
 export const useCountries = () => {
-  const [countries, setCountries] = useState<unknown[]>([]);
-  const [companyCountries, setCompanyCountries] = useState<unknown[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [companyCountries, setCompanyCountries] = useState<CompanyCountry[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +33,7 @@ export const useCountries = () => {
   const fetchCountries = useCallback(async (): Promise<void> => {
     try {
       const result = await countriesAPI.list();
-      setCountries(result as unknown[]);
+      setCountries(result as Country[]);
     } catch (err: unknown) {
       console.error('Failed to fetch countries:', err);
       setError((err as Error).message);
@@ -30,7 +44,7 @@ export const useCountries = () => {
   const fetchCompanyCountries = useCallback(async (): Promise<void> => {
     try {
       const result = await countriesAPI.getCompanyCountries();
-      setCompanyCountries(result as unknown[]);
+      setCompanyCountries(result as CompanyCountry[]);
     } catch (err: unknown) {
       console.error('Failed to fetch company countries:', err);
       setError((err as Error).message);
@@ -87,7 +101,7 @@ export const useCountries = () => {
   }, [fetchCompanyCountries]);
 
   // Get default country
-  const defaultCountry = companyCountries.find((cc: unknown) => (cc as any).is_default);
+  const defaultCountry = companyCountries.find((cc) => cc.is_default);
 
   return {
     countries,

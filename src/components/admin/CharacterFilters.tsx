@@ -88,7 +88,7 @@ export default function CharacterFilters({
     };
   }, [showFieldSelector, showCategoryDropdown, showProviderDropdown, showStatusDropdown]);
 
-  const toggleColumnVisibility = (columnKey: string) => {
+  const toggleColumnVisibility = (columnKey: keyof VisibleColumns) => {
     onColumnsChange({
       ...visibleColumns,
       [columnKey]: !visibleColumns[columnKey]
@@ -351,8 +351,8 @@ export default function CharacterFilters({
                       <label key={column.key} className="flex items-center">
                         <input
                           type="checkbox"
-                          checked={visibleColumns[column.key]}
-                          onChange={() => toggleColumnVisibility(column.key)}
+                          checked={visibleColumns[column.key as keyof VisibleColumns]}
+                          onChange={() => toggleColumnVisibility(column.key as keyof VisibleColumns)}
                           className="mr-2 rounded"
                         />
                         <span className={`text-sm ${

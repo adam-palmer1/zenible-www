@@ -5,6 +5,7 @@ import { useNotification } from '../../contexts/NotificationContext';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
 import Dropdown from '../ui/dropdown/Dropdown';
 import ConfirmationModal from '../common/ConfirmationModal';
+import { EmptyState } from '../shared';
 
 interface ContactsListViewProps {
   contacts: any[];
@@ -16,7 +17,7 @@ interface ContactsListViewProps {
 }
 
 const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses, onContactClick, onEdit, onDelete, onUpdateStatus }) => {
-  const { showError, showSuccess } = useNotification() as any;
+  const { showError, showSuccess } = useNotification();
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const deleteConfirm = useDeleteConfirmation<any>();
 
@@ -65,7 +66,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
 
     try {
       const newVisibility = !contact.is_hidden;
-      await (contactsAPI as any).update(contact.id, {
+      await contactsAPI.update(contact.id, {
         is_hidden: newVisibility
       });
 
@@ -120,7 +121,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
         month: 'short',
         year: 'numeric'
       });
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   };
@@ -153,11 +154,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
           </thead>
           <tbody>
             {contacts.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                  No contacts found
-                </td>
-              </tr>
+              <EmptyState title="No contacts found" colSpan={9} />
             ) : (
               contacts.map((contact: any, index: number) => {
                 const status = getStatus(contact);

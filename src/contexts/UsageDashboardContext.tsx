@@ -7,19 +7,60 @@ interface EntityLimit {
   entity_type: string;
   can_create: boolean;
   is_over: boolean;
+  name?: string;
+  current?: number;
+  limit?: number;
+  current_count?: number;
+  allowed_limit?: number;
   [key: string]: unknown;
 }
 
 interface Feature {
   code: string;
+  name?: string;
   enabled: boolean;
   [key: string]: unknown;
 }
 
 interface ToolUsage {
   tool_name: string;
+  name?: string;
   limit: number | null;
   remaining: number;
+  is_enabled?: boolean;
+  current_usage?: number;
+  monthly_usage_limit?: number;
+  [key: string]: unknown;
+}
+
+interface AIUsageTotal {
+  current?: number;
+  limit?: number;
+  remaining?: number;
+  [key: string]: unknown;
+}
+
+interface AICharacterUsage {
+  character_name?: string;
+  name?: string;
+  usage?: number;
+  current?: number;
+  messages_used?: number;
+  limit?: number;
+  message_limit?: number;
+  [key: string]: unknown;
+}
+
+interface AIUsage {
+  total?: AIUsageTotal;
+  per_character?: AICharacterUsage[];
+  [key: string]: unknown;
+}
+
+interface DowngradeWarning {
+  entity_type: string;
+  current_count: number;
+  allowed_limit: number;
   [key: string]: unknown;
 }
 
@@ -27,8 +68,8 @@ interface UsageData {
   entity_limits?: EntityLimit[];
   features?: Feature[];
   tool_usage?: ToolUsage[];
-  downgrade_warnings?: unknown[];
-  ai_usage?: unknown;
+  downgrade_warnings?: DowngradeWarning[];
+  ai_usage?: AIUsage;
   plan_name?: string;
   plan_id?: string;
   usage_resets_at?: string;
@@ -49,8 +90,8 @@ interface UsageDashboardContextValue {
   getToolUsage: (toolName: string) => ToolUsage | null | undefined;
   canUseTool: (toolName: string) => boolean;
   hasDowngradeWarnings: boolean;
-  downgradeWarnings: unknown[];
-  aiUsage: unknown;
+  downgradeWarnings: DowngradeWarning[];
+  aiUsage: AIUsage | null;
   planName: string | null;
   planId: string | null;
   usageResetsAt: string | null;

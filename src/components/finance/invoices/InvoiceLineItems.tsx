@@ -17,9 +17,9 @@ const InvoiceLineItems: React.FC<InvoiceLineItemsProps> = ({
   items = [],
   onChange,
   currency = 'USD',
-  taxRate = 0,
-  discountType = 'percentage',
-  discountValue = 0,
+  taxRate: _taxRate = 0,
+  discountType: _discountType = 'percentage',
+  discountValue: _discountValue = 0,
   readOnly = false,
 }) => {
   const [taxModalOpen, setTaxModalOpen] = useState(false);
@@ -100,17 +100,6 @@ const InvoiceLineItems: React.FC<InvoiceLineItemsProps> = ({
     const amount = parseFloat(item.amount || 0);
     const taxAmount = item.taxes?.reduce((sum: number, t: any) => sum + (t.tax_amount || 0), 0) || 0;
     return amount + taxAmount;
-  };
-
-  // Get tax summary text for an item
-  const getItemTaxSummary = (item: any) => {
-    if (!item.taxes || item.taxes.length === 0) return null;
-
-    if (item.taxes.length === 1) {
-      return `${item.taxes[0].tax_name} (${item.taxes[0].tax_rate}%)`;
-    }
-
-    return `${item.taxes.length} taxes applied`;
   };
 
   // Auto-resize textareas when items are loaded or changed

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Search, ChevronDown, Check, SortAsc, Filter, CreditCard, Loader2 } from 'lucide-react';
-import adminAPI from '../../services/adminAPI';
+import { adminSubscriptionsAPI, adminPlansAPI } from '../../services/adminAPI';
+import { useModalState } from '../../hooks/useModalState';
+import type { SubscriptionResponse, SubscriptionList } from '../../types/auth';
+import type { PlanResponse, PlanList } from '../../types/auth';
 
 interface FilterOption {
   id: string;
@@ -85,7 +88,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({ isOpen, onClose, option
 };
 
 export default function SubscriptionManagement() {
-  const { darkMode } = useOutletContext() as any;
+  const { darkMode } = useOutletContext<{ darkMode: boolean }>();
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,8 +96,7 @@ export default function SubscriptionManagement() {
   const [perPage] = useState<number>(10);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalSubscriptions, setTotalSubscriptions] = useState<number>(0);
-  const [showCancelModal, setShowCancelModal] = useState<boolean>(false);
-  const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
+  const cancelModal = useModalState<SubscriptionResponse>();
   const [cancelling, setCancelling] = useState<boolean>(false);
 
   // Search and filter state
@@ -124,31 +126,31 @@ export default function SubscriptionManagement() {
   // Handle escape key press to close modal
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && showCancelModal) {
-        closeCancelModal();
+      if (event.key === 'Escape' && cancelModal.isOpen) {
+        cancelModal.close();
       }
     };
 
-    if (showCancelModal) {
+    if (cancelModal.isOpen) {
       document.addEventListener('keydown', handleEscape);
       return () => document.removeEventListener('keydown', handleEscape);
     }
-  }, [showCancelModal]);
+  }, [cancelModal.isOpen]);
 
   const fetchSubscriptions = async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = {
-        page,
-        per_page: perPage,
+      const params: Record<string, string> = {
+        page: String(page),
+        per_page: String(perPage),
         ...(search && { search }),
         ...(statusFilter && { status: statusFilter }),
         ...(planFilter && { plan_id: planFilter }),
         sort_by: sortBy,
         sort_dir: sortDir,
       };
-      const response = await (adminAPI as any).getSubscriptions(params);
+      const response = await adminSubscriptionsAPI.getSubscriptions(params) as SubscriptionList;
       setSubscriptions(response.subscriptions || []);
       setTotalPages(response.pages || 1);
       setTotalSubscriptions(response.total || 0);
@@ -161,7 +163,7 @@ export default function SubscriptionManagement() {
 
   const fetchPlans = async () => {
     try {
-      const response = await (adminAPI as any).getPlans({ is_active: true });
+      const response = await adminPlansAPI.getPlans({ is_active: 'true' }) as PlanList & { items?: PlanResponse[] };
       setPlans(response.plans || response.items || []);
     } catch (err: any) {
       console.error('Error fetching plans:', err);
@@ -183,22 +185,20 @@ export default function SubscriptionManagement() {
   };
 
   const openCancelModal = (subscription: any) => {
-    setSelectedSubscription(subscription);
-    setShowCancelModal(true);
+    cancelModal.open(subscription);
   };
 
   const closeCancelModal = () => {
-    setShowCancelModal(false);
-    setSelectedSubscription(null);
+    cancelModal.close();
   };
 
   const handleCancelSubscription = async () => {
-    if (!selectedSubscription) return;
+    if (!cancelModal.data) return;
 
     setCancelling(true);
     try {
       // Cancel at period end by default for better user experience
-      await (adminAPI as any).cancelSubscription(selectedSubscription.id, {
+      await adminSubscriptionsAPI.cancelSubscription(cancelModal.data.id, {
         cancelAtPeriodEnd: true,
         reason: 'Cancelled by admin',
         feedback: ''
@@ -213,7 +213,6 @@ export default function SubscriptionManagement() {
   };
 
   const formatDate = (date: string) => date ? new Date(date).toLocaleDateString() : '-';
-  const formatCurrency = (amount: string | number) => `$${parseFloat(String(amount || 0)).toFixed(2)}`;
 
   return (
     <div className={`flex-1 overflow-auto ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
@@ -466,7 +465,7 @@ export default function SubscriptionManagement() {
       </div>
 
       {/* Cancel Subscription Modal */}
-      {showCancelModal && selectedSubscription && (
+      {cancelModal.isOpen && cancelModal.data && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className={`w-full max-w-md rounded-xl shadow-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             {/* Modal Header */}
@@ -500,23 +499,23 @@ export default function SubscriptionManagement() {
               <div className={`space-y-3 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                 <div>
                   <span className="font-medium">User:</span>
-                  <span className="ml-2">{selectedSubscription.user_name || 'Unknown'}</span>
+                  <span className="ml-2">{cancelModal.data.user_name || 'Unknown'}</span>
                 </div>
                 <div>
                   <span className="font-medium">Email:</span>
-                  <span className="ml-2">{selectedSubscription.user_email || 'N/A'}</span>
+                  <span className="ml-2">{cancelModal.data.user_email || 'N/A'}</span>
                 </div>
                 <div>
                   <span className="font-medium">Plan:</span>
-                  <span className="ml-2">{selectedSubscription.plan?.name || 'N/A'}</span>
+                  <span className="ml-2">{cancelModal.data.plan?.name || 'N/A'}</span>
                 </div>
                 <div>
                   <span className="font-medium">Billing:</span>
-                  <span className="ml-2">${selectedSubscription.plan?.monthly_price || 'N/A'}/mo ({selectedSubscription.billing_cycle})</span>
+                  <span className="ml-2">${cancelModal.data.plan?.monthly_price || 'N/A'}/mo ({cancelModal.data.billing_cycle})</span>
                 </div>
                 <div>
                   <span className="font-medium">Current Period Ends:</span>
-                  <span className="ml-2">{formatDate(selectedSubscription.current_period_end)}</span>
+                  <span className="ml-2">{formatDate(cancelModal.data.current_period_end ?? '')}</span>
                 </div>
               </div>
 

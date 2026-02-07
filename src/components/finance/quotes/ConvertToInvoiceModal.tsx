@@ -13,8 +13,8 @@ interface ConvertToInvoiceModalProps {
 
 const ConvertToInvoiceModal: React.FC<ConvertToInvoiceModalProps> = ({ isOpen, onClose, quote }) => {
   const navigate = useNavigate();
-  const { convertToInvoice } = useQuotes() as any;
-  const { showSuccess, showError } = useNotification() as any;
+  const { convertToInvoice } = useQuotes();
+  const { showSuccess, showError } = useNotification();
 
   const [converting, setConverting] = useState(false);
 
@@ -22,7 +22,8 @@ const ConvertToInvoiceModal: React.FC<ConvertToInvoiceModalProps> = ({ isOpen, o
     try {
       setConverting(true);
 
-      const invoice = await convertToInvoice(quote.id, {});
+      const result = await convertToInvoice(quote.id, {});
+      const invoice = result as { id: string; invoice_number?: string };
 
       showSuccess(`Quote converted to invoice ${invoice.invoice_number}`);
       onClose();

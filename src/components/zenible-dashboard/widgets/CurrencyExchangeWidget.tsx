@@ -5,6 +5,7 @@ import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import currencyConversionAPI from '../../../services/api/crm/currencyConversion';
 import { AVAILABLE_CURRENCIES } from './WidgetRegistry';
+import { LoadingSpinner } from '../../shared';
 
 interface CurrencyExchangeWidgetProps {
   settings?: Record<string, any>;
@@ -22,10 +23,10 @@ interface ChartPoint {
  * Currency Exchange Widget for Dashboard
  * Shows live exchange rate with optional historical graph
  */
-const CurrencyExchangeWidget = ({ settings = {}, widgetId = 'currency-exchange' }: CurrencyExchangeWidgetProps) => {
-  const { convert } = useCurrencyConversion() as any;
-  const { defaultCurrency: companyDefaultCurrency, loading: currencyLoading } = useCompanyCurrencies() as any;
-  const { updatePreference, getPreference } = usePreferences() as any;
+const CurrencyExchangeWidget = ({ settings = {}, widgetId: _widgetId = 'currency-exchange' }: CurrencyExchangeWidgetProps) => {
+  const { convert } = useCurrencyConversion();
+  const { defaultCurrency: companyDefaultCurrency, loading: currencyLoading } = useCompanyCurrencies();
+  usePreferences();
   const [rate, setRate] = useState<number | null>(null);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,12 +85,12 @@ const CurrencyExchangeWidget = ({ settings = {}, widgetId = 'currency-exchange' 
           startDate.setDate(startDate.getDate() - graphDays);
 
           try {
-            const data = await (currencyConversionAPI as any).getHistoricalRange(
+            const data = await currencyConversionAPI.getHistoricalRange(
               fromCurrency,
               toCurrency,
               startDate.toISOString().split('T')[0],
               endDate.toISOString().split('T')[0]
-            );
+            ) as { data_points?: any[]; rates?: any[] };
             // API returns data_points array with { date, rate, capture_window }
             const dataPoints = data.data_points || data.rates || [];
             setHistoricalData(dataPoints);
@@ -314,11 +315,7 @@ const CurrencyExchangeWidget = ({ settings = {}, widgetId = 'currency-exchange' 
   };
 
   if (loading || currencyLoading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[100px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 
   if (error) {

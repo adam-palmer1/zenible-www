@@ -2,7 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Check, Loader2 } from 'lucide-react';
 import companiesAPI from '../../../services/api/crm/companies';
 
-const companiesAPIAny = companiesAPI as any;
+interface CompanyTax {
+  id: string;
+  tax_name: string;
+  tax_rate: string;
+}
+
+const companiesAPITyped = companiesAPI as typeof companiesAPI & {
+  listTaxes: () => Promise<CompanyTax[]>;
+  createTax: (data: { tax_name: string; tax_rate: number }) => Promise<CompanyTax>;
+};
 
 interface TaxItem {
   tax_name: string;
@@ -19,10 +28,10 @@ interface TaxModalProps {
 
 const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDocumentTaxes = [] }) => {
   // Extract first tax from array for backwards compatibility
-  const initialTax = initialDocumentTaxes[0] || ({} as any);
-  const [taxRate, setTaxRate] = useState(parseFloat(initialTax.tax_rate) || 0);
+  const initialTax = initialDocumentTaxes[0] || ({} as Partial<TaxItem>);
+  const [taxRate, setTaxRate] = useState(parseFloat(String(initialTax.tax_rate ?? 0)) || 0);
   const [taxLabel, setTaxLabel] = useState(initialTax.tax_name || 'Tax');
-  const [companyTaxes, setCompanyTaxes] = useState<any[]>([]);
+  const [companyTaxes, setCompanyTaxes] = useState<CompanyTax[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTaxName, setNewTaxName] = useState('');
@@ -32,8 +41,8 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
   // Fetch company taxes when modal opens
   useEffect(() => {
     if (isOpen) {
-      const tax = initialDocumentTaxes[0] || ({} as any);
-      setTaxRate(parseFloat(tax.tax_rate) || 0);
+      const tax = initialDocumentTaxes[0] || ({} as Partial<TaxItem>);
+      setTaxRate(parseFloat(String(tax.tax_rate ?? 0)) || 0);
       setTaxLabel(tax.tax_name || 'Tax');
       setShowAddForm(false);
       setNewTaxName('');
@@ -45,7 +54,7 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
   const loadCompanyTaxes = async () => {
     try {
       setLoading(true);
-      const taxes = await companiesAPIAny.listTaxes();
+      const taxes = await companiesAPITyped.listTaxes();
       setCompanyTaxes(taxes || []);
     } catch (error: any) {
       console.error('Failed to load company taxes:', error);
@@ -55,7 +64,7 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
     }
   };
 
-  const handleSelectTax = (tax: any) => {
+  const handleSelectTax = (tax: CompanyTax) => {
     setTaxRate(parseFloat(tax.tax_rate));
     setTaxLabel(tax.tax_name);
     setShowAddForm(false);
@@ -90,7 +99,7 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
 
     try {
       setSaving(true);
-      const newTax = await companiesAPIAny.createTax({
+      const newTax = await companiesAPITyped.createTax({
         tax_name: newTaxName.trim(),
         tax_rate: rate,
       });
@@ -155,7 +164,7 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {companyTaxes.map((tax: any) => {
+                    {companyTaxes.map((tax: CompanyTax) => {
                       const isSelected = taxRate === parseFloat(tax.tax_rate) && taxLabel === tax.tax_name;
                       return (
                         <button

@@ -13,7 +13,7 @@ export default function QuizAttemptPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [attemptData, setAttemptData] = useState((location.state as any)?.attemptData || null);
+  const attemptData = (location.state as { attemptData?: any } | null)?.attemptData || null;
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<any[]>([]);
   const [feedback, setFeedback] = useState<any>(null);
@@ -60,13 +60,13 @@ export default function QuizAttemptPage() {
       setLoading(true);
       const response = await quizAPI.submitAnswer(attemptId as string, {
         selected_answer_ids: selectedAnswers,
-      }) as any;
+      }) as { is_correct?: boolean; points_earned?: number; quiz_completed?: boolean; next_question?: any; [key: string]: unknown };
 
       setFeedback(response);
 
       // Update score
       if (response.is_correct) {
-        setScore(score + response.points_earned);
+        setScore(score + (response.points_earned ?? 0));
       }
     } catch (err: any) {
       console.error('[QuizAttemptPage] Error submitting answer:', err);

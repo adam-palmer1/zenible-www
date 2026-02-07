@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { contactsAPI } from '../../services/api/crm';
+import type { ContactResponse } from '../../types';
 
 interface ExtractedValue {
   amount: number;
@@ -21,12 +22,31 @@ interface SummaryEntry {
   total: number;
 }
 
+/** Currency amount entry returned when preserve_currencies=true */
+interface CurrencyAmountEntry {
+  currency_code: string;
+  amount: string;
+}
+
+/**
+ * ContactResponse extended with optional financial detail fields.
+ * These fields are added dynamically by the backend when
+ * include_financial_details=true and/or preserve_currencies=true.
+ */
+interface ContactWithFinancials extends ContactResponse {
+  invoiced_total?: string | CurrencyAmountEntry[];
+  payments_total?: string | CurrencyAmountEntry[];
+  paid_total?: string | CurrencyAmountEntry[];
+  total_outstanding?: string | CurrencyAmountEntry[];
+  total_expenses_paid?: string | CurrencyAmountEntry[];
+}
+
 /**
  * Custom hook for managing contact financial data
  * Fetches contact with include_financial_details=true from contacts API
  */
 export function useContactFinancials(contactId: string | undefined) {
-  const [contact, setContact] = useState<unknown>(null);
+  const [contact, setContact] = useState<ContactWithFinancials | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,10 +61,10 @@ export function useContactFinancials(contactId: string | undefined) {
       // Fetch single contact with financial details and original currencies
       // Backend endpoint: GET /crm/contacts/{id}?include_financial_details=true&preserve_currencies=true
       const contactData = await contactsAPI.get(contactId, {
-        include_financial_details: true,
-        preserve_currencies: true,
-      } as any);
-      setContact(contactData);
+        include_financial_details: 'true',
+        preserve_currencies: 'true',
+      });
+      setContact(contactData as ContactWithFinancials);
     } catch (err: unknown) {
       console.error('[useContactFinancials] Failed to fetch contact:', err);
       setError((err as Error).message);
@@ -67,13 +87,13 @@ export function useContactFinancials(contactId: string | undefined) {
 
   // Helper to extract value and currency from a field
   // Handles both array format (preserve_currencies=true) and single value format
-  const extractValue = useCallback((field: unknown): ExtractedValue => {
+  const extractValue = useCallback((field: string | CurrencyAmountEntry[] | undefined): ExtractedValue => {
     if (Array.isArray(field)) {
       // Array format: [{ currency_code: "GBP", amount: "5000.00" }, ...]
       if (field.length === 0) return { amount: 0, currency: null };
       // Sum all amounts (in case of multiple currencies, we'll use the first currency)
-      const total = field.reduce((sum: number, item: unknown) => sum + (parseFloat((item as any).amount) || 0), 0);
-      return { amount: total, currency: (field[0] as any)?.currency_code || null };
+      const total = field.reduce((sum: number, item: CurrencyAmountEntry) => sum + (parseFloat(item.amount) || 0), 0);
+      return { amount: total, currency: field[0]?.currency_code || null };
     }
     // Single value format
     return { amount: parseFloat(field as string) || 0, currency: null };
@@ -87,12 +107,12 @@ export function useContactFinancials(contactId: string | undefined) {
     }
 
     // Contact's default currency as fallback
-    const contactCurrency = (contact as any).currency?.code || null;
+    const contactCurrency = contact.currency?.code || null;
 
     // Extract currencies from the financial fields (array format has currency_code)
-    const invoicedData = extractValue((contact as any).invoiced_total);
-    const outstandingData = extractValue((contact as any).total_outstanding);
-    const expensesData = extractValue((contact as any).total_expenses_paid);
+    const invoicedData = extractValue(contact.invoiced_total);
+    const outstandingData = extractValue(contact.total_outstanding);
+    const expensesData = extractValue(contact.total_expenses_paid);
 
     return {
       income: invoicedData.currency || contactCurrency,
@@ -108,10 +128,10 @@ export function useContactFinancials(contactId: string | undefined) {
   const summaryByCurrency = useMemo((): Record<string, SummaryEntry> => {
     if (!contact) return {};
 
-    const invoicedData = extractValue((contact as any).invoiced_total);
-    const paymentsData = extractValue((contact as any).payments_total || (contact as any).paid_total);
-    const outstandingData = extractValue((contact as any).total_outstanding);
-    const expensesData = extractValue((contact as any).total_expenses_paid);
+    const invoicedData = extractValue(contact.invoiced_total);
+    const paymentsData = extractValue(contact.payments_total || contact.paid_total);
+    const outstandingData = extractValue(contact.total_outstanding);
+    const expensesData = extractValue(contact.total_expenses_paid);
 
     const invoiced = invoicedData.amount;
     const payments = paymentsData.amount;

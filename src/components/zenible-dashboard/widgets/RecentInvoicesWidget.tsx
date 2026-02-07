@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DocumentTextIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { useInvoices } from '../../../contexts/InvoiceContext';
 import { formatCurrency } from '../../../utils/currency';
+import { LoadingSpinner } from '../../shared';
 
 interface RecentInvoicesWidgetProps {
   settings?: Record<string, any>;
@@ -15,7 +16,7 @@ interface RecentInvoicesWidgetProps {
  */
 const RecentInvoicesWidget = ({ settings = {}, isHovered = false }: RecentInvoicesWidgetProps) => {
   const navigate = useNavigate();
-  const { invoices, loading, initialized, fetchInvoices } = useInvoices() as any;
+  const { invoices, loading, initialized, fetchInvoices } = useInvoices();
   const limit = settings.limit || 5;
 
   useEffect(() => {
@@ -73,11 +74,7 @@ const RecentInvoicesWidget = ({ settings = {}, isHovered = false }: RecentInvoic
   const handleInvoiceClick = (id: string) => navigate(`/finance/invoices/${id}`);
 
   if (loading && !initialized) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[100px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 
   return (

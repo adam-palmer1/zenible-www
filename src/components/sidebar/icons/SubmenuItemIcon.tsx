@@ -6,7 +6,7 @@ interface SubmenuItemIconProps {
   isActive?: boolean;
 }
 
-export default function SubmenuItemIcon({ className = "w-6 h-6", color = "currentColor", isActive = false }: SubmenuItemIconProps) {
+export default function SubmenuItemIcon({ className = "w-6 h-6", color: _color = "currentColor", isActive = false }: SubmenuItemIconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Vertical dashed line */}

@@ -93,7 +93,7 @@ export default function UserEditModal({ user, onClose, onSave }: UserEditModalPr
       onSave(result);
       onClose();
     } catch (err) {
-      setError((err as any).message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -120,7 +120,7 @@ export default function UserEditModal({ user, onClose, onSave }: UserEditModalPr
       setConfirmNewPassword('');
       alert('Password reset successfully');
     } catch (err) {
-      setError((err as any).message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }

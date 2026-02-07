@@ -2,6 +2,18 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TrashIcon, PencilIcon, ArrowDownTrayIcon, DocumentIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
 import contactFilesAPI from '../../services/api/crm/contactFiles';
 import { useNotification } from '../../contexts/NotificationContext';
+import { LoadingSpinner } from '../shared';
+import type { ContactFileResponse, ContactFileUpdateRequest } from '../../types/crm';
+
+interface ContactProject {
+  id: string;
+  name: string;
+}
+
+interface ContactFileListParams {
+  include_download_urls?: boolean;
+  project_id?: string;
+}
 
 /**
  * Format file size to human readable string
@@ -51,11 +63,11 @@ const getFileIcon = (contentType: string) => {
 };
 
 interface FileItemProps {
-  file: any;
-  projects: any[];
-  onEdit: (fileId: string, data: any) => Promise<void>;
-  onDelete: (file: any) => void;
-  onDownload: (file: any) => void;
+  file: ContactFileResponse;
+  projects: ContactProject[];
+  onEdit: (fileId: string, data: ContactFileUpdateRequest) => Promise<void>;
+  onDelete: (file: ContactFileResponse) => void;
+  onDownload: (file: ContactFileResponse) => void;
 }
 
 /**
@@ -75,7 +87,7 @@ const FileItem: React.FC<FileItemProps> = ({ file, projects, onEdit, onDelete, o
         project_id: editProjectId || null,
       });
       setIsEditing(false);
-    } catch (error) {
+    } catch (_error) {
       // Error handled by parent
     } finally {
       setIsSaving(false);
@@ -89,7 +101,7 @@ const FileItem: React.FC<FileItemProps> = ({ file, projects, onEdit, onDelete, o
   };
 
   const projectName = file.project_id
-    ? projects.find((p: any) => p.id === file.project_id)?.name || 'Unknown Project'
+    ? projects.find((p: ContactProject) => p.id === file.project_id)?.name || 'Unknown Project'
     : null;
 
   return (
@@ -173,7 +185,7 @@ const FileItem: React.FC<FileItemProps> = ({ file, projects, onEdit, onDelete, o
               className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-zenible-primary focus:border-zenible-primary"
             >
               <option value="">No project</option>
-              {projects.map((project: any) => (
+              {projects.map((project: ContactProject) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
                 </option>
@@ -198,9 +210,9 @@ const FileItem: React.FC<FileItemProps> = ({ file, projects, onEdit, onDelete, o
 };
 
 interface DeleteConfirmModalProps {
-  file: any;
+  file: ContactFileResponse | null;
   isOpen: boolean;
-  onConfirm: (file: any) => void;
+  onConfirm: (file: ContactFileResponse) => void;
   onCancel: () => void;
   isDeleting: boolean;
 }
@@ -241,7 +253,7 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ file, isOpen, o
 
 interface ContactFilesTabProps {
   contactId: string;
-  projects?: any[];
+  projects?: ContactProject[];
 }
 
 /**
@@ -249,9 +261,9 @@ interface ContactFilesTabProps {
  * Displays and manages files for a contact
  */
 const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects = [] }) => {
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
 
-  const [files, setFiles] = useState<any[]>([]);
+  const [files, setFiles] = useState<ContactFileResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -261,7 +273,7 @@ const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects =
 
   const [filterProjectId, setFilterProjectId] = useState('');
 
-  const [deleteFile, setDeleteFile] = useState<any>(null);
+  const [deleteFile, setDeleteFile] = useState<ContactFileResponse | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -273,14 +285,14 @@ const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects =
     try {
       setLoading(true);
       setError(null);
-      const params: any = { include_download_urls: true };
+      const params: ContactFileListParams = { include_download_urls: true };
       if (filterProjectId) {
         params.project_id = filterProjectId;
       }
-      const response = await (contactFilesAPI as any).list(contactId, params);
+      const response = await contactFilesAPI.list(contactId, params as Record<string, unknown>) as { items: ContactFileResponse[] };
       setFiles(response.items || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load files');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to load files');
     } finally {
       setLoading(false);
     }
@@ -306,19 +318,19 @@ const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects =
 
     try {
       // Convert file to upload data
-      const uploadData = await (contactFilesAPI as any).fileToUploadData(file);
+      const uploadData = await contactFilesAPI.fileToUploadData(file);
       setUploadProgress(50);
 
       // Upload file
-      await (contactFilesAPI as any).upload(contactId, uploadData);
+      await contactFilesAPI.upload(contactId, uploadData);
       setUploadProgress(100);
 
       showSuccess('File uploaded successfully');
 
       // Refresh file list
       await fetchFiles();
-    } catch (err: any) {
-      showError(err.message || 'Failed to upload file');
+    } catch (err: unknown) {
+      showError((err as Error).message || 'Failed to upload file');
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -329,44 +341,44 @@ const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects =
   };
 
   // Handle file edit
-  const handleEdit = async (fileId: string, updateData: any) => {
+  const handleEdit = async (fileId: string, updateData: ContactFileUpdateRequest) => {
     try {
-      await (contactFilesAPI as any).update(contactId, fileId, updateData);
+      await contactFilesAPI.update(contactId, fileId, updateData);
       showSuccess('File updated successfully');
       await fetchFiles();
-    } catch (err: any) {
-      showError(err.message || 'Failed to update file');
+    } catch (err: unknown) {
+      showError((err as Error).message || 'Failed to update file');
       throw err;
     }
   };
 
   // Handle file delete
-  const handleDelete = async (file: any) => {
+  const handleDelete = async (file: ContactFileResponse) => {
     setIsDeleting(true);
     try {
-      await (contactFilesAPI as any).delete(contactId, file.id);
+      await contactFilesAPI.delete(contactId, file.id);
       showSuccess('File deleted successfully');
       setDeleteFile(null);
       await fetchFiles();
-    } catch (err: any) {
-      showError(err.message || 'Failed to delete file');
+    } catch (err: unknown) {
+      showError((err as Error).message || 'Failed to delete file');
     } finally {
       setIsDeleting(false);
     }
   };
 
   // Handle file download
-  const handleDownload = async (file: any) => {
+  const handleDownload = async (file: ContactFileResponse) => {
     try {
       // Get fresh download URL
-      const fileData = await (contactFilesAPI as any).get(contactId, file.id);
+      const fileData = await contactFilesAPI.get(contactId, file.id) as ContactFileResponse;
       if (fileData.download_url) {
         window.open(fileData.download_url, '_blank');
       } else {
         showError('Download URL not available');
       }
-    } catch (err: any) {
-      showError(err.message || 'Failed to download file');
+    } catch (err: unknown) {
+      showError((err as Error).message || 'Failed to download file');
     }
   };
 
@@ -407,11 +419,7 @@ const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects =
   };
 
   if (loading && files.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="py-8" />;
   }
 
   if (error && files.length === 0) {
@@ -440,7 +448,7 @@ const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects =
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-zenible-primary focus:border-zenible-primary"
           >
             <option value="">All projects</option>
-            {projects.map((project: any) => (
+            {projects.map((project: ContactProject) => (
               <option key={project.id} value={project.id}>
                 {project.name}
               </option>
@@ -505,7 +513,7 @@ const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects =
         </div>
       ) : (
         <div className="space-y-2">
-          {files.map((file: any) => (
+          {files.map((file: ContactFileResponse) => (
             <FileItem
               key={file.id}
               file={file}

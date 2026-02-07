@@ -21,6 +21,16 @@ import { formatCurrency } from '../../../utils/currency';
 import expensesAPI from '../../../services/api/finance/expenses';
 import invoicesAPI from '../../../services/api/finance/invoices';
 import paymentsAPI from '../../../services/api/finance/payments';
+import type { InvoiceListResponse, InvoiceListItemResponse } from '../../../types';
+
+interface AllocationEntry {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  percentage: number | string;
+  isNew?: boolean;
+  [key: string]: unknown;
+}
 
 const ENTITY_TYPES: Record<string, any> = {
   invoice: {
@@ -193,15 +203,15 @@ interface ExpenseAllocationModalProps {
 }
 
 const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, onOpenChange, expense, onUpdate }) => {
-  const { showSuccess, showError } = useNotification() as any;
-  const { contacts: clients } = useContacts({ is_client: true }, 0, { skipInitialFetch: !open }) as any;
-  const { projects } = useProjects() as any;
+  const { showSuccess, showError } = useNotification();
+  const { contacts: clients } = useContacts({ is_client: true }, 0, { skipInitialFetch: !open });
+  const { projects } = useProjects();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [allocations, setAllocations] = useState<any[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
+  const [allocations, setAllocations] = useState<AllocationEntry[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceListItemResponse[]>([]);
+  const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
 
   useEffect(() => {
     if (open && expense) {
@@ -213,14 +223,16 @@ const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, o
     setLoading(true);
     try {
       const [allocationsRes, invoicesRes, paymentsRes] = await Promise.all([
-        (expensesAPI as any).getAllocations(expense.id),
-        (invoicesAPI as any).list({ per_page: 100 }).catch(() => ({ items: [] })),
-        (paymentsAPI as any).list({ per_page: 100 }).catch(() => ({ items: [] })),
+        expensesAPI.getAllocations(expense.id),
+        invoicesAPI.list({ per_page: '100' }).catch(() => ({ items: [] })),
+        paymentsAPI.list({ per_page: '100' }).catch(() => ({ items: [] })),
       ]);
 
-      setAllocations((allocationsRes as any).allocations || []);
-      setInvoices((invoicesRes as any).items || invoicesRes || []);
-      setPayments((paymentsRes as any).items || paymentsRes || []);
+      setAllocations(allocationsRes.allocations || []);
+      const invoiceData = invoicesRes as InvoiceListResponse;
+      setInvoices(invoiceData.items || []);
+      const paymentData = paymentsRes as { items?: Record<string, unknown>[] };
+      setPayments(paymentData.items || []);
     } catch (error) {
       console.error('Failed to load allocation data:', error);
       showError('Failed to load allocation data');
@@ -278,7 +290,7 @@ const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, o
 
     setSaving(true);
     try {
-      await (expensesAPI as any).updateAllocations(
+      await expensesAPI.updateAllocations(
         expense.id,
         validAllocations.map(({ entity_type, entity_id, percentage }: any) => ({
           entity_type,

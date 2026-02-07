@@ -16,8 +16,17 @@ const DAYS = [
 const DEFAULT_START_TIME = '09:00';
 const DEFAULT_END_TIME = '17:00';
 
-const AvailabilityEditor = ({ callTypeId = null }) => {
-  const [windows, setWindows] = useState([]);
+interface AvailabilityWindow {
+  id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  is_active: boolean;
+  isNew?: boolean;
+}
+
+const AvailabilityEditor = ({ callTypeId = null }: { callTypeId?: string | null }) => {
+  const [windows, setWindows] = useState<AvailabilityWindow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -28,7 +37,7 @@ const AvailabilityEditor = ({ callTypeId = null }) => {
   useEffect(() => {
     const loadWindows = async () => {
       try {
-        const data = await bookingSettingsAPI.listAvailability(callTypeId) as any;
+        const data = await bookingSettingsAPI.listAvailability(callTypeId) as { windows?: any[]; [key: string]: unknown };
         setWindows(data.windows || []);
       } catch (error) {
         showError('Failed to load availability');
@@ -46,7 +55,7 @@ const AvailabilityEditor = ({ callTypeId = null }) => {
     windows: windows.filter((w) => w.day_of_week === day.index),
   }));
 
-  const addWindow = (dayIndex) => {
+  const addWindow = (dayIndex: number) => {
     const newWindow = {
       id: `temp-${Date.now()}`,
       day_of_week: dayIndex,
@@ -59,19 +68,19 @@ const AvailabilityEditor = ({ callTypeId = null }) => {
     setHasChanges(true);
   };
 
-  const updateWindow = (windowId, field, value) => {
+  const updateWindow = (windowId: string, field: string, value: any) => {
     setWindows(windows.map((w) =>
       w.id === windowId ? { ...w, [field]: value } : w
     ));
     setHasChanges(true);
   };
 
-  const removeWindow = (windowId) => {
+  const removeWindow = (windowId: string) => {
     setWindows(windows.filter((w) => w.id !== windowId));
     setHasChanges(true);
   };
 
-  const toggleDay = (dayIndex) => {
+  const toggleDay = (dayIndex: number) => {
     const dayWindows = windows.filter((w) => w.day_of_week === dayIndex);
     if (dayWindows.length > 0) {
       // Remove all windows for this day
@@ -97,7 +106,7 @@ const AvailabilityEditor = ({ callTypeId = null }) => {
       const data = await bookingSettingsAPI.bulkUpdateAvailability({
         call_type_id: callTypeId,
         windows: windowsData,
-      }) as any;
+      }) as { windows?: any[]; [key: string]: unknown };
 
       setWindows(data.windows || []);
       setHasChanges(false);
@@ -110,7 +119,7 @@ const AvailabilityEditor = ({ callTypeId = null }) => {
     }
   };
 
-  const formatTime = (time) => {
+  const formatTime = (time: string) => {
     // Handle both HH:MM and HH:MM:SS formats
     return time?.slice(0, 5) || '';
   };

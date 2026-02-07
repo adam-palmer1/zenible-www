@@ -8,7 +8,8 @@ import {
   PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
   PROJECT_STATUS_COLORS,
-  PROJECT_STATUS_HEX_COLORS
+  PROJECT_STATUS_HEX_COLORS,
+  type ProjectStatus,
 } from '../../constants/crm';
 import contactsAPI from '../../services/api/crm/contacts';
 import ContactSelectorModal from '../calendar/ContactSelectorModal';
@@ -27,10 +28,10 @@ interface AddProjectModalProps {
  * Modal for adding/editing projects
  */
 const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, project = null }) => {
-  const { refresh } = useCRM() as any;
-  const { createProject, updateProject, refresh: refreshProjects } = useProjects() as any;
-  const { showSuccess, showError } = useNotification() as any;
-  const { companyCurrencies, defaultCurrency } = useCompanyCurrencies() as any;
+  const { refresh } = useCRM();
+  const { createProject, updateProject, refresh: refreshProjects } = useProjects();
+  const { showSuccess, showError } = useNotification();
+  const { companyCurrencies, defaultCurrency } = useCompanyCurrencies();
 
   // Client selector state
   const [selectedContact, setSelectedContact] = useState<any>(null);
@@ -164,7 +165,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
 
     try {
       setLoadingServices(true);
-      const contact = await (contactsAPI as any).get(contactId);
+      const contact = await contactsAPI.get(contactId);
       setClientServices(contact.services || []);
     } catch (error) {
       console.error('Failed to load client services:', error);
@@ -176,7 +177,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
 
   const handleContactSelect = (contact: any) => {
     setSelectedContact(contact);
-    setFormData(prev => ({
+    setFormData((prev: any) => ({
       ...prev,
       contact_id: contact?.id || null,
       // Default currency from contact if not already set
@@ -193,7 +194,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
   };
 
   const handleStatusSelect = (status: string) => {
-    setFormData(prev => ({ ...prev, status }));
+    setFormData((prev: any) => ({ ...prev, status }));
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -237,7 +238,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
       };
 
       // Create or update project
-      let savedProject;
+      let savedProject: any;
       if (project) {
         savedProject = await updateProject(project.id, payload);
       } else {
@@ -343,7 +344,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
                 onClose={() => setShowContactSelector(false)}
                 onSelect={handleContactSelect}
                 selectedContactId={formData.contact_id}
-                anchorRef={contactButtonRef}
+                anchorRef={contactButtonRef as React.RefObject<HTMLElement>}
                 filterParams={{ is_client: true }}
               />
 
@@ -374,8 +375,8 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
                 onClick={() => statusModal.open()}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-left hover:border-zenible-primary focus:ring-2 focus:ring-zenible-primary focus:border-transparent transition-colors bg-white dark:bg-gray-700"
               >
-                <span className={`inline-flex items-center gap-2 px-3 py-1 text-xs leading-5 font-semibold rounded-full ${(PROJECT_STATUS_COLORS as any)[formData.status]}`}>
-                  {(PROJECT_STATUS_LABELS as any)[formData.status]}
+                <span className={`inline-flex items-center gap-2 px-3 py-1 text-xs leading-5 font-semibold rounded-full ${PROJECT_STATUS_COLORS[formData.status as ProjectStatus]}`}>
+                  {PROJECT_STATUS_LABELS[formData.status as ProjectStatus]}
                 </span>
               </button>
             </div>
@@ -461,12 +462,12 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
                   >
                     {(() => {
                       const selectedCurrency = companyCurrencies.find(
-                        (c: any) => (c.currency_id || c.currency?.id) === formData.default_currency_id
+                        (c) => c.currency?.id === formData.default_currency_id
                       );
                       if (selectedCurrency) {
                         return (
                           <span className="text-sm text-gray-900 dark:text-gray-100">
-                            {(selectedCurrency as any).currency?.symbol || '$'} {(selectedCurrency as any).currency?.code || 'Unknown'} - {(selectedCurrency as any).currency?.name || ''}
+                            {selectedCurrency.currency?.symbol || '$'} {selectedCurrency.currency?.code || 'Unknown'} - {selectedCurrency.currency?.name || ''}
                           </span>
                         );
                       }
@@ -478,10 +479,10 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
                   <CurrencySelectorModal
                     isOpen={currencyModal.isOpen}
                     onClose={currencyModal.close}
-                    onSelect={(currencyId: string) => setFormData(prev => ({ ...prev, default_currency_id: currencyId }))}
+                    onSelect={(currencyId: string) => setFormData((prev: any) => ({ ...prev, default_currency_id: currencyId }))}
                     selectedCurrencyId={formData.default_currency_id}
                     currencies={companyCurrencies}
-                    anchorRef={currencyButtonRef}
+                    anchorRef={currencyButtonRef as React.RefObject<HTMLElement>}
                   />
                 </div>
               </div>

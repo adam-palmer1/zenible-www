@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { statusesAPI } from '../../services/api/crm';
 import { removeItem, updateItem, addItem } from '../../utils/stateHelpers';
+import type { AvailableStatuses, SimpleStatusResponse } from '../../types';
 
 // Module-level cache for statuses (shared across all hook instances)
-let statusesCache: Record<string, unknown> | null = null;
+let statusesCache: AvailableStatuses | null = null;
 let cacheTimestamp: number | null = null;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 let pendingFetch: Promise<unknown> | null = null; // Prevent duplicate concurrent fetches
@@ -13,9 +14,9 @@ let pendingFetch: Promise<unknown> | null = null; // Prevent duplicate concurren
  * Handles loading global and custom statuses with caching
  */
 export function useContactStatuses() {
-  const [globalStatuses, setGlobalStatuses] = useState<any[]>([]);
-  const [customStatuses, setCustomStatuses] = useState<any[]>([]);
-  const [allStatuses, setAllStatuses] = useState<any[]>([]);
+  const [globalStatuses, setGlobalStatuses] = useState<SimpleStatusResponse[]>([]);
+  const [customStatuses, setCustomStatuses] = useState<SimpleStatusResponse[]>([]);
+  const [allStatuses, setAllStatuses] = useState<SimpleStatusResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,15 +28,15 @@ export function useContactStatuses() {
   };
 
   // Fetch all available statuses with caching
-  const fetchStatuses = useCallback(async (forceRefresh: boolean = false): Promise<unknown> => {
+  const fetchStatuses = useCallback(async (forceRefresh: boolean = false): Promise<AvailableStatuses | unknown> => {
     try {
       // Return cached data if valid and not forcing refresh
       if (!forceRefresh && isCacheValid()) {
-        setGlobalStatuses((statusesCache as any).global_statuses || []);
-        setCustomStatuses((statusesCache as any).custom_statuses || []);
+        setGlobalStatuses(statusesCache!.global_statuses || []);
+        setCustomStatuses(statusesCache!.custom_statuses || []);
         setAllStatuses([
-          ...((statusesCache as any).global_statuses || []),
-          ...((statusesCache as any).custom_statuses || []),
+          ...(statusesCache!.global_statuses || []),
+          ...(statusesCache!.custom_statuses || []),
         ]);
         return statusesCache;
       }
@@ -43,11 +44,12 @@ export function useContactStatuses() {
       // If there's already a fetch in progress, wait for it
       if (pendingFetch) {
         const response = await pendingFetch;
-        setGlobalStatuses((response as any).global_statuses || []);
-        setCustomStatuses((response as any).custom_statuses || []);
+        const typed = response as AvailableStatuses;
+        setGlobalStatuses(typed.global_statuses || []);
+        setCustomStatuses(typed.custom_statuses || []);
         setAllStatuses([
-          ...((response as any).global_statuses || []),
-          ...((response as any).custom_statuses || []),
+          ...(typed.global_statuses || []),
+          ...(typed.custom_statuses || []),
         ]);
         return response;
       }
@@ -61,14 +63,15 @@ export function useContactStatuses() {
       pendingFetch = null;
 
       // Update cache
-      statusesCache = response as Record<string, unknown>;
+      const typed = response as AvailableStatuses;
+      statusesCache = typed;
       cacheTimestamp = Date.now();
 
-      setGlobalStatuses((response as any).global_statuses || []);
-      setCustomStatuses((response as any).custom_statuses || []);
+      setGlobalStatuses(typed.global_statuses || []);
+      setCustomStatuses(typed.custom_statuses || []);
       setAllStatuses([
-        ...((response as any).global_statuses || []),
-        ...((response as any).custom_statuses || []),
+        ...(typed.global_statuses || []),
+        ...(typed.custom_statuses || []),
       ]);
 
       return response;
@@ -94,8 +97,8 @@ export function useContactStatuses() {
       cacheTimestamp = null;
 
       // Add to local state
-      setCustomStatuses(prev => addItem(prev, newStatus));
-      setAllStatuses(prev => addItem(prev, newStatus));
+      setCustomStatuses(prev => addItem(prev, newStatus as SimpleStatusResponse));
+      setAllStatuses(prev => addItem(prev, newStatus as SimpleStatusResponse));
 
       return newStatus;
     } catch (err: unknown) {
@@ -119,8 +122,8 @@ export function useContactStatuses() {
       cacheTimestamp = null;
 
       // Update in local state
-      setGlobalStatuses(prev => updateItem(prev, statusId, updatedStatus));
-      setAllStatuses(prev => updateItem(prev, statusId, updatedStatus));
+      setGlobalStatuses(prev => updateItem(prev, statusId, updatedStatus as SimpleStatusResponse));
+      setAllStatuses(prev => updateItem(prev, statusId, updatedStatus as SimpleStatusResponse));
 
       return updatedStatus;
     } catch (err: unknown) {
@@ -144,8 +147,8 @@ export function useContactStatuses() {
       cacheTimestamp = null;
 
       // Update in local state
-      setCustomStatuses(prev => updateItem(prev, statusId, updatedStatus));
-      setAllStatuses(prev => updateItem(prev, statusId, updatedStatus));
+      setCustomStatuses(prev => updateItem(prev, statusId, updatedStatus as SimpleStatusResponse));
+      setAllStatuses(prev => updateItem(prev, statusId, updatedStatus as SimpleStatusResponse));
 
       return updatedStatus;
     } catch (err: unknown) {

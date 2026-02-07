@@ -19,8 +19,8 @@ const QuoteRevisionTracker: React.FC<QuoteRevisionTrackerProps> = ({ quoteId }) 
   const loadRevisions = async () => {
     try {
       setLoading(true);
-      const data = await (quotesAPI as any).getRevisions(quoteId);
-      setRevisions(data || []);
+      const data = await quotesAPI.getRevisions(quoteId);
+      setRevisions(data.changes || []);
     } catch (error) {
       console.error('Error loading revisions:', error);
     } finally {

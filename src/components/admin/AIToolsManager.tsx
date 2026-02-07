@@ -3,21 +3,33 @@ import { useOutletContext } from 'react-router-dom';
 import { adminAPI } from '../../services/adminAPI';
 import AIToolModal from './AIToolModal';
 import CharacterToolAssignment from './CharacterToolAssignment';
+import { useModalState } from '../../hooks/useModalState';
+import { LoadingSpinner } from '../shared';
 
 interface AdminOutletContext {
   darkMode: boolean;
 }
 
+interface AIToolRecord {
+  id: string;
+  name: string;
+  description?: string | null;
+  function_name?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function AIToolsManager() {
   const { darkMode } = useOutletContext<AdminOutletContext>();
   const [activeSubTab, setActiveSubTab] = useState<string>('tools');
-  const [tools, setTools] = useState<any[]>([]);
+  const [tools, setTools] = useState<AIToolRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterActive, setFilterActive] = useState<string>('all'); // 'all', 'active', 'inactive'
-  const [showToolModal, setShowToolModal] = useState<boolean>(false);
-  const [editingTool, setEditingTool] = useState<any>(null);
+  const toolModal = useModalState();
+  const [editingTool, setEditingTool] = useState<AIToolRecord | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
 
@@ -34,20 +46,21 @@ export default function AIToolsManager() {
       setLoading(true);
       setError(null);
 
-      const params: any = {};
+      const params: Record<string, string> = {};
       if (filterActive !== 'all') {
-        params.active_only = filterActive === 'active';
+        params.active_only = String(filterActive === 'active');
       }
 
-      const response = await adminAPI.getAITools(params) as any;
-      setTools(Array.isArray(response) ? response : []);
+      const response = await adminAPI.getAITools(params) as AIToolRecord[] | { tools?: AIToolRecord[] };
+      const toolsList = Array.isArray(response) ? response : [];
+      setTools(toolsList);
 
       // Calculate pagination (since backend might not provide it)
-      const totalTools = response.length;
+      const totalTools = toolsList.length;
       setTotalPages(Math.max(1, Math.ceil(totalTools / TOOLS_PER_PAGE)));
     } catch (err) {
       console.error('Error loading AI tools:', err);
-      setError((err as any).message || 'Failed to load AI tools');
+      setError(err instanceof Error ? err.message : 'Failed to load AI tools');
       setTools([]);
     } finally {
       setLoading(false);
@@ -56,28 +69,28 @@ export default function AIToolsManager() {
 
   const handleCreateTool = () => {
     setEditingTool(null);
-    setShowToolModal(true);
+    toolModal.open();
   };
 
-  const handleEditTool = (tool: any) => {
+  const handleEditTool = (tool: AIToolRecord) => {
     setEditingTool(tool);
-    setShowToolModal(true);
+    toolModal.open();
   };
 
-  const handleCloneTool = (tool: any) => {
+  const handleCloneTool = (tool: AIToolRecord) => {
     // Create a clone of the tool with a new name and reset some fields
     const clonedTool = {
       ...tool,
       name: `${tool.name} (Copy)`,
-      id: null, // Remove ID so it creates a new tool
-      created_at: null,
-      updated_at: null
+      id: null as unknown as string, // Remove ID so it creates a new tool
+      created_at: null as unknown as string,
+      updated_at: null as unknown as string
     };
     setEditingTool(clonedTool);
-    setShowToolModal(true);
+    toolModal.open();
   };
 
-  const handleDeleteTool = async (tool: any) => {
+  const handleDeleteTool = async (tool: AIToolRecord) => {
     if (!confirm(`Are you sure you want to delete the tool "${tool.name}"? This action cannot be undone and will remove it from all characters.`)) {
       return;
     }
@@ -87,11 +100,11 @@ export default function AIToolsManager() {
       await loadTools(); // Reload the list
     } catch (err) {
       console.error('Error deleting tool:', err);
-      setError((err as any).message || 'Failed to delete tool');
+      setError(err instanceof Error ? err.message : 'Failed to delete tool');
     }
   };
 
-  const handleToggleToolStatus = async (tool: any) => {
+  const handleToggleToolStatus = async (tool: AIToolRecord) => {
     try {
       await adminAPI.updateAITool(tool.id, {
         is_active: !tool.is_active
@@ -99,12 +112,12 @@ export default function AIToolsManager() {
       await loadTools(); // Reload the list
     } catch (err) {
       console.error('Error updating tool status:', err);
-      setError((err as any).message || 'Failed to update tool status');
+      setError(err instanceof Error ? err.message : 'Failed to update tool status');
     }
   };
 
   const handleToolSaved = async () => {
-    setShowToolModal(false);
+    toolModal.close();
     setEditingTool(null);
     await loadTools();
   };
@@ -112,7 +125,7 @@ export default function AIToolsManager() {
   const filteredTools = tools.filter(tool => {
     const matchesSearch = !searchTerm ||
       tool.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tool.description.toLowerCase().includes(searchTerm.toLowerCase());
+      (tool.description ?? '').toLowerCase().includes(searchTerm.toLowerCase());
 
     return matchesSearch;
   });
@@ -234,9 +247,7 @@ export default function AIToolsManager() {
         <div className="flex-1 overflow-auto p-6">
 
           {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-            </div>
+            <LoadingSpinner height="h-full" />
           ) : (
             <div className={`rounded-lg overflow-hidden ${
               darkMode ? 'bg-zenible-dark-card' : 'bg-white'
@@ -301,7 +312,7 @@ export default function AIToolsManager() {
                       <td className="px-6 py-4">
                         <div className={`text-sm w-80 truncate ${
                           darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
-                        }`} title={tool.description}>
+                        }`} title={tool.description ?? undefined}>
                           {tool.description}
                         </div>
                       </td>
@@ -428,11 +439,11 @@ export default function AIToolsManager() {
       )}
 
       {/* Tool Modal */}
-      {showToolModal && (
+      {toolModal.isOpen && (
         <AIToolModal
           tool={editingTool}
           onClose={() => {
-            setShowToolModal(false);
+            toolModal.close();
             setEditingTool(null);
           }}
           onSave={handleToolSaved}

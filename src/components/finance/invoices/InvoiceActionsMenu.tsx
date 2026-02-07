@@ -14,6 +14,14 @@ import {
 import { MoreVertical } from 'lucide-react';
 import Dropdown from '../../ui/dropdown/Dropdown';
 
+interface MenuItemType {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  onClick?: () => void;
+  destructive?: boolean;
+}
+
 interface InvoiceActionsMenuProps {
   invoice: any;
   onEdit: () => void;
@@ -38,7 +46,7 @@ interface InvoiceActionsMenuProps {
  * Contains actions not shown in the main action bar
  */
 const InvoiceActionsMenu: React.FC<InvoiceActionsMenuProps> = ({
-  invoice,
+  invoice: _invoice,
   onEdit,
   onClone,
   onDelete,
@@ -117,7 +125,7 @@ const InvoiceActionsMenu: React.FC<InvoiceActionsMenuProps> = ({
       onClick: onDelete,
       destructive: true,
     },
-  ].filter(Boolean) as any[];
+  ].filter(Boolean) as MenuItemType[];
 
   return (
     <Dropdown
@@ -132,7 +140,7 @@ const InvoiceActionsMenu: React.FC<InvoiceActionsMenuProps> = ({
       align="end"
       side="bottom"
     >
-      {menuItems.map((item: any, index: number) => (
+      {menuItems.map((item, index: number) => (
         <Dropdown.Item
           key={item.id}
           onSelect={item.onClick}

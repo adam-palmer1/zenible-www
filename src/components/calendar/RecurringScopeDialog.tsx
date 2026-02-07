@@ -10,7 +10,7 @@ interface RecurringScopeDialogProps {
   appointment?: any;
 }
 
-const RecurringScopeDialog: React.FC<RecurringScopeDialogProps> = ({ isOpen, onClose, onConfirm, mode = 'edit', appointment }) => {
+const RecurringScopeDialog: React.FC<RecurringScopeDialogProps> = ({ isOpen, onClose, onConfirm, mode = 'edit', appointment: _appointment }) => {
   const { editScopes } = useCRMReferenceData();
   const [selectedScope, setSelectedScope] = useState('this');
 
@@ -73,7 +73,7 @@ const RecurringScopeDialog: React.FC<RecurringScopeDialogProps> = ({ isOpen, onC
             </p>
 
             <div className="space-y-3">
-              {(editScopes as any[]).map((scope: any) => (
+              {editScopes.map((scope) => (
                 <label
                   key={scope.value}
                   className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors"

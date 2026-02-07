@@ -13,10 +13,39 @@ import {
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import { useExpenses } from '../../../contexts/ExpenseContext';
+import { LoadingSpinner } from '../../shared';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { getCurrencySymbol } from '../../../utils/currency';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
+import type { Expense } from '../../../contexts/ExpenseContext';
+
+interface MonthlyTrend {
+  month: string;
+  total: number;
+  count: number;
+  categories: Record<string, number>;
+  average: number;
+}
+
+interface CategoryAnalysisItem {
+  category: string;
+  total: number;
+  avgMonthly: number;
+  growthRate: number;
+  percentage: number;
+}
+
+interface ExpensePatterns {
+  dayOfWeek: Array<{ day: string; amount: number }>;
+}
+
+interface GrowthMetrics {
+  totalExpenses: number;
+  totalTransactions: number;
+  avgExpenseAmount: number;
+  monthlyGrowth: number;
+}
 
 // Register Chart.js components
 ChartJS.register(
@@ -36,9 +65,9 @@ const ExpenseAnalytics: React.FC = () => {
     expenses,
     categories,
     loading,
-  } = useExpenses() as any;
-  const { numberFormats } = useCRMReferenceData() as any;
-  const { getNumberFormat } = useCompanyAttributes() as any;
+  } = useExpenses();
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
 
   const numberFormat = useMemo(() => {
     const formatId = getNumberFormat();
@@ -60,12 +89,12 @@ const ExpenseAnalytics: React.FC = () => {
   const analyticsData = useMemo(() => {
     if (!expenses || expenses.length === 0) {
       return {
-        monthlyTrends: [] as any[],
-        categoryAnalysis: [] as any[],
-        vendorAnalysis: [] as any[],
-        expensePatterns: {} as any,
-        growthMetrics: {} as any,
-        anomalies: [] as any[],
+        monthlyTrends: [] as MonthlyTrend[],
+        categoryAnalysis: [] as CategoryAnalysisItem[],
+        vendorAnalysis: [] as Record<string, unknown>[],
+        expensePatterns: {} as ExpensePatterns,
+        growthMetrics: {} as GrowthMetrics,
+        anomalies: [] as Expense[],
       };
     }
 
@@ -353,11 +382,7 @@ const ExpenseAnalytics: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
@@ -427,7 +452,7 @@ const ExpenseAnalytics: React.FC = () => {
                 <div>
                   <p className="text-sm font-medium design-text-secondary">Total Spent</p>
                   <p className="text-2xl font-bold design-text-primary">
-                    {formatAmount(parseFloat(analyticsData.growthMetrics.totalExpenses || 0))}
+                    {formatAmount(analyticsData.growthMetrics.totalExpenses || 0)}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">

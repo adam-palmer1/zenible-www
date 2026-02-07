@@ -8,18 +8,40 @@ const profileIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg
 const briefcaseIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M8 21V7C8 5.895 8.895 5 10 5H14C15.105 5 16 5.895 16 7V21M5 21H19C20.105 21 21 20.105 21 19V11C21 9.895 20.105 9 19 9H5C3.895 9 3 9.895 3 11V19C3 20.105 3.895 21 5 21Z' stroke='%238e51ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
 const awardIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M12 15C15.866 15 19 11.866 19 8C19 4.13401 15.866 1 12 1C8.13401 1 5 4.13401 5 8C5 11.866 8.13401 15 12 15Z' stroke='%238e51ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M8.21 13.89L7 23L12 20L17 23L15.79 13.88' stroke='%238e51ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
 
+interface OnboardingQuestion {
+  id: string;
+  page_number: number;
+  display_order: number;
+  question_text: string;
+  question_type: string;
+  is_required: boolean;
+  placeholder?: string;
+  metadata?: {
+    placeholder?: string;
+    help_text?: string;
+    options?: Array<{ value: string; label: string } | string>;
+  };
+}
+
+interface OnboardingAnswer {
+  question_id: string;
+  answer_text?: string;
+  answer?: string;
+}
+
 interface OnboardingModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
-  const { darkMode, updatePreference, reloadPreferences } = usePreferences() as any;
+  const { darkMode, updatePreference, reloadPreferences } = usePreferences();
   const [currentStep, setCurrentStep] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showCompletion, setShowCompletion] = useState(false);
-  const [questions, setQuestions] = useState<any[]>([]);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  type AnswerValue = string | number | boolean | string[];
+  const [questions, setQuestions] = useState<OnboardingQuestion[]>([]);
+  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +64,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
       ]);
 
       // Sort questions by page_number and display_order
-      const sortedQuestions = ((questionsData as any).questions || []).sort((a: any, b: any) => {
+      const sortedQuestions = (((questionsData as Record<string, unknown>).questions as OnboardingQuestion[]) || []).sort((a, b) => {
         if (a.page_number !== b.page_number) {
           return a.page_number - b.page_number;
         }
@@ -52,33 +74,34 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
       setQuestions(sortedQuestions);
 
       // Convert answers array to object keyed by question_id
-      const answersMap = {};
+      const answersMap: Record<string, AnswerValue> = {};
       // Handle both array directly or object with answers property
-      const answersArray = Array.isArray(answersData) ? answersData : ((answersData as any).answers || []);
+      const answersArray: OnboardingAnswer[] = Array.isArray(answersData) ? answersData : ((answersData as Record<string, unknown>).answers as OnboardingAnswer[]) || [];
 
       if (answersArray.length > 0) {
         answersArray.forEach(item => {
           // Parse answer_text based on question type
-          let answerValue = item.answer_text || item.answer;
+          const rawValue = item.answer_text || item.answer || '';
+          let parsedValue: AnswerValue = rawValue;
 
           // Find the question to determine its type
           const question = sortedQuestions.find(q => q.id === item.question_id);
           if (question) {
             if (question.question_type === 'boolean') {
-              answerValue = answerValue === 'true' || answerValue === true;
+              parsedValue = rawValue === 'true';
             } else if (question.question_type === 'number') {
-              answerValue = Number(answerValue);
+              parsedValue = Number(rawValue);
             } else if (question.question_type === 'multi_select') {
               try {
-                answerValue = JSON.parse(answerValue);
+                parsedValue = JSON.parse(rawValue) as string[];
               } catch {
                 // If parsing fails, treat as single value array
-                answerValue = answerValue ? [answerValue] : [];
+                parsedValue = rawValue ? [rawValue] : [];
               }
             }
           }
 
-          answersMap[item.question_id] = answerValue;
+          answersMap[item.question_id] = parsedValue;
         });
       }
       setAnswers(answersMap);
@@ -97,16 +120,10 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
     return questions.filter(q => q.page_number === currentPageNumber);
   };
 
-  // Calculate total pages (including welcome page)
-  const getTotalPages = () => {
-    if (!questions.length) return 1; // Just welcome page
-    const maxQuestionPage = Math.max(...questions.map(q => q.page_number || 1));
-    return maxQuestionPage + 1; // +1 for welcome page
-  };
 
   const validateCurrentPage = () => {
     const pageQuestions = getCurrentPageQuestions();
-    const errors = {};
+    const errors: Record<string, string> = {};
     let isValid = true;
 
     pageQuestions.forEach(question => {
@@ -122,18 +139,21 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
   const saveCurrentPageAnswers = async () => {
     const pageQuestions = getCurrentPageQuestions();
-    const answersToSave = [];
+    const answersToSave: { question_id: string; answer_text: string; answer_metadata: Record<string, unknown> }[] = [];
 
     pageQuestions.forEach(question => {
       if (answers[question.id] !== undefined && answers[question.id] !== '') {
         // Convert answer to string format for answer_text
-        let answerText = answers[question.id];
-        if (typeof answerText === 'boolean') {
-          answerText = answerText.toString();
-        } else if (typeof answerText === 'number') {
-          answerText = answerText.toString();
-        } else if (Array.isArray(answerText)) {
-          answerText = JSON.stringify(answerText);
+        const rawAnswer = answers[question.id];
+        let answerText: string;
+        if (typeof rawAnswer === 'boolean') {
+          answerText = rawAnswer.toString();
+        } else if (typeof rawAnswer === 'number') {
+          answerText = rawAnswer.toString();
+        } else if (Array.isArray(rawAnswer)) {
+          answerText = JSON.stringify(rawAnswer);
+        } else {
+          answerText = rawAnswer;
         }
 
         answersToSave.push({
@@ -241,7 +261,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
     onClose();
   };
 
-  const handleAnswerChange = (questionId: string, value: any) => {
+  const handleAnswerChange = (questionId: string, value: AnswerValue) => {
     setAnswers(prev => ({
       ...prev,
       [questionId]: value
@@ -256,8 +276,9 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
     }
   };
 
-  const renderQuestionInput = (question: any) => {
-    const value = answers[question.id] || '';
+  const renderQuestionInput = (question: OnboardingQuestion) => {
+    const rawValue = answers[question.id];
+    const value = rawValue !== undefined ? rawValue : '';
     const error = validationErrors[question.id];
     const placeholder = question.metadata?.placeholder || question.placeholder || 'Enter your answer...';
 
@@ -266,7 +287,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         return (
           <input
             type="text"
-            value={value}
+            value={value as string}
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
             placeholder={placeholder}
             className={`w-full px-4 py-3 rounded-lg border ${
@@ -282,7 +303,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
       case 'long_text':
         return (
           <textarea
-            value={value}
+            value={value as string}
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
             placeholder={placeholder}
             rows={4}
@@ -300,7 +321,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         const options = question.metadata?.options || [];
         return (
           <select
-            value={value}
+            value={value as string}
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
             className={`w-full px-4 py-3 rounded-lg border ${
               error
@@ -311,24 +332,28 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             } focus:outline-none focus:ring-2 focus:ring-zenible-primary`}
           >
             <option value="">Select an option</option>
-            {options.map((option, index) => (
-              <option key={index} value={option.value || option}>
-                {option.label || option}
-              </option>
-            ))}
+            {options.map((option, index) => {
+              const optValue = typeof option === 'string' ? option : option.value;
+              const optLabel = typeof option === 'string' ? option : option.label;
+              return (
+                <option key={index} value={optValue}>
+                  {optLabel}
+                </option>
+              );
+            })}
           </select>
         );
       }
 
       case 'multi_select': {
         const multiOptions = question.metadata?.options || [];
-        const selectedValues = value ? (Array.isArray(value) ? value : [value]) : [];
+        const selectedValues: string[] = value ? (Array.isArray(value) ? value as string[] : [String(value)]) : [];
 
         return (
           <div className="space-y-2">
             {multiOptions.map((option, index) => {
-              const optionValue = option.value || option;
-              const optionLabel = option.label || option;
+              const optionValue = typeof option === 'string' ? option : option.value;
+              const optionLabel = typeof option === 'string' ? option : option.label;
               const isChecked = selectedValues.includes(optionValue);
 
               return (
@@ -395,7 +420,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         return (
           <input
             type="number"
-            value={value}
+            value={value as number | string}
             onChange={(e) => handleAnswerChange(question.id, e.target.value ? Number(e.target.value) : '')}
             placeholder={placeholder}
             className={`w-full px-4 py-3 rounded-lg border ${
@@ -412,7 +437,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         return (
           <input
             type="date"
-            value={value}
+            value={value as string}
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
             className={`w-full px-4 py-3 rounded-lg border ${
               error

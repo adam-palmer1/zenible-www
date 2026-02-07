@@ -8,8 +8,8 @@ import ConfirmationModal from '../../common/ConfirmationModal';
  * Export Button with dropdown for CSV/PDF options
  */
 const ExportButton: React.FC = () => {
-  const { exportTransactions, total } = useReports() as any;
-  const { showSuccess, showError } = useNotification() as any;
+  const { exportTransactions, total } = useReports();
+  const { showSuccess, showError } = useNotification();
   const [isOpen, setIsOpen] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);

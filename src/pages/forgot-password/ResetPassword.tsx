@@ -102,7 +102,7 @@ const InputField: React.FC<InputFieldProps> = ({
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setPassword } = useAuth() as any;
+  const { setPassword } = useAuth();
 
   const [password, setPasswordValue] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
@@ -112,12 +112,12 @@ export default function ResetPassword() {
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isValidating, setIsValidating] = useState<boolean>(true);
-  const [tokenValid, setTokenValid] = useState<boolean>(false);
+  const [, setTokenValid] = useState<boolean>(false);
   const [tokenData, setTokenData] = useState<any>(null);
   const [error, setError] = useState<string>('');
   const [tokenError, setTokenError] = useState<string>('');
   const [success, setSuccess] = useState<boolean>(false);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [, setIsDarkMode] = useState<boolean>(false);
 
   const token = searchParams.get('token');
   const isInvitation = tokenData?.type === 'invitation';
@@ -203,7 +203,7 @@ export default function ResetPassword() {
 
     try {
       const result = await setPassword(
-        token,
+        token!,
         password,
         requiresName ? firstName : null,
         requiresName ? lastName : null
@@ -228,7 +228,7 @@ export default function ResetPassword() {
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !isLoading) {
-      handleSubmit(e as any);
+      handleSubmit(e as React.SyntheticEvent as React.FormEvent);
     }
   };
 

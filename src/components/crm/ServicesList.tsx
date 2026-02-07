@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { TrashIcon, PencilIcon, LinkIcon } from '@heroicons/react/24/outline';
 import EstimatedValue from './EstimatedValue';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS } from '../../constants/crm';
+import type { ServiceStatus } from '../../constants/crm';
+import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
 
 /**
  * Calculate progress percentage for a service based on attributed and invoiced amounts
@@ -42,17 +44,18 @@ interface ServicesListProps {
  * Component to display list of services assigned to a contact
  */
 const ServicesList: React.FC<ServicesListProps> = ({ services = [], onEdit, onDelete, onServiceClick }) => {
-  const [serviceToDelete, setServiceToDelete] = useState<any>(null);
+  const deleteConfirmation = useDeleteConfirmation<any>();
 
   const handleDeleteClick = (service: any) => {
-    setServiceToDelete(service);
+    deleteConfirmation.requestDelete(service);
   };
 
-  const handleConfirmDelete = () => {
-    if (serviceToDelete && onDelete) {
-      onDelete(serviceToDelete);
-    }
-    setServiceToDelete(null);
+  const handleConfirmDelete = async () => {
+    await deleteConfirmation.confirmDelete(async (service) => {
+      if (onDelete) {
+        onDelete(service);
+      }
+    });
   };
 
   if (services.length === 0) {
@@ -87,8 +90,8 @@ const ServicesList: React.FC<ServicesListProps> = ({ services = [], onEdit, onDe
                   <p className="font-medium text-gray-900 dark:text-white truncate">{service.name}</p>
                   {/* Status Badge */}
                   {service.status && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${(SERVICE_STATUS_COLORS as any)[service.status] || 'bg-gray-100 text-gray-800'}`}>
-                      {(SERVICE_STATUS_LABELS as any)[service.status] || service.status}
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${SERVICE_STATUS_COLORS[service.status as ServiceStatus] || 'bg-gray-100 text-gray-800'}`}>
+                      {SERVICE_STATUS_LABELS[service.status as ServiceStatus] || service.status}
                     </span>
                   )}
                   {/* Locked Badge */}
@@ -178,14 +181,14 @@ const ServicesList: React.FC<ServicesListProps> = ({ services = [], onEdit, onDe
     </div>
 
     <ConfirmationModal
-      isOpen={!!serviceToDelete}
-      onClose={() => setServiceToDelete(null)}
+      isOpen={deleteConfirmation.isOpen}
+      onClose={deleteConfirmation.cancelDelete}
       onConfirm={handleConfirmDelete}
       title="Remove Service?"
       message={
         <div>
           <p className="mb-2">
-            Are you sure you want to remove "{serviceToDelete?.name}" from this contact?
+            Are you sure you want to remove "{deleteConfirmation.item?.name}" from this contact?
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             This will unassign the service but won't delete it from your service catalog.

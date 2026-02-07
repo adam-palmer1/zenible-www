@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, type Stripe, type PaymentIntent } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { usePaymentIntegrations } from '../../../contexts/PaymentIntegrationsContext';
 import invoicesAPI from '../../../services/api/finance/invoices';
@@ -27,8 +27,8 @@ interface StripePaymentFormInnerProps {
   amount: number;
   currency: string;
   invoiceId: string;
-  onSuccess: (result: any) => void;
-  onError: (err: any) => void;
+  onSuccess: (result: PaymentIntent) => void;
+  onError: (err: Error) => void;
   isPublic?: boolean;
   publicToken?: string | null;
 }
@@ -73,7 +73,7 @@ const StripePaymentFormInner: React.FC<StripePaymentFormInnerProps> = ({
 
     try {
       // Step 1: Create payment intent on backend
-      const { client_secret } = await (invoicesAPI as any).createStripePaymentIntent({
+      const { client_secret } = await invoicesAPI.createStripePaymentIntent({
         invoiceId,
         amount,
         currency,
@@ -83,7 +83,7 @@ const StripePaymentFormInner: React.FC<StripePaymentFormInnerProps> = ({
       // Step 2: Confirm payment with Stripe
       const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(client_secret, {
         payment_method: {
-          card: elements.getElement(CardElement) as any,
+          card: elements.getElement(CardElement)!,
           billing_details: {
             name: billingDetails.name,
             email: billingDetails.email,
@@ -98,7 +98,7 @@ const StripePaymentFormInner: React.FC<StripePaymentFormInnerProps> = ({
 
       if (paymentIntent && paymentIntent.status === 'succeeded') {
         // Step 3: Confirm payment on backend
-        await (invoicesAPI as any).confirmPayment({
+        await invoicesAPI.confirmPayment({
           invoiceId,
           paymentMethod: 'stripe',
           paymentIntentId: paymentIntent.id,
@@ -205,8 +205,8 @@ interface StripePaymentFormProps {
   amount: number;
   currency: string;
   invoiceId: string;
-  onSuccess: (result: any) => void;
-  onError: (err: any) => void;
+  onSuccess: (result: PaymentIntent) => void;
+  onError: (err: Error) => void;
   isPublic?: boolean;
   publicToken?: string | null;
 }
@@ -215,8 +215,8 @@ interface StripePaymentFormProps {
  * Stripe Payment Form Component (Outer - with Elements provider)
  */
 const StripePaymentForm: React.FC<StripePaymentFormProps> = (props) => {
-  const { stripeIntegration } = usePaymentIntegrations() as any;
-  const [stripePromise, setStripePromise] = useState<any>(null);
+  const { stripeIntegration } = usePaymentIntegrations();
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
 
   useEffect(() => {
     if (stripeIntegration?.publishable_key) {

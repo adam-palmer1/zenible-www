@@ -28,10 +28,45 @@ interface ValidationTypes {
   [key: string]: string[];
 }
 
+interface OnboardingQuestion {
+  id: string;
+  question_text: string;
+  question_code: string;
+  question_type: string;
+  is_required: boolean;
+  is_active: boolean;
+  placeholder?: string;
+  default_value?: string;
+  options?: string[];
+  validation_rules?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  help_text?: string;
+  depends_on?: unknown;
+  display_order: number;
+  page_number?: number;
+}
+
+interface OnboardingAnswer {
+  id: string;
+  user_id: string;
+  user_name?: string;
+  user_email?: string;
+  question_title?: string;
+  answer: unknown;
+  answered_at: string;
+}
+
+interface OnboardingStatistics {
+  total_responses?: number;
+  users_responded?: number;
+  average_completion_rate?: number;
+  last_response_at?: string;
+}
+
 interface SortableQuestionItemProps {
-  question: any;
-  onEdit: (question: any) => void;
-  onDelete: (question: any) => void;
+  question: OnboardingQuestion;
+  onEdit: (question: OnboardingQuestion) => void;
+  onDelete: (question: OnboardingQuestion) => void;
 }
 
 interface DeleteWarning {
@@ -48,10 +83,10 @@ interface FormData {
   placeholder: string;
   default_value: string;
   options: string[];
-  validation_rules: any;
-  metadata: any;
+  validation_rules: Record<string, unknown>;
+  metadata: Record<string, unknown>;
   help_text: string;
-  depends_on: any;
+  depends_on: unknown;
   display_order: number;
   page_number: number;
 }
@@ -174,16 +209,15 @@ const SortableQuestionItem = ({ question, onEdit, onDelete }: SortableQuestionIt
 
 export default function OnboardingQuestions() {
   const [activeTab, setActiveTab] = useState<string>('questions');
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<OnboardingQuestion[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [setSelectedQuestion] = useState<any>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
-  const [questionToDelete, setQuestionToDelete] = useState<any>(null);
+  const [questionToDelete, setQuestionToDelete] = useState<OnboardingQuestion | null>(null);
   const [deleteWarning, setDeleteWarning] = useState<DeleteWarning | null>(null); // Stores warning about existing answers
   const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
-  const [statistics, setStatistics] = useState<any>(null);
-  const [answers, setAnswers] = useState<any[]>([]);
+  const [statistics, setStatistics] = useState<OnboardingStatistics | null>(null);
+  const [answers, setAnswers] = useState<OnboardingAnswer[]>([]);
   const [answersPage, setAnswersPage] = useState<number>(1);
   const [totalAnswers, setTotalAnswers] = useState<number>(0);
 
@@ -206,7 +240,7 @@ export default function OnboardingQuestions() {
   });
 
   const [newOption, setNewOption] = useState<string>('');
-  const [editingQuestion, setEditingQuestion] = useState<any>(null);
+  const [editingQuestion, setEditingQuestion] = useState<OnboardingQuestion | null>(null);
 
   useEffect(() => {
     loadQuestions();
@@ -222,7 +256,7 @@ export default function OnboardingQuestions() {
     setLoading(true);
     setError(null);
     try {
-      const data = await (adminAPI as any).getAllCustomizationQuestions({ include_inactive: true });
+      const data = await adminAPI.getAllCustomizationQuestions({ include_inactive: 'true' }) as { questions?: OnboardingQuestion[] };
       setQuestions(data.questions || []);
     } catch (err: any) {
       setError(err.message);
@@ -235,7 +269,7 @@ export default function OnboardingQuestions() {
   const loadStatistics = async () => {
     setLoading(true);
     try {
-      const stats = await (adminAPI as any).getCustomizationQuestionsStats();
+      const stats = await adminAPI.getCustomizationQuestionsStats() as OnboardingStatistics;
       setStatistics(stats);
 
       // Load recent answers - Since getAllAnswers doesn't exist, we'll need to handle this differently
@@ -283,9 +317,9 @@ export default function OnboardingQuestions() {
       };
 
       if (editingQuestion) {
-        await (adminAPI as any).updateCustomizationQuestion(editingQuestion.id, questionData);
+        await adminAPI.updateCustomizationQuestion(editingQuestion.id, questionData);
       } else {
-        await (adminAPI as any).createCustomizationQuestion(questionData);
+        await adminAPI.createCustomizationQuestion(questionData);
       }
 
       await loadQuestions();
@@ -304,7 +338,7 @@ export default function OnboardingQuestions() {
 
     setDeleteLoading(true);
     try {
-      await (adminAPI as any).deleteCustomizationQuestion(questionToDelete.id, forceDelete);
+      await adminAPI.deleteCustomizationQuestion(questionToDelete.id, forceDelete);
       await loadQuestions();
       setShowDeleteModal(false);
       setQuestionToDelete(null);
@@ -342,7 +376,7 @@ export default function OnboardingQuestions() {
     })
   );
 
-  const handleDragEnd = async (event: any) => {
+  const handleDragEnd = async (event: { active: { id: string | number }; over: { id: string | number } | null }) => {
     const { active, over } = event;
 
     if (!over || active.id === over.id) return;
@@ -364,7 +398,7 @@ export default function OnboardingQuestions() {
     try {
       // Update each question with new display_order
       const updatePromises = updatedItems.map(q =>
-        (adminAPI as any).updateCustomizationQuestion(q.id, {
+        adminAPI.updateCustomizationQuestion(q.id, {
           ...q,
           display_order: q.display_order,
           // Move placeholder and help_text to metadata if they exist
@@ -408,19 +442,19 @@ export default function OnboardingQuestions() {
     setNewOption('');
   };
 
-  const handleEditQuestion = (question: any) => {
+  const handleEditQuestion = (question: OnboardingQuestion) => {
     setFormData({
       question_text: question.question_text || '',
       question_code: question.question_code || '',
       question_type: question.question_type || 'short_text',
       is_required: question.is_required ?? true,
       is_active: question.is_active ?? true,
-      placeholder: question.metadata?.placeholder || question.placeholder || '',
+      placeholder: (question.metadata?.placeholder as string) || question.placeholder || '',
       default_value: question.default_value || '',
       options: question.options || [],
       validation_rules: question.validation_rules || {},
       metadata: question.metadata || {},
-      help_text: question.metadata?.help_text || question.help_text || '',
+      help_text: (question.metadata?.help_text as string) || question.help_text || '',
       depends_on: question.depends_on,
       display_order: question.display_order || 0,
       page_number: question.page_number || 1,
@@ -442,11 +476,11 @@ export default function OnboardingQuestions() {
   const handleRemoveOption = (index: number) => {
     setFormData({
       ...formData,
-      options: formData.options.filter((_: any, i: number) => i !== index),
+      options: formData.options.filter((_: string, i: number) => i !== index),
     });
   };
 
-  const handleValidationChange = (key: string, value: any) => {
+  const handleValidationChange = (key: string, value: unknown) => {
     setFormData({
       ...formData,
       validation_rules: {
@@ -751,7 +785,7 @@ export default function OnboardingQuestions() {
                       </label>
                       <input
                         type="number"
-                        value={formData.validation_rules.min_length || ''}
+                        value={(formData.validation_rules.min_length as number) || ''}
                         onChange={(e) => handleValidationChange('min_length', parseInt(e.target.value))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         min="0"
@@ -763,7 +797,7 @@ export default function OnboardingQuestions() {
                       </label>
                       <input
                         type="number"
-                        value={formData.validation_rules.max_length || ''}
+                        value={(formData.validation_rules.max_length as number) || ''}
                         onChange={(e) => handleValidationChange('max_length', parseInt(e.target.value))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         min="0"
@@ -780,7 +814,7 @@ export default function OnboardingQuestions() {
                       </label>
                       <input
                         type="number"
-                        value={formData.validation_rules.min_value || ''}
+                        value={(formData.validation_rules.min_value as number) || ''}
                         onChange={(e) => handleValidationChange('min_value', parseFloat(e.target.value))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
@@ -791,7 +825,7 @@ export default function OnboardingQuestions() {
                       </label>
                       <input
                         type="number"
-                        value={formData.validation_rules.max_value || ''}
+                        value={(formData.validation_rules.max_value as number) || ''}
                         onChange={(e) => handleValidationChange('max_value', parseFloat(e.target.value))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
@@ -806,7 +840,7 @@ export default function OnboardingQuestions() {
                     </label>
                     <input
                       type="number"
-                      value={formData.validation_rules.step || ''}
+                      value={(formData.validation_rules.step as number) || ''}
                       onChange={(e) => handleValidationChange('step', parseFloat(e.target.value))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       min="0"
@@ -975,7 +1009,7 @@ export default function OnboardingQuestions() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {answers.map((answer: any) => (
+              {answers.map((answer: OnboardingAnswer) => (
                 <tr key={answer.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
@@ -990,7 +1024,7 @@ export default function OnboardingQuestions() {
                     <div className="text-sm text-gray-900 max-w-xs truncate">
                       {typeof answer.answer === 'object'
                         ? JSON.stringify(answer.answer)
-                        : answer.answer}
+                        : String(answer.answer)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

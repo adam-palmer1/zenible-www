@@ -5,12 +5,10 @@
 
 import { API_BASE_URL } from '@/config/api';
 import logger from '@/utils/logger';
+import { ApiError } from './ApiError';
 
-// Extend Error to include API-specific properties
-export interface ApiError extends Error {
-  status?: number;
-  data?: unknown;
-}
+// Re-export ApiError so existing imports from httpClient continue to work
+export { ApiError } from './ApiError';
 
 interface ValidationError {
   loc?: (string | number)[];
@@ -112,10 +110,7 @@ export const createRequest = (context = 'API'): RequestFn => {
           errorMessage = data?.detail || data?.message || `Request failed with status ${response.status}`;
         }
 
-        const error = new Error(errorMessage) as ApiError;
-        error.status = response.status;
-        error.data = data;
-        throw error;
+        throw new ApiError(errorMessage, response.status, response.statusText, data);
       }
 
       return data as T;

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useUsageDashboard } from '../contexts/UsageDashboardContext';
+import { LoadingSpinner } from './shared';
 
 interface UsageProgressBarProps {
   current: number;
@@ -79,9 +80,9 @@ function FeatureBadge({ enabled, darkMode }: FeatureBadgeProps) {
 }
 
 export default function UsageDashboard() {
-  const { darkMode } = usePreferences() as any;
+  const { darkMode } = usePreferences();
   const navigate = useNavigate();
-  const { usageData, loading, error, refresh } = useUsageDashboard() as any;
+  const { usageData, loading, error, refresh } = useUsageDashboard();
   const [expandedSections, setExpandedSections] = useState({
     features: true,
     limits: true,
@@ -89,7 +90,7 @@ export default function UsageDashboard() {
     integrations: true,
   });
 
-  const toggleSection = (section: string) => {
+  const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
@@ -99,9 +100,7 @@ export default function UsageDashboard() {
   if (loading) {
     return (
       <div className={`rounded-xl border p-6 ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary"></div>
-        </div>
+        <LoadingSpinner size="h-8 w-8" height="py-8" />
       </div>
     );
   }
@@ -262,8 +261,8 @@ export default function UsageDashboard() {
                         )}
                       </div>
                       <UsageProgressBar
-                        current={limit.current}
-                        limit={limit.limit}
+                        current={limit.current ?? 0}
+                        limit={limit.limit ?? -1}
                         darkMode={darkMode}
                       />
                     </div>
@@ -308,7 +307,7 @@ export default function UsageDashboard() {
                       </div>
                       <UsageProgressBar
                         current={ai_usage.total.current ?? 0}
-                        limit={ai_usage.total.limit}
+                        limit={ai_usage.total.limit ?? -1}
                         darkMode={darkMode}
                       />
                     </div>
@@ -358,9 +357,9 @@ export default function UsageDashboard() {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className={`text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                        {formatFeatureName(tool.tool_name || tool.name)}
+                        {formatFeatureName(tool.tool_name || tool.name || '')}
                       </span>
-                      <FeatureBadge enabled={tool.is_enabled} darkMode={darkMode} />
+                      <FeatureBadge enabled={tool.is_enabled ?? false} darkMode={darkMode} />
                     </div>
                     {tool.is_enabled && tool.monthly_usage_limit && (
                       <UsageProgressBar

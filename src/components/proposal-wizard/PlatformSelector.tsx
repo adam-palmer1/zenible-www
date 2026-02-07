@@ -31,14 +31,14 @@ export default function PlatformSelector({ darkMode, selectedPlatform, setSelect
     try {
       setLoading(true);
       // Fetch platforms configured for this specific character
-      const fetchedPlatforms = await (platformAPI as any).getActivePlatforms({ characterId });
+      const fetchedPlatforms = await platformAPI.getActivePlatforms({ characterId: characterId || undefined });
 
       // No need to filter for configured - the API returns only configured platforms for the character
       setPlatforms(fetchedPlatforms);
 
       // Set first platform as default if none selected
       if (!selectedPlatform && fetchedPlatforms.length > 0) {
-        setSelectedPlatform(fetchedPlatforms[0].system_id);
+        setSelectedPlatform(fetchedPlatforms[0].system_id as string);
       }
     } catch (err) {
       console.error('Failed to fetch platforms:', err);

@@ -24,7 +24,7 @@ const FormCheckbox: React.FC<FormCheckboxProps> = ({
         <input
           type="checkbox"
           className="h-4 w-4 text-zenible-primary rounded focus:ring-zenible-primary border-gray-300"
-          {...register(name, registerOptions as any)}
+          {...register(name, registerOptions)}
           {...checkboxProps}
         />
         <span className="ml-2 text-sm text-gray-700">{label}</span>

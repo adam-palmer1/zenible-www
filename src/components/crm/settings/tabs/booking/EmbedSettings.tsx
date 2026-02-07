@@ -15,8 +15,16 @@ import { useModalState } from '../../../../../hooks/useModalState';
 /**
  * Embed Settings - Generate and copy embed code for booking widget
  */
-const EmbedSettings = ({ username }) => {
-  const [callTypes, setCallTypes] = useState([]);
+interface CallTypeItem {
+  id: string;
+  shortcode: string;
+  name: string;
+  duration_minutes: number;
+  description?: string;
+}
+
+const EmbedSettings = ({ username }: { username: string }) => {
+  const [callTypes, setCallTypes] = useState<CallTypeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCallType, setSelectedCallType] = useState('');
   const [theme, setTheme] = useState('light');
@@ -29,7 +37,7 @@ const EmbedSettings = ({ username }) => {
   useEffect(() => {
     const loadCallTypes = async () => {
       try {
-        const data = await callTypesAPI.list({ is_active: true }) as any;
+        const data = await callTypesAPI.list({ is_active: true }) as { call_types?: any[] } | any[];
         // Handle response format: { call_types: [...], total: n }
         const items = Array.isArray(data) ? data : (data?.call_types || []);
         setCallTypes(items);

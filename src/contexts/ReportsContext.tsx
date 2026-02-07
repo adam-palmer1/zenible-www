@@ -1,23 +1,75 @@
 import { createContext, useState, useCallback, useMemo, useContext, useEffect, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import reportsAPI from '../services/api/finance/reports';
-import { useReportFilters } from '../hooks/finance/useReportFilters';
+import { useReportFilters, type ReportFilters, type FilterUpdates, type UpdateFilterOptions, type DatePresetName } from '../hooks/finance/useReportFilters';
+
+export interface Transaction {
+  id: string;
+  transaction_type: string;
+  invoice_number?: string;
+  quote_number?: string;
+  transaction_date?: string;
+  total_amount?: number | string;
+  status?: string;
+  contact_name?: string;
+  currency_code?: string;
+  currency_symbol?: string;
+  [key: string]: unknown;
+}
+
+export interface CurrencyBreakdown {
+  currency_code: string;
+  currency_symbol: string;
+  total: string | number;
+  [key: string]: unknown;
+}
+
+export interface PeriodData {
+  period: string;
+  income: number | string;
+  expenses: number | string;
+  net: number | string;
+  [key: string]: unknown;
+}
+
+export interface TypeBreakdown {
+  type: string;
+  count: number;
+  total: string | number;
+  [key: string]: unknown;
+}
+
+export interface ReportSummary {
+  default_currency?: { code: string; symbol: string; [key: string]: unknown };
+  income_total?: string | number;
+  expense_total?: string | number;
+  net_amount?: string | number;
+  outstanding_invoices?: string | number;
+  overdue_count?: number;
+  total_count?: number;
+  income_by_currency?: CurrencyBreakdown[];
+  expense_by_currency?: CurrencyBreakdown[];
+  outstanding_by_currency?: CurrencyBreakdown[];
+  by_period?: PeriodData[];
+  by_type?: TypeBreakdown[];
+  [key: string]: unknown;
+}
 
 interface ReportsContextValue {
-  transactions: unknown[];
+  transactions: Transaction[];
   total: number;
   totalPages: number;
   loading: boolean;
   error: string | null;
-  summary: unknown;
+  summary: ReportSummary | null;
   summaryLoading: boolean;
   summaryError: string | null;
-  filters: unknown;
-  updateFilters: (newFilters: unknown) => void;
-  updateSearch: (search: string) => void;
+  filters: ReportFilters;
+  updateFilters: (newFilters: FilterUpdates, options?: UpdateFilterOptions) => void;
+  updateSearch: (search: string | undefined) => void;
   setPage: (page: number) => void;
   setSort: (field: string, direction?: string) => void;
-  applyDatePreset: (preset: string) => void;
+  applyDatePreset: (preset: DatePresetName) => void;
   resetFilters: () => void;
   exportTransactions: (format?: string, includeSummary?: boolean) => Promise<boolean>;
   refresh: () => void;
@@ -31,14 +83,14 @@ export const ReportsProvider = ({ children }: { children: ReactNode }) => {
   const { apiParams, filters, updateFilters, updateSearch, setPage, setSort, applyDatePreset, resetFilters } = filterHook;
 
   // Transaction list state
-  const [transactions, setTransactions] = useState<unknown[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Summary state
-  const [summary, setSummary] = useState<unknown>(null);
+  const [summary, setSummary] = useState<ReportSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
@@ -50,7 +102,7 @@ export const ReportsProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       setError(null);
 
-      const response = await reportsAPI.listTransactions(apiParams) as any;
+      const response = await reportsAPI.listTransactions(apiParams) as { items?: Transaction[]; total?: number; total_pages?: number };
 
       setTransactions(response.items || []);
       setTotal(response.total || 0);
@@ -85,7 +137,7 @@ export const ReportsProvider = ({ children }: { children: ReactNode }) => {
       delete summaryParams.sort_direction;
 
       const response = await reportsAPI.getSummary(summaryParams);
-      setSummary(response);
+      setSummary(response as ReportSummary);
     } catch (err) {
       console.error('[ReportsContext] Error fetching summary:', err);
       setSummaryError((err as Error).message);
@@ -123,7 +175,7 @@ export const ReportsProvider = ({ children }: { children: ReactNode }) => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = (blob as any).filename || `transactions.${format}`;
+        link.download = (blob as Blob & { filename?: string }).filename || `transactions.${format}`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

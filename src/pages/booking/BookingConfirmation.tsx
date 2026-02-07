@@ -3,9 +3,21 @@ import { useParams, Link } from 'react-router-dom';
 import { CheckCircleIcon, CalendarIcon, ClockIcon, VideoCameraIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import publicBookingAPI from '../../services/api/public/booking';
 
+interface BookingData {
+  call_type_name: string;
+  host_name: string;
+  host_avatar?: string;
+  date: string;
+  time: string;
+  duration_minutes: number;
+  timezone?: string;
+  meeting_link?: string;
+  status: string;
+}
+
 const BookingConfirmation: React.FC = () => {
   const { token } = useParams<{ token: string }>();
-  const [booking, setBooking] = useState<any>(null);
+  const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,14 +26,15 @@ const BookingConfirmation: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await (publicBookingAPI as any).lookupBooking(token);
+        const data = await publicBookingAPI.lookupBooking(token!) as BookingData;
         setBooking(data);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error fetching booking:', err);
-        if (err.status === 404) {
+        const error = err as Error & { status?: number };
+        if (error.status === 404) {
           setError('Booking not found');
         } else {
-          setError(err.message || 'Failed to load booking details');
+          setError(error.message || 'Failed to load booking details');
         }
       } finally {
         setLoading(false);
@@ -54,7 +67,7 @@ const BookingConfirmation: React.FC = () => {
   };
 
   // Generate calendar links
-  const generateCalendarLinks = (bookingData: any) => {
+  const generateCalendarLinks = (bookingData: BookingData) => {
     const startDate = new Date(`${bookingData.date}T${bookingData.time}`);
     const endDate = new Date(startDate.getTime() + bookingData.duration_minutes * 60000);
 
@@ -107,6 +120,9 @@ const BookingConfirmation: React.FC = () => {
       </div>
     );
   }
+
+  // At this point, booking is guaranteed to be non-null (loading=false and no error)
+  if (!booking) return null;
 
   const calendarLinks = generateCalendarLinks(booking);
   const isCancelled = booking.status === 'cancelled';

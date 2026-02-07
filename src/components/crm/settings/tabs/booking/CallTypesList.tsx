@@ -6,12 +6,23 @@ import { useDeleteConfirmation } from '../../../../../hooks/useDeleteConfirmatio
 import CallTypeModal from './CallTypeModal';
 import ConfirmationModal from '../../../../common/ConfirmationModal';
 
+interface CallType {
+  id: string;
+  name: string;
+  shortcode: string;
+  duration_minutes: number;
+  color?: string;
+  is_active: boolean;
+  conferencing_type?: string;
+  [key: string]: unknown;
+}
+
 const CallTypesList = () => {
-  const [callTypes, setCallTypes] = useState([]);
+  const [callTypes, setCallTypes] = useState<CallType[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingCallType, setEditingCallType] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
+  const [editingCallType, setEditingCallType] = useState<CallType | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const deleteConfirm = useDeleteConfirmation<string>();
 
   const { showSuccess, showError } = useNotification();
@@ -23,7 +34,7 @@ const CallTypesList = () => {
 
   const loadCallTypes = async () => {
     try {
-      const data = await callTypesAPI.list({ include_inactive: true }) as any;
+      const data = await callTypesAPI.list({ include_inactive: true }) as { call_types?: any[]; [key: string]: unknown };
       setCallTypes(data.call_types || []);
     } catch (error) {
       showError('Failed to load call types');
@@ -38,12 +49,12 @@ const CallTypesList = () => {
     setModalOpen(true);
   };
 
-  const handleEdit = (callType) => {
+  const handleEdit = (callType: CallType) => {
     setEditingCallType(callType);
     setModalOpen(true);
   };
 
-  const handleDelete = (callTypeId) => {
+  const handleDelete = (callTypeId: string) => {
     deleteConfirm.requestDelete(callTypeId);
   };
 
@@ -64,11 +75,11 @@ const CallTypesList = () => {
     });
   };
 
-  const handleToggleActive = async (callType) => {
+  const handleToggleActive = async (callType: CallType) => {
     try {
       const updated = await callTypesAPI.update(callType.id, {
         is_active: !callType.is_active,
-      }) as any;
+      }) as { id: string; is_active: boolean; [key: string]: unknown };
       setCallTypes(callTypes.map((ct: any) =>
         ct.id === callType.id ? updated : ct
       ));
@@ -84,7 +95,7 @@ const CallTypesList = () => {
     setEditingCallType(null);
   };
 
-  const handleModalSave = (savedCallType) => {
+  const handleModalSave = (savedCallType: any) => {
     if (editingCallType) {
       // Update existing
       setCallTypes(callTypes.map((ct) =>
@@ -97,7 +108,7 @@ const CallTypesList = () => {
     handleModalClose();
   };
 
-  const getConferencingLabel = (type) => {
+  const getConferencingLabel = (type: string) => {
     switch (type) {
       case 'google_meet':
         return 'Google Meet';
@@ -195,7 +206,7 @@ const CallTypesList = () => {
                       {callType.duration_minutes} min
                     </span>
                     <span>/{callType.shortcode}</span>
-                    <span>{getConferencingLabel(callType.conferencing_type)}</span>
+                    <span>{getConferencingLabel(callType.conferencing_type ?? '')}</span>
                   </div>
                 </div>
               </div>

@@ -18,10 +18,10 @@ interface AddContactModalProps {
  * - No real-time API updates - standard form pattern
  */
 const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, contact = null }) => {
-  const { refresh, initialContactStatus, initialContactType } = useCRM() as any;
-  const { createContact, updateContact, getContact } = useContacts({}, 0, { skipInitialFetch: true }) as any;
-  const { allStatuses } = useContactStatuses() as any;
-  const { companyCurrencies, loadData: loadCurrencies } = useCompanyCurrencies() as any;
+  const { refresh, initialContactStatus, initialContactType } = useCRM();
+  const { createContact, updateContact, getContact } = useContacts({}, 0, { skipInitialFetch: true });
+  const { allStatuses } = useContactStatuses();
+  const { companyCurrencies, loadData: loadCurrencies } = useCompanyCurrencies();
 
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, cont
     if (isOpen) {
       loadCurrencies();
       // Fetch company taxes
-      taxesAPI.list().then(setCompanyTaxes).catch(console.error);
+      taxesAPI.list().then((taxes: unknown) => setCompanyTaxes(taxes as any[])).catch(console.error);
     }
   }, [isOpen, loadCurrencies]);
 

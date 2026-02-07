@@ -28,8 +28,8 @@ const ServiceStatusDropdown: React.FC<ServiceStatusDropdownProps> = ({
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
 
   // Get the modal portal container if we're inside a modal
-  const modalPortalRef = useModalPortal() as any;
-  const portalTarget = modalPortalRef?.current || document.body;
+  const modalPortal = useModalPortal();
+  const portalTarget = modalPortal || document.body;
 
   // Calculate dropdown position when opening
   useEffect(() => {

@@ -2,6 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import eventsAPI from '../../services/eventsAPI';
 import ImageCropperModal from '../shared/ImageCropperModal';
+import { useModalState } from '../../hooks/useModalState';
+import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
+import { LoadingSpinner } from '../shared';
+
+interface Host {
+  id: string;
+  name: string;
+  byline: string;
+  image_url?: string;
+  is_active: boolean;
+  created_at?: string;
+}
+
+interface HostAnalytics {
+  total_hosts: number;
+  active_hosts: number;
+  hosts_with_events: number;
+  host_statistics?: Array<{ host_name: string; event_count: number }>;
+}
+
+interface HostEvent {
+  title: string;
+  start_datetime: string;
+  duration_minutes: number;
+  is_active: boolean;
+}
 
 interface HostForm {
   name: string;
@@ -11,10 +37,10 @@ interface HostForm {
 }
 
 export default function HostsManagement() {
-  const { darkMode } = useOutletContext() as any;
+  const { darkMode } = useOutletContext<{ darkMode: boolean }>();
 
   // Main state
-  const [hosts, setHosts] = useState<any[]>([]);
+  const [hosts, setHosts] = useState<Host[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,24 +53,20 @@ export default function HostsManagement() {
   const [activeFilter, setActiveFilter] = useState<string>('');
 
   // Modal states
-  const [showHostModal, setShowHostModal] = useState<boolean>(false);
-  const [editingHost, setEditingHost] = useState<any>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
-  const [deletingHost, setDeletingHost] = useState<any>(null);
-  const [showImageUploadModal, setShowImageUploadModal] = useState<boolean>(false);
-  const [uploadingHost, setUploadingHost] = useState<any>(null);
-  const [showDeleteImageModal, setShowDeleteImageModal] = useState<boolean>(false);
-  const [deletingImageHost, setDeletingImageHost] = useState<any>(null);
-  const [showHostEventsModal, setShowHostEventsModal] = useState<boolean>(false);
-  const [selectedHost, setSelectedHost] = useState<any>(null);
-  const [hostEvents, setHostEvents] = useState<any[]>([]);
+  const hostModal = useModalState();
+  const [editingHost, setEditingHost] = useState<Host | null>(null);
+  const deleteConfirmation = useDeleteConfirmation<Host>();
+  const imageUploadModal = useModalState<Host>();
+  const deleteImageConfirmation = useDeleteConfirmation<Host>();
+  const hostEventsModal = useModalState<Host>();
+  const [hostEvents, setHostEvents] = useState<HostEvent[]>([]);
   const [hostEventsLoading, setHostEventsLoading] = useState<boolean>(false);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<string>('hosts'); // hosts, analytics
 
   // Analytics state
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<HostAnalytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(false);
 
   // Form state
@@ -56,14 +78,14 @@ export default function HostsManagement() {
   });
 
   // Image upload state
-  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [selectedFile, setSelectedFile] = useState<Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [uploadLoading, setUploadLoading] = useState<boolean>(false);
 
   // Image cropper state
   const [showCropModal, setShowCropModal] = useState<boolean>(false);
   const [rawImageForCrop, setRawImageForCrop] = useState<string>('');
-  const [setCroppedImageBlob] = useState<any>(null);
+  const [, setCroppedImageBlob] = useState<Blob | null>(null);
 
   // Fetch data on mount and when filters change
   useEffect(() => {
@@ -80,19 +102,19 @@ export default function HostsManagement() {
     setLoading(true);
     setError(null);
     try {
-      const params = {
-        page,
-        per_page: perPage,
+      const params: Record<string, string> = {
+        page: String(page),
+        per_page: String(perPage),
         ...(search && { search }),
-        ...(activeFilter !== '' && { is_active: activeFilter === 'true' })
+        ...(activeFilter !== '' && { is_active: activeFilter })
       };
 
-      const response = await (eventsAPI as any).getAdminHosts(params);
-      setHosts(response.hosts || []);
-      setTotal(response.total || 0);
-      setTotalPages(response.total_pages || 1);
-    } catch (err: any) {
-      setError(err.message);
+      const response = await eventsAPI.getAdminHosts(params) as Record<string, unknown>;
+      setHosts((response.hosts as Host[]) || []);
+      setTotal((response.total as number) || 0);
+      setTotalPages((response.total_pages as number) || 1);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
       console.error('Error fetching hosts:', err);
     } finally {
       setLoading(false);
@@ -102,23 +124,23 @@ export default function HostsManagement() {
   const fetchAnalytics = async () => {
     setAnalyticsLoading(true);
     try {
-      const data = await (eventsAPI as any).getHostAnalytics();
+      const data = await eventsAPI.getHostAnalytics() as HostAnalytics;
       setAnalytics(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching analytics:', err);
     } finally {
       setAnalyticsLoading(false);
     }
   };
 
-  const fetchHostEvents = async (hostId: any) => {
+  const fetchHostEvents = async (hostId: string) => {
     setHostEventsLoading(true);
     try {
-      const response = await (eventsAPI as any).getHostEvents(hostId, { page: 1, per_page: 100 });
-      setHostEvents(response.events || []);
-    } catch (err: any) {
+      const response = await eventsAPI.getHostEvents(hostId, { page: '1', per_page: '100' }) as Record<string, unknown>;
+      setHostEvents((response.events as HostEvent[]) || []);
+    } catch (err: unknown) {
       console.error('Error fetching host events:', err);
-      alert(`Error fetching host events: ${err.message}`);
+      alert(`Error fetching host events: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setHostEventsLoading(false);
     }
@@ -134,10 +156,10 @@ export default function HostsManagement() {
     });
     setSelectedFile(null);
     setPreviewUrl('');
-    setShowHostModal(true);
+    hostModal.open();
   };
 
-  const handleEditHost = (host: any) => {
+  const handleEditHost = (host: Host) => {
     setEditingHost(host);
     setHostForm({
       name: host.name,
@@ -147,7 +169,7 @@ export default function HostsManagement() {
     });
     setSelectedFile(null);
     setPreviewUrl(host.image_url || '');
-    setShowHostModal(true);
+    hostModal.open();
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,7 +184,7 @@ export default function HostsManagement() {
     }
   };
 
-  const handleCropComplete = (croppedBlob: any) => {
+  const handleCropComplete = (croppedBlob: Blob) => {
     setCroppedImageBlob(croppedBlob);
     setSelectedFile(croppedBlob);
     const croppedUrl = URL.createObjectURL(croppedBlob);
@@ -184,110 +206,104 @@ export default function HostsManagement() {
         is_active: hostForm.is_active
       };
 
-      let savedHost: any;
+      let savedHost: Host;
       if (editingHost) {
-        savedHost = await (eventsAPI as any).updateHost(editingHost.id, data);
+        savedHost = await eventsAPI.updateHost(editingHost.id, data) as Host;
       } else {
-        savedHost = await (eventsAPI as any).createHost(data);
+        savedHost = await eventsAPI.createHost(data) as Host;
       }
 
       // If there's a file selected, upload it
       if (selectedFile && savedHost?.id) {
         try {
-          await (eventsAPI as any).uploadHostImage(savedHost.id, selectedFile);
-        } catch (uploadErr: any) {
+          await eventsAPI.uploadHostImage(savedHost.id, selectedFile as File);
+        } catch (uploadErr: unknown) {
           console.error('Error uploading image:', uploadErr);
-          alert(`Host saved but image upload failed: ${uploadErr.message}`);
+          alert(`Host saved but image upload failed: ${uploadErr instanceof Error ? uploadErr.message : String(uploadErr)}`);
         }
       }
 
-      setShowHostModal(false);
+      hostModal.close();
       fetchHosts();
-    } catch (err: any) {
-      alert(`Error saving host: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error saving host: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
   const handleDeleteHost = async () => {
-    if (!deletingHost) return;
+    await deleteConfirmation.confirmDelete(async (host) => {
+      try {
+        await eventsAPI.deleteHost(host.id);
+        fetchHosts();
+      } catch (err: unknown) {
+        alert(`Error deleting host: ${err instanceof Error ? err.message : String(err)}`);
+        throw err;
+      }
+    });
+  };
 
+  const handleToggleActive = async (host: Host) => {
     try {
-      await (eventsAPI as any).deleteHost(deletingHost.id);
-      setShowDeleteModal(false);
-      setDeletingHost(null);
+      await eventsAPI.updateHost(host.id, { is_active: !host.is_active });
       fetchHosts();
-    } catch (err: any) {
-      alert(`Error deleting host: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error updating host: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
-  const handleToggleActive = async (host: any) => {
-    try {
-      await (eventsAPI as any).updateHost(host.id, { is_active: !host.is_active });
-      fetchHosts();
-    } catch (err: any) {
-      alert(`Error updating host: ${err.message}`);
-    }
-  };
-
-  const handleUploadImage = (host: any) => {
-    setUploadingHost(host);
+  const handleUploadImage = (host: Host) => {
     setSelectedFile(null);
     setCroppedImageBlob(null);
     setPreviewUrl(host.image_url || '');
-    setShowImageUploadModal(true);
+    imageUploadModal.open(host);
   };
 
   const handleImageUpload = async () => {
-    if (!selectedFile || !uploadingHost) return;
+    if (!selectedFile || !imageUploadModal.data) return;
 
     setUploadLoading(true);
     try {
-      await (eventsAPI as any).uploadHostImage(uploadingHost.id, selectedFile);
-      setShowImageUploadModal(false);
-      setUploadingHost(null);
+      await eventsAPI.uploadHostImage(imageUploadModal.data.id, selectedFile as File);
+      imageUploadModal.close();
       setSelectedFile(null);
       setPreviewUrl('');
       fetchHosts();
-    } catch (err: any) {
-      alert(`Error uploading image: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error uploading image: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setUploadLoading(false);
     }
   };
 
-  const handleDeleteImage = (host: any) => {
-    setDeletingImageHost(host);
-    setShowDeleteImageModal(true);
+  const handleDeleteImage = (host: Host) => {
+    deleteImageConfirmation.requestDelete(host);
   };
 
   const handleConfirmDeleteImage = async () => {
-    if (!deletingImageHost) return;
-
-    try {
-      await (eventsAPI as any).deleteHostImage(deletingImageHost.id);
-      setShowDeleteImageModal(false);
-      setDeletingImageHost(null);
-      fetchHosts();
-    } catch (err: any) {
-      alert(`Error deleting image: ${err.message}`);
-    }
+    await deleteImageConfirmation.confirmDelete(async (host) => {
+      try {
+        await eventsAPI.deleteHostImage(host.id);
+        fetchHosts();
+      } catch (err: unknown) {
+        alert(`Error deleting image: ${err instanceof Error ? err.message : String(err)}`);
+        throw err;
+      }
+    });
   };
 
-  const handleViewHostEvents = (host: any) => {
-    setSelectedHost(host);
-    setShowHostEventsModal(true);
+  const handleViewHostEvents = (host: Host) => {
+    hostEventsModal.open(host);
     fetchHostEvents(host.id);
   };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
-    return (eventsAPI as any).formatLocalDate(dateString);
+    return eventsAPI.formatLocalDate(dateString);
   };
 
   const formatDateTime = (dateString: string) => {
     if (!dateString) return '-';
-    return (eventsAPI as any).formatLocalDateTime(dateString);
+    return eventsAPI.formatLocalDateTime(dateString);
   };
 
   return (
@@ -375,9 +391,7 @@ export default function HostsManagement() {
           <div className="px-6 pb-6">
             <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
               {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-                </div>
+                <LoadingSpinner height="py-12" />
               ) : error ? (
                 <div className="text-red-500 text-center py-12">Error: {error}</div>
               ) : (
@@ -407,7 +421,7 @@ export default function HostsManagement() {
                         </tr>
                       </thead>
                       <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
-                        {hosts.map((host: any) => (
+                        {hosts.map((host: Host) => (
                           <tr key={host.id}>
                             <td className="px-6 py-4">
                               {host.image_url ? (
@@ -453,7 +467,7 @@ export default function HostsManagement() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                                {formatDate(host.created_at)}
+                                {formatDate(host.created_at ?? '')}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -479,10 +493,7 @@ export default function HostsManagement() {
                                   </button>
                                 )}
                                 <button
-                                  onClick={() => {
-                                    setDeletingHost(host);
-                                    setShowDeleteModal(true);
-                                  }}
+                                  onClick={() => deleteConfirmation.requestDelete(host)}
                                   className="text-red-600 hover:text-red-900"
                                 >
                                   Delete
@@ -553,9 +564,7 @@ export default function HostsManagement() {
       {activeTab === 'analytics' && (
         <div className="p-6">
           {analyticsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-            </div>
+            <LoadingSpinner height="py-12" />
           ) : analytics ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -601,7 +610,7 @@ export default function HostsManagement() {
                         </tr>
                       </thead>
                       <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
-                        {analytics.host_statistics.map((item: any, index: number) => (
+                        {analytics.host_statistics.map((item: { host_name: string; event_count: number }, index: number) => (
                           <tr key={index}>
                             <td className="px-6 py-4">
                               <div className={`text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
@@ -630,7 +639,7 @@ export default function HostsManagement() {
       )}
 
       {/* Create/Edit Host Modal */}
-      {showHostModal && (
+      {hostModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className={`w-full max-w-2xl rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
@@ -711,7 +720,7 @@ export default function HostsManagement() {
                 {editingHost ? 'Update' : 'Create'}
               </button>
               <button
-                onClick={() => setShowHostModal(false)}
+                onClick={() => hostModal.close()}
                 className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
               >
                 Cancel
@@ -722,7 +731,7 @@ export default function HostsManagement() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && deletingHost && (
+      {deleteConfirmation.isOpen && deleteConfirmation.item && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`w-full max-w-md mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
@@ -735,7 +744,7 @@ export default function HostsManagement() {
                 Are you sure you want to delete this host?
               </p>
               <p className={`mt-2 text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                "{deletingHost.name}"
+                "{deleteConfirmation.item.name}"
               </p>
               <p className={`mt-2 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                 Note: You cannot delete a host that is assigned to events.
@@ -749,10 +758,7 @@ export default function HostsManagement() {
                 Delete
               </button>
               <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeletingHost(null);
-                }}
+                onClick={deleteConfirmation.cancelDelete}
                 className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
               >
                 Cancel
@@ -763,12 +769,12 @@ export default function HostsManagement() {
       )}
 
       {/* Image Upload Modal */}
-      {showImageUploadModal && uploadingHost && (
+      {imageUploadModal.isOpen && imageUploadModal.data && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className={`w-full max-w-md rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
               <h3 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-                Upload Image for {uploadingHost.name}
+                Upload Image for {imageUploadModal.data.name}
               </h3>
             </div>
             <div className="p-6 space-y-4">
@@ -807,8 +813,7 @@ export default function HostsManagement() {
               </button>
               <button
                 onClick={() => {
-                  setShowImageUploadModal(false);
-                  setUploadingHost(null);
+                  imageUploadModal.close();
                   setSelectedFile(null);
                   setPreviewUrl('');
                 }}
@@ -823,7 +828,7 @@ export default function HostsManagement() {
       )}
 
       {/* Delete Image Confirmation Modal */}
-      {showDeleteImageModal && deletingImageHost && (
+      {deleteImageConfirmation.isOpen && deleteImageConfirmation.item && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`w-full max-w-md mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
@@ -836,13 +841,13 @@ export default function HostsManagement() {
                 Are you sure you want to delete the image for this host?
               </p>
               <p className={`mt-2 text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                "{deletingImageHost.name}"
+                "{deleteImageConfirmation.item.name}"
               </p>
-              {deletingImageHost.image_url && (
+              {deleteImageConfirmation.item.image_url && (
                 <div className="mt-4 flex justify-center">
                   <img
-                    src={deletingImageHost.image_url}
-                    alt={deletingImageHost.name}
+                    src={deleteImageConfirmation.item.image_url}
+                    alt={deleteImageConfirmation.item.name}
                     className="w-24 h-24 rounded-full object-cover"
                   />
                 </div>
@@ -859,10 +864,7 @@ export default function HostsManagement() {
                 Delete Image
               </button>
               <button
-                onClick={() => {
-                  setShowDeleteImageModal(false);
-                  setDeletingImageHost(null);
-                }}
+                onClick={deleteImageConfirmation.cancelDelete}
                 className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
               >
                 Cancel
@@ -885,19 +887,17 @@ export default function HostsManagement() {
       )}
 
       {/* Host Events Modal */}
-      {showHostEventsModal && selectedHost && (
+      {hostEventsModal.isOpen && hostEventsModal.data && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className={`w-full max-w-4xl max-h-[80vh] overflow-hidden rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
               <h3 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-                Events for: {selectedHost.name}
+                Events for: {hostEventsModal.data.name}
               </h3>
             </div>
             <div className="p-6 overflow-y-auto max-h-[calc(80vh-140px)]">
               {hostEventsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-                </div>
+                <LoadingSpinner height="py-12" />
               ) : hostEvents.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -918,7 +918,7 @@ export default function HostsManagement() {
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
-                      {hostEvents.map((event: any, idx: number) => (
+                      {hostEvents.map((event: HostEvent, idx: number) => (
                         <tr key={idx}>
                           <td className={`px-4 py-3 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                             {event.title}
@@ -950,8 +950,7 @@ export default function HostsManagement() {
             <div className={`px-6 py-4 border-t ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
               <button
                 onClick={() => {
-                  setShowHostEventsModal(false);
-                  setSelectedHost(null);
+                  hostEventsModal.close();
                   setHostEvents([]);
                 }}
                 className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"

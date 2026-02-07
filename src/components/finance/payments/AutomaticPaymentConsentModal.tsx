@@ -20,7 +20,7 @@ const AutomaticPaymentConsentModal: React.FC<AutomaticPaymentConsentModalProps> 
   onClose,
   invoice,
   onConsent,
-  isPublic = false,
+  isPublic: _isPublic = false,
   publicToken = null,
 }) => {
   const [accepted, setAccepted] = useState(false);
@@ -42,8 +42,8 @@ const AutomaticPaymentConsentModal: React.FC<AutomaticPaymentConsentModalProps> 
 
     try {
       // Call consent API
-      const result = await (invoicesAPI as any).updatePaymentConsent({
-        publicToken,
+      const result = await invoicesAPI.updatePaymentConsent({
+        publicToken: publicToken || '',
         automaticPaymentEnabled: true,
         consentAccepted: true,
       });

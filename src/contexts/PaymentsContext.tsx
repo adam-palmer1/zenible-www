@@ -28,7 +28,7 @@ interface PaymentsContextValue {
   initialized: boolean;
   filters: PaymentFilters;
   pagination: PaymentPagination;
-  stats: unknown;
+  stats: Record<string, unknown> | null;
   showDetailModal: boolean;
   showRefundModal: boolean;
   showCreateModal: boolean;
@@ -54,6 +54,37 @@ interface PaymentsContextValue {
   closeCreateModal: () => void;
   openEditModal: (payment: unknown) => void;
   closeEditModal: () => void;
+  // Payment methods (stored payment methods for recurring payments)
+  paymentMethods: unknown[];
+  methodsLoading: boolean;
+  fetchPaymentMethods: () => Promise<void>;
+  removePaymentMethod: (methodId: string) => Promise<void>;
+}
+
+interface PaymentListApiResponse {
+  items?: unknown[];
+  data?: unknown[];
+  total?: number;
+  total_pages?: number;
+  stats?: Record<string, unknown>;
+}
+
+interface PaymentRecord {
+  id: string;
+  amount: string;
+  refunded_amount?: string | number;
+  status?: string;
+  [key: string]: unknown;
+}
+
+interface RefundData {
+  amount?: number;
+  reason?: string;
+  [key: string]: unknown;
+}
+
+interface UnallocatedResponse {
+  unallocated_amount: string;
 }
 
 export const PaymentsContext = createContext<PaymentsContextValue | null>(null);
@@ -71,7 +102,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Stats from API (extracted from list response)
-  const [stats, setStats] = useState<unknown>(null);
+  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
 
   // Modal state
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -138,11 +169,12 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
         }
       });
 
-      const response = await paymentsAPI.list(params as Record<string, string>) as any;
+      const response = await paymentsAPI.list(params as Record<string, string>) as PaymentListApiResponse;
 
       // Handle different response formats
-      const items = response.items || response.data || response;
-      setPayments(Array.isArray(items) ? items : []);
+      const rawItems = response.items || response.data || [];
+      const items = Array.isArray(rawItems) ? rawItems : [];
+      setPayments(items);
 
       setPagination(prev => ({
         ...prev,
@@ -152,7 +184,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
 
       // Extract stats from list response - single source of truth
       if (response.stats) {
-        setStats(response.stats);
+        setStats(response.stats as Record<string, unknown>);
       }
 
       setInitialized(true);
@@ -224,7 +256,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
       // Update local state with refund info
       setPayments(prev => prev.map((p: any) => {
         if (p.id === paymentId) {
-          const refundAmount = (refundData as any).amount || parseFloat(p.amount);
+          const refundAmount = (refundData as RefundData).amount || parseFloat(p.amount);
           const currentRefunded = parseFloat(p.refunded_amount || 0);
           const newRefunded = currentRefunded + refundAmount;
           const originalAmount = parseFloat(p.amount);
@@ -286,7 +318,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
   // Get unallocated amount
   const getUnallocatedAmount = useCallback(async (paymentId: string) => {
     try {
-      const result = await paymentsAPI.getUnallocated(paymentId) as any;
+      const result = await paymentsAPI.getUnallocated(paymentId) as UnallocatedResponse;
       return result.unallocated_amount;
     } catch (err) {
       console.error('[PaymentsContext] Error getting unallocated amount:', err);
@@ -407,6 +439,12 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     closeCreateModal,
     openEditModal,
     closeEditModal,
+
+    // Payment methods (stub implementation - payment methods not yet implemented)
+    paymentMethods: [] as unknown[],
+    methodsLoading: false,
+    fetchPaymentMethods: async () => {},
+    removePaymentMethod: async (_methodId: string) => {},
   }), [
     payments,
     loading,

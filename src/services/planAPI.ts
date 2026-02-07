@@ -133,7 +133,7 @@ class PlanAPI {
         body.payment_method_id = paymentMethodId;
       }
 
-      const response = await fetch(`${API_BASE_URL}/subscriptions/create`, {
+      const response = await fetch(`${API_BASE_URL}/subscriptions/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -281,8 +281,8 @@ class PlanAPI {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/subscriptions/update-payment-method`, {
-        method: 'POST',
+      const response = await fetch(`${API_BASE_URL}/subscriptions/payment-method`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`,

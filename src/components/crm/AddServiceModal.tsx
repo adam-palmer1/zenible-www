@@ -15,9 +15,9 @@ interface AddServiceModalProps {
  * Now uses React Hook Form with ServiceForm component
  */
 const AddServiceModal: React.FC<AddServiceModalProps> = ({ isOpen, onClose, service = null }) => {
-  const { refresh } = useCRM() as any;
-  const { createService, updateService } = useServices() as any;
-  const { companyCurrencies, defaultCurrency, loading: currenciesLoading, loadData: loadCurrencies } = useCompanyCurrencies() as any;
+  const { refresh } = useCRM();
+  const { createService, updateService } = useServices();
+  const { companyCurrencies, defaultCurrency, loading: currenciesLoading, loadData: loadCurrencies } = useCompanyCurrencies();
 
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);

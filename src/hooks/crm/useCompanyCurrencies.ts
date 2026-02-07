@@ -4,6 +4,36 @@ import currenciesAPI from '../../services/api/crm/currencies';
 import numberFormatsAPI from '../../services/api/crm/numberFormats';
 import { queryKeys } from '../../lib/query-keys';
 
+export interface Currency {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+  [key: string]: unknown;
+}
+
+export interface CompanyCurrency {
+  id: string;
+  currency: Currency;
+  is_default: boolean;
+  [key: string]: unknown;
+}
+
+export interface NumberFormatAttribute {
+  attribute_name: string;
+  attribute_value: string;
+  [key: string]: unknown;
+}
+
+export interface NumberFormatConfig {
+  id: string;
+  format_string: string;
+  decimal_separator: string;
+  thousands_separator: string;
+  decimal_places: number;
+  [key: string]: unknown;
+}
+
 interface MutationResult {
   success: boolean;
   error?: string;
@@ -18,22 +48,22 @@ export const useCompanyCurrencies = () => {
 
   // Fetch all currencies
   const {
-    data: currencies = [],
+    data: currencies = [] as Currency[],
     isLoading: currenciesLoading,
     error: currenciesError,
   } = useQuery({
     queryKey: queryKeys.currencies.list(),
-    queryFn: () => currenciesAPI.list(),
+    queryFn: () => currenciesAPI.list() as Promise<Currency[]>,
   });
 
   // Fetch company-enabled currencies
   const {
-    data: companyCurrencies = [],
+    data: companyCurrencies = [] as CompanyCurrency[],
     isLoading: companyCurrenciesLoading,
     error: companyCurrenciesError,
   } = useQuery({
     queryKey: queryKeys.currencies.company(),
-    queryFn: () => currenciesAPI.getCompanyCurrencies(),
+    queryFn: () => currenciesAPI.getCompanyCurrencies() as Promise<CompanyCurrency[]>,
   });
 
   // Fetch number format attribute
@@ -41,11 +71,11 @@ export const useCompanyCurrencies = () => {
     data: numberFormatAttribute = null,
     isLoading: numberFormatLoading,
     error: numberFormatError,
-  } = useQuery({
+  } = useQuery<NumberFormatAttribute | null>({
     queryKey: queryKeys.currencies.numberFormat(),
     queryFn: async () => {
       try {
-        return await currenciesAPI.getNumberFormat();
+        return await currenciesAPI.getNumberFormat() as NumberFormatAttribute;
       } catch (err: unknown) {
         // Number format might not be set, which is okay
         console.warn('Failed to fetch number format:', err);
@@ -55,15 +85,15 @@ export const useCompanyCurrencies = () => {
   });
 
   // Fetch number format details (dependent on numberFormatAttribute)
-  const formatId = (numberFormatAttribute as any)?.attribute_value as string | undefined;
+  const formatId = numberFormatAttribute?.attribute_value;
   const {
     data: numberFormatDetails = null,
     isLoading: numberFormatDetailsLoading,
-  } = useQuery({
-    queryKey: queryKeys.currencies.numberFormatDetails(formatId),
+  } = useQuery<NumberFormatConfig | null>({
+    queryKey: queryKeys.currencies.numberFormatDetails(formatId!),
     queryFn: async () => {
       try {
-        return await numberFormatsAPI.get(formatId);
+        return await numberFormatsAPI.get(formatId!) as NumberFormatConfig;
       } catch (err: unknown) {
         console.warn('Failed to fetch number format details:', err);
         return null;
@@ -144,7 +174,7 @@ export const useCompanyCurrencies = () => {
 
   // Get default currency
   const defaultCurrency = useMemo(
-    () => (companyCurrencies as unknown[]).find((cc: unknown) => (cc as any).is_default),
+    () => (companyCurrencies as CompanyCurrency[]).find((cc) => cc.is_default),
     [companyCurrencies]
   );
 
@@ -153,18 +183,18 @@ export const useCompanyCurrencies = () => {
   const loadData = useCallback(async (): Promise<void> => {
     // React Query handles initial fetch automatically
     // This function exists for backward compatibility
-    if ((companyCurrencies as unknown[]).length === 0) {
+    if ((companyCurrencies as CompanyCurrency[]).length === 0) {
       await refresh();
     }
-  }, [(companyCurrencies as unknown[]).length, refresh]);
+  }, [(companyCurrencies as CompanyCurrency[]).length, refresh]);
 
   return {
-    currencies,
-    companyCurrencies,
+    currencies: currencies as Currency[],
+    companyCurrencies: companyCurrencies as CompanyCurrency[],
     defaultCurrency,
     // Number format data
     numberFormat: numberFormatDetails,
-    numberFormatId: (numberFormatAttribute as any)?.attribute_value || null,
+    numberFormatId: numberFormatAttribute?.attribute_value || null,
     loading,
     error,
     addCurrency,

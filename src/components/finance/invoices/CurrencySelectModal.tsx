@@ -8,7 +8,7 @@ interface CurrencySelectModalProps {
   selectedCurrencyId: string;
   onSelect: (currencyId: string) => void;
   loading: boolean;
-  triggerRef?: React.RefObject<HTMLElement>;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 /**

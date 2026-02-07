@@ -5,8 +5,24 @@
 
 import { API_BASE_URL } from '@/config/api';
 import { createCRUDService } from '../createCRUDService';
+import type {
+  ExpenseResponse,
+  ExpenseListResponse,
+  ExpenseCreate,
+  ExpenseUpdate,
+  ExpenseStatsResponse,
+  ExpenseHistoryResponse,
+  ExpenseCategoryResponse,
+  ExpenseCategoryListResponse,
+  ExpenseBulkDeleteResponse,
+  ExpenseReceiptUploadResponse,
+  ExpenseAllocationsResponse,
+} from '@/types';
 
-const baseCRUD = createCRUDService('/crm/expenses/', 'ExpensesAPI');
+const baseCRUD = createCRUDService<ExpenseResponse, ExpenseListResponse, ExpenseCreate, ExpenseUpdate>(
+  '/crm/expenses/',
+  'ExpensesAPI',
+);
 
 const categoriesEndpoint = '/crm/expenses/categories';
 
@@ -21,7 +37,7 @@ const expensesAPI = {
   /**
    * Get next available expense number
    */
-  async getNextNumber(): Promise<unknown> {
+  async getNextNumber(): Promise<{ next_number: string }> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}next-number`, {
       method: 'GET',
     });
@@ -30,7 +46,7 @@ const expensesAPI = {
   /**
    * Bulk delete expenses
    */
-  async bulkDelete(expenseIds: string[]): Promise<unknown> {
+  async bulkDelete(expenseIds: string[]): Promise<ExpenseBulkDeleteResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}bulk-delete`, {
       method: 'POST',
       body: JSON.stringify({ expense_ids: expenseIds }),
@@ -40,7 +56,7 @@ const expensesAPI = {
   /**
    * Bulk update expenses
    */
-  async bulkUpdate(expenseIds: string[], updateData: unknown): Promise<unknown> {
+  async bulkUpdate(expenseIds: string[], updateData: unknown): Promise<{ updated_count: number }> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}bulk-update`, {
       method: 'POST',
       body: JSON.stringify({
@@ -55,7 +71,7 @@ const expensesAPI = {
   /**
    * List expense categories
    */
-  async getCategories(params: Record<string, string> = {}): Promise<unknown> {
+  async getCategories(params: Record<string, string> = {}): Promise<ExpenseCategoryListResponse> {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = queryString ? `${categoriesEndpoint}?${queryString}` : categoriesEndpoint;
     return baseCRUD.request(endpoint, { method: 'GET' });
@@ -64,7 +80,7 @@ const expensesAPI = {
   /**
    * Create expense category
    */
-  async createCategory(categoryData: unknown): Promise<unknown> {
+  async createCategory(categoryData: unknown): Promise<ExpenseCategoryResponse> {
     return baseCRUD.request(categoriesEndpoint, {
       method: 'POST',
       body: JSON.stringify(categoryData),
@@ -74,7 +90,7 @@ const expensesAPI = {
   /**
    * Update expense category
    */
-  async updateCategory(categoryId: string, categoryData: unknown): Promise<unknown> {
+  async updateCategory(categoryId: string, categoryData: unknown): Promise<ExpenseCategoryResponse> {
     return baseCRUD.request(`${categoriesEndpoint}/${categoryId}`, {
       method: 'PUT',
       body: JSON.stringify(categoryData),
@@ -84,7 +100,7 @@ const expensesAPI = {
   /**
    * Delete expense category
    */
-  async deleteCategory(categoryId: string): Promise<unknown> {
+  async deleteCategory(categoryId: string): Promise<void> {
     return baseCRUD.request(`${categoriesEndpoint}/${categoryId}`, { method: 'DELETE' });
   },
 
@@ -93,7 +109,7 @@ const expensesAPI = {
   /**
    * Get expense analytics
    */
-  async getAnalytics(params: Record<string, string> = {}): Promise<unknown> {
+  async getAnalytics(params: Record<string, string> = {}): Promise<ExpenseStatsResponse> {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = queryString
       ? `${baseCRUD.baseEndpoint}analytics?${queryString}`
@@ -104,7 +120,7 @@ const expensesAPI = {
   /**
    * Get category breakdown
    */
-  async getCategoryBreakdown(params: Record<string, string> = {}): Promise<unknown> {
+  async getCategoryBreakdown(params: Record<string, string> = {}): Promise<Record<string, unknown>> {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = queryString
       ? `${baseCRUD.baseEndpoint}category-breakdown?${queryString}`
@@ -115,7 +131,7 @@ const expensesAPI = {
   /**
    * Get vendor analysis
    */
-  async getVendorAnalysis(params: Record<string, string> = {}): Promise<unknown> {
+  async getVendorAnalysis(params: Record<string, string> = {}): Promise<Record<string, unknown>> {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = queryString
       ? `${baseCRUD.baseEndpoint}vendor-analysis?${queryString}`
@@ -126,7 +142,7 @@ const expensesAPI = {
   /**
    * Get monthly trends
    */
-  async getMonthlyTrends(params: Record<string, string> = {}): Promise<unknown> {
+  async getMonthlyTrends(params: Record<string, string> = {}): Promise<Record<string, unknown>> {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = queryString
       ? `${baseCRUD.baseEndpoint}monthly-trends?${queryString}`
@@ -139,7 +155,7 @@ const expensesAPI = {
   /**
    * Import expenses from CSV
    */
-  async importCSV(file: File, options: Record<string, string> = {}): Promise<unknown> {
+  async importCSV(file: File, options: Record<string, string> = {}): Promise<{ imported: number; skipped: number; errors: string[] }> {
     const formData = new FormData();
     formData.append('file', file);
     Object.keys(options).forEach(key => {
@@ -183,7 +199,7 @@ const expensesAPI = {
   /**
    * Upload expense attachment
    */
-  async uploadAttachment(expenseId: string, file: File): Promise<unknown> {
+  async uploadAttachment(expenseId: string, file: File): Promise<ExpenseReceiptUploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
 
@@ -219,14 +235,14 @@ const expensesAPI = {
   /**
    * Delete expense attachment
    */
-  async deleteAttachment(expenseId: string): Promise<unknown> {
+  async deleteAttachment(expenseId: string): Promise<void> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}${expenseId}/attachment`, { method: 'DELETE' });
   },
 
   /**
    * Upload receipt (base64 encoded)
    */
-  async uploadReceipt(expenseId: string, receiptData: unknown): Promise<unknown> {
+  async uploadReceipt(expenseId: string, receiptData: unknown): Promise<ExpenseReceiptUploadResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}${expenseId}/upload-receipt`, {
       method: 'POST',
       body: JSON.stringify(receiptData),
@@ -236,7 +252,7 @@ const expensesAPI = {
   /**
    * Delete receipt
    */
-  async deleteReceipt(expenseId: string): Promise<unknown> {
+  async deleteReceipt(expenseId: string): Promise<void> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}${expenseId}/receipt`, { method: 'DELETE' });
   },
 
@@ -245,7 +261,7 @@ const expensesAPI = {
   /**
    * Get expense change history
    */
-  async getHistory(expenseId: string, limit: number = 100): Promise<unknown> {
+  async getHistory(expenseId: string, limit: number = 100): Promise<ExpenseHistoryResponse> {
     const endpoint = `${baseCRUD.baseEndpoint}${expenseId}/history?limit=${limit}`;
     return baseCRUD.request(endpoint, { method: 'GET' });
   },
@@ -253,7 +269,7 @@ const expensesAPI = {
   /**
    * Generate next expense from recurring template
    */
-  async generateNext(expenseId: string): Promise<unknown> {
+  async generateNext(expenseId: string): Promise<ExpenseResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}${expenseId}/generate-next`, {
       method: 'POST',
     });
@@ -262,7 +278,7 @@ const expensesAPI = {
   /**
    * Get all expenses generated from a recurring template
    */
-  async getRecurringChildren(expenseId: string, params: Record<string, string> = {}): Promise<unknown> {
+  async getRecurringChildren(expenseId: string, params: Record<string, string> = {}): Promise<ExpenseListResponse> {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = queryString
       ? `${baseCRUD.baseEndpoint}${expenseId}/recurring-children?${queryString}`
@@ -275,14 +291,14 @@ const expensesAPI = {
   /**
    * Get expense allocations
    */
-  async getAllocations(expenseId: string): Promise<unknown> {
+  async getAllocations(expenseId: string): Promise<ExpenseAllocationsResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}${expenseId}/allocations`, { method: 'GET' });
   },
 
   /**
    * Update expense allocations (replaces all existing allocations)
    */
-  async updateAllocations(expenseId: string, allocations: unknown[]): Promise<unknown> {
+  async updateAllocations(expenseId: string, allocations: unknown[]): Promise<ExpenseAllocationsResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}${expenseId}/allocations`, {
       method: 'PUT',
       body: JSON.stringify({ allocations }),
@@ -292,14 +308,14 @@ const expensesAPI = {
   /**
    * Delete all expense allocations
    */
-  async deleteAllocations(expenseId: string): Promise<unknown> {
+  async deleteAllocations(expenseId: string): Promise<void> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}${expenseId}/allocations`, { method: 'DELETE' });
   },
 
   /**
    * Get expenses allocated to a specific entity (includes allocation details in response)
    */
-  async getExpensesByEntity(entityType: string, entityId: string, params: Record<string, string> = {}): Promise<unknown> {
+  async getExpensesByEntity(entityType: string, entityId: string, params: Record<string, string> = {}): Promise<ExpenseListResponse> {
     const queryString = new URLSearchParams({
       ...params,
       allocated_entity_type: entityType,
@@ -311,7 +327,7 @@ const expensesAPI = {
   /**
    * Get expense statistics overview
    */
-  async getStats(params: Record<string, string> = {}): Promise<unknown> {
+  async getStats(params: Record<string, string> = {}): Promise<ExpenseStatsResponse> {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = queryString
       ? `${baseCRUD.baseEndpoint}stats/overview?${queryString}`

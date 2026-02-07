@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CheckCircleIcon, XMarkIcon, PlusIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useCompanyCurrencies } from '../../../../hooks/crm/useCompanyCurrencies';
-import { useCurrencyConversion } from '../../../../hooks/crm/useCurrencyConversion';
+
 import { useNotification } from '../../../../contexts/NotificationContext';
 
 /**
@@ -11,23 +11,16 @@ const CurrenciesTab: React.FC = () => {
   const {
     currencies,
     companyCurrencies,
-    defaultCurrency,
     loading,
     addCurrency,
     removeCurrency,
     setDefaultCurrency: setDefault,
-    refresh,
-  } = useCompanyCurrencies() as any;
+  } = useCompanyCurrencies();
 
-  const { convert, loading: convertLoading } = useCurrencyConversion() as any;
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
-  const [converterAmount, setConverterAmount] = useState(100);
-  const [converterFrom, setConverterFrom] = useState('');
-  const [converterTo, setConverterTo] = useState('');
-  const [convertedAmount, setConvertedAmount] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -76,12 +69,6 @@ const CurrenciesTab: React.FC = () => {
     } else {
       showError(result.error || 'Failed to set default currency');
     }
-  };
-
-  const handleConvert = async () => {
-    if (!converterAmount || !converterFrom || !converterTo) return;
-    const result = await convert(converterAmount, converterFrom, converterTo);
-    setConvertedAmount(result);
   };
 
   if (loading) {

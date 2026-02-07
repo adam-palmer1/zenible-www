@@ -7,10 +7,11 @@ import {
   CheckCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { PROJECT_STATUS } from '../../constants/crm';
+import { PROJECT_STATUS, type ProjectStatus } from '../../constants/crm';
+import type { ProjectStatsResponse } from '../../types/crm';
 
 interface ProjectStatsCardsProps {
-  stats: any;
+  stats: ProjectStatsResponse | null;
   activeFilter: string | null;
   onFilterClick: (status: string | null) => void;
 }
@@ -50,35 +51,35 @@ const ProjectStatsCards: React.FC<ProjectStatsCardsProps> = ({ stats, activeFilt
       value: stats.planning || 0,
       icon: ClipboardDocumentListIcon,
       color: 'gray',
-      status: (PROJECT_STATUS as any).PLANNING,
+      status: PROJECT_STATUS.PLANNING as ProjectStatus | null,
     },
     {
       title: 'Active',
       value: stats.active || 0,
       icon: PlayIcon,
       color: 'blue',
-      status: (PROJECT_STATUS as any).ACTIVE,
+      status: PROJECT_STATUS.ACTIVE as ProjectStatus | null,
     },
     {
       title: 'On Hold',
       value: stats.on_hold || 0,
       icon: PauseIcon,
       color: 'yellow',
-      status: (PROJECT_STATUS as any).ON_HOLD,
+      status: PROJECT_STATUS.ON_HOLD as ProjectStatus | null,
     },
     {
       title: 'Completed',
       value: stats.completed || 0,
       icon: CheckCircleIcon,
       color: 'green',
-      status: (PROJECT_STATUS as any).COMPLETED,
+      status: PROJECT_STATUS.COMPLETED as ProjectStatus | null,
     },
     {
       title: 'Cancelled',
       value: stats.cancelled || 0,
       icon: XCircleIcon,
       color: 'red',
-      status: (PROJECT_STATUS as any).CANCELLED,
+      status: PROJECT_STATUS.CANCELLED as ProjectStatus | null,
     },
   ];
 

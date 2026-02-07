@@ -56,13 +56,13 @@ export function useHeadlineAnalysis({
     panelId,
     supportedTools: ['analyze_headline', 'generate_headline'],
     structuredAnalysisMapper: (data: unknown): HeadlineStructuredAnalysis => {
-      const d = data as any;
+      const d = data as Record<string, unknown>;
       // Extract only the fields we need: score, strengths, weaknesses, improvements
       return {
         score: d.score,
-        strengths: d.strengths || [],
-        weaknesses: d.weaknesses || [],
-        improvements: d.improvements || []
+        strengths: (d.strengths as unknown[]) || [],
+        weaknesses: (d.weaknesses as unknown[]) || [],
+        improvements: (d.improvements as unknown[]) || []
       };
     },
     onAnalysisStarted,

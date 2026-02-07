@@ -9,8 +9,8 @@ import tickSquare from '../../assets/icons/tick-square-purple.svg';
 import crossSquare from '../../assets/icons/cross-square-gray.svg';
 
 export default function PricingNew() {
-  const { user, checkAuth } = useAuth() as any;
-  const { darkMode } = usePreferences() as any;
+  const { user, checkAuth } = useAuth();
+  const { darkMode } = usePreferences();
   const navigate = useNavigate();
 
   const [plans, setPlans] = useState<any[]>([]);
@@ -20,7 +20,13 @@ export default function PricingNew() {
   const [error, setError] = useState<string | null>(null);
   const [processingAction, setProcessingAction] = useState(false);
   const [hasAnnualPricing, setHasAnnualPricing] = useState(false);
-  const [paymentModal, setPaymentModal] = useState({
+  const [paymentModal, setPaymentModal] = useState<{
+    isOpen: boolean;
+    planId: string | null;
+    planName: string;
+    price: string;
+    billingCycle: string;
+  }>({
     isOpen: false,
     planId: null,
     planName: '',
@@ -44,7 +50,7 @@ export default function PricingNew() {
 
     try {
       // Fetch public plans
-      const plansResponse = await planAPI.getPublicPlans() as any;
+      const plansResponse = await planAPI.getPublicPlans() as { plans?: any[]; items?: any[]; [key: string]: unknown };
       const activePlans = (plansResponse.plans || plansResponse.items || [])
         .filter(plan => plan.is_active && plan.monthly_price !== null)
         .sort((a, b) => parseFloat(a.monthly_price) - parseFloat(b.monthly_price));
@@ -53,13 +59,13 @@ export default function PricingNew() {
       const plansWithFeatures = await Promise.all(
         activePlans.map(async (plan) => {
           try {
-            const featuresResponse = await planAPI.getPlanWithFeatures(plan.id) as any;
+            const featuresResponse = await planAPI.getPlanWithFeatures(plan.id) as { display_features?: any[]; system_features?: any[]; [key: string]: unknown };
             return {
               ...plan,
               display_features: featuresResponse.display_features || plan.display_features || [],
               system_features: featuresResponse.system_features || plan.system_features || [],
             };
-          } catch (err) {
+          } catch (_err) {
             // If features endpoint fails, use features from plan if available
             return {
               ...plan,
@@ -123,7 +129,7 @@ export default function PricingNew() {
 
   const handlePaymentSuccess = async (paymentMethodId: string) => {
     try {
-      await planAPI.createSubscription(paymentModal.planId, paymentModal.billingCycle, paymentMethodId);
+      await planAPI.createSubscription(paymentModal.planId!, paymentModal.billingCycle, paymentMethodId);
 
       // Close payment modal and show success modal
       setPaymentModal({ isOpen: false, planId: null, planName: '', price: '', billingCycle: 'monthly' });
@@ -139,8 +145,8 @@ export default function PricingNew() {
         fetchData(), // Refresh subscription and plan data
         checkAuth()  // Refresh user data to get updated subscription status
       ]);
-    } catch (err) {
-      throw new Error(err.message || 'Failed to create subscription');
+    } catch (err: unknown) {
+      throw new Error((err as Error).message || 'Failed to create subscription');
     }
   };
 
@@ -171,8 +177,8 @@ export default function PricingNew() {
       await planAPI.upgradeSubscription(planId, true);
       alert('Plan upgraded successfully!');
       await fetchData();
-    } catch (err) {
-      alert(`Failed to upgrade plan: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Failed to upgrade plan: ${(err as Error).message}`);
     } finally {
       setProcessingAction(false);
     }
@@ -188,8 +194,8 @@ export default function PricingNew() {
       await planAPI.downgradeSubscription(planId);
       alert('Plan will be downgraded at the end of your billing period.');
       await fetchData();
-    } catch (err) {
-      alert(`Failed to downgrade plan: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Failed to downgrade plan: ${(err as Error).message}`);
     } finally {
       setProcessingAction(false);
     }
@@ -269,12 +275,13 @@ export default function PricingNew() {
   // No longer needed - we'll use is_recommended from the API
   // const getPopularPlan = () => { ... };
 
-  const formatFeatureText = (feature: any) => {
+  const formatFeatureText = (feature: Record<string, unknown> | string): React.ReactNode => {
     // If feature is an object with name/description
     if (typeof feature === 'object') {
-      if (feature.custom_value) return feature.custom_value;
-      if (feature.feature?.name) return feature.feature.name;
-      if (feature.name) return feature.name;
+      if (feature.custom_value) return String(feature.custom_value);
+      const nestedFeature = feature.feature as Record<string, unknown> | undefined;
+      if (nestedFeature?.name) return String(nestedFeature.name);
+      if (feature.name) return String(feature.name);
       return '';
     }
     // If feature is a string
@@ -282,10 +289,10 @@ export default function PricingNew() {
   };
 
 
-  const getFeaturesList = (plan: any) => {
+  const getFeaturesList = (plan: Record<string, unknown> & { display_features?: Record<string, unknown>[]; features?: unknown[]; name: string }) => {
     // If plan has display_features, use those (including excluded ones)
     if (plan.display_features && plan.display_features.length > 0) {
-      return plan.display_features.map(f => ({
+      return plan.display_features.map((f: Record<string, unknown>) => ({
         text: formatFeatureText(f),
         isIncluded: f.is_included !== false
       }));
@@ -293,15 +300,15 @@ export default function PricingNew() {
 
     // Fall back to features array if available
     if (plan.features && Array.isArray(plan.features)) {
-      return plan.features.map(f => ({
-        text: typeof f === 'string' ? f : formatFeatureText(f),
+      return plan.features.map((f: unknown) => ({
+        text: typeof f === 'string' ? f : formatFeatureText(f as Record<string, unknown>),
         isIncluded: true
       }));
     }
 
     // Default features based on plan type
     const planName = plan.name.toLowerCase();
-    let defaultFeatures = [];
+    let defaultFeatures: string[] = [];
 
     if (planName.includes('free') || planName.includes('starter')) {
       defaultFeatures = [
@@ -419,8 +426,6 @@ export default function PricingNew() {
             return null;
           }
           // For annual view, if no annual price but has monthly, calculate it
-          const hasAnnualPrice = plan.annual_price !== null || plan.monthly_price !== null;
-
           const isPopular = plan.is_recommended === true;
           const currentPlan = isCurrentPlan(plan.id);
 
@@ -502,7 +507,7 @@ export default function PricingNew() {
 
               {/* Button */}
               <button
-                onClick={getButtonAction(plan)}
+                onClick={getButtonAction(plan) ?? undefined}
                 disabled={currentPlan || processingAction}
                 className={`w-full py-3 rounded-xl font-medium text-base transition-all mb-6 ${
                   currentPlan
@@ -521,7 +526,7 @@ export default function PricingNew() {
 
               {/* Features */}
               <div className="flex-1 flex flex-col gap-4">
-                {features.length > 0 ? features.map((feature, index) => (
+                {features.length > 0 ? features.map((feature: { text: React.ReactNode; isIncluded: boolean }, index: number) => (
                   <div key={index} className="flex items-center gap-3">
                     <img
                       src={feature.isIncluded ? tickSquare : crossSquare}
@@ -550,7 +555,7 @@ export default function PricingNew() {
         isOpen={paymentModal.isOpen}
         onClose={closePaymentModal}
         planName={paymentModal.planName}
-        planId={paymentModal.planId}
+        planId={paymentModal.planId ?? ''}
         price={paymentModal.price}
         billingCycle={paymentModal.billingCycle}
         onSuccess={handlePaymentSuccess}

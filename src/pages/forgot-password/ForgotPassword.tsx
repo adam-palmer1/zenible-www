@@ -61,9 +61,9 @@ export default function ForgotPassword() {
   const [isResending, setIsResending] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<boolean>(false);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [, setIsDarkMode] = useState<boolean>(false);
 
-  const { forgotPassword } = useAuth() as any;
+  const { forgotPassword } = useAuth();
 
   // Dark mode detection
   useEffect(() => {

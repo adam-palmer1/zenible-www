@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import { LoadingSpinner } from '../shared';
 
 interface AdminOutletContext {
   darkMode: boolean;
@@ -48,25 +49,25 @@ export default function ConversationManagement() {
     setLoading(true);
     setError(null);
     try {
-      const params = {
-        page,
-        per_page: perPage,
-        ...(search && { search }),
-        ...(userFilter && { user_id: userFilter }),
-        ...(characterFilter && { character_id: characterFilter }),
-        ...(startDate && { start_date: startDate }),
-        ...(endDate && { end_date: endDate }),
-        ...(minMessages && { min_messages: minMessages }),
-        ...(maxMessages && { max_messages: maxMessages }),
+      const params: Record<string, string> = {
+        page: String(page),
+        per_page: String(perPage),
         order_by: orderBy,
         order_dir: orderDir,
       };
+      if (search) params.search = search;
+      if (userFilter) params.user_id = userFilter;
+      if (characterFilter) params.character_id = characterFilter;
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
+      if (minMessages) params.min_messages = minMessages;
+      if (maxMessages) params.max_messages = maxMessages;
 
-      const response = await adminAPI.getConversations(params as any) as any;
+      const response = await adminAPI.getConversations(params) as { conversations?: unknown[]; items?: unknown[]; total_pages?: number; total?: number };
       setConversations(response.conversations || response.items || []);
       setTotalPages(response.total_pages || Math.ceil((response.total || 0) / perPage) || 1);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
       console.error('Error fetching conversations:', err);
     } finally {
       setLoading(false);
@@ -118,7 +119,7 @@ export default function ConversationManagement() {
       setSelectedConversation(null);
     } catch (err) {
       console.error('Error exporting conversation:', err);
-      alert(`Failed to export conversation: ${(err as any).message}`);
+      alert(`Failed to export conversation: ${(err as Error).message}`);
     } finally {
       setExportLoading(false);
     }
@@ -140,7 +141,7 @@ export default function ConversationManagement() {
     if (typeof message === 'string') return message;
     if (message.content) {
       if (Array.isArray(message.content)) {
-        return message.content.map(c => c.text || '').join(' ');
+        return message.content.map((c: { text?: string }) => c.text || '').join(' ');
       }
       return message.content;
     }
@@ -262,9 +263,7 @@ export default function ConversationManagement() {
       <div className="flex-1 overflow-auto px-6 pb-6">
         <div className={`rounded-xl border overflow-hidden mt-6 ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-            </div>
+            <LoadingSpinner height="py-12" />
           ) : error ? (
             <div className="text-red-500 text-center py-12">Error: {error}</div>
           ) : (
@@ -415,9 +414,7 @@ export default function ConversationManagement() {
 
             <div className="flex-1 overflow-auto p-6">
               {loadingDetails ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-                </div>
+                <LoadingSpinner height="py-12" />
               ) : conversationDetails ? (
                 <div className="space-y-6">
                   {/* Conversation Info */}
@@ -459,7 +456,7 @@ export default function ConversationManagement() {
                       Messages ({conversationDetails.messages?.length || 0})
                     </h3>
                     <div className="space-y-3">
-                      {conversationDetails.messages?.map((message, index) => (
+                      {conversationDetails.messages?.map((message: { id?: string; role: string; content?: string; created_at?: string }, index: number) => (
                         <div
                           key={message.id || index}
                           className={`p-4 rounded-lg ${
@@ -473,7 +470,7 @@ export default function ConversationManagement() {
                               {message.role === 'user' ? 'User' : conversationDetails.character_name || 'Assistant'}
                             </span>
                             <span className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                              {formatDate(message.created_at)}
+                              {formatDate(message.created_at ?? '')}
                             </span>
                           </div>
                           <div className={`whitespace-pre-wrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
@@ -577,9 +574,7 @@ export default function ConversationManagement() {
 
             <div className="flex-1 overflow-auto p-6">
               {loadingStats ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-                </div>
+                <LoadingSpinner height="py-12" />
               ) : conversationStats ? (
                 <div className="space-y-6">
                   {/* Overview Stats */}
@@ -632,7 +627,7 @@ export default function ConversationManagement() {
                             </tr>
                           </thead>
                           <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
-                            {conversationStats.popular_characters.map((char, index) => (
+                            {conversationStats.popular_characters.map((char: { name: string; conversation_count: number; message_count: number }, index: number) => (
                               <tr key={index}>
                                 <td className={`px-4 py-2 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                                   {char.name}
@@ -641,7 +636,7 @@ export default function ConversationManagement() {
                                   {char.conversation_count}
                                 </td>
                                 <td className={`px-4 py-2 text-sm text-right ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                                  {char.total_messages}
+                                  {char.message_count}
                                 </td>
                               </tr>
                             ))}

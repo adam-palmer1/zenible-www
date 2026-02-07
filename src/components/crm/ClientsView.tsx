@@ -1,12 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   UserMinusIcon,
   EyeSlashIcon,
   EyeIcon,
   PencilIcon,
   TrashIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import { useContacts, useCompanyCurrencies } from '../../hooks/crm';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -14,48 +12,8 @@ import { formatCurrency } from '../../utils/currency';
 import Dropdown from '../ui/dropdown/Dropdown';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
-
-interface SortableColumnHeaderProps {
-  field: string;
-  label: string;
-  sortField: string;
-  sortDirection: string;
-  onSort: (field: string) => void;
-  align?: 'left' | 'center' | 'right';
-}
-
-/**
- * Sortable Column Header Component
- * Displays a clickable header with sort indicator
- */
-const SortableColumnHeader: React.FC<SortableColumnHeaderProps> = ({ field, label, sortField, sortDirection, onSort, align = 'left' }) => {
-  const isActive = sortField === field;
-  const alignClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
-
-  return (
-    <th
-      className={`px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors select-none text-${align}`}
-      onClick={() => onSort(field)}
-    >
-      <div className={`flex items-center gap-1 ${alignClass}`}>
-        <span>{label}</span>
-        <span className={`flex flex-col ${isActive ? 'text-zenible-primary' : 'text-gray-300'}`}>
-          {isActive ? (
-            sortDirection === 'asc' ? (
-              <ChevronUpIcon className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronDownIcon className="h-3.5 w-3.5" />
-            )
-          ) : (
-            <svg className="h-3.5 w-3.5 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-            </svg>
-          )}
-        </span>
-      </div>
-    </th>
-  );
-};
+import { SortableHeader, EmptyState, LoadingSpinner } from '../shared';
+import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
 
 interface ClientsViewProps {
   onClientClick?: (client: any) => void;
@@ -91,20 +49,18 @@ const ClientsView: React.FC<ClientsViewProps> = ({
   showHiddenClients,
   showPreferredCurrency = true,
   visibleColumns,
-  availableColumns,
+  availableColumns: _availableColumns,
   visibleFieldNames = [],
   fieldsLoading = false,
 }) => {
-  const { showError, showSuccess } = useNotification() as any;
-  const { defaultCurrency, numberFormat } = useCompanyCurrencies() as any;
+  const { showError, showSuccess } = useNotification();
+  const { defaultCurrency, numberFormat } = useCompanyCurrencies();
 
   // Get the default currency code for formatting
   const defaultCurrencyCode = defaultCurrency?.currency?.code || 'GBP';
 
-  const [showRemoveClientModal, setShowRemoveClientModal] = useState(false);
-  const [clientToRemove, setClientToRemove] = useState<any>(null);
-  const [showDeleteClientModal, setShowDeleteClientModal] = useState(false);
-  const [clientToDelete, setClientToDelete] = useState<any>(null);
+  const removeConfirmation = useDeleteConfirmation<any>();
+  const deleteConfirmation = useDeleteConfirmation<any>();
 
   // Build the filters object for the API request
   // Memoize to prevent unnecessary re-renders and API calls
@@ -125,6 +81,9 @@ const ClientsView: React.FC<ClientsViewProps> = ({
 
     const baseFilters: any = {
       is_client: true,
+      ...(searchQuery ? { search: searchQuery } : {}),
+      ...(sortField ? { sort_by: sortField, sort_order: sortDirection || 'desc' } : {}),
+      ...(showHiddenClients ? {} : { is_hidden: false }),
     };
 
     // When not showing preferred currency, preserve original currencies
@@ -146,90 +105,16 @@ const ClientsView: React.FC<ClientsViewProps> = ({
 
     // Without fields parameter, API returns all fields (default behavior)
     return baseFilters;
-  }, [visibleFieldNames, showPreferredCurrency, fieldsLoading]);
+  }, [visibleFieldNames, showPreferredCurrency, fieldsLoading, searchQuery, sortField, sortDirection, showHiddenClients]);
 
   // Fetch clients (contacts with is_client: true) with only the requested fields
   const { contacts: clients, loading: clientsLoading, updateContact, deleteContact } = useContacts(
     contactFilters,
     refreshKey
-  ) as any;
+  );
 
-  // Filter and sort clients - memoized to ensure proper updates
-  const filteredClients = useMemo(() => {
-    let filtered = [...clients];
-
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (client: any) =>
-          client.first_name?.toLowerCase().includes(query) ||
-          client.last_name?.toLowerCase().includes(query) ||
-          client.email?.toLowerCase().includes(query) ||
-          client.business_name?.toLowerCase().includes(query) ||
-          client.phone?.toLowerCase().includes(query)
-      );
-    }
-
-    // Apply hidden filter
-    if (!showHiddenClients) {
-      filtered = filtered.filter((client: any) => !client.is_hidden);
-    }
-
-    // Apply sorting by field and direction
-    if (sortField) {
-      filtered.sort((a: any, b: any) => {
-        let valueA: any, valueB: any;
-
-        // Handle special sorting cases
-        if (sortField === 'display_name') {
-          valueA = (a.display_name || `${a.first_name || ''} ${a.last_name || ''}`.trim()).toLowerCase();
-          valueB = (b.display_name || `${b.first_name || ''} ${b.last_name || ''}`.trim()).toLowerCase();
-        } else if (sortField === 'created_at') {
-          valueA = new Date(a.created_at || 0);
-          valueB = new Date(b.created_at || 0);
-        } else if (['confirmed_services_count', 'active_services_count', 'pending_services_count'].includes(sortField)) {
-          valueA = parseInt(a[sortField] || 0, 10);
-          valueB = parseInt(b[sortField] || 0, 10);
-        } else if ([
-          'confirmed_one_off_total', 'active_one_off_total', 'pending_one_off_total', 'lifetime_one_off_total',
-          'confirmed_recurring_total', 'active_recurring_total', 'pending_recurring_total', 'value_net_total',
-          'expenses_total', 'value_gross_total', 'attribution_total',
-          'invoiced_total', 'payments_total', 'paid_total',
-          'total_outstanding', 'total_expenses_paid', 'total_expenses_outstanding'
-        ].includes(sortField)) {
-          // Handle array format (when preserve_currencies=true) - sum all amounts
-          const getFinancialValue = (val: any) => {
-            if (Array.isArray(val)) {
-              return val.reduce((sum: number, item: any) => sum + parseFloat(item.amount || 0), 0);
-            }
-            return parseFloat(val || 0);
-          };
-          valueA = getFinancialValue(a[sortField]);
-          valueB = getFinancialValue(b[sortField]);
-        } else {
-          // Default string comparison
-          valueA = (a[sortField] || '').toString().toLowerCase();
-          valueB = (b[sortField] || '').toString().toLowerCase();
-        }
-
-        // Compare values
-        let comparison = 0;
-        if (valueA instanceof Date && valueB instanceof Date) {
-          comparison = (valueA as any) - (valueB as any);
-        } else if (typeof valueA === 'number' && typeof valueB === 'number') {
-          comparison = valueA - valueB;
-        } else {
-          comparison = valueA.localeCompare ? valueA.localeCompare(valueB) : (valueA > valueB ? 1 : -1);
-        }
-
-        // Apply direction
-        return sortDirection === 'asc' ? comparison : -comparison;
-      });
-    }
-
-    return filtered;
-  }, [clients, searchQuery, showHiddenClients, sortField, sortDirection]);
+  // Search, sort, and hidden filtering are now server-side via contactFilters
+  const filteredClients = clients;
 
   const handleEditClient = (client: any) => {
     if (openContactModal) {
@@ -254,39 +139,31 @@ const ClientsView: React.FC<ClientsViewProps> = ({
   };
 
   const handleRemoveFromClientList = async () => {
-    if (!clientToRemove) return;
-
-    try {
-      // updateContact handles both API call and local state update
-      await updateContact(clientToRemove.id, { is_client: false });
-
-      const displayName = getContactDisplayName(clientToRemove);
-      showSuccess(`${displayName} removed from client list`);
-
-      setShowRemoveClientModal(false);
-      setClientToRemove(null);
-    } catch (error) {
-      console.error('Error removing client from list:', error);
-      showError('Failed to remove client from list');
-    }
+    await removeConfirmation.confirmDelete(async (client) => {
+      try {
+        await updateContact(client.id, { is_client: false });
+        const displayName = getContactDisplayName(client);
+        showSuccess(`${displayName} removed from client list`);
+      } catch (error) {
+        console.error('Error removing client from list:', error);
+        showError('Failed to remove client from list');
+        throw error;
+      }
+    });
   };
 
   const handleDeleteClient = async () => {
-    if (!clientToDelete) return;
-
-    try {
-      // deleteContact handles both API call and local state update
-      await deleteContact(clientToDelete.id);
-
-      const displayName = getContactDisplayName(clientToDelete);
-      showSuccess(`${displayName} deleted permanently`);
-
-      setShowDeleteClientModal(false);
-      setClientToDelete(null);
-    } catch (error) {
-      console.error('Error deleting client:', error);
-      showError('Failed to delete client');
-    }
+    await deleteConfirmation.confirmDelete(async (client) => {
+      try {
+        await deleteContact(client.id);
+        const displayName = getContactDisplayName(client);
+        showSuccess(`${displayName} deleted permanently`);
+      } catch (error) {
+        console.error('Error deleting client:', error);
+        showError('Failed to delete client');
+        throw error;
+      }
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -298,7 +175,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
         day: '2-digit',
         year: 'numeric',
       });
-    } catch (error) {
+    } catch (_error) {
       return '-';
     }
   };
@@ -344,11 +221,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
   };
 
   if (clientsLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
@@ -359,107 +232,107 @@ const ClientsView: React.FC<ClientsViewProps> = ({
           <thead>
             <tr className="border-b border-[#e5e5e5] dark:border-gray-700">
               {visibleColumns.display_name && (
-                <SortableColumnHeader
+                <SortableHeader
                   field="display_name"
                   label="Name"
-                  sortField={sortField}
-                  sortDirection={sortDirection}
+                  currentSort={sortField}
+                  currentDirection={sortDirection as 'asc' | 'desc'}
                   onSort={handleSortChange}
                   align="left"
                 />
               )}
               {visibleColumns.email && (
-                <SortableColumnHeader
+                <SortableHeader
                   field="email"
                   label="Email"
-                  sortField={sortField}
-                  sortDirection={sortDirection}
+                  currentSort={sortField}
+                  currentDirection={sortDirection as 'asc' | 'desc'}
                   onSort={handleSortChange}
                   align="left"
                 />
               )}
               {visibleColumns.phone && (
-                <SortableColumnHeader
+                <SortableHeader
                   field="phone"
                   label="Phone"
-                  sortField={sortField}
-                  sortDirection={sortDirection}
+                  currentSort={sortField}
+                  currentDirection={sortDirection as 'asc' | 'desc'}
                   onSort={handleSortChange}
                   align="left"
                 />
               )}
               {visibleColumns.business_name && (
-                <SortableColumnHeader
+                <SortableHeader
                   field="business_name"
                   label="Company"
-                  sortField={sortField}
-                  sortDirection={sortDirection}
+                  currentSort={sortField}
+                  currentDirection={sortDirection as 'asc' | 'desc'}
                   onSort={handleSortChange}
                   align="left"
                 />
               )}
               {visibleColumns.confirmed_services_count && (
-                <SortableColumnHeader field="confirmed_services_count" label="Confirmed Services" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="center" />
+                <SortableHeader field="confirmed_services_count" label="Confirmed Services" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="center" />
               )}
               {visibleColumns.active_services_count && (
-                <SortableColumnHeader field="active_services_count" label="Active Services" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="center" />
+                <SortableHeader field="active_services_count" label="Active Services" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="center" />
               )}
               {visibleColumns.pending_services_count && (
-                <SortableColumnHeader field="pending_services_count" label="Pending Services" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="center" />
+                <SortableHeader field="pending_services_count" label="Pending Services" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="center" />
               )}
               {visibleColumns.confirmed_one_off_total && (
-                <SortableColumnHeader field="confirmed_one_off_total" label="Confirmed One-off" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="confirmed_one_off_total" label="Confirmed One-off" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.active_one_off_total && (
-                <SortableColumnHeader field="active_one_off_total" label="Active One-off" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="active_one_off_total" label="Active One-off" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.pending_one_off_total && (
-                <SortableColumnHeader field="pending_one_off_total" label="Pending One-off" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="pending_one_off_total" label="Pending One-off" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.lifetime_one_off_total && (
-                <SortableColumnHeader field="lifetime_one_off_total" label="Lifetime One-off" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="lifetime_one_off_total" label="Lifetime One-off" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.confirmed_recurring_total && (
-                <SortableColumnHeader field="confirmed_recurring_total" label="Confirmed Recurring" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="confirmed_recurring_total" label="Confirmed Recurring" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.active_recurring_total && (
-                <SortableColumnHeader field="active_recurring_total" label="Active Recurring" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="active_recurring_total" label="Active Recurring" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.pending_recurring_total && (
-                <SortableColumnHeader field="pending_recurring_total" label="Pending Recurring" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="pending_recurring_total" label="Pending Recurring" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.value_net_total && (
-                <SortableColumnHeader field="value_net_total" label="Value (Net)" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="value_net_total" label="Value (Net)" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.expenses_total && (
-                <SortableColumnHeader field="expenses_total" label="Expenses Total" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="expenses_total" label="Expenses Total" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.value_gross_total && (
-                <SortableColumnHeader field="value_gross_total" label="Value (Gross)" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="value_gross_total" label="Value (Gross)" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.attribution_total && (
-                <SortableColumnHeader field="attribution_total" label="Attribution Total" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="attribution_total" label="Attribution Total" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.invoiced_total && (
-                <SortableColumnHeader field="invoiced_total" label="Total Invoiced" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="invoiced_total" label="Total Invoiced" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.payments_total && (
-                <SortableColumnHeader field="payments_total" label="Payments Total" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="payments_total" label="Payments Total" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.paid_total && (
-                <SortableColumnHeader field="paid_total" label="Paid Total" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="paid_total" label="Paid Total" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.total_outstanding && (
-                <SortableColumnHeader field="total_outstanding" label="Outstanding" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="total_outstanding" label="Outstanding" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.total_expenses_paid && (
-                <SortableColumnHeader field="total_expenses_paid" label="Expenses Paid" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="total_expenses_paid" label="Expenses Paid" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.total_expenses_outstanding && (
-                <SortableColumnHeader field="total_expenses_outstanding" label="Expenses Outstanding" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="right" />
+                <SortableHeader field="total_expenses_outstanding" label="Expenses Outstanding" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="right" />
               )}
               {visibleColumns.created_at && (
-                <SortableColumnHeader field="created_at" label="Client Since" sortField={sortField} sortDirection={sortDirection} onSort={handleSortChange} align="left" />
+                <SortableHeader field="created_at" label="Client Since" currentSort={sortField} currentDirection={sortDirection as 'asc' | 'desc'} onSort={handleSortChange} align="left" />
               )}
               {visibleColumns.actions && (
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400"></th>
@@ -468,14 +341,10 @@ const ClientsView: React.FC<ClientsViewProps> = ({
           </thead>
           <tbody>
             {filteredClients.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={Object.values(visibleColumns).filter(Boolean).length}
-                  className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
-                >
-                  No clients found
-                </td>
-              </tr>
+              <EmptyState
+                title="No clients found"
+                colSpan={Object.values(visibleColumns).filter(Boolean).length}
+              />
             ) : (
               filteredClients.map((client: any, index: number) => {
                 return (
@@ -637,8 +506,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
                           <Dropdown.Item
                             onSelect={(e: any) => {
                               e.stopPropagation();
-                              setClientToRemove(client);
-                              setShowRemoveClientModal(true);
+                              removeConfirmation.requestDelete(client);
                             }}
                           >
                             <UserMinusIcon className="h-4 w-4" />
@@ -667,8 +535,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
                           <Dropdown.Item
                             onSelect={(e: any) => {
                               e.stopPropagation();
-                              setClientToDelete(client);
-                              setShowDeleteClientModal(true);
+                              deleteConfirmation.requestDelete(client);
                             }}
                             className="text-red-600 hover:text-red-700"
                           >
@@ -688,17 +555,14 @@ const ClientsView: React.FC<ClientsViewProps> = ({
 
       {/* Remove from Client List Confirmation Modal */}
       <ConfirmationModal
-        isOpen={showRemoveClientModal}
-        onClose={() => {
-          setShowRemoveClientModal(false);
-          setClientToRemove(null);
-        }}
+        isOpen={removeConfirmation.isOpen}
+        onClose={removeConfirmation.cancelDelete}
         onConfirm={handleRemoveFromClientList}
         title="Remove from Client List?"
         message={
           <div>
             <p className="mb-2">
-              Are you sure you want to remove {clientToRemove ? getContactDisplayName(clientToRemove) : 'this client'}{' '}
+              Are you sure you want to remove {removeConfirmation.item ? getContactDisplayName(removeConfirmation.item) : 'this client'}{' '}
               from your client list?
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -715,18 +579,15 @@ const ClientsView: React.FC<ClientsViewProps> = ({
 
       {/* Delete Client Confirmation Modal */}
       <ConfirmationModal
-        isOpen={showDeleteClientModal}
-        onClose={() => {
-          setShowDeleteClientModal(false);
-          setClientToDelete(null);
-        }}
+        isOpen={deleteConfirmation.isOpen}
+        onClose={deleteConfirmation.cancelDelete}
         onConfirm={handleDeleteClient}
         title="Delete Client?"
         message={
           <div>
             <p className="mb-2">
               Are you sure you want to permanently delete{' '}
-              {clientToDelete ? getContactDisplayName(clientToDelete) : 'this client'}?
+              {deleteConfirmation.item ? getContactDisplayName(deleteConfirmation.item) : 'this client'}?
             </p>
             <p className="text-sm text-red-600 dark:text-red-400 font-medium">
               Warning: This action cannot be undone. All data associated with this client will be permanently deleted.

@@ -6,7 +6,7 @@ import { useNotification } from '../../../contexts/NotificationContext';
 import { useInvoices } from '../../../contexts/InvoiceContext';
 import contactsAPI from '../../../services/api/crm/contacts';
 
-const contactsAPIAny = contactsAPI as any;
+const contactsAPIAny = contactsAPI as unknown as Record<string, Function>;
 
 interface SendReminderDialogProps {
   isOpen: boolean;
@@ -23,8 +23,8 @@ const SendReminderDialog: React.FC<SendReminderDialogProps> = ({
   contact,
   onSuccess
 }) => {
-  const { showSuccess, showError } = useNotification() as any;
-  const { sendReminder } = useInvoices() as any;
+  const { showSuccess, showError } = useNotification();
+  const { sendReminder } = useInvoices();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -48,7 +48,7 @@ const SendReminderDialog: React.FC<SendReminderDialogProps> = ({
   const { data: effectiveTemplate, isLoading: loadingTemplate } = useEffectiveTemplateQuery(
     'invoice_reminder',
     { enabled: isOpen }
-  ) as any;
+  ) as { data: { id?: string; subject?: string; body?: string } | undefined; isLoading: boolean };
 
   // Calculate days overdue
   const getDaysOverdue = () => {
@@ -132,7 +132,7 @@ const SendReminderDialog: React.FC<SendReminderDialogProps> = ({
         email_subject: effectiveTemplate.subject || '',
         email_body: effectiveTemplate.body || '',
         attach_pdf: true,
-        template_id: effectiveTemplate.id
+        template_id: effectiveTemplate.id ?? null
       });
     }
   }, [isOpen, effectiveTemplate, contact]);

@@ -94,7 +94,7 @@ export default function SignUp() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string>('');
 
-  const { signup, googleLogin, isAuthenticated, loading: authLoading } = useAuth() as any;
+  const { signup, googleLogin, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
@@ -183,7 +183,7 @@ export default function SignUp() {
       if (!result.success && result.error) {
         setApiError(result.error);
       }
-    } catch (error) {
+    } catch (_error) {
       setApiError('Google sign up failed. Please try again.');
     } finally {
       setIsLoading(false);

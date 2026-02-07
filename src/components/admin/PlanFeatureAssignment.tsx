@@ -1,18 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import adminAPI from '../../services/adminAPI';
 import planAPI from '../../services/planAPI';
+import { LoadingSpinner } from '../shared';
+
+interface Plan {
+  id: string;
+  name: string;
+  monthly_price: number;
+}
+
+interface DisplayFeature {
+  id: string;
+  name: string;
+}
+
+interface SystemFeature {
+  id: string;
+  name: string;
+  code: string;
+  feature_type?: string;
+}
+
+interface Character {
+  id: string;
+  name: string;
+}
+
+interface DisplayFeatureAssignment {
+  feature_id: string;
+  feature_name: string;
+  feature_state: string;
+  custom_value: string;
+}
+
+interface SystemFeatureAssignment {
+  feature_id: string;
+  feature_name: string;
+  feature_type: string;
+  feature_code: string;
+  is_enabled?: boolean;
+  limit_value?: number;
+  allowed_values?: string[];
+}
+
+interface CharacterAccessAssignment {
+  character_id: string;
+  character_name: string;
+  is_accessible: boolean;
+  daily_message_limit: number | null;
+  daily_token_limit: number | null;
+  monthly_message_limit: number | null;
+  monthly_token_limit: number | null;
+  rate_limit_per_minute: number;
+  priority: number;
+}
+
+interface ToolAccessAssignment {
+  tool_name: string;
+  tool_description?: string;
+  is_enabled: boolean;
+  monthly_usage_limit: number | null;
+}
 
 interface PlanFeatureAssignmentProps {
   darkMode: boolean;
 }
 
 export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmentProps) {
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [planFeatures, setPlanFeatures] = useState<any>(null);
-  const [allDisplayFeatures, setAllDisplayFeatures] = useState<any[]>([]);
-  const [allSystemFeatures, setAllSystemFeatures] = useState<any[]>([]);
-  const [allCharacters, setAllCharacters] = useState<any[]>([]);
+  const [, setPlanFeatures] = useState<Record<string, unknown> | null>(null);
+  const [allDisplayFeatures, setAllDisplayFeatures] = useState<DisplayFeature[]>([]);
+  const [allSystemFeatures, setAllSystemFeatures] = useState<SystemFeature[]>([]);
+  const [allCharacters, setAllCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,10 +80,10 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
   const [successModal, setSuccessModal] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
 
   // Local state for editing
-  const [displayFeatureAssignments, setDisplayFeatureAssignments] = useState<any[]>([]);
-  const [systemFeatureAssignments, setSystemFeatureAssignments] = useState<any[]>([]);
-  const [characterAccessAssignments, setCharacterAccessAssignments] = useState<any[]>([]);
-  const [toolAccessAssignments, setToolAccessAssignments] = useState<any[]>([]);
+  const [displayFeatureAssignments, setDisplayFeatureAssignments] = useState<DisplayFeatureAssignment[]>([]);
+  const [systemFeatureAssignments, setSystemFeatureAssignments] = useState<SystemFeatureAssignment[]>([]);
+  const [characterAccessAssignments, setCharacterAccessAssignments] = useState<CharacterAccessAssignment[]>([]);
+  const [toolAccessAssignments, setToolAccessAssignments] = useState<ToolAccessAssignment[]>([]);
 
   useEffect(() => {
     fetchInitialData();
@@ -41,23 +101,24 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
     setError(null);
     try {
       const [plansResponse, displayResponse, systemResponse, charactersResponse] = await Promise.all([
-        (adminAPI as any).getPlans(),
-        (adminAPI as any).getDisplayFeatures(),
-        (adminAPI as any).getSystemFeatures(),
-        (planAPI as any).getPublicCharacters({ per_page: 100 }), // Use public endpoint which is now available
+        adminAPI.getPlans() as Promise<Record<string, unknown>>,
+        adminAPI.getDisplayFeatures() as Promise<Record<string, unknown>>,
+        adminAPI.getSystemFeatures() as Promise<Record<string, unknown>>,
+        planAPI.getPublicCharacters({ per_page: '100' }) as Promise<Record<string, unknown>>,
       ]);
 
-      setPlans(plansResponse.plans || []);
-      setAllDisplayFeatures(displayResponse.features || []);
-      setAllSystemFeatures(systemResponse.features || []);
-      setAllCharacters(charactersResponse.characters || []); // Use 'characters' for public API response
+      const plansList = (plansResponse.plans as Plan[]) || [];
+      setPlans(plansList);
+      setAllDisplayFeatures((displayResponse.features as DisplayFeature[]) || []);
+      setAllSystemFeatures((systemResponse.features as SystemFeature[]) || []);
+      setAllCharacters((charactersResponse.characters as Character[]) || []);
 
       // Select first plan by default if available
-      if (plansResponse.plans && plansResponse.plans.length > 0) {
-        setSelectedPlanId(plansResponse.plans[0].id);
+      if (plansList.length > 0) {
+        setSelectedPlanId(plansList[0].id);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -66,12 +127,13 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
   const fetchPlanFeatures = async (planId: string) => {
     setLoading(true);
     try {
-      const response = await (adminAPI as any).getPlanFeatures(planId);
+      const response = await adminAPI.getPlanFeatures(planId) as Record<string, unknown>;
       setPlanFeatures(response);
 
       // Initialize display feature assignments with three-state support
-      const displayAssignments = allDisplayFeatures.map((feature: any) => {
-        const existing = response.display_features?.find((df: any) => df.feature.id === feature.id);
+      const displayFeatures = (response.display_features as Array<{ feature: { id: string }; is_included: boolean; custom_value: string }>) || [];
+      const displayAssignments = allDisplayFeatures.map((feature: DisplayFeature) => {
+        const existing = displayFeatures.find((df) => df.feature.id === feature.id);
         return {
           feature_id: feature.id,
           feature_name: feature.name,
@@ -82,12 +144,13 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
       setDisplayFeatureAssignments(displayAssignments);
 
       // Initialize system feature assignments
-      const systemAssignments = allSystemFeatures.map((feature: any) => {
-        const existing = response.system_features?.find((sf: any) => sf.feature.id === feature.id);
+      const systemFeatures = (response.system_features as Array<{ feature: { id: string }; is_enabled?: boolean; limit_value?: number; allowed_values?: string[] }>) || [];
+      const systemAssignments: SystemFeatureAssignment[] = allSystemFeatures.map((feature: SystemFeature) => {
+        const existing = systemFeatures.find((sf) => sf.feature.id === feature.id);
         // Normalize feature type to uppercase for consistency
         const normalizedType = feature.feature_type?.toUpperCase() || 'BOOLEAN';
 
-        const assignment: any = {
+        const assignment: SystemFeatureAssignment = {
           feature_id: feature.id,
           feature_name: feature.name,
           feature_type: normalizedType,
@@ -107,8 +170,9 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
       setSystemFeatureAssignments(systemAssignments);
 
       // Initialize character access assignments
-      const characterAssignments = allCharacters.map((character: any) => {
-        const existing = response.character_access?.find((ca: any) => ca.character_id === character.id);
+      const characterAccess = (response.character_access as Array<{ character_id: string; is_accessible: boolean; daily_message_limit: number | null; daily_token_limit: number | null; monthly_message_limit: number | null; monthly_token_limit: number | null; rate_limit_per_minute: number; priority: number }>) || [];
+      const characterAssignments = allCharacters.map((character: Character) => {
+        const existing = characterAccess.find((ca) => ca.character_id === character.id);
         return {
           character_id: character.id,
           character_name: character.name,
@@ -125,9 +189,9 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
 
       // Fetch tool access for this plan
       try {
-        const toolAccessResponse = await (adminAPI as any).getPlanToolAccess(planId);
+        const toolAccessResponse = await adminAPI.getPlanToolAccess(planId) as ToolAccessAssignment[] | Record<string, unknown>;
         // Response is an array directly with all tool data
-        const toolAssignments = (Array.isArray(toolAccessResponse) ? toolAccessResponse : []).map((tool: any) => ({
+        const toolAssignments: ToolAccessAssignment[] = (Array.isArray(toolAccessResponse) ? toolAccessResponse : []).map((tool: ToolAccessAssignment) => ({
           tool_name: tool.tool_name,
           tool_description: tool.tool_description,
           is_enabled: tool.is_enabled ?? false,
@@ -138,8 +202,8 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
         // If tool access endpoint fails, set empty
         setToolAccessAssignments([]);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -150,17 +214,17 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
     try {
       // Only send features that are included or excluded (not 'not_shown')
       const features = displayFeatureAssignments
-        .filter((assignment: any) => assignment.feature_state !== 'not_shown')
-        .map(({ feature_id, feature_state, custom_value }: any) => ({
+        .filter((assignment: DisplayFeatureAssignment) => assignment.feature_state !== 'not_shown')
+        .map(({ feature_id, feature_state, custom_value }: DisplayFeatureAssignment) => ({
           feature_id,
           is_included: feature_state === 'included',
           custom_value: custom_value || null,
         }));
-      await (adminAPI as any).updatePlanDisplayFeatures(selectedPlanId, features);
+      await adminAPI.updatePlanDisplayFeatures(selectedPlanId!, features);
       setSuccessModal({ isOpen: true, message: 'Display features updated successfully!' });
       fetchPlanFeatures(selectedPlanId!);
-    } catch (err: any) {
-      alert(`Error saving display features: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error saving display features: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSaving(false);
     }
@@ -169,27 +233,27 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
   const handleSaveSystemFeatures = async () => {
     setSaving(true);
     try {
-      const features = systemFeatureAssignments.map((assignment: any) => {
-        const feature: any = { feature_id: assignment.feature_id };
+      const features = systemFeatureAssignments.map((assignment: SystemFeatureAssignment) => {
+        const feature: Record<string, string | boolean | number | string[]> = { feature_id: assignment.feature_id };
         // Use normalized uppercase type for consistency
         const normalizedType = assignment.feature_type?.toUpperCase() || 'BOOLEAN';
 
         if (normalizedType === 'BOOLEAN') {
-          feature.is_enabled = assignment.is_enabled;
+          feature.is_enabled = assignment.is_enabled ?? false;
         } else if (normalizedType === 'LIMIT') {
-          feature.limit_value = assignment.limit_value;
+          feature.limit_value = assignment.limit_value ?? 0;
         } else if (normalizedType === 'LIST') {
-          feature.allowed_values = assignment.allowed_values;
+          feature.allowed_values = assignment.allowed_values ?? [];
         }
 
         return feature;
       });
 
-      await (adminAPI as any).updatePlanSystemFeatures(selectedPlanId, features);
+      await adminAPI.updatePlanSystemFeatures(selectedPlanId!, features);
       setSuccessModal({ isOpen: true, message: 'System features updated successfully!' });
       fetchPlanFeatures(selectedPlanId!);
-    } catch (err: any) {
-      alert(`Error saving system features: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error saving system features: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSaving(false);
     }
@@ -198,7 +262,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
   const handleSaveCharacterAccess = async () => {
     setSaving(true);
     try {
-      const characters = characterAccessAssignments.map((assignment: any) => ({
+      const characters = characterAccessAssignments.map((assignment: CharacterAccessAssignment) => ({
         character_id: assignment.character_id,
         is_accessible: assignment.is_accessible,
         daily_message_limit: assignment.daily_message_limit,
@@ -209,17 +273,17 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
         priority: assignment.priority,
       }));
 
-      await (adminAPI as any).updatePlanCharacterAccess(selectedPlanId, characters);
+      await adminAPI.updatePlanCharacterAccess(selectedPlanId!, characters);
       setSuccessModal({ isOpen: true, message: 'Character access updated successfully!' });
       fetchPlanFeatures(selectedPlanId!);
-    } catch (err: any) {
-      alert(`Error saving character access: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error saving character access: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSaving(false);
     }
   };
 
-  const updateDisplayFeature = (featureId: string, field: string, value: any) => {
+  const updateDisplayFeature = (featureId: string, field: string, value: string) => {
     setDisplayFeatureAssignments(prev =>
       prev.map(f => f.feature_id === featureId ? { ...f, [field]: value } : f)
     );
@@ -231,13 +295,13 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
     );
   };
 
-  const updateSystemFeature = (featureId: string, updates: any) => {
+  const updateSystemFeature = (featureId: string, updates: Partial<SystemFeatureAssignment>) => {
     setSystemFeatureAssignments(prev =>
       prev.map(f => f.feature_id === featureId ? { ...f, ...updates } : f)
     );
   };
 
-  const updateCharacterAccess = (characterId: string, field: string, value: any) => {
+  const updateCharacterAccess = (characterId: string, field: string, value: boolean | number | null) => {
     setCharacterAccessAssignments(prev =>
       prev.map(c => c.character_id === characterId ? { ...c, [field]: value } : c)
     );
@@ -246,34 +310,30 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
   const handleSaveToolAccess = async () => {
     setSaving(true);
     try {
-      const tools = toolAccessAssignments.map((assignment: any) => ({
+      const tools = toolAccessAssignments.map((assignment: ToolAccessAssignment) => ({
         tool_name: assignment.tool_name,
         is_enabled: assignment.is_enabled,
         monthly_usage_limit: assignment.monthly_usage_limit,
       }));
 
-      await (adminAPI as any).updatePlanToolAccess(selectedPlanId, tools);
+      await adminAPI.updatePlanToolAccess(selectedPlanId!, tools);
       setSuccessModal({ isOpen: true, message: 'Tool limits updated successfully!' });
       fetchPlanFeatures(selectedPlanId!);
-    } catch (err: any) {
-      alert(`Error saving tool limits: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error saving tool limits: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSaving(false);
     }
   };
 
-  const updateToolAccess = (toolName: string, field: string, value: any) => {
+  const updateToolAccess = (toolName: string, field: string, value: boolean | number | null) => {
     setToolAccessAssignments(prev =>
       prev.map(t => t.tool_name === toolName ? { ...t, [field]: value } : t)
     );
   };
 
   if (loading && !selectedPlanId) {
-    return (
-      <div className={`flex justify-center items-center h-64 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error && !selectedPlanId) {
@@ -301,7 +361,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
           } focus:outline-none focus:ring-2 focus:ring-zenible-primary`}
         >
           <option value="">Select a plan...</option>
-          {plans.map((plan: any) => (
+          {plans.map((plan: Plan) => (
             <option key={plan.id} value={plan.id}>
               {plan.name} - ${plan.monthly_price}/mo
             </option>
@@ -365,9 +425,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
 
           {/* Tab Content */}
           {loading ? (
-            <div className={`flex justify-center items-center h-64 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-            </div>
+            <LoadingSpinner />
           ) : (
             <>
               {/* Display Features Tab */}
@@ -385,7 +443,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
                     </p>
                   </div>
                   <div className="space-y-3">
-                    {displayFeatureAssignments.map((assignment: any) => (
+                    {displayFeatureAssignments.map((assignment: DisplayFeatureAssignment) => (
                       <div
                         key={assignment.feature_id}
                         className={`flex items-center gap-4 p-3 rounded-lg ${
@@ -516,7 +574,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
                         No system features available. Please configure system features first.
                       </div>
                     ) : (
-                      systemFeatureAssignments.map((assignment: any) => (
+                      systemFeatureAssignments.map((assignment: SystemFeatureAssignment) => (
                         <div
                           key={assignment.feature_id}
                           className={`p-5 rounded-lg border ${darkMode ? 'bg-zenible-dark-sidebar border-zenible-dark-border' : 'bg-gray-50 border-neutral-200'}`}
@@ -607,7 +665,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
                                           {value}
                                           <button
                                             onClick={() => {
-                                              const newValues = assignment.allowed_values.filter((_: any, i: number) => i !== index);
+                                              const newValues = (assignment.allowed_values ?? []).filter((_: string, i: number) => i !== index);
                                               updateSystemFeature(assignment.feature_id, { allowed_values: newValues });
                                             }}
                                             className={`ml-1 hover:text-red-500 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}
@@ -628,14 +686,14 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
                                     <input
                                       type="text"
                                       placeholder="Add value and press Enter"
-                                      onKeyPress={(e: any) => {
+                                      onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {
                                         if (e.key === 'Enter') {
                                           e.preventDefault();
-                                          const value = e.target.value.trim();
+                                          const value = (e.target as HTMLInputElement).value.trim();
                                           if (value && !assignment.allowed_values?.includes(value)) {
                                             const newValues = [...(assignment.allowed_values || []), value];
                                             updateSystemFeature(assignment.feature_id, { allowed_values: newValues });
-                                            e.target.value = '';
+                                            (e.target as HTMLInputElement).value = '';
                                           }
                                         }
                                       }}
@@ -646,8 +704,9 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
                                       } focus:outline-none focus:ring-2 focus:ring-zenible-primary`}
                                     />
                                     <button
-                                      onClick={(e: any) => {
-                                        const input = e.target.parentElement.querySelector('input');
+                                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                                        const input = (e.target as HTMLElement).parentElement?.querySelector('input') as HTMLInputElement | null;
+                                        if (!input) return;
                                         const value = input.value.trim();
                                         if (value && !assignment.allowed_values?.includes(value)) {
                                           const newValues = [...(assignment.allowed_values || []), value];
@@ -716,7 +775,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
                         No characters available. Please ensure characters are configured in the system.
                       </div>
                     ) : (
-                      characterAccessAssignments.map((assignment: any) => (
+                      characterAccessAssignments.map((assignment: CharacterAccessAssignment) => (
                         <div
                           key={assignment.character_id}
                           className={`p-4 rounded-lg border transition-all ${
@@ -937,7 +996,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
                         No tools available. Please ensure tools are configured in the system.
                       </div>
                     ) : (
-                      toolAccessAssignments.map((assignment: any) => (
+                      toolAccessAssignments.map((assignment: ToolAccessAssignment) => (
                         <div
                           key={assignment.tool_name}
                           className={`p-4 rounded-lg border transition-all ${

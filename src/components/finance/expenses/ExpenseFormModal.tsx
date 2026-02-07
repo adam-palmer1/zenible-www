@@ -26,7 +26,7 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({ isOpen, onClose, ex
       try {
         setLoading(true);
         setError(null);
-        const data = await (expensesAPI as any).get(expenseId);
+        const data = await expensesAPI.get(expenseId);
         setExpense(data);
       } catch (err: any) {
         console.error('Failed to fetch expense:', err);

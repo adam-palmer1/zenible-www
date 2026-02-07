@@ -7,25 +7,25 @@ import { formatCurrency } from '../../../utils/currency';
 
 const InvoiceStatusWidget: React.FC = () => {
   const navigate = useNavigate();
-  const { invoices, loading } = useInvoices() as any;
+  const { invoices, loading } = useInvoices();
 
   // Calculate statistics
   const totalInvoices = invoices.length;
   const overdueInvoices = invoices.filter((inv: any) => {
-    if (inv.status === (INVOICE_STATUS as any).PAID) return false;
+    if (inv.status === INVOICE_STATUS.PAID) return false;
     if (!inv.due_date) return false;
     return new Date(inv.due_date) < new Date();
   });
 
   const totalRevenue = invoices
-    .filter((inv: any) => inv.status === (INVOICE_STATUS as any).PAID)
+    .filter((inv: any) => inv.status === INVOICE_STATUS.PAID)
     .reduce((sum: number, inv: any) => sum + (inv.total || 0), 0);
 
   const outstandingAmount = invoices
-    .filter((inv: any) => inv.status !== (INVOICE_STATUS as any).PAID && inv.status !== (INVOICE_STATUS as any).CANCELLED)
+    .filter((inv: any) => inv.status !== INVOICE_STATUS.PAID && inv.status !== INVOICE_STATUS.CANCELLED)
     .reduce((sum: number, inv: any) => sum + (inv.total || 0), 0);
 
-  const draftCount = invoices.filter((inv: any) => inv.status === (INVOICE_STATUS as any).DRAFT).length;
+  const draftCount = invoices.filter((inv: any) => inv.status === INVOICE_STATUS.DRAFT).length;
 
   const stats: { label: string; value: string | number; icon: LucideIcon; color: string; bgColor: string }[] = [
     {

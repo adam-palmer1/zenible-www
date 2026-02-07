@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import type { ChartOptions } from 'chart.js';
 import { BarChart3, PieChart } from 'lucide-react';
 import { useReports } from '../../../contexts/ReportsContext';
 
@@ -107,7 +108,7 @@ const IncomeExpenseChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
     ],
   };
 
-  const chartOptions = {
+  const chartOptions: ChartOptions<'bar'> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -126,7 +127,7 @@ const IncomeExpenseChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
         bodyColor: '#F9FAFB',
         cornerRadius: 8,
         callbacks: {
-          label: (context: any) => {
+          label: (context) => {
             const value = context.parsed.y;
             const formatted = value.toLocaleString('en-US', {
               minimumFractionDigits: 2,
@@ -147,8 +148,8 @@ const IncomeExpenseChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
         ticks: {
           color: '#6B7280',
           font: { size: 11 },
-          callback: (value: any) => {
-            const formatted = value.toLocaleString('en-US', {
+          callback: (value) => {
+            const formatted = Number(value).toLocaleString('en-US', {
               minimumFractionDigits: 0,
               maximumFractionDigits: 0,
             });
@@ -163,7 +164,7 @@ const IncomeExpenseChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
     <div className="bg-white border border-[#e5e5e5] rounded-xl p-6">
       <h3 className="text-lg font-semibold text-[#09090b] mb-4">Income vs Expenses</h3>
       <div style={{ height: '280px' }}>
-        <Bar data={chartData} options={chartOptions as any} />
+        <Bar data={chartData} options={chartOptions} />
       </div>
     </div>
   );
@@ -212,7 +213,7 @@ const TypeBreakdownChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
     ],
   };
 
-  const chartOptions = {
+  const chartOptions: ChartOptions<'pie'> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -231,9 +232,9 @@ const TypeBreakdownChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
         bodyColor: '#F9FAFB',
         cornerRadius: 8,
         callbacks: {
-          label: (context: any) => {
+          label: (context) => {
             const value = context.parsed;
-            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+            const total = (context.dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
             const percentage = ((value / total) * 100).toFixed(1);
             const formatted = value.toLocaleString('en-US', {
               minimumFractionDigits: 2,
@@ -250,7 +251,7 @@ const TypeBreakdownChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
     <div className="bg-white border border-[#e5e5e5] rounded-xl p-6">
       <h3 className="text-lg font-semibold text-[#09090b] mb-4">By Transaction Type</h3>
       <div style={{ height: '280px' }}>
-        <Pie data={chartData} options={chartOptions as any} />
+        <Pie data={chartData} options={chartOptions} />
       </div>
     </div>
   );
@@ -261,7 +262,7 @@ const TypeBreakdownChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
  * Displays income/expense bar chart and type breakdown pie chart
  */
 const TransactionCharts: React.FC = () => {
-  const { summary, summaryLoading } = useReports() as any;
+  const { summary, summaryLoading } = useReports();
 
   // Get default currency symbol from summary
   const currencySymbol = summary?.default_currency?.symbol || '$';

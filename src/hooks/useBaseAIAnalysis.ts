@@ -1,6 +1,42 @@
 import { useState, useEffect, useCallback, useRef, useContext } from 'react';
 import { WebSocketContext } from '../contexts/WebSocketContext';
 
+interface ChunkEventData {
+  chunk: string;
+  fullContent: string;
+  chunkIndex: number;
+  toolName: string;
+  messageId: string;
+}
+
+interface CompleteEventData {
+  fullResponse: string;
+  messageId: string;
+  toolName: string;
+  contentType: string;
+  structuredAnalysis: unknown;
+  toolExecution: unknown;
+  usage: {
+    totalTokens: number;
+    costCents: number;
+    durationMs: number;
+  };
+}
+
+interface ToolErrorEventData {
+  toolName: string;
+  error: string;
+  validationErrors?: { field: string; message: string }[];
+}
+
+interface ErrorEventData {
+  error: string;
+}
+
+interface ConversationManagerLike {
+  clearConversation(conversationId: string): void;
+}
+
 export interface AIAnalysisMetrics {
   totalTokens?: number;
   costCents?: number;
@@ -133,7 +169,7 @@ export function useBaseAIAnalysis({
     const handlers = [
       // Handle streaming chunks
       onConversationEvent(conversationId, 'chunk', (data: unknown) => {
-        const chunkData = data as any;
+        const chunkData = data as ChunkEventData;
         // Only handle chunks from supported tools
         if (supportedTools.includes(chunkData.toolName)) {
           setIsStreaming(true);
@@ -156,7 +192,7 @@ export function useBaseAIAnalysis({
 
       // Handle completion
       onConversationEvent(conversationId, 'complete', (data: unknown) => {
-        const completeData = data as any;
+        const completeData = data as CompleteEventData;
         // Check if this is a response from one of our supported tools
         if (supportedTools.includes(completeData.toolName)) {
           setIsAnalyzing(false);
@@ -214,7 +250,7 @@ export function useBaseAIAnalysis({
 
       // Handle tool errors
       onConversationEvent(conversationId, 'tool_error', (data: unknown) => {
-        const errorData = data as any;
+        const errorData = data as ToolErrorEventData;
         console.error('[useBaseAIAnalysis] Tool error:', errorData);
 
         if (supportedTools.includes(errorData.toolName)) {
@@ -223,8 +259,8 @@ export function useBaseAIAnalysis({
           setIsStreaming(false);
           isStreamingRef.current = false;
 
-          const errorMessage = errorData.validationErrors?.length > 0
-            ? errorData.validationErrors.map((e: any) => `${e.field}: ${e.message}`).join(', ')
+          const errorMessage = errorData.validationErrors && errorData.validationErrors.length > 0
+            ? errorData.validationErrors.map((e: { field: string; message: string }) => `${e.field}: ${e.message}`).join(', ')
             : errorData.error;
 
           setError(errorMessage);
@@ -241,7 +277,7 @@ export function useBaseAIAnalysis({
 
       // Handle general errors
       onConversationEvent(conversationId, 'error', (data: unknown) => {
-        const errorData = data as any;
+        const errorData = data as ErrorEventData;
         console.error('[useBaseAIAnalysis] General error:', errorData);
 
         setIsAnalyzing(false);
@@ -389,7 +425,7 @@ export function useBaseAIAnalysis({
     reset();
     setConversationId(null);
     if (conversationManager && conversationId) {
-      (conversationManager as any).clearConversation(conversationId);
+      (conversationManager as ConversationManagerLike).clearConversation(conversationId);
     }
   }, [reset, conversationId, conversationManager]);
 

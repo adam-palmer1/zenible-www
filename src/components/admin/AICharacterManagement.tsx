@@ -7,6 +7,17 @@ import CharacterFilters from './CharacterFilters';
 import CharacterTable from './CharacterTable';
 import CharacterFormModal from './CharacterFormModal';
 import CategoryFormModal from './CategoryFormModal';
+import { LoadingSpinner } from '../shared';
+import type {
+  AICharacterResponse,
+  AICharacterList,
+  AICharacterCategoryResponse,
+  AICharacterCategoryList,
+  OpenAIModelList,
+  OpenAIModelResponse,
+  ShortcodeListResponse,
+  ShortcodeInfo,
+} from '../../types/ai';
 
 interface AdminOutletContext {
   darkMode: boolean;
@@ -32,7 +43,7 @@ export default function AICharacterManagement() {
 
   // Available Tools state
   const [availableTools, setAvailableTools] = useState<any[]>([]);
-  const [toolsLoading, setToolsLoading] = useState(false);
+  const [_toolsLoading, setToolsLoading] = useState(false);
 
   // Store original tool definitions from backend
   const [toolDefinitions, setToolDefinitions] = useState<Record<string, any>>({});
@@ -56,7 +67,7 @@ export default function AICharacterManagement() {
   const [statusFilter, setStatusFilter] = useState('');
 
   // Sync status
-  const [syncStatus, setSyncStatus] = useState<Record<string, any>>({});
+  const [_syncStatus, setSyncStatus] = useState<Record<string, any>>({});
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
 
   // Column visibility
@@ -107,9 +118,9 @@ export default function AICharacterManagement() {
     setModelsLoading(true);
     try {
       const response = await adminAPI.getOpenAIModels({
-        is_active: true,
-        per_page: 100
-      } as any) as any;
+        is_active: 'true',
+        per_page: '100'
+      }) as OpenAIModelList;
 
       const chatModels: any[] = [];
       const embedModels: any[] = [];
@@ -192,7 +203,7 @@ export default function AICharacterManagement() {
   const fetchShortcodes = async () => {
     setShortcodesLoading(true);
     try {
-      const response = await adminAPI.getAICharacterShortcodes() as any;
+      const response = await adminAPI.getAICharacterShortcodes() as ShortcodeListResponse;
       if (response && Array.isArray(response.shortcodes)) {
         setShortcodes(response.shortcodes);
       } else {
@@ -210,14 +221,16 @@ export default function AICharacterManagement() {
     setLoading(true);
     setError(null);
     try {
-      const params = {
+      const params: Record<string, string> = {
         ...(search && { search }),
         ...(categoryFilter && { category_id: categoryFilter }),
         ...(providerFilter && { backend_provider: providerFilter }),
-        ...(statusFilter !== '' && { is_active: statusFilter === 'active' })
+        ...(statusFilter !== '' && { is_active: String(statusFilter === 'active') })
       };
 
-      const response = await adminAPI.getAICharacters(params as any) as any;
+      const response = await adminAPI.getAICharacters(params) as
+        | AICharacterResponse[]
+        | (AICharacterList & { items?: AICharacterResponse[] });
       if (Array.isArray(response)) {
         setCharacters(response);
       } else if (response && Array.isArray(response.characters)) {
@@ -238,7 +251,9 @@ export default function AICharacterManagement() {
 
   const fetchCategories = async () => {
     try {
-      const response = await adminAPI.getAICharacterCategories() as any;
+      const response = await adminAPI.getAICharacterCategories() as
+        | AICharacterCategoryResponse[]
+        | (AICharacterCategoryList & { items?: AICharacterCategoryResponse[] });
       if (Array.isArray(response)) {
         setCategories(response);
       } else if (response && Array.isArray(response.categories)) {
@@ -366,9 +381,7 @@ export default function AICharacterManagement() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-          </div>
+          <LoadingSpinner height="h-full" />
         ) : error ? (
           <div className="text-red-500 text-center">Error: {error}</div>
         ) : (

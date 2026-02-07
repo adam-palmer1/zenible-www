@@ -13,10 +13,10 @@ const ConvertToClientModal: React.FC<ConvertToClientModalProps> = ({ isOpen, onC
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedContact, setSelectedContact] = useState<any>(null);
   const [converting, setConverting] = useState(false);
-  const { showError, showSuccess } = useNotification() as any;
+  const { showError, showSuccess } = useNotification();
 
   // Fetch non-client contacts
-  const { contacts, loading } = useContacts({ is_client: false }) as any;
+  const { contacts, loading } = useContacts({ is_client: false });
 
   // Filter contacts based on search
   const filteredContacts = contacts.filter((contact: any) => {
@@ -35,7 +35,7 @@ const ConvertToClientModal: React.FC<ConvertToClientModalProps> = ({ isOpen, onC
 
     setConverting(true);
     try {
-      await (contactsAPI as any).update(selectedContact.id, {
+      await contactsAPI.update(selectedContact.id, {
         is_client: true
       });
 

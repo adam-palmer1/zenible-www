@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrashIcon, UserIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../utils/currencyUtils';
 import contactsAPI from '../../services/api/crm/contacts';
+import { LoadingSpinner } from '../shared';
 
 interface AttributionsListProps {
   attributions?: any[];
@@ -38,7 +39,7 @@ const AttributionsList: React.FC<AttributionsListProps> = ({
       await Promise.all(
         contactIds.map(async (contactId: string) => {
           try {
-            const contact = await (contactsAPI as any).get(contactId);
+            const contact = await contactsAPI.get(contactId);
             newContacts[contactId] = contact;
           } catch (error) {
             console.error(`Failed to fetch contact ${contactId}:`, error);
@@ -76,11 +77,7 @@ const AttributionsList: React.FC<AttributionsListProps> = ({
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center py-8">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-zenible-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner size="h-6 w-6" height="py-8" />;
   }
 
   if (attributions.length === 0) {

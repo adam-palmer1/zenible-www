@@ -34,8 +34,8 @@ const CreateRecurringTemplateModal: React.FC<CreateRecurringTemplateModalProps> 
   const [frequency, setFrequency] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { showError, showSuccess } = useNotification() as any;
-  const { createRecurringTemplateFromService } = useContacts({}, 0, { skipInitialFetch: true }) as any;
+  const { showError, showSuccess } = useNotification();
+  const { createRecurringTemplateFromService } = useContacts({}, 0, { skipInitialFetch: true });
 
   const currencyCode = service?.currency?.code || 'USD';
   const servicePrice = parseFloat(service?.price) || 0;

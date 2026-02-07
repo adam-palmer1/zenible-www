@@ -33,7 +33,7 @@ const validateQuestion = (question: any, index: number) => {
   }
 
   // 4. At least one answer must be correct
-  const hasCorrectAnswer = question.answers?.some(a => a.is_correct);
+  const hasCorrectAnswer = question.answers?.some((a: { is_correct: boolean }) => a.is_correct);
   if (!hasCorrectAnswer) {
     errors.push({
       field: `questions[${index}].answers`,
@@ -43,7 +43,7 @@ const validateQuestion = (question: any, index: number) => {
   }
 
   // 5. Validate each answer
-  question.answers?.forEach((answer, answerIndex) => {
+  question.answers?.forEach((answer: { answer_text?: string; is_correct: boolean }, answerIndex: number) => {
     if (!answer.answer_text || answer.answer_text.trim().length === 0) {
       errors.push({
         field: `questions[${index}].answers[${answerIndex}].answer_text`,
@@ -85,12 +85,30 @@ const validateBulkUpload = (data: any) => {
   }
 
   // 4. Validate each question
-  data.questions.forEach((question, index) => {
+  data.questions.forEach((question: Record<string, unknown>, index: number) => {
     errors.push(...validateQuestion(question, index));
   });
 
   return errors;
 };
+
+interface BulkQuestionUploadResult {
+  total_submitted: number;
+  successful: number;
+  failed: number;
+  quiz_total_points: number;
+  results: Array<{
+    index: number;
+    success: boolean;
+    error?: string;
+  }>;
+}
+
+interface QuestionValidationError {
+  field: string;
+  message: string;
+  index?: number;
+}
 
 interface BulkQuestionUploadProps {
   quizId: string;
@@ -102,8 +120,8 @@ export default function BulkQuestionUpload({ quizId, darkMode, onSuccess }: Bulk
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<string>('append');
   const [uploading, setUploading] = useState<boolean>(false);
-  const [validationErrors, setValidationErrors] = useState<any[]>([]);
-  const [uploadResult, setUploadResult] = useState<any>(null);
+  const [validationErrors, setValidationErrors] = useState<QuestionValidationError[]>([]);
+  const [uploadResult, setUploadResult] = useState<BulkQuestionUploadResult | null>(null);
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,10 +151,10 @@ export default function BulkQuestionUpload({ quizId, darkMode, onSuccess }: Bulk
       }
 
       return data;
-    } catch (error: any) {
+    } catch (error) {
       setValidationErrors([{
         field: 'file',
-        message: 'Invalid JSON format: ' + error.message
+        message: 'Invalid JSON format: ' + (error as Error).message
       }]);
       return null;
     }
@@ -162,7 +180,7 @@ export default function BulkQuestionUpload({ quizId, darkMode, onSuccess }: Bulk
       data.mode = mode;
 
       // Call API
-      const result = await quizAPI.bulkUploadQuestions(quizId, data) as any;
+      const result = await quizAPI.bulkUploadQuestions(quizId, data) as BulkQuestionUploadResult;
       setUploadResult(result);
 
       if (result.failed === 0 && onSuccess) {
@@ -172,8 +190,8 @@ export default function BulkQuestionUpload({ quizId, darkMode, onSuccess }: Bulk
           onSuccess();
         }, 2000);
       }
-    } catch (error: any) {
-      alert(`Upload failed: ${error.message}`);
+    } catch (error) {
+      alert(`Upload failed: ${(error as Error).message}`);
     } finally {
       setUploading(false);
     }
@@ -245,12 +263,12 @@ export default function BulkQuestionUpload({ quizId, darkMode, onSuccess }: Bulk
   };
 
   // Group errors by question index
-  const groupedErrors = validationErrors.reduce((acc: Record<string, any[]>, error: any) => {
+  const groupedErrors = validationErrors.reduce((acc: Record<string, QuestionValidationError[]>, error: QuestionValidationError) => {
     const key = error.index !== undefined ? `question-${error.index}` : 'general';
     if (!acc[key]) acc[key] = [];
     acc[key].push(error);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, QuestionValidationError[]>);
 
   return (
     <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-gray-50 border-gray-300'}`}>
@@ -329,7 +347,7 @@ export default function BulkQuestionUpload({ quizId, darkMode, onSuccess }: Bulk
             Validation Errors ({validationErrors.length}):
           </h5>
           <div className="space-y-2">
-            {Object.entries(groupedErrors).map(([key, errors]: [string, any[]]) => (
+            {Object.entries(groupedErrors).map(([key, errors]: [string, QuestionValidationError[]]) => (
               <div key={key}>
                 {key !== 'general' && (
                   <p className={`text-xs font-medium ${darkMode ? 'text-red-400' : 'text-red-700'}`}>

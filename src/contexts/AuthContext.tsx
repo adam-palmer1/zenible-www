@@ -2,15 +2,30 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI, tokenStorage } from '../utils/auth';
 import logger from '../utils/logger';
 
+export interface User {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  name?: string;
+  username?: string;
+  role?: string;
+  avatar_url?: string | null;
+  current_plan_id?: string | null;
+  email_verified?: boolean;
+  is_active?: boolean;
+  [key: string]: unknown;
+}
+
 interface AuthResult {
   success: boolean;
-  user?: unknown;
+  user?: User;
   error?: string;
   data?: unknown;
 }
 
 interface AuthContextValue {
-  user: unknown;
+  user: User | null;
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
@@ -25,7 +40,7 @@ interface AuthContextValue {
   googleLogin: (redirectPath?: string) => Promise<AuthResult>;
   handleGoogleCallback: (code: string) => Promise<AuthResult>;
   checkAuth: () => Promise<void>;
-  updateUser: (updatedData: unknown) => void;
+  updateUser: (updatedData: Partial<User>) => void;
   setTokens: (accessToken: string, refreshToken: string) => Promise<void>;
 }
 
@@ -40,7 +55,7 @@ export function useAuth(): AuthContextValue {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<unknown>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const userData = await authAPI.getCurrentUser();
+      const userData = await authAPI.getCurrentUser() as User;
       setUser(userData);
     } catch (err) {
       logger.error('Auth check failed:', err);
@@ -75,8 +90,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await authAPI.signup(email, password, firstName, lastName);
       tokenStorage.setTokens(response.access_token, response.refresh_token);
-      setUser(response.user);
-      return { success: true, user: response.user };
+      setUser(response.user as User);
+      return { success: true, user: response.user as User };
     } catch (err) {
       setError((err as Error).message);
       return { success: false, error: (err as Error).message };
@@ -91,23 +106,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       tokenStorage.setTokens(response.access_token, response.refresh_token || null);
 
       // If user data is not in response, fetch it separately
-      let userData = response.user;
+      let userData = response.user as User | undefined;
       if (!userData && response.access_token) {
         try {
-          userData = await authAPI.getCurrentUser();
+          userData = await authAPI.getCurrentUser() as User;
           setUser(userData);
         } catch (fetchErr) {
           logger.error('Failed to fetch user data:', fetchErr);
           // Even if we can't get user data, login was successful
-          setUser({ email }); // Set minimal user data
+          setUser({ email } as User); // Set minimal user data
         }
       } else if (userData) {
         setUser(userData);
       } else {
-        setUser({ email }); // Set minimal user data
+        setUser({ email } as User); // Set minimal user data
       }
 
-      return { success: true, user: userData || { email } };
+      return { success: true, user: userData || ({ email } as User) };
     } catch (err) {
       setError((err as Error).message);
       return { success: false, error: (err as Error).message };
@@ -130,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await authAPI.verifyEmail(code);
       // Refresh user data after verification
-      const userData = await authAPI.getCurrentUser();
+      const userData = await authAPI.getCurrentUser() as User;
       setUser(userData);
       return { success: true };
     } catch (err) {
@@ -170,7 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.access_token && response.refresh_token) {
         tokenStorage.setTokens(response.access_token, response.refresh_token);
         // Fetch user data
-        const userData = await authAPI.getCurrentUser();
+        const userData = await authAPI.getCurrentUser() as User;
         setUser(userData);
       }
       return { success: true, data: response };
@@ -197,16 +212,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await authAPI.googleAuth(code);
       tokenStorage.setTokens(response.access_token, response.refresh_token);
-      setUser(response.user);
-      return { success: true, user: response.user };
+      setUser(response.user as User);
+      return { success: true, user: response.user as User };
     } catch (err) {
       setError((err as Error).message);
       return { success: false, error: (err as Error).message };
     }
   };
 
-  const updateUser = (updatedData: unknown): void => {
-    setUser(prev => ({ ...(prev as Record<string, unknown>), ...(updatedData as Record<string, unknown>) }));
+  const updateUser = (updatedData: Partial<User>): void => {
+    setUser(prev => prev ? { ...prev, ...updatedData } : null);
   };
 
   // Allow external components to set tokens (e.g., after email verification)
@@ -214,7 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     tokenStorage.setTokens(accessToken, refreshToken);
     // Fetch user data with new tokens
     try {
-      const userData = await authAPI.getCurrentUser();
+      const userData = await authAPI.getCurrentUser() as User;
       setUser(userData);
     } catch (err) {
       logger.error('Failed to fetch user after setting tokens:', err);
@@ -226,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     error,
     isAuthenticated: !!user,
-    isAdmin: (user as Record<string, unknown>)?.role === 'ADMIN',
+    isAdmin: user?.role === 'ADMIN',
     signup,
     login,
     logout,

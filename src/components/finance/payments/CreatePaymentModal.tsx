@@ -159,13 +159,13 @@ interface CreatePaymentModalProps {
 }
 
 const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose }) => {
-  const { createPayment, refresh } = usePayments() as any;
-  const { showSuccess, showError } = useNotification() as any;
-  const { companyCurrencies, defaultCurrency, loading: currenciesLoading } = useCompanyCurrencies() as any;
+  const { createPayment, refresh } = usePayments();
+  const { showSuccess, showError } = useNotification();
+  const { companyCurrencies, defaultCurrency, loading: currenciesLoading } = useCompanyCurrencies();
 
   const [submitting, setSubmitting] = useState(false);
   const [nextNumber, setNextNumber] = useState('');
-  const [selectedContact, setSelectedContact] = useState<any>(null);
+  const [selectedContact, setSelectedContact] = useState<{ id: string; first_name?: string; last_name?: string; business_name?: string; email?: string } | null>(null);
   const [showContactSelector, setShowContactSelector] = useState(false);
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
   const [showPaymentMethodDropdown, setShowPaymentMethodDropdown] = useState(false);
@@ -177,7 +177,7 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
     contact_id: null as string | null,
     amount: '',
     currency_id: null as string | null,
-    payment_method: (PAYMENT_METHOD as any).BANK_TRANSFER,
+    payment_method: PAYMENT_METHOD.BANK_TRANSFER as string,
     payment_date: new Date().toISOString().split('T')[0],
     reference_number: '',
     notes: '',
@@ -186,11 +186,11 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
   // Fetch next payment number when modal opens
   useEffect(() => {
     if (isOpen) {
-      (paymentsAPI as any).getNextNumber()
-        .then((data: any) => {
-          setNextNumber(data.next_number || '');
+      paymentsAPI.getNextNumber()
+        .then((data: unknown) => {
+          setNextNumber((data as { next_number?: string }).next_number || '');
         })
-        .catch((err: any) => {
+        .catch((err: unknown) => {
           console.error('Error fetching next payment number:', err);
         });
     }
@@ -210,7 +210,7 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
         contact_id: null,
         amount: '',
         currency_id: defaultCurrency?.currency?.id || null,
-        payment_method: (PAYMENT_METHOD as any).BANK_TRANSFER,
+        payment_method: PAYMENT_METHOD.BANK_TRANSFER,
         payment_date: new Date().toISOString().split('T')[0],
         reference_number: '',
         notes: '',
@@ -226,7 +226,7 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleContactSelect = (contact: any) => {
+  const handleContactSelect = (contact: { id: string; first_name?: string; last_name?: string; business_name?: string; email?: string } | null) => {
     setSelectedContact(contact);
     setFormData(prev => ({ ...prev, contact_id: contact?.id || null }));
   };
@@ -262,7 +262,15 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
     try {
       setSubmitting(true);
 
-      const paymentData: any = {
+      const paymentData: {
+        contact_id: string;
+        amount: number;
+        currency_id: string;
+        payment_method: string;
+        payment_date: string;
+        reference_number?: string;
+        notes?: string;
+      } = {
         contact_id: formData.contact_id,
         amount: parseFloat(formData.amount),
         currency_id: formData.currency_id,
@@ -282,8 +290,8 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
       showSuccess('Payment recorded successfully');
       refresh();
       onClose();
-    } catch (err: any) {
-      showError(err.message || 'Failed to record payment');
+    } catch (err: unknown) {
+      showError((err as Error).message || 'Failed to record payment');
     } finally {
       setSubmitting(false);
     }
@@ -346,7 +354,7 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
               onClose={() => setShowContactSelector(false)}
               onSelect={handleContactSelect}
               selectedContactId={formData.contact_id}
-              anchorRef={contactButtonRef}
+              anchorRef={contactButtonRef as React.RefObject<HTMLElement>}
             />
           </div>
 
@@ -428,7 +436,7 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
                 className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-left rounded-md hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent flex items-center justify-between"
               >
                 <span className="text-gray-900 dark:text-white">
-                  {(PAYMENT_METHOD_LABELS as any)[formData.payment_method] || 'Select'}
+                  {PAYMENT_METHOD_LABELS[formData.payment_method as keyof typeof PAYMENT_METHOD_LABELS] || 'Select'}
                 </span>
                 <ChevronDown className="h-4 w-4 text-gray-400" />
               </button>
@@ -487,7 +495,7 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
             Cancel
           </button>
           <button
-            onClick={handleSubmit as any}
+            onClick={(e: React.MouseEvent) => handleSubmit(e as unknown as React.FormEvent)}
             disabled={submitting}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
           >

@@ -1,14 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import adminAPI from '../../services/adminAPI';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import { LoadingSpinner } from '../shared';
 
 interface SystemFeaturesManagerProps {
   darkMode: boolean;
 }
 
+interface SystemFeature {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  feature_type: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface DeleteModalState {
   isOpen: boolean;
-  feature: any;
+  feature: SystemFeature | null;
 }
 
 interface FormData {
@@ -19,10 +30,10 @@ interface FormData {
 }
 
 export default function SystemFeaturesManager({ darkMode }: SystemFeaturesManagerProps) {
-  const [features, setFeatures] = useState<any[]>([]);
+  const [features, setFeatures] = useState<SystemFeature[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingFeature, setEditingFeature] = useState<any>(null);
+  const [editingFeature, setEditingFeature] = useState<SystemFeature | null>(null);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({ isOpen: false, feature: null });
   const [formData, setFormData] = useState<FormData>({
@@ -40,7 +51,7 @@ export default function SystemFeaturesManager({ darkMode }: SystemFeaturesManage
     setLoading(true);
     setError(null);
     try {
-      const response = await (adminAPI as any).getSystemFeatures();
+      const response = await adminAPI.getSystemFeatures() as { features?: SystemFeature[] };
       setFeatures(response.features || []);
     } catch (err: any) {
       setError(err.message);
@@ -60,11 +71,11 @@ export default function SystemFeaturesManager({ darkMode }: SystemFeaturesManage
     setShowModal(true);
   };
 
-  const handleEdit = (feature: any) => {
+  const handleEdit = (feature: SystemFeature) => {
     setEditingFeature(feature);
     setFormData({
       name: feature.name,
-      description: feature.description,
+      description: feature.description ?? '',
       // Note: code and feature_type cannot be edited
     });
     setShowModal(true);
@@ -74,12 +85,12 @@ export default function SystemFeaturesManager({ darkMode }: SystemFeaturesManage
     try {
       if (editingFeature) {
         // Only name and description can be updated
-        await (adminAPI as any).updateSystemFeature(editingFeature.id, {
+        await adminAPI.updateSystemFeature(editingFeature.id, {
           name: formData.name,
           description: formData.description,
         });
       } else {
-        await (adminAPI as any).createSystemFeature(formData);
+        await adminAPI.createSystemFeature(formData);
       }
       setShowModal(false);
       fetchFeatures();
@@ -91,7 +102,7 @@ export default function SystemFeaturesManager({ darkMode }: SystemFeaturesManage
   const handleDelete = async () => {
     if (!deleteModal.feature) return;
     try {
-      await (adminAPI as any).deleteSystemFeature(deleteModal.feature.id);
+      await adminAPI.deleteSystemFeature(deleteModal.feature.id);
       setDeleteModal({ isOpen: false, feature: null });
       fetchFeatures();
     } catch (err: any) {
@@ -114,11 +125,7 @@ export default function SystemFeaturesManager({ darkMode }: SystemFeaturesManage
   };
 
   if (loading) {
-    return (
-      <div className={`flex justify-center items-center h-64 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error) {
@@ -155,7 +162,7 @@ export default function SystemFeaturesManager({ darkMode }: SystemFeaturesManage
             </tr>
           </thead>
           <tbody>
-            {features.map((feature: any) => (
+            {features.map((feature: SystemFeature) => (
               <tr key={feature.id} className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
                 <td className="p-4">
                   <code className={`px-2 py-1 rounded text-sm ${darkMode ? 'bg-zenible-dark-tab-bg text-zenible-primary' : 'bg-gray-100 text-zenible-primary'}`}>

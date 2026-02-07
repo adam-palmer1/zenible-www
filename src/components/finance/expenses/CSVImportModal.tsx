@@ -29,22 +29,22 @@ interface CSVImportModalProps {
 }
 
 const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, onOpenChange }) => {
-  const { categories, refresh } = useExpenses() as any;
-  const { contacts: vendors } = useContacts({ is_vendor: true }, 0, { skipInitialFetch: !open }) as any;
-  const { showSuccess, showError } = useNotification() as any;
+  const { categories, refresh } = useExpenses();
+  const { contacts: vendors } = useContacts({ is_vendor: true }, 0, { skipInitialFetch: !open });
+  const { showError } = useNotification();
 
   const [currentStep, setCurrentStep] = useState<string>(STEPS.UPLOAD);
-  const [file, setFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<any[]>([]);
-  const [validationErrors, setValidationErrors] = useState<any[]>([]);
+  const [, setFile] = useState<File | null>(null);
+  const [parsedData, setParsedData] = useState<Record<string, string>[]>([]);
+  const [validationErrors, setValidationErrors] = useState<Array<{ rowIndex: number; row: Record<string, string>; errors: string[] }>>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
-  const [importResults, setImportResults] = useState<{ success: number; failed: number; errors: any[] }>({ success: 0, failed: 0, errors: [] });
+  const [importResults, setImportResults] = useState<{ success: number; failed: number; errors: Array<{ row: number; error: string }> }>({ success: 0, failed: 0, errors: [] });
   const [selectedCurrency, setSelectedCurrency] = useState('');
   const [createMissing, setCreateMissing] = useState(true);
 
   // Use currencies hook
-  const { companyCurrencies: currencies, defaultCurrency: defaultCurrencyAssoc } = useCompanyCurrencies() as any;
+  const { companyCurrencies: currencies, defaultCurrency: defaultCurrencyAssoc } = useCompanyCurrencies();
 
   // Set default currency when modal opens and currencies are loaded
   React.useEffect(() => {
@@ -72,12 +72,12 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, onOpenChange }) =
     setFile(selectedFile);
 
     try {
-      const data = await (parseCSV as any)(selectedFile);
+      const data = await parseCSV(selectedFile);
       setParsedData(data);
 
-      const errors: any[] = [];
-      data.forEach((row: any, index: number) => {
-        const validation = (validateExpenseRow as any)(row, { categories, vendors });
+      const errors: Array<{ rowIndex: number; row: Record<string, string>; errors: string[] }> = [];
+      data.forEach((row: Record<string, string>, index: number) => {
+        const validation = validateExpenseRow(row, { categories, vendors: vendors as Array<{ name?: string }> });
         if (!validation.valid) {
           errors.push({
             rowIndex: index + 2,
@@ -113,16 +113,16 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, onOpenChange }) =
   };
 
   const handleDownloadTemplate = () => {
-    const template = (generateCSVTemplate as any)();
-    (downloadCSV as any)(template, 'expense_import_template.csv');
+    const template = generateCSVTemplate();
+    downloadCSV(template, 'expense_import_template.csv');
   };
 
   const handleDownloadErrors = () => {
     if (validationErrors.length === 0) return;
 
     const headers = Object.keys(parsedData[0] || {});
-    const errorCSV = (generateErrorCSV as any)(validationErrors, headers);
-    (downloadCSV as any)(errorCSV, 'expense_import_errors.csv');
+    const errorCSV = generateErrorCSV(validationErrors, headers);
+    downloadCSV(errorCSV, 'expense_import_errors.csv');
   };
 
   const handleImport = async () => {
@@ -133,17 +133,17 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, onOpenChange }) =
     const results = {
       success: 0,
       failed: 0,
-      errors: [] as any[],
+      errors: [] as Array<{ row: number; error: string }>,
     };
 
-    const validRows = parsedData.filter((_: any, index: number) => {
-      return !validationErrors.some((e: any) => e.rowIndex === index + 2);
+    const validRows = parsedData.filter((_: Record<string, string>, index: number) => {
+      return !validationErrors.some((e) => e.rowIndex === index + 2);
     });
 
     for (let i = 0; i < validRows.length; i++) {
       try {
         const row = validRows[i];
-        const expenseData = (convertToExpenseFormat as any)(row, {
+        const expenseData = convertToExpenseFormat(row, {
           categories,
           vendors,
           currencies,
@@ -154,7 +154,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, onOpenChange }) =
           expenseData.currency_id = selectedCurrency;
         }
 
-        await (expensesAPI as any).create(expenseData);
+        await expensesAPI.create(expenseData as Parameters<typeof expensesAPI.create>[0]);
         results.success++;
       } catch (error: any) {
         results.failed++;
@@ -500,7 +500,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, onOpenChange }) =
   return (
     <Modal
       open={open}
-      onOpenChange={importing ? undefined : handleClose}
+      onOpenChange={importing ? () => {} : handleClose}
       title={getTitle()}
       size="3xl"
       showCloseButton={!importing}

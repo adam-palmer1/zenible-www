@@ -65,7 +65,7 @@ export default function BoardroomArea({ selectedExperts, onExpertDrop, onExpertR
 
       {/* Content Area with Drop Zone */}
       <div
-        ref={drop as any}
+        ref={drop as unknown as React.Ref<HTMLDivElement>}
         className={`flex-1 relative overflow-hidden transition-colors ${
           isOver ? (darkMode ? 'bg-gray-700/50' : 'bg-neutral-100/50') : ''
         }`}

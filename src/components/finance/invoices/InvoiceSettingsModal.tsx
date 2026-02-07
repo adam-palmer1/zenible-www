@@ -72,7 +72,7 @@ const InvoiceSettingsModal: React.FC<InvoiceSettingsModalProps> = ({
   isEditing = false,
 }) => {
   // Get company settings for inheritance display
-  const { companyAttributes } = useCompanyAttributes() as any;
+  const { attributes: companyAttributes } = useCompanyAttributes();
 
   // Calculate effective settings with priority cascade
   const effectiveSettings = useMemo(() => {
@@ -146,15 +146,15 @@ const InvoiceSettingsModal: React.FC<InvoiceSettingsModalProps> = ({
               {/* Recurring Invoice Settings */}
               <RecurringInvoiceSettings
                 isRecurring={isRecurring}
-                recurringType={recurringType}
-                customEvery={customEvery}
-                customPeriod={customPeriod}
-                recurringEndDate={recurringEndDate}
-                recurringOccurrences={recurringOccurrences}
+                recurringType={recurringType ?? 'monthly'}
+                customEvery={customEvery ?? 1}
+                customPeriod={customPeriod ?? 'months'}
+                recurringEndDate={recurringEndDate ?? null}
+                recurringOccurrences={recurringOccurrences ?? null}
                 recurringStatus={recurringStatus}
                 automaticEmail={automaticEmail}
                 attachPdfToEmail={attachPdfToEmail}
-                startDate={startDate}
+                startDate={startDate ?? ''}
                 onChange={onChange}
                 isEditing={isEditing}
               />

@@ -2,14 +2,28 @@ import React, { createContext, useState, useCallback, useMemo, useContext } from
 import { useAuth } from './AuthContext';
 import paymentIntegrationsAPI from '../services/api/finance/paymentIntegrations';
 
+export interface PaymentIntegration {
+  id: string;
+  type?: string;
+  gateway_type?: string;
+  account_id?: string;
+  merchant_id?: string;
+  publishable_key?: string;
+  client_id?: string;
+  is_active?: boolean;
+  is_connected?: boolean;
+  last_sync_at?: string;
+  [key: string]: unknown;
+}
+
 interface PaymentIntegrationsContextValue {
-  integrations: unknown[];
+  integrations: PaymentIntegration[];
   loading: boolean;
   error: string | null;
   initialized: boolean;
-  getIntegration: (type: string) => unknown;
-  stripeIntegration: unknown;
-  paypalIntegration: unknown;
+  getIntegration: (type: string) => PaymentIntegration | undefined;
+  stripeIntegration: PaymentIntegration | undefined;
+  paypalIntegration: PaymentIntegration | undefined;
   isStripeConnected: boolean;
   isPayPalConnected: boolean;
   hasAnyGateway: boolean;
@@ -28,7 +42,7 @@ export const PaymentIntegrationsProvider = ({ children }: { children: React.Reac
   const { user } = useAuth();
 
   // State
-  const [integrations, setIntegrations] = useState<unknown[]>([]);
+  const [integrations, setIntegrations] = useState<PaymentIntegration[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
@@ -48,7 +62,7 @@ export const PaymentIntegrationsProvider = ({ children }: { children: React.Reac
       setError(null);
 
       const data = await paymentIntegrationsAPI.list();
-      setIntegrations((data as unknown[]) || []);
+      setIntegrations((data as PaymentIntegration[]) || []);
       setInitialized(true);
     } catch (err) {
       console.error('[PaymentIntegrationsContext] Error loading integrations:', err);
@@ -65,7 +79,7 @@ export const PaymentIntegrationsProvider = ({ children }: { children: React.Reac
    */
   const getIntegration = useCallback(
     (type: string) => {
-      return (integrations as Record<string, unknown>[]).find(
+      return integrations.find(
         (int) => int.type === type && int.is_active
       );
     },
@@ -77,7 +91,7 @@ export const PaymentIntegrationsProvider = ({ children }: { children: React.Reac
    */
   const isConnected = useCallback(
     (type: string) => {
-      const integration = getIntegration(type) as Record<string, unknown> | undefined;
+      const integration = getIntegration(type);
       return integration && integration.is_active;
     },
     [getIntegration]
@@ -130,7 +144,7 @@ export const PaymentIntegrationsProvider = ({ children }: { children: React.Reac
 
       // Remove from local state
       setIntegrations((prev) =>
-        (prev as Record<string, unknown>[]).filter((int) => int.id !== integrationId)
+        prev.filter((int) => int.id !== integrationId)
       );
 
       return true;

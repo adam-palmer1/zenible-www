@@ -206,7 +206,7 @@ const navItems: NavItem[] = [
 
 export default function AdminSidebar() {
   const location = useLocation();
-  const { user, logout } = useAuth() as any;
+  const { user, logout } = useAuth();
   const [showProfileDropdown, setShowProfileDropdown] = useState<boolean>(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
   const dropdownRef = useRef<HTMLDivElement>(null);

@@ -49,10 +49,10 @@ const StripeOAuthCallback = () => {
         setTimeout(() => {
           navigate('/settings?tab=integrations&stripe_connected=true');
         }, 1500);
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('[StripeOAuthCallback] Error:', err);
         setStatus('error');
-        setError(err.message || 'Failed to complete Stripe connection');
+        setError((err as Error).message || 'Failed to complete Stripe connection');
 
         // Redirect to settings with error
         setTimeout(() => {

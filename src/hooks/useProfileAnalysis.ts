@@ -56,13 +56,13 @@ export function useProfileAnalysis({
     panelId,
     supportedTools: ['analyze_profile', 'generate_profile'],
     structuredAnalysisMapper: (data: unknown): ProfileStructuredAnalysis => {
-      const d = data as any;
+      const d = data as Record<string, unknown>;
       // Extract only the fields we need: score, strengths, weaknesses, improvements
       return {
         score: d.score,
-        strengths: d.strengths || [],
-        weaknesses: d.weaknesses || [],
-        improvements: d.improvements || []
+        strengths: (d.strengths as unknown[]) || [],
+        weaknesses: (d.weaknesses as unknown[]) || [],
+        improvements: (d.improvements as unknown[]) || []
       };
     },
     onAnalysisStarted,

@@ -4,6 +4,7 @@ import { Calendar, ChevronDown, X } from 'lucide-react';
 /**
  * Helper to get last 30 days date range
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const getLast30DaysRange = () => {
   const today = new Date();
   const thirtyDaysAgo = new Date(today);

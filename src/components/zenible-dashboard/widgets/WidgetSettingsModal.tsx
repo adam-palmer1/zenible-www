@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Modal from '../../ui/modal/Modal';
-import { WIDGET_REGISTRY, getDefaultWidgetSettings, AVAILABLE_CURRENCIES, getWidgetDefaults } from './WidgetRegistry';
+import { WIDGET_REGISTRY, getDefaultWidgetSettings, AVAILABLE_CURRENCIES } from './WidgetRegistry';
 import type { WidgetSettingsField } from './WidgetRegistry';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
@@ -18,8 +18,8 @@ interface WidgetSettingsModalProps {
  * Dynamically generates form fields based on the widget's settingsSchema
  */
 const WidgetSettingsModal = ({ widgetId, open, onOpenChange }: WidgetSettingsModalProps) => {
-  const { getPreference, updatePreference } = usePreferences() as any;
-  const { defaultCurrency: companyDefaultCurrency } = useCompanyCurrencies() as any;
+  const { getPreference, updatePreference } = usePreferences();
+  const { defaultCurrency: companyDefaultCurrency } = useCompanyCurrencies();
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
 
@@ -45,7 +45,7 @@ const WidgetSettingsModal = ({ widgetId, open, onOpenChange }: WidgetSettingsMod
         `dashboard_widget_settings_${widgetId}`,
         defaults
       );
-      setSettings(currentSettings);
+      setSettings(currentSettings as Record<string, any>);
     }
   }, [open, widgetId, getPreference, companyDefaultCurrency, schema]);
 
@@ -305,7 +305,7 @@ interface SettingsFieldProps {
 /**
  * Dynamic form field based on schema type
  */
-const SettingsField = ({ name, schema, value, onChange }: SettingsFieldProps) => {
+const SettingsField = ({ name: _name, schema, value, onChange }: SettingsFieldProps) => {
   const { type, label, min, max, options } = schema;
 
   const baseInputClass = "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8e51ff] focus:border-transparent text-sm";

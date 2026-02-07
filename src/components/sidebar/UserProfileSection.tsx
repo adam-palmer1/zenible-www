@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import ChevronRightIcon from './icons/ChevronRightIcon';
 
 export default function UserProfileSection() {
-  const { user: rawUser, logout, isAdmin } = useAuth();
-  const user = rawUser as any;
+  const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

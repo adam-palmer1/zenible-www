@@ -25,7 +25,7 @@ interface BillableHourModalProps {
 const BillableHourModal: React.FC<BillableHourModalProps> = ({
   isOpen,
   onClose,
-  projectId,
+  projectId: _projectId,
   entry = null,
   defaultRate,
   contactCurrencyId = null,
@@ -48,8 +48,8 @@ const BillableHourModal: React.FC<BillableHourModalProps> = ({
   });
   const [loading, setLoading] = useState(false);
 
-  const { showError } = useNotification() as any;
-  const { companyCurrencies, defaultCurrency: companyDefaultCurrency } = useCompanyCurrencies() as any;
+  const { showError } = useNotification();
+  const { companyCurrencies, defaultCurrency: companyDefaultCurrency } = useCompanyCurrencies();
 
   // Get the effective default currency: contact's currency > project's currency > company default
   const effectiveDefaultCurrency = useMemo(() => {

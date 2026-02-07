@@ -53,7 +53,7 @@ const WidgetWrapper = ({
   isDragging = false,
 }: WidgetWrapperProps) => {
   const [isHovered, setIsHovered] = useState(false);
-  const { getPreference } = usePreferences() as any;
+  const { getPreference } = usePreferences();
   const config = WIDGET_REGISTRY[widgetId];
 
   // Get widget-specific settings from preferences

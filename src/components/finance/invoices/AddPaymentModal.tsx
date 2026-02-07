@@ -29,7 +29,7 @@ interface AddPaymentModalProps {
 }
 
 const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invoice, onSuccess }) => {
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
   const methodDropdownRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
@@ -105,7 +105,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
         ],
       };
 
-      const payment = await (paymentsAPI as any).create(paymentData);
+      const payment = await paymentsAPI.create(paymentData) as { amount: number; [key: string]: unknown };
 
       showSuccess(`Payment of ${formatCurrency(payment.amount, invoice.currency?.code)} recorded successfully`);
 

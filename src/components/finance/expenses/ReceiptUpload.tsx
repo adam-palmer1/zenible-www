@@ -49,7 +49,7 @@ interface ReceiptUploadProps {
 }
 
 const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
-  expenseId,
+  expenseId: _expenseId,
   receipt,
   onUpload,
   onDelete,

@@ -56,7 +56,7 @@ interface MultiSelectDropdownProps {
 /**
  * Multi-select dropdown component
  */
-const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label, options, value = [], onChange, placeholder }) => {
+const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label: _label, options, value = [], onChange, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -232,7 +232,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ startDate, endDate, o
  * Transaction Filters Component
  */
 const TransactionFilters: React.FC = () => {
-  const { filters, updateFilters, updateSearch, applyDatePreset, resetFilters } = useReports() as any;
+  const { filters, updateFilters, updateSearch, applyDatePreset, resetFilters } = useReports();
   const [localSearch, setLocalSearch] = useState(filters.search || '');
 
   // Sync local search with filters

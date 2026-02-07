@@ -7,7 +7,7 @@ interface AdminRouteProps {
 }
 
 export default function AdminRoute({ children }: AdminRouteProps) {
-  const { user, loading, isAuthenticated } = useAuth() as any;
+  const { user, loading, isAuthenticated } = useAuth();
 
   if (loading) {
     return (

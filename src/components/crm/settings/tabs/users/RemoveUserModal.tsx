@@ -7,7 +7,7 @@ import companyUsersAPI from '../../../../../services/api/crm/companyUsers';
 /**
  * Modal for deactivating or removing a user from the company
  */
-const RemoveUserModal = ({ user, onClose, onSuccess }) => {
+const RemoveUserModal = ({ user, onClose, onSuccess }: { user: any; onClose: () => void; onSuccess?: () => void }) => {
   const { darkMode } = usePreferences();
   const { showError } = useNotification();
 
@@ -27,7 +27,7 @@ const RemoveUserModal = ({ user, onClose, onSuccess }) => {
       onSuccess?.();
     } catch (error) {
       console.error(`Failed to ${action} user:`, error);
-      showError(error.message || `Failed to ${action} user. Please try again.`);
+      showError((error as Error).message || `Failed to ${action} user. Please try again.`);
     } finally {
       setIsSubmitting(false);
     }

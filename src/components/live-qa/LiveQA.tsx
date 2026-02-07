@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import NewSidebar from '../sidebar/NewSidebar';
 import TabNavigation from './TabNavigation';
 import EventCard from './EventCard';
@@ -50,8 +50,8 @@ export default function LiveQA() {
     try {
       setLoading(true);
       setError(null);
-      const data = await eventsAPI.listEvents();
-      setEvents((data as any).events || []);
+      const data = await eventsAPI.listEvents() as { events?: unknown[] };
+      setEvents((data.events || []) as typeof events);
     } catch (err: any) {
       console.error('[LiveQA] Error fetching events:', err);
       setError(err.message || 'Failed to load events');
@@ -64,8 +64,8 @@ export default function LiveQA() {
     try {
       setLoading(true);
       setError(null);
-      const data = await eventsAPI.getMyRegistrations();
-      setMyEvents((data as any).events || (data as any).registrations || data || []);
+      const data = await eventsAPI.getMyRegistrations() as { events?: unknown[]; registrations?: unknown[] };
+      setMyEvents((data.events || data.registrations || []) as typeof myEvents);
     } catch (err: any) {
       console.error('[LiveQA] Error fetching my events:', err);
       setError(err.message || 'Failed to load your registered events');
@@ -111,12 +111,12 @@ export default function LiveQA() {
 
   const filteredEvents = getFilteredEvents();
 
-  const handleRegisterClick = async (event: any) => {
+  const handleRegisterClick = useCallback(async (event: any) => {
     setSelectedEvent(event);
     setShowRegistrationModal(true);
-  };
+  }, []);
 
-  const handleUnregisterClick = async (event: any) => {
+  const handleUnregisterClick = useCallback(async (event: any) => {
     try {
       await eventsAPI.unregisterFromEvent(event.id);
       // Refresh events after unregistering
@@ -128,9 +128,9 @@ export default function LiveQA() {
       console.error('[LiveQA] Error unregistering from event:', err);
       alert(err.message || 'Failed to unregister from event');
     }
-  };
+  }, [activeTab]);
 
-  const handleCloseModal = async (registered = false) => {
+  const handleCloseModal = useCallback(async (registered = false) => {
     setShowRegistrationModal(false);
     setSelectedEvent(null);
     // Refresh events if registration was successful
@@ -140,7 +140,7 @@ export default function LiveQA() {
         await fetchMyEvents();
       }
     }
-  };
+  }, [activeTab]);
 
   return (
     <div className={`flex h-screen ${darkMode ? 'bg-gray-900' : 'bg-neutral-50'}`}>

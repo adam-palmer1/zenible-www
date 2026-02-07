@@ -20,7 +20,7 @@ const PaymentDashboard: React.FC = () => {
     closeRefundModal,
     closeCreateModal,
     closeEditModal,
-  } = usePayments() as any;
+  } = usePayments();
 
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
 

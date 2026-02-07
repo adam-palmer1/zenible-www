@@ -65,17 +65,17 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
   const { showSuccess, showError } = useNotification();
 
   // Helper functions to get display labels
-  const getDurationLabel = (value) => {
+  const getDurationLabel = (value: number) => {
     const opt = DURATION_OPTIONS.find((o) => o.value === value);
     return opt ? opt.label : `${value} minutes`;
   };
 
-  const getCancellationLabel = (value) => {
+  const getCancellationLabel = (value: number) => {
     const opt = CANCELLATION_NOTICE_OPTIONS.find((o) => o.value === value);
     return opt ? opt.label : `${value} hours`;
   };
 
-  const getConferencingLabel = (value) => {
+  const getConferencingLabel = (value: string) => {
     const opt = CONFERENCING_OPTIONS.find((o) => o.value === value);
     return opt ? opt.label : value;
   };
@@ -116,16 +116,16 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
     }
   }, [isOpen, callType]);
 
-  const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleChange = (field: string, value: any) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
     // Clear field error when user types
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: null }));
+      setErrors((prev: any) => ({ ...prev, [field]: null }));
     }
   };
 
   // Auto-generate shortcode from name
-  const handleNameChange = (name) => {
+  const handleNameChange = (name: string) => {
     handleChange('name', name);
     if (!callType) {
       // Only auto-generate for new call types
@@ -160,7 +160,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -181,7 +181,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
       }
       onSave(saved);
     } catch (error) {
-      showError(error.message || 'Failed to save call type');
+      showError((error as Error).message || 'Failed to save call type');
       console.error('Failed to save:', error);
     } finally {
       setSaving(false);

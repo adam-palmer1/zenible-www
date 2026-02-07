@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserGroupIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import contactsAPI from '../../../services/api/crm/contacts';
+import { LoadingSpinner } from '../../shared';
 
 interface RecentClientsWidgetProps {
   settings?: Record<string, any>;
@@ -22,13 +23,13 @@ const RecentClientsWidget = ({ settings = {}, isHovered = false }: RecentClients
     const loadClients = async () => {
       try {
         setLoading(true);
-        const response = await (contactsAPI as any).list({
-          is_client: true,
+        const response = await contactsAPI.list({
+          is_client: 'true',
           sort_by: 'last_used',
           sort_order: 'desc',
-          limit: limit,
+          limit: String(limit),
         });
-        setClients(response.items || response || []);
+        setClients(response.items || []);
       } catch (error) {
         console.error('Failed to load clients:', error);
       } finally {
@@ -72,11 +73,7 @@ const RecentClientsWidget = ({ settings = {}, isHovered = false }: RecentClients
   const handleClientClick = (id: string) => navigate(`/crm/clients?contact=${id}`);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[100px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 
   return (

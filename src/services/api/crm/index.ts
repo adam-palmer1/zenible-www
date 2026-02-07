@@ -7,4 +7,5 @@ export { default as currenciesAPI } from './currencies';
 export { default as billableHoursAPI } from './billableHours';
 export { default as callTypesAPI } from './callTypes';
 export { default as bookingSettingsAPI } from './bookingSettings';
+export { default as contactServicesAPI } from './contactServices';
 export { default as zoomAPI } from './zoom';

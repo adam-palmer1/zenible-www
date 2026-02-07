@@ -1,6 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import { useModalState } from '../../hooks/useModalState';
+import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
+import { LoadingSpinner } from '../shared';
+
+interface Tip {
+  id: string;
+  content: string;
+  ai_character_id?: string;
+  is_active: boolean;
+  priority: number;
+  created_at?: string;
+}
+
+interface AICharacter {
+  id: string;
+  name: string;
+  is_active?: boolean;
+}
+
+interface TipAnalytics {
+  total_tips: number;
+  total_views: number;
+  unique_users: number;
+  date_range?: { days: number };
+  analytics?: Array<{
+    content: string;
+    total_views: number;
+    unique_viewers: number;
+    last_accessed?: string;
+  }>;
+}
+
+interface TipEngagement {
+  total_tips: number;
+  active_tips: number;
+  total_views: number;
+  unique_users: number;
+  average_views_per_tip?: number;
+}
 
 interface TipForm {
   content: string;
@@ -10,11 +49,11 @@ interface TipForm {
 }
 
 export default function TipsManagement() {
-  const { darkMode } = useOutletContext() as any;
+  const { darkMode } = useOutletContext<{ darkMode: boolean }>();
 
   // Main state
-  const [tips, setTips] = useState<any[]>([]);
-  const [characters, setCharacters] = useState<any[]>([]);
+  const [tips, setTips] = useState<Tip[]>([]);
+  const [characters, setCharacters] = useState<AICharacter[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,12 +67,11 @@ export default function TipsManagement() {
   const [activeFilter, setActiveFilter] = useState<string>('');
 
   // Modal states
-  const [showTipModal, setShowTipModal] = useState<boolean>(false);
-  const [editingTip, setEditingTip] = useState<any>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
-  const [deletingTip, setDeletingTip] = useState<any>(null);
-  const [showBulkModal, setShowBulkModal] = useState<boolean>(false);
-  const [showBulkImportModal, setShowBulkImportModal] = useState<boolean>(false);
+  const tipModal = useModalState();
+  const [editingTip, setEditingTip] = useState<Tip | null>(null);
+  const deleteConfirmation = useDeleteConfirmation<Tip>();
+  const bulkModal = useModalState();
+  const bulkImportModal = useModalState();
 
   // Bulk selection
   const [selectedTips, setSelectedTips] = useState<string[]>([]);
@@ -50,13 +88,13 @@ export default function TipsManagement() {
   const [activeTab, setActiveTab] = useState<string>('tips'); // tips, analytics, engagement
 
   // Analytics state
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<TipAnalytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(false);
   const [analyticsDays, setAnalyticsDays] = useState<number>(30);
   const [analyticsCharacter, setAnalyticsCharacter] = useState<string>('');
 
   // Engagement state
-  const [engagement, setEngagement] = useState<any>(null);
+  const [engagement, setEngagement] = useState<TipEngagement | null>(null);
   const [engagementLoading, setEngagementLoading] = useState<boolean>(false);
   const [engagementDays, setEngagementDays] = useState<number>(30);
 
@@ -89,20 +127,20 @@ export default function TipsManagement() {
     setLoading(true);
     setError(null);
     try {
-      const params = {
-        page,
-        per_page: perPage,
+      const params: Record<string, string> = {
+        page: String(page),
+        per_page: String(perPage),
         ...(search && { search }),
         ...(characterFilter && { character_id: characterFilter }),
-        ...(activeFilter !== '' && { is_active: activeFilter === 'true' })
+        ...(activeFilter !== '' && { is_active: activeFilter })
       };
 
-      const response = await (adminAPI as any).getTips(params);
-      setTips(response.tips || []);
-      setTotal(response.total || 0);
-      setTotalPages(response.total_pages || 1);
-    } catch (err: any) {
-      setError(err.message);
+      const response = await adminAPI.getTips(params) as Record<string, unknown>;
+      setTips((response.tips as Tip[]) || []);
+      setTotal((response.total as number) || 0);
+      setTotalPages((response.total_pages as number) || 1);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
       console.error('Error fetching tips:', err);
     } finally {
       setLoading(false);
@@ -111,9 +149,9 @@ export default function TipsManagement() {
 
   const fetchCharacters = async () => {
     try {
-      const response = await (adminAPI as any).getAICharacters({ is_active: true });
-      setCharacters(response.characters || response.items || []);
-    } catch (err: any) {
+      const response = await adminAPI.getAICharacters({ is_active: 'true' }) as Record<string, unknown>;
+      setCharacters((response.characters as AICharacter[]) || (response.items as AICharacter[]) || []);
+    } catch (err: unknown) {
       console.error('Error fetching characters:', err);
     }
   };
@@ -121,13 +159,13 @@ export default function TipsManagement() {
   const fetchAnalytics = async () => {
     setAnalyticsLoading(true);
     try {
-      const params = {
-        days: analyticsDays,
+      const params: Record<string, string> = {
+        days: String(analyticsDays),
         ...(analyticsCharacter && { character_id: analyticsCharacter })
       };
-      const data = await (adminAPI as any).getTipsAnalytics(params);
+      const data = await adminAPI.getTipsAnalytics(params) as TipAnalytics;
       setAnalytics(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching analytics:', err);
     } finally {
       setAnalyticsLoading(false);
@@ -137,10 +175,10 @@ export default function TipsManagement() {
   const fetchEngagement = async () => {
     setEngagementLoading(true);
     try {
-      const params = { days: engagementDays };
-      const data = await (adminAPI as any).getTipsEngagement(params);
+      const params: Record<string, string> = { days: String(engagementDays) };
+      const data = await adminAPI.getTipsEngagement(params) as TipEngagement;
       setEngagement(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching engagement:', err);
     } finally {
       setEngagementLoading(false);
@@ -155,10 +193,10 @@ export default function TipsManagement() {
       is_active: true,
       priority: 1
     });
-    setShowTipModal(true);
+    tipModal.open();
   };
 
-  const handleEditTip = (tip: any) => {
+  const handleEditTip = (tip: Tip) => {
     setEditingTip(tip);
     setTipForm({
       content: tip.content,
@@ -166,7 +204,7 @@ export default function TipsManagement() {
       is_active: tip.is_active,
       priority: tip.priority
     });
-    setShowTipModal(true);
+    tipModal.open();
   };
 
   const handleSaveTip = async () => {
@@ -179,37 +217,36 @@ export default function TipsManagement() {
       };
 
       if (editingTip) {
-        await (adminAPI as any).updateTip(editingTip.id, data);
+        await adminAPI.updateTip(editingTip.id, data);
       } else {
-        await (adminAPI as any).createTip(data);
+        await adminAPI.createTip(data);
       }
 
-      setShowTipModal(false);
+      tipModal.close();
       fetchTips();
-    } catch (err: any) {
-      alert(`Error saving tip: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error saving tip: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
   const handleDeleteTip = async () => {
-    if (!deletingTip) return;
-
-    try {
-      await (adminAPI as any).deleteTip(deletingTip.id);
-      setShowDeleteModal(false);
-      setDeletingTip(null);
-      fetchTips();
-    } catch (err: any) {
-      alert(`Error deleting tip: ${err.message}`);
-    }
+    await deleteConfirmation.confirmDelete(async (tip) => {
+      try {
+        await adminAPI.deleteTip(tip.id);
+        fetchTips();
+      } catch (err: unknown) {
+        alert(`Error deleting tip: ${err instanceof Error ? err.message : String(err)}`);
+        throw err;
+      }
+    });
   };
 
-  const handleToggleActive = async (tip: any) => {
+  const handleToggleActive = async (tip: Tip) => {
     try {
-      await (adminAPI as any).updateTip(tip.id, { is_active: !tip.is_active });
+      await adminAPI.updateTip(tip.id, { is_active: !tip.is_active });
       fetchTips();
-    } catch (err: any) {
-      alert(`Error updating tip: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error updating tip: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -223,14 +260,14 @@ export default function TipsManagement() {
         ...(bulkAction === 'assign' && bulkCharacterId && { ai_character_id: bulkCharacterId })
       };
 
-      await (adminAPI as any).bulkActionTips(data);
-      setShowBulkModal(false);
+      await adminAPI.bulkActionTips(data);
+      bulkModal.close();
       setSelectedTips([]);
       setBulkAction('');
       setBulkCharacterId('');
       fetchTips();
-    } catch (err: any) {
-      alert(`Error performing bulk action: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error performing bulk action: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -258,10 +295,10 @@ export default function TipsManagement() {
       }));
 
       // Call bulk create API
-      await (adminAPI as any).bulkCreateTips(tipsToImport);
+      await adminAPI.bulkCreateTips(tipsToImport);
 
       // Close modal and reset form
-      setShowBulkImportModal(false);
+      bulkImportModal.close();
       setBulkImportText('');
       setBulkImportCharacter('');
       setBulkImportPriority(1);
@@ -271,8 +308,8 @@ export default function TipsManagement() {
       fetchTips();
 
       alert(`Successfully created ${lines.length} tip${lines.length > 1 ? 's' : ''}`);
-    } catch (err: any) {
-      alert(`Error importing tips: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Error importing tips: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -296,13 +333,13 @@ export default function TipsManagement() {
     if (selectedTips.length === tips.length) {
       setSelectedTips([]);
     } else {
-      setSelectedTips(tips.map((t: any) => t.id));
+      setSelectedTips(tips.map((t: Tip) => t.id));
     }
   };
 
   const getCharacterName = (characterId: string): string => {
     if (!characterId) return 'Unassigned';
-    const character = characters.find((c: any) => c.id === characterId);
+    const character = characters.find((c: AICharacter) => c.id === characterId);
     return character ? character.name : 'Unknown';
   };
 
@@ -391,7 +428,7 @@ export default function TipsManagement() {
                   className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
                 >
                   <option value="">All Characters</option>
-                  {characters.map((char: any) => (
+                  {characters.map((char: AICharacter) => (
                     <option key={char.id} value={char.id}>{char.name}</option>
                   ))}
                 </select>
@@ -419,7 +456,7 @@ export default function TipsManagement() {
                 </button>
 
                 <button
-                  onClick={() => setShowBulkImportModal(true)}
+                  onClick={() => bulkImportModal.open()}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                 >
                   Bulk Import
@@ -427,7 +464,7 @@ export default function TipsManagement() {
 
                 {selectedTips.length > 0 && (
                   <button
-                    onClick={() => setShowBulkModal(true)}
+                    onClick={() => bulkModal.open()}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     Bulk Actions ({selectedTips.length})
@@ -441,9 +478,7 @@ export default function TipsManagement() {
           <div className="px-6 pb-6">
             <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
               {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-                </div>
+                <LoadingSpinner height="py-12" />
               ) : error ? (
                 <div className="text-red-500 text-center py-12">Error: {error}</div>
               ) : (
@@ -481,7 +516,7 @@ export default function TipsManagement() {
                         </tr>
                       </thead>
                       <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
-                        {tips.map((tip: any) => (
+                        {tips.map((tip: Tip) => (
                           <tr key={tip.id}>
                             <td className="px-6 py-4">
                               <input
@@ -498,7 +533,7 @@ export default function TipsManagement() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                                {getCharacterName(tip.ai_character_id)}
+                                {getCharacterName(tip.ai_character_id ?? '')}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -522,7 +557,7 @@ export default function TipsManagement() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                                {formatDate(tip.created_at)}
+                                {formatDate(tip.created_at ?? '')}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -534,10 +569,7 @@ export default function TipsManagement() {
                                   Edit
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    setDeletingTip(tip);
-                                    setShowDeleteModal(true);
-                                  }}
+                                  onClick={() => deleteConfirmation.requestDelete(tip)}
                                   className="text-red-600 hover:text-red-900"
                                 >
                                   Delete
@@ -626,7 +658,7 @@ export default function TipsManagement() {
                 className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
               >
                 <option value="">All Characters</option>
-                {characters.map((char: any) => (
+                {characters.map((char: AICharacter) => (
                   <option key={char.id} value={char.id}>{char.name}</option>
                 ))}
               </select>
@@ -634,9 +666,7 @@ export default function TipsManagement() {
           </div>
 
           {analyticsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-            </div>
+            <LoadingSpinner height="py-12" />
           ) : analytics ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -694,7 +724,7 @@ export default function TipsManagement() {
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
-                      {analytics.analytics?.map((item: any, index: number) => (
+                      {analytics.analytics?.map((item: { content: string; total_views: number; unique_viewers: number; last_accessed?: string }, index: number) => (
                         <tr key={index}>
                           <td className="px-6 py-4">
                             <div className={`text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
@@ -748,9 +778,7 @@ export default function TipsManagement() {
           </div>
 
           {engagementLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-            </div>
+            <LoadingSpinner height="py-12" />
           ) : engagement ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className={`p-4 rounded-xl border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
@@ -797,7 +825,7 @@ export default function TipsManagement() {
       )}
 
       {/* Create/Edit Tip Modal */}
-      {showTipModal && (
+      {tipModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`w-full max-w-2xl mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
@@ -829,7 +857,7 @@ export default function TipsManagement() {
                   className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
                 >
                   <option value="">Unassigned</option>
-                  {characters.map((char: any) => (
+                  {characters.map((char: AICharacter) => (
                     <option key={char.id} value={char.id}>{char.name}</option>
                   ))}
                 </select>
@@ -875,7 +903,7 @@ export default function TipsManagement() {
                 {editingTip ? 'Update' : 'Create'}
               </button>
               <button
-                onClick={() => setShowTipModal(false)}
+                onClick={() => tipModal.close()}
                 className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
               >
                 Cancel
@@ -886,7 +914,7 @@ export default function TipsManagement() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && deletingTip && (
+      {deleteConfirmation.isOpen && deleteConfirmation.item && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`w-full max-w-md mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
@@ -899,7 +927,7 @@ export default function TipsManagement() {
                 Are you sure you want to delete this tip?
               </p>
               <p className={`mt-2 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                "{truncateText(deletingTip.content, 100)}"
+                "{truncateText(deleteConfirmation.item.content, 100)}"
               </p>
             </div>
             <div className={`px-6 py-4 border-t flex gap-2 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
@@ -910,10 +938,7 @@ export default function TipsManagement() {
                 Delete
               </button>
               <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeletingTip(null);
-                }}
+                onClick={deleteConfirmation.cancelDelete}
                 className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
               >
                 Cancel
@@ -924,7 +949,7 @@ export default function TipsManagement() {
       )}
 
       {/* Bulk Actions Modal */}
-      {showBulkModal && (
+      {bulkModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`w-full max-w-md mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
@@ -961,7 +986,7 @@ export default function TipsManagement() {
                     className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
                   >
                     <option value="">Select character...</option>
-                    {characters.map((char: any) => (
+                    {characters.map((char: AICharacter) => (
                       <option key={char.id} value={char.id}>{char.name}</option>
                     ))}
                   </select>
@@ -986,7 +1011,7 @@ export default function TipsManagement() {
               </button>
               <button
                 onClick={() => {
-                  setShowBulkModal(false);
+                  bulkModal.close();
                   setBulkAction('');
                   setBulkCharacterId('');
                 }}
@@ -1000,7 +1025,7 @@ export default function TipsManagement() {
       )}
 
       {/* Bulk Import Modal */}
-      {showBulkImportModal && (
+      {bulkImportModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`w-full max-w-2xl mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
@@ -1037,7 +1062,7 @@ export default function TipsManagement() {
                   className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
                 >
                   <option value="">Unassigned</option>
-                  {characters.map((char: any) => (
+                  {characters.map((char: AICharacter) => (
                     <option key={char.id} value={char.id}>{char.name}</option>
                   ))}
                 </select>
@@ -1084,7 +1109,7 @@ export default function TipsManagement() {
               </button>
               <button
                 onClick={() => {
-                  setShowBulkImportModal(false);
+                  bulkImportModal.close();
                   setBulkImportText('');
                   setBulkImportCharacter('');
                   setBulkImportPriority(1);

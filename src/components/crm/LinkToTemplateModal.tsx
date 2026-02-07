@@ -27,8 +27,8 @@ const LinkToTemplateModal: React.FC<LinkToTemplateModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { showError, showSuccess } = useNotification() as any;
-  const { linkServiceToTemplate } = useContacts({}, 0, { skipInitialFetch: true }) as any;
+  const { showError, showSuccess } = useNotification();
+  const { linkServiceToTemplate } = useContacts({}, 0, { skipInitialFetch: true });
 
   const currencyCode = service?.currency?.code || 'USD';
 
@@ -50,17 +50,17 @@ const LinkToTemplateModal: React.FC<LinkToTemplateModalProps> = ({
         setSearching(true);
         // Fetch recurring invoice templates for this contact
         // Backend requires: pricing_type=recurring + is_parent_only=true
-        const params: any = {
+        const params: Record<string, string> = {
           contact_ids: contactId,
           pricing_type: 'recurring',
-          is_parent_only: true,
-          per_page: 20,
+          is_parent_only: 'true',
+          per_page: '20',
         };
         // Only add search param if there's a query
         if (searchQuery && searchQuery.trim()) {
           params.search = searchQuery.trim();
         }
-        const response = await (invoicesAPI as any).list(params);
+        const response = await invoicesAPI.list(params);
         setTemplates(response?.items || []);
       } catch (error) {
         console.error('Failed to search templates:', error);

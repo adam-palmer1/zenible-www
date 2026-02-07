@@ -39,8 +39,8 @@ const BillableHourEntry: React.FC<BillableHourEntryProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Get modal portal for proper z-index stacking
-  const modalPortalRef = useModalPortal() as any;
-  const portalTarget = modalPortalRef?.current || document.body;
+  const modalPortal = useModalPortal();
+  const portalTarget = modalPortal || document.body;
 
   const isInvoiced = !!entry.invoice_id;
   const isBillable = entry.is_billable;

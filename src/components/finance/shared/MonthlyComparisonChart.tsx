@@ -1,5 +1,6 @@
 import React from 'react';
 import { Bar } from 'react-chartjs-2';
+import type { ChartOptions } from 'chart.js';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -69,7 +70,7 @@ const MonthlyComparisonChart: React.FC<MonthlyComparisonChartProps> = ({
     ],
   };
 
-  const chartOptions = {
+  const chartOptions: ChartOptions<'bar'> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -90,7 +91,7 @@ const MonthlyComparisonChart: React.FC<MonthlyComparisonChartProps> = ({
         bodyColor: '#F9FAFB',
         cornerRadius: 8,
         callbacks: {
-          label: function(context: any) {
+          label: function(context) {
             return `${context.dataset.label}: ${formatCurrency(context.parsed.y, currency)}`;
           },
         },
@@ -117,7 +118,7 @@ const MonthlyComparisonChart: React.FC<MonthlyComparisonChartProps> = ({
           font: {
             size: 11,
           },
-          callback: function(value: any) {
+          callback: function(value) {
             return formatCurrency(value, currency);
           },
         },
@@ -129,7 +130,7 @@ const MonthlyComparisonChart: React.FC<MonthlyComparisonChartProps> = ({
     <div className="design-bg-primary rounded-lg p-6 shadow-sm">
       {title && <h3 className="text-lg font-semibold design-text-primary mb-4">{title}</h3>}
       <div style={{ height: `${height}px` }}>
-        <Bar data={chartData} options={chartOptions as any} />
+        <Bar data={chartData} options={chartOptions} />
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { formatCurrency } from '../../utils/currencyUtils';
 import BillableHourEntry from './BillableHourEntry';
 import BillableHourModal from './BillableHourModal';
 import ConfirmationModal from '../common/ConfirmationModal';
+import { LoadingSpinner } from '../shared';
 
 interface BillableHoursTabProps {
   projectId: string;
@@ -38,7 +39,7 @@ const BillableHoursTab: React.FC<BillableHoursTabProps> = ({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const { showSuccess, showError, showInfo } = useNotification() as any;
+  const { showSuccess, showError, showInfo } = useNotification();
 
   const {
     entries,
@@ -51,7 +52,7 @@ const BillableHoursTab: React.FC<BillableHoursTabProps> = ({
     deleteEntry,
     duplicateEntry,
     unlinkFromInvoice,
-  } = useBillableHours(projectId) as any;
+  } = useBillableHours(projectId);
 
   // Fetch entries on mount and when filters change
   useEffect(() => {
@@ -79,19 +80,15 @@ const BillableHoursTab: React.FC<BillableHoursTabProps> = ({
 
   // Handle save (create or update)
   const handleSave = async (data: any) => {
-    try {
-      if (editingEntry) {
-        await updateEntry(editingEntry.id, data);
-        showSuccess('Entry updated');
-      } else {
-        await createEntry(data);
-        showSuccess('Hours logged');
-      }
-      entryModal.close();
-      setEditingEntry(null);
-    } catch (err) {
-      throw err; // Let modal handle error display
+    if (editingEntry) {
+      await updateEntry(editingEntry.id, data);
+      showSuccess('Entry updated');
+    } else {
+      await createEntry(data);
+      showSuccess('Hours logged');
     }
+    entryModal.close();
+    setEditingEntry(null);
   };
 
   // Handle duplicate
@@ -123,7 +120,7 @@ const BillableHoursTab: React.FC<BillableHoursTabProps> = ({
   };
 
   // Handle link to invoice
-  const handleLinkInvoice = (entry: any) => {
+  const handleLinkInvoice = (_entry: any) => {
     showInfo('Invoice linking coming soon');
   };
 
@@ -203,11 +200,7 @@ const BillableHoursTab: React.FC<BillableHoursTabProps> = ({
       </div>
 
       {/* Loading State */}
-      {loading && (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary"></div>
-        </div>
-      )}
+      {loading && <LoadingSpinner size="h-8 w-8" height="py-8" />}
 
       {/* Error State */}
       {error && (
@@ -266,20 +259,20 @@ const BillableHoursTab: React.FC<BillableHoursTabProps> = ({
       )}
 
       {/* Summary */}
-      {!loading && (parseFloat(summary.total_hours) > 0 || parseFloat(summary.total_amount) > 0) && (
+      {!loading && (summary.total_hours > 0 || summary.total_amount > 0) && (
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-500 dark:text-gray-400">Total</span>
                 <p className="font-semibold text-gray-900 dark:text-white">
-                  {parseFloat(summary.total_hours).toFixed(2)}h ({formatCurrency(summary.total_amount, currency)})
+                  {summary.total_hours.toFixed(2)}h ({formatCurrency(summary.total_amount, currency)})
                 </p>
               </div>
               <div>
                 <span className="text-gray-500 dark:text-gray-400">Uninvoiced</span>
                 <p className="font-semibold text-purple-600 dark:text-purple-400">
-                  {parseFloat(summary.uninvoiced_hours).toFixed(2)}h ({formatCurrency(summary.uninvoiced_amount, currency)})
+                  {summary.uninvoiced_hours.toFixed(2)}h ({formatCurrency(summary.uninvoiced_amount, currency)})
                 </p>
               </div>
             </div>

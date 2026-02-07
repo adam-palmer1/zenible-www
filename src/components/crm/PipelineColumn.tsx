@@ -26,13 +26,13 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
   contacts = [],
   onAddContact,
   onContactClick,
-  totalVisibleColumns = 1,
+  totalVisibleColumns: _totalVisibleColumns = 1,
   globalStatuses = [],
-  customStatuses = [],
+  customStatuses: _customStatuses = [],
   onStatusUpdate,
   isDraggingContact = false,
 }) => {
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
 
   // Determine if this is a global or custom status
   const isGlobal = globalStatuses.some((s: any) => s.id === status.id);
@@ -145,9 +145,9 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
       };
 
       if (isGlobal) {
-        await (statusesAPI as any).updateGlobal(status.id, updateData);
+        await (statusesAPI as Record<string, Function>).updateGlobal(status.id, updateData);
       } else {
-        await (statusesAPI as any).updateCustom(status.id, updateData);
+        await (statusesAPI as Record<string, Function>).updateCustom(status.id, updateData);
       }
 
       showSuccess('Column renamed successfully');

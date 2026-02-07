@@ -16,7 +16,7 @@ import quotesAPI from '../../../services/api/finance/quotes';
 const QuoteDashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { refresh } = useQuotes() as any;
+  const { refresh } = useQuotes();
 
   // Modal state
   const [showFormModal, setShowFormModal] = useState(false);
@@ -37,7 +37,7 @@ const QuoteDashboard: React.FC = () => {
       if (editMatch && editMatch[1]) {
         const quoteId = editMatch[1];
         try {
-          const quote = await (quotesAPI as any).get(quoteId);
+          const quote = await quotesAPI.get(quoteId);
           setSelectedQuote(quote);
           setShowFormModal(true);
         } catch (error) {

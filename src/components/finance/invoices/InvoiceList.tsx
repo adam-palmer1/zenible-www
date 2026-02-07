@@ -1,50 +1,28 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  Search,
-  Filter,
-  MoreVertical,
-  FileText,
-  DollarSign,
-  Clock,
-  AlertCircle,
-  Trash2,
-  Download,
-  Repeat,
-  Calendar,
-  ChevronDown,
-  X,
-  Users,
-  Check
-} from 'lucide-react';
-import { useInvoices } from '../../../contexts/InvoiceContext';
+import { useInvoices, type Invoice } from '../../../contexts/InvoiceContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
-import { INVOICE_STATUS, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from '../../../constants/finance';
-import { formatCurrency, getCurrencySymbol } from '../../../utils/currency';
-import { formatDate } from '../../../utils/dateUtils';
+import { getCurrencySymbol } from '../../../utils/currency';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
 import { useInvoiceStats } from '../../../hooks/finance/useInvoiceStats';
-import KPICard from '../shared/KPICard';
 import SendInvoiceDialog from './SendInvoiceDialog';
 import SendReminderDialog from './SendReminderDialog';
 
-const SendInvoiceDialogComponent = SendInvoiceDialog as any;
-const SendReminderDialogComponent = SendReminderDialog as any;
+const SendInvoiceDialogComponent = SendInvoiceDialog;
+const SendReminderDialogComponent = SendReminderDialog;
 import ConfirmationModal from '../../shared/ConfirmationModal';
-import ActionMenu from '../../shared/ActionMenu';
 import invoicesAPI from '../../../services/api/finance/invoices';
-
-interface StatusBadgeProps {
-  status: string;
-}
+import InvoiceKPICards from './InvoiceKPICards';
+import InvoiceListFilters from './InvoiceListFilters';
+import InvoiceListTable from './InvoiceListTable';
 
 const InvoiceList: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { invoices, loading, deleteInvoice, updateFilters, cloneInvoice, filters } = useInvoices() as any;
+  const { invoices, loading, deleteInvoice, updateFilters, cloneInvoice, filters } = useInvoices();
 
   // Derive filterStatus from context filters for UI display
   const filterStatus = filters.overdue_only ? 'overdue'
@@ -54,11 +32,11 @@ const InvoiceList: React.FC = () => {
   // URL-based filters
   const parentInvoiceId = searchParams.get('parent_id');
   const urlStatus = searchParams.get('status');
-  const { showSuccess, showError } = useNotification() as any;
-  const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true }) as any;
-  const { numberFormats } = useCRMReferenceData() as any;
-  const { getNumberFormat } = useCompanyAttributes() as any;
-  const stats = useInvoiceStats() as any;
+  const { showSuccess, showError } = useNotification();
+  const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true });
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
+  const stats = useInvoiceStats();
 
   // Number format from company settings
   const numberFormat = useMemo(() => {
@@ -122,7 +100,7 @@ const InvoiceList: React.FC = () => {
     if (parentInvoiceId) {
       updateFilters({ parent_invoice_id: parentInvoiceId });
       // Load parent template info for display
-      (invoicesAPI as any).get(parentInvoiceId).then(setParentTemplateInfo).catch(() => {});
+      invoicesAPI.get(parentInvoiceId).then(setParentTemplateInfo).catch((err: unknown) => { console.error('Failed to load parent template:', err); });
     } else if (prevParentId && !parentInvoiceId) {
       // Only clear if there was a previous parent filter and now it's null
       updateFilters({ parent_invoice_id: null });
@@ -151,10 +129,10 @@ const InvoiceList: React.FC = () => {
   }, [urlStatus]);
 
   // Clear parent filter
-  const clearParentFilter = () => {
+  const clearParentFilter = useCallback(() => {
     setSearchParams({});
     setParentTemplateInfo(null);
-  };
+  }, [setSearchParams]);
 
   // Calculate date range from preset
   const getDateRangeFromPreset = (preset: string) => {
@@ -318,33 +296,25 @@ const InvoiceList: React.FC = () => {
   };
 
   // Handle client filter toggle
-  const handleClientToggle = (clientId: any) => {
+  const handleClientToggle = useCallback((clientId: any) => {
+    // If an array is passed (select all), handle it differently
+    if (Array.isArray(clientId)) {
+      setSelectedClientIds(clientId);
+      return;
+    }
     setSelectedClientIds(prev => {
       const newSelection = prev.includes(clientId)
         ? prev.filter((id: any) => id !== clientId)
         : [...prev, clientId];
-
-      // Update context filter with comma-separated IDs
-      updateFilters({
-        contact_ids: newSelection.length > 0 ? newSelection.join(',') : null,
-      });
-
       return newSelection;
     });
-  };
-
-  // Clear client filter (with backend update)
-  const clearClientFilter = () => {
-    setSelectedClientIds([]);
-    setClientSearchQuery('');
-    updateFilters({ contact_ids: null });
-  };
+  }, []);
 
   // Clear client selection in dropdown (local only, no backend update)
-  const handleClearClientSelection = () => {
+  const handleClearClientSelection = useCallback(() => {
     setSelectedClientIds([]);
     setClientSearchQuery('');
-  };
+  }, []);
 
   // Filter clients by search query
   const filteredClients = useMemo(() => {
@@ -358,30 +328,12 @@ const InvoiceList: React.FC = () => {
     );
   }, [allClients, clientSearchQuery]);
 
-  // Get display name for selected clients
-  const getSelectedClientsLabel = () => {
-    if (selectedClientIds.length === 0) return null;
-    if (selectedClientIds.length === 1) {
-      const client = allClients.find((c: any) => c.id === selectedClientIds[0]);
-      if (!client) return '1 client';
-      return client.business_name || `${client.first_name} ${client.last_name}`;
-    }
-    return `${selectedClientIds.length} clients`;
-  };
-
   // Get client display name
   const getClientDisplayName = (client: any) => {
     if (!client) return 'Unknown';
     if (client.business_name) return client.business_name;
     const name = `${client.first_name || ''} ${client.last_name || ''}`.trim();
     return name || client.email || 'Unknown';
-  };
-
-  // Select all clients
-  const handleSelectAllClients = () => {
-    const allClientIds = allClients.map((c: any) => c.id);
-    setSelectedClientIds(allClientIds);
-    updateFilters({ contact_ids: allClientIds.join(',') });
   };
 
   // Get current date filter label
@@ -394,83 +346,79 @@ const InvoiceList: React.FC = () => {
     return preset ? preset.label : 'All Time';
   };
 
-  // Filter and search invoices (client-side search only, status filtering is server-side)
+  // Search is now server-side — update filters when searchQuery changes (debounced)
+  const searchTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  React.useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      updateFilters({ search: searchQuery || '' });
+    }, 300);
+    return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
+  }, [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Apply recurring filter (client-side — no server-side equivalent)
   const filteredInvoices = useMemo(() => {
-    let result = [...invoices];
-
-    // Apply search (client-side)
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter((inv: any) =>
-        inv.invoice_number?.toLowerCase().includes(query) ||
-        inv.contact?.business_name?.toLowerCase().includes(query) ||
-        inv.contact?.first_name?.toLowerCase().includes(query) ||
-        inv.contact?.last_name?.toLowerCase().includes(query) ||
-        inv.contact?.email?.toLowerCase().includes(query) ||
-        inv.total?.toString().includes(query)
-      );
-    }
-
-    // Apply recurring filter (client-side)
-    if (showRecurringOnly) {
-      result = result.filter((inv: any) => inv.pricing_type === 'recurring' || inv.is_recurring);
-    }
-
-    return result;
-  }, [invoices, searchQuery, showRecurringOnly]);
+    if (!showRecurringOnly) return invoices;
+    return invoices.filter((inv: any) => inv.pricing_type === 'recurring' || inv.is_recurring);
+  }, [invoices, showRecurringOnly]);
 
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, filters.status, filters.outstanding_only, filters.overdue_only, datePreset, customDateFrom, customDateTo, selectedClientIds, showRecurringOnly]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
+  // Use server-side pagination, fallback to client-side for recurring filter
+  const totalPages = showRecurringOnly
+    ? Math.ceil(filteredInvoices.length / itemsPerPage)
+    : Math.ceil((invoices.length > 0 ? invoices.length : 1) / itemsPerPage);
   const paginatedInvoices = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredInvoices.slice(startIndex, endIndex);
-  }, [filteredInvoices, currentPage, itemsPerPage]);
+    if (showRecurringOnly) {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      return filteredInvoices.slice(startIndex, startIndex + itemsPerPage);
+    }
+    // Server handles pagination; invoices already represents the current page
+    return filteredInvoices;
+  }, [filteredInvoices, currentPage, itemsPerPage, showRecurringOnly]);
 
-  const handlePageChange = (page: number) => {
+  const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
 
   // Selection handlers
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelectAll = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
       setSelectedIds(paginatedInvoices.map((inv: any) => inv.id));
     } else {
       setSelectedIds([]);
     }
-  };
+  }, [paginatedInvoices]);
 
-  const handleSelectOne = (invoiceId: any) => {
+  const handleSelectOne = useCallback((invoiceId: any) => {
     setSelectedIds(prev =>
       prev.includes(invoiceId)
         ? prev.filter((id: any) => id !== invoiceId)
         : [...prev, invoiceId]
     );
-  };
+  }, []);
 
   // Bulk actions
-  const handleBulkDeleteClick = () => {
+  const handleBulkDeleteClick = useCallback(() => {
     setDeleteTarget('bulk');
     setShowDeleteConfirm(true);
-  };
+  }, []);
 
-  const handleBulkDeleteConfirm = async () => {
+  const handleBulkDeleteConfirm = useCallback(async () => {
     try {
       await Promise.all(selectedIds.map((id: any) => deleteInvoice(id)));
       showSuccess(`${selectedIds.length} invoice(s) deleted successfully`);
       setSelectedIds([]);
-    } catch (error) {
+    } catch (_error) {
       showError('Failed to delete invoices');
     }
-  };
+  }, [selectedIds, deleteInvoice, showSuccess, showError]);
 
-  const handleBulkDownload = async () => {
+  const handleBulkDownload = useCallback(async () => {
     if (selectedIds.length === 0) return;
 
     setIsDownloading(true);
@@ -481,7 +429,7 @@ const InvoiceList: React.FC = () => {
       for (const invoiceId of selectedIds) {
         try {
           const invoice = invoices.find((inv: any) => inv.id === invoiceId);
-          const blob = await (invoicesAPI as any).downloadPDF(invoiceId);
+          const blob = await invoicesAPI.downloadPDF(invoiceId);
 
           // Create download link
           const url = window.URL.createObjectURL(blob);
@@ -508,71 +456,71 @@ const InvoiceList: React.FC = () => {
       }
 
       setSelectedIds([]);
-    } catch (error) {
+    } catch (_error) {
       showError('Failed to download invoices');
     } finally {
       setIsDownloading(false);
     }
-  };
+  }, [selectedIds, invoices, showSuccess, showError]);
 
   // Individual actions
-  const handleEdit = (invoice: any) => {
+  const handleEdit = useCallback((invoice: any) => {
     navigate(`/finance/invoices/${invoice.id}/edit`);
     setOpenActionMenuId(null);
-  };
+  }, [navigate]);
 
-  const handleView = (invoice: any) => {
+  const handleView = useCallback((invoice: any) => {
     navigate(`/finance/invoices/${invoice.id}`);
     setOpenActionMenuId(null);
-  };
+  }, [navigate]);
 
-  const handleDeleteClick = (invoice: any) => {
+  const handleDeleteClick = useCallback((invoice: any) => {
     setDeleteTarget(invoice);
     setShowDeleteConfirm(true);
     setOpenActionMenuId(null);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (deleteTarget === 'bulk') {
       await handleBulkDeleteConfirm();
     } else if (deleteTarget) {
       try {
         await deleteInvoice(deleteTarget.id);
         showSuccess('Invoice deleted successfully');
-      } catch (error) {
+      } catch (_error) {
         showError('Failed to delete invoice');
       }
     }
     setDeleteTarget(null);
-  };
+  }, [deleteTarget, handleBulkDeleteConfirm, deleteInvoice, showSuccess, showError]);
 
-  const handleSend = (invoice: any) => {
+  const handleSend = useCallback((invoice: any) => {
     setInvoiceToSend(invoice);
     setShowSendDialog(true);
     setOpenActionMenuId(null);
-  };
+  }, []);
 
-  const handleSendReminder = (invoice: any) => {
+  const handleSendReminder = useCallback((invoice: any) => {
     setInvoiceForReminder(invoice);
     setShowReminderDialog(true);
     setOpenActionMenuId(null);
-  };
+  }, []);
 
   // Check if invoice can receive a reminder (status: sent, viewed, or partially_paid)
   const canSendReminder = (invoice: any) => {
     return ['sent', 'viewed', 'partially_paid'].includes(invoice?.status);
   };
 
-  const handleSendSuccess = () => {
+  const handleSendSuccess = useCallback(() => {
     setShowSendDialog(false);
     setInvoiceToSend(null);
-  };
+  }, []);
 
-  const handleDownloadPDF = async (invoice: any) => {
+  const handleDownloadPDF = useCallback(async (invoice: any) => {
     setOpenActionMenuId(null);
 
     try {
-      const blob = await (invoicesAPI as any).downloadPDF(invoice.id);
+      const blob = await invoicesAPI.downloadPDF(invoice.id);
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -585,17 +533,17 @@ const InvoiceList: React.FC = () => {
       window.URL.revokeObjectURL(url);
 
       showSuccess(`Downloaded invoice ${invoice.invoice_number}`);
-    } catch (error) {
+    } catch (_error) {
       showError('Failed to download PDF');
     }
-  };
+  }, [showSuccess, showError]);
 
-  const handleClone = async (invoice: any) => {
+  const handleClone = useCallback(async (invoice: any) => {
     setOpenActionMenuId(null);
 
     try {
       // Use context method to clone - this also adds to state immediately
-      const clonedInvoice = await cloneInvoice(invoice.id);
+      const clonedInvoice = await cloneInvoice(invoice.id) as Invoice;
       showSuccess(`Invoice cloned successfully. New invoice: ${clonedInvoice.invoice_number}`);
       // Navigate to edit the cloned invoice
       navigate(`/finance/invoices/${clonedInvoice.id}/edit`);
@@ -603,17 +551,7 @@ const InvoiceList: React.FC = () => {
       console.error('Failed to clone invoice:', error);
       showError(error.message || 'Failed to clone invoice');
     }
-  };
-
-  // Status badge component
-  const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${(INVOICE_STATUS_COLORS as any)[status] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}>
-        {(INVOICE_STATUS_LABELS as any)[status] || status}
-      </span>
-    );
-  };
-
+  }, [cloneInvoice, showSuccess, showError, navigate]);
 
   // Format converted total value for display
   const formatConvertedValue = (converted: any) => {
@@ -649,782 +587,98 @@ const InvoiceList: React.FC = () => {
     return `${item.currency_symbol}${formatNumber(parseFloat(item.total || 0))}`;
   };
 
+  // Apply client filter callback for the Done button
+  const handleApplyClientFilter = useCallback(() => {
+    setShowClientDropdown(false);
+    setClientSearchQuery('');
+    updateFilters({
+      contact_ids: selectedClientIds.length > 0 ? selectedClientIds.join(',') : null
+    });
+  }, [selectedClientIds, updateFilters]);
+
   return (
     <div className="space-y-6">
       {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          title="Invoices"
-          value={loading ? '...' : stats.total.toString()}
-          subtitle={stats.overdueCount > 0 ? `${stats.overdueCount} overdue` : undefined}
-          icon={FileText}
-          iconColor="blue"
-        />
-        <KPICard
-          title="Total Invoiced"
-          value={loading ? '...' : (stats.convertedTotal
-            ? formatConvertedValue(stats.convertedTotal)
-            : getSingleCurrencyDisplay(stats.totalByCurrency))}
-          subtitle={!loading ? formatCurrencyBreakdown(stats.totalByCurrency, stats.convertedTotal) : undefined}
-          icon={DollarSign}
-          iconColor="green"
-        />
-        <KPICard
-          title="Outstanding"
-          value={loading ? '...' : (stats.convertedOutstanding
-            ? formatConvertedValue(stats.convertedOutstanding)
-            : getSingleCurrencyDisplay(stats.outstandingByCurrencyArray))}
-          subtitle={!loading ? formatCurrencyBreakdown(stats.outstandingByCurrencyArray, stats.convertedOutstanding) : undefined}
-          icon={Clock}
-          iconColor="yellow"
-        />
-        <KPICard
-          title="Overdue"
-          value={loading ? '...' : (stats.convertedOverdue
-            ? formatConvertedValue(stats.convertedOverdue)
-            : getSingleCurrencyDisplay(stats.overdueByCurrencyArray))}
-          subtitle={!loading ? formatCurrencyBreakdown(stats.overdueByCurrencyArray, stats.convertedOverdue) : undefined}
-          icon={AlertCircle}
-          iconColor="red"
-        />
-      </div>
+      <InvoiceKPICards
+        loading={loading}
+        stats={stats}
+        formatConvertedValue={formatConvertedValue}
+        getSingleCurrencyDisplay={getSingleCurrencyDisplay}
+        formatCurrencyBreakdown={formatCurrencyBreakdown}
+      />
 
       {/* Invoices Section */}
       <div>
-        {/* Section Header with Search and Filter */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[#09090b]">Invoices</h2>
-          <div className="flex items-center gap-2">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent w-64"
-              />
-            </div>
-
-            {/* Date Filter Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowDateDropdown(!showDateDropdown)}
-                className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  datePreset !== 'all'
-                    ? 'border-purple-500 bg-purple-50 text-purple-700'
-                    : 'border-gray-300 text-gray-700'
-                }`}
-              >
-                <Calendar className="h-4 w-4" />
-                <span className="max-w-[150px] truncate">{getDateFilterLabel()}</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${showDateDropdown ? 'rotate-180' : ''}`} />
-              </button>
-
-              {showDateDropdown && (
-                <>
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setShowDateDropdown(false)}
-                  />
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-40">
-                    <div className="p-3 border-b border-gray-200">
-                      {/* Date Type Toggle */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-sm text-gray-600">Filter by:</span>
-                        <div className="flex bg-gray-100 rounded-lg p-1">
-                          <button
-                            onClick={() => handleDateTypeChange('issue')}
-                            className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                              dateType === 'issue'
-                                ? 'bg-white text-gray-900 shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
-                            }`}
-                          >
-                            Issue Date
-                          </button>
-                          <button
-                            onClick={() => handleDateTypeChange('due')}
-                            className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                              dateType === 'due'
-                                ? 'bg-white text-gray-900 shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
-                            }`}
-                          >
-                            Due Date
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Preset Options */}
-                      <div className="grid grid-cols-2 gap-2">
-                        {DATE_PRESETS.filter(p => p.key !== 'custom').map((preset) => (
-                          <button
-                            key={preset.key}
-                            onClick={() => handleDateFilterChange(preset.key)}
-                            className={`px-3 py-2 text-sm rounded-md transition-colors text-left ${
-                              datePreset === preset.key
-                                ? 'bg-purple-100 text-purple-700 font-medium'
-                                : 'text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Custom Date Range */}
-                    <div className="p-3 border-b border-gray-200">
-                      <div className="text-sm font-medium text-gray-700 mb-2">Custom Range</div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="date"
-                          value={customDateFrom}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleCustomDateChange(e.target.value, customDateTo)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        />
-                        <span className="text-gray-400">to</span>
-                        <input
-                          type="date"
-                          value={customDateTo}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleCustomDateChange(customDateFrom, e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="p-3 flex items-center justify-between">
-                      <button
-                        onClick={clearDateFilter}
-                        className="text-sm text-gray-600 hover:text-gray-900"
-                      >
-                        Clear Filter
-                      </button>
-                      <button
-                        onClick={() => setShowDateDropdown(false)}
-                        className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Clients Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowClientDropdown(!showClientDropdown)}
-                className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  selectedClientIds.length > 0
-                    ? 'border-purple-500 bg-purple-50 text-purple-700'
-                    : 'border-gray-300 text-gray-700'
-                }`}
-              >
-                <Users className="h-4 w-4" />
-                Clients
-                {selectedClientIds.length > 0 && (
-                  <span className="px-1.5 py-0.5 text-xs font-medium bg-purple-600 text-white rounded-full">
-                    {selectedClientIds.length}
-                  </span>
-                )}
-              </button>
-              {showClientDropdown && (
-                <>
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setShowClientDropdown(false)}
-                  />
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-40">
-                    {/* Search Input */}
-                    <div className="p-3 border-b border-gray-200">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Search clients..."
-                          value={clientSearchQuery}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClientSearchQuery(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          autoFocus
-                        />
-                      </div>
-                    </div>
-
-                    {/* Select All / Clear All */}
-                    <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
-                      <button
-                        onClick={() => {
-                          const allClientIds = allClients.map((c: any) => c.id);
-                          setSelectedClientIds(allClientIds);
-                        }}
-                        className="text-xs font-medium text-purple-600 hover:text-purple-700 flex items-center gap-1"
-                      >
-                        <Check className="h-3 w-3" />
-                        Select All
-                      </button>
-                      <button
-                        onClick={handleClearClientSelection}
-                        className="text-xs font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1"
-                      >
-                        <X className="h-3 w-3" />
-                        Clear All
-                      </button>
-                    </div>
-
-                    {/* Client List */}
-                    <div className="max-h-64 overflow-y-auto p-2">
-                      {clientsLoading ? (
-                        <p className="text-sm text-gray-500 py-4 text-center">Loading clients...</p>
-                      ) : filteredClients.length === 0 ? (
-                        <p className="text-sm text-gray-500 py-4 text-center">
-                          {allClients.length === 0 ? 'No clients found' : 'No matching clients'}
-                        </p>
-                      ) : (
-                        filteredClients.map((client: any) => (
-                          <label
-                            key={client.id}
-                            className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedClientIds.includes(client.id)}
-                              onChange={() => {
-                                setSelectedClientIds(prev =>
-                                  prev.includes(client.id)
-                                    ? prev.filter((id: any) => id !== client.id)
-                                    : [...prev, client.id]
-                                );
-                              }}
-                              className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                            />
-                            <span className="truncate flex-1">{getClientDisplayName(client)}</span>
-                            {selectedClientIds.includes(client.id) && (
-                              <Check className="h-4 w-4 text-purple-600 flex-shrink-0" />
-                            )}
-                          </label>
-                        ))
-                      )}
-                    </div>
-
-                    {/* Done button */}
-                    <div className="p-3 border-t border-gray-200">
-                      <button
-                        onClick={() => {
-                          setShowClientDropdown(false);
-                          setClientSearchQuery('');
-                          // Apply the filter to backend
-                          updateFilters({
-                            contact_ids: selectedClientIds.length > 0 ? selectedClientIds.join(',') : null
-                          });
-                        }}
-                        className="w-full px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
-                      >
-                        Done
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Active Date Filter Tag */}
-            {datePreset !== 'all' && (
-              <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm">
-                <span className="capitalize">{dateType} Date:</span>
-                <span className="font-medium">{getDateFilterLabel()}</span>
-                <button
-                  onClick={clearDateFilter}
-                  className="ml-1 p-0.5 hover:bg-purple-200 rounded-full"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-
-            {/* Active Status Filter Tag */}
-            {filterStatus !== 'all' && (
-              <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm">
-                <span>Status:</span>
-                <span className="font-medium">
-                  {filterStatus === 'outstanding'
-                    ? 'Outstanding'
-                    : filterStatus === 'overdue'
-                      ? 'Overdue'
-                      : (INVOICE_STATUS_LABELS as any)[filterStatus] || filterStatus}
-                </span>
-                <button
-                  onClick={() => updateFilters({ status: null, outstanding_only: null, overdue_only: null })}
-                  className="ml-1 p-0.5 hover:bg-purple-200 rounded-full"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-
-            {/* Active Recurring Filter Tag */}
-            {showRecurringOnly && (
-              <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm">
-                <Repeat className="h-3.5 w-3.5" />
-                <span className="font-medium">Recurring Only</span>
-                <button
-                  onClick={() => setShowRecurringOnly(false)}
-                  className="ml-1 p-0.5 hover:bg-purple-200 rounded-full"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-
-            {/* Active Parent Template Filter Tag */}
-            {parentInvoiceId && (
-              <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm">
-                <Repeat className="h-3.5 w-3.5" />
-                <span>Generated from:</span>
-                <span className="font-medium">
-                  {parentTemplateInfo?.invoice_number || 'Template'}
-                </span>
-                <button
-                  onClick={clearParentFilter}
-                  className="ml-1 p-0.5 hover:bg-purple-200 rounded-full"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-
-            {/* Filter Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  filterStatus !== 'all' || showRecurringOnly
-                    ? 'border-purple-500 bg-purple-50 text-purple-700'
-                    : 'border-gray-300 text-gray-700'
-                }`}
-              >
-                <Filter className="h-4 w-4" />
-                Filter
-                {(filterStatus !== 'all' || showRecurringOnly) && (
-                  <span className="bg-purple-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {(filterStatus !== 'all' ? 1 : 0) + (showRecurringOnly ? 1 : 0)}
-                  </span>
-                )}
-              </button>
-              {showFilterDropdown && (
-                <>
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setShowFilterDropdown(false)}
-                  />
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-40">
-                    {/* Status Filter Section */}
-                    <div className="p-3 border-b border-gray-200">
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Status</div>
-                      <div className="space-y-1">
-                        <button
-                          onClick={() => updateFilters({ status: null, outstanding_only: null, overdue_only: null })}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === 'all' ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                        >
-                          All Invoices
-                        </button>
-                        <button
-                          onClick={() => updateFilters({ outstanding_only: true, overdue_only: null, status: null })}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === 'outstanding' ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                        >
-                          Outstanding
-                        </button>
-                        <button
-                          onClick={() => updateFilters({ overdue_only: true, outstanding_only: null, status: null })}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === 'overdue' ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                        >
-                          Overdue
-                        </button>
-                        <button
-                          onClick={() => updateFilters({ status: (INVOICE_STATUS as any).DRAFT, outstanding_only: null, overdue_only: null })}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (INVOICE_STATUS as any).DRAFT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                        >
-                          Draft
-                        </button>
-                        <button
-                          onClick={() => updateFilters({ status: (INVOICE_STATUS as any).SENT, outstanding_only: null, overdue_only: null })}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (INVOICE_STATUS as any).SENT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                        >
-                          Sent
-                        </button>
-                        <button
-                          onClick={() => updateFilters({ status: (INVOICE_STATUS as any).PAID, outstanding_only: null, overdue_only: null })}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (INVOICE_STATUS as any).PAID ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
-                        >
-                          Paid
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Recurring Filter Section */}
-                    <div className="p-3 border-b border-gray-200">
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Type</div>
-                      <label className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showRecurringOnly}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShowRecurringOnly(e.target.checked)}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                        />
-                        <Repeat className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-gray-700">Show Recurring Only</span>
-                      </label>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="p-3 flex items-center justify-between">
-                      <button
-                        onClick={() => {
-                          updateFilters({ status: null, outstanding_only: null, overdue_only: null });
-                          setShowRecurringOnly(false);
-                        }}
-                        className="text-sm text-gray-600 hover:text-gray-900"
-                      >
-                        Clear All
-                      </button>
-                      <button
-                        onClick={() => setShowFilterDropdown(false)}
-                        className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Bulk Action Bar */}
-        {selectedIds.length > 0 && (
-          <div className="mb-4 bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-purple-900">
-              {selectedIds.length} invoice{selectedIds.length !== 1 ? 's' : ''} selected
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleBulkDownload}
-                disabled={isDownloading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-700 hover:bg-purple-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isDownloading ? (
-                  <>
-                    <div className="h-4 w-4 border-2 border-purple-700 border-t-transparent rounded-full animate-spin" />
-                    Downloading...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4" />
-                    Download
-                  </>
-                )}
-              </button>
-              <button
-                onClick={handleBulkDeleteClick}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 rounded-md transition-colors"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </button>
-              <button
-                onClick={() => setSelectedIds([])}
-                className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-        )}
+        <InvoiceListFilters
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showDateDropdown={showDateDropdown}
+          onToggleDateDropdown={() => setShowDateDropdown(!showDateDropdown)}
+          onCloseDateDropdown={() => setShowDateDropdown(false)}
+          datePreset={datePreset}
+          dateType={dateType}
+          customDateFrom={customDateFrom}
+          customDateTo={customDateTo}
+          onDateTypeChange={handleDateTypeChange}
+          onDateFilterChange={handleDateFilterChange}
+          onCustomDateChange={handleCustomDateChange}
+          onClearDateFilter={clearDateFilter}
+          getDateFilterLabel={getDateFilterLabel}
+          DATE_PRESETS={DATE_PRESETS}
+          showClientDropdown={showClientDropdown}
+          onToggleClientDropdown={() => setShowClientDropdown(!showClientDropdown)}
+          onCloseClientDropdown={() => setShowClientDropdown(false)}
+          selectedClientIds={selectedClientIds}
+          clientSearchQuery={clientSearchQuery}
+          onClientSearchChange={setClientSearchQuery}
+          filteredClients={filteredClients}
+          allClients={allClients}
+          clientsLoading={clientsLoading}
+          onClientToggle={handleClientToggle}
+          onClearClientSelection={handleClearClientSelection}
+          onApplyClientFilter={handleApplyClientFilter}
+          getClientDisplayName={getClientDisplayName}
+          filterStatus={filterStatus}
+          showFilterDropdown={showFilterDropdown}
+          onToggleFilterDropdown={() => setShowFilterDropdown(!showFilterDropdown)}
+          onCloseFilterDropdown={() => setShowFilterDropdown(false)}
+          updateFilters={updateFilters}
+          showRecurringOnly={showRecurringOnly}
+          onSetShowRecurringOnly={setShowRecurringOnly}
+          parentInvoiceId={parentInvoiceId}
+          parentTemplateInfo={parentTemplateInfo}
+          onClearParentFilter={clearParentFilter}
+          selectedIds={selectedIds}
+          isDownloading={isDownloading}
+          onBulkDownload={handleBulkDownload}
+          onBulkDeleteClick={handleBulkDeleteClick}
+          onClearSelection={() => setSelectedIds([])}
+        />
 
         {/* Table */}
-        <div className="bg-white border border-gray-200 rounded-lg">
-          <div className="overflow-x-auto rounded-lg">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="w-12 px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length === paginatedInvoices.length && paginatedInvoices.length > 0}
-                      onChange={handleSelectAll}
-                      className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                    />
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Invoice
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Client
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Due Date
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="w-12 px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {loading ? (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-500">
-                      Loading invoices...
-                    </td>
-                  </tr>
-                ) : paginatedInvoices.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-500">
-                      No invoices found
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedInvoices.map((invoice: any) => {
-                    return (
-                      <tr
-                        key={invoice.id}
-                        className="hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => handleView(invoice)}
-                      >
-                        <td className="px-4 py-3" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(invoice.id)}
-                            onChange={() => handleSelectOne(invoice.id)}
-                            className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                          #{invoice.invoice_number || '-'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {invoice.contact?.business_name ||
-                           (invoice.contact?.first_name && invoice.contact?.last_name
-                             ? `${invoice.contact.first_name} ${invoice.contact.last_name}`
-                             : '-')}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          {formatDate(invoice.issue_date || invoice.invoice_date)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          {formatDate(invoice.due_date)}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                          {invoice.currency?.symbol || getCurrencySymbol(invoice.currency?.code)}{formatNumber(typeof invoice.total === 'number' ? invoice.total : parseFloat(invoice.total || 0))}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex flex-wrap gap-1">
-                            <StatusBadge status={invoice.status} />
-
-                            {/* Recurring status badge */}
-                            {(invoice.pricing_type === 'recurring' || invoice.is_recurring) && (
-                              <span className={`px-2 py-1 text-xs font-medium rounded inline-flex items-center gap-1 ${
-                                invoice.parent_invoice_id
-                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                                  : invoice.recurring_status === 'paused'
-                                    ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                    : invoice.recurring_status === 'cancelled'
-                                      ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                                      : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                              }`}>
-                                {!invoice.parent_invoice_id && <Repeat className="h-3 w-3" />}
-                                {invoice.parent_invoice_id
-                                  ? 'Auto-Generated'
-                                  : invoice.recurring_status === 'paused'
-                                    ? 'Paused'
-                                    : invoice.recurring_status === 'cancelled'
-                                      ? 'Cancelled'
-                                      : 'Active'}
-                              </span>
-                            )}
-
-                            {/* Generated invoice badge */}
-                            {invoice.generated_from_template && (
-                              <span className="px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                                Gen #{invoice.recurrence_sequence_number || 'N/A'}
-                              </span>
-                            )}
-
-                            {/* Outstanding balance badge */}
-                            {invoice.outstanding_balance && parseFloat(invoice.outstanding_balance) !== 0 && (
-                              <span className={`px-2 py-1 text-xs font-medium rounded ${
-                                parseFloat(invoice.outstanding_balance) > 0
-                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                  : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                              }`}>
-                                {parseFloat(invoice.outstanding_balance) > 0
-                                  ? `${invoice.currency?.symbol || getCurrencySymbol(invoice.currency?.code)}${formatNumber(parseFloat(invoice.outstanding_balance))} Due`
-                                  : `${invoice.currency?.symbol || getCurrencySymbol(invoice.currency?.code)}${formatNumber(Math.abs(parseFloat(invoice.outstanding_balance)))} Credit`
-                                }
-                              </span>
-                            )}
-
-                            {/* Auto-billing failed badge */}
-                            {invoice.auto_billing_failed && (
-                              <span className="px-2 py-1 text-xs font-medium rounded bg-red-600 text-white inline-flex items-center gap-1">
-                                <AlertCircle className="h-3 w-3" />
-                                Payment Failed
-                              </span>
-                            )}
-
-                            {/* Auto-billing retry scheduled badge */}
-                            {!invoice.auto_billing_failed && invoice.next_auto_billing_retry_at && (
-                              <span className="px-2 py-1 text-xs font-medium rounded bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 inline-flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                Retry Scheduled
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                          <div className="relative inline-block">
-                            <button
-                              id={`action-btn-${invoice.id}`}
-                              onClick={() => setOpenActionMenuId(openActionMenuId === invoice.id ? null : invoice.id)}
-                              className="p-1 hover:bg-gray-100 rounded-md transition-colors"
-                            >
-                              <MoreVertical className="h-4 w-4 text-gray-400" />
-                            </button>
-                            {openActionMenuId === invoice.id && (
-                              <ActionMenu
-                                itemId={invoice.id}
-                                onClose={() => setOpenActionMenuId(null)}
-                                actions={[
-                                  { label: 'View', onClick: () => handleView(invoice) },
-                                  { label: 'Edit', onClick: () => handleEdit(invoice) },
-                                  { label: 'Send', onClick: () => handleSend(invoice) },
-                                  { label: 'Send Reminder', onClick: () => handleSendReminder(invoice), condition: canSendReminder(invoice) },
-                                  { label: 'Download PDF', onClick: () => handleDownloadPDF(invoice) },
-                                  { label: 'Clone', onClick: () => handleClone(invoice) },
-                                  { label: 'Delete', onClick: () => handleDeleteClick(invoice), variant: 'danger' },
-                                ]}
-                              />
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Controls */}
-          {!loading && paginatedInvoices.length > 0 && totalPages > 1 && (
-            <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-              <div className="flex-1 flex justify-between sm:hidden">
-                {/* Mobile pagination */}
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    Showing{' '}
-                    <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span>
-                    {' '}to{' '}
-                    <span className="font-medium">
-                      {Math.min(currentPage * itemsPerPage, filteredInvoices.length)}
-                    </span>
-                    {' '}of{' '}
-                    <span className="font-medium">{filteredInvoices.length}</span>
-                    {' '}results
-                  </p>
-                </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                    {/* Previous button */}
-                    <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <span className="sr-only">Previous</span>
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-
-                    {/* Page numbers */}
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                      // Show first page, last page, current page, and pages around current
-                      if (
-                        page === 1 ||
-                        page === totalPages ||
-                        (page >= currentPage - 1 && page <= currentPage + 1)
-                      ) {
-                        return (
-                          <button
-                            key={page}
-                            onClick={() => handlePageChange(page)}
-                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                              currentPage === page
-                                ? 'z-10 bg-purple-50 border-purple-500 text-purple-600'
-                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        );
-                      } else if (page === currentPage - 2 || page === currentPage + 2) {
-                        return (
-                          <span
-                            key={page}
-                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
-                          >
-                            ...
-                          </span>
-                        );
-                      }
-                      return null;
-                    })}
-
-                    {/* Next button */}
-                    <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <span className="sr-only">Next</span>
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </nav>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <InvoiceListTable
+          loading={loading}
+          paginatedInvoices={paginatedInvoices}
+          selectedIds={selectedIds}
+          onSelectAll={handleSelectAll}
+          onSelectOne={handleSelectOne}
+          onView={handleView}
+          onEdit={handleEdit}
+          onSend={handleSend}
+          onSendReminder={handleSendReminder}
+          canSendReminder={canSendReminder}
+          onDownloadPDF={handleDownloadPDF}
+          onClone={handleClone}
+          onDeleteClick={handleDeleteClick}
+          openActionMenuId={openActionMenuId}
+          onSetOpenActionMenuId={setOpenActionMenuId}
+          formatNumber={formatNumber}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          itemsPerPage={itemsPerPage}
+          filteredInvoicesLength={filteredInvoices.length}
+          onPageChange={handlePageChange}
+        />
       </div>
 
       {/* Send Invoice Dialog */}

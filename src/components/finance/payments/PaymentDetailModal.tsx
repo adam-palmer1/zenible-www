@@ -4,7 +4,10 @@ import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
   PAYMENT_TYPE_LABELS,
-  PAYMENT_METHOD_LABELS
+  PAYMENT_METHOD_LABELS,
+  type PaymentStatus,
+  type PaymentType,
+  type PaymentMethod,
 } from '../../../constants/finance';
 import { formatCurrency } from '../../../utils/currency';
 import { formatDate } from '../../../utils/dateUtils';
@@ -21,7 +24,7 @@ interface PaymentDetailModalProps {
 }
 
 const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, onClose, payment: paymentProp, refreshKey }) => {
-  const { openRefundModal, refresh } = usePayments() as any;
+  const { openRefundModal, refresh } = usePayments();
   const [payment, setPayment] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showAssignExpenseModal, setShowAssignExpenseModal] = useState(false);
@@ -36,8 +39,8 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, onClose
       if (showLoading) setLoadingDetails(true);
       // Fetch payment details and project allocations in parallel
       const [paymentData, allocationsData] = await Promise.all([
-        (paymentsAPI as any).get(paymentProp.id),
-        (paymentsAPI as any).getProjectAllocations(paymentProp.id).catch(() => ({ allocations: [] })),
+        paymentsAPI.get(paymentProp.id) as Promise<Record<string, unknown>>,
+        paymentsAPI.getProjectAllocations(paymentProp.id).catch(() => ({ allocations: [] })) as Promise<{ allocations?: unknown[] }>,
       ]);
       // Merge allocations into payment object
       setPayment({
@@ -148,12 +151,12 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, onClose
         <div className="p-4 space-y-6">
           {/* Status Badge */}
           <div className="flex items-center justify-between">
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${(PAYMENT_STATUS_COLORS as any)[payment.status] || 'bg-gray-100 text-gray-700'}`}>
-              {(PAYMENT_STATUS_LABELS as any)[payment.status] || payment.status}
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${PAYMENT_STATUS_COLORS[payment.status as PaymentStatus] || 'bg-gray-100 text-gray-700'}`}>
+              {PAYMENT_STATUS_LABELS[payment.status as PaymentStatus] || payment.status}
             </span>
             {payment.type && (
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {(PAYMENT_TYPE_LABELS as any)[payment.type] || payment.type}
+                {PAYMENT_TYPE_LABELS[payment.type as PaymentType] || payment.type}
               </span>
             )}
           </div>
@@ -202,7 +205,7 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, onClose
                 Method
               </div>
               <div className="text-sm font-medium text-gray-900 dark:text-white">
-                {(PAYMENT_METHOD_LABELS as any)[payment.payment_method] || payment.payment_method || '-'}
+                {PAYMENT_METHOD_LABELS[payment.payment_method as PaymentMethod] || payment.payment_method || '-'}
               </div>
             </div>
 

@@ -60,7 +60,7 @@ const ServicesView: React.FC<ServicesViewProps> = ({
       frequencyType: frequencyTypeFilter,
     },
     refreshKey
-  ) as any;
+  );
 
   // Filter default services by search query
   const filteredDefaultServices = useMemo(() => {

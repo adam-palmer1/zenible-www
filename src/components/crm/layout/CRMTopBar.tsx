@@ -32,7 +32,7 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
   updatePreference,
   activeTab = 'crm',
 }) => {
-  const usageContext = useUsageDashboardOptional() as any;
+  const usageContext = useUsageDashboardOptional();
 
   // Map activeTab to entity type for usage limits
   const getEntityType = () => {

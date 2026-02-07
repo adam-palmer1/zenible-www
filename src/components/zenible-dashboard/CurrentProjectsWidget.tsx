@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RectangleStackIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import { PROJECT_STATUS, PROJECT_STATUS_LABELS, PROJECT_STATUS_HEX_COLORS } from '../../constants/crm';
+import { PROJECT_STATUS, PROJECT_STATUS_LABELS, PROJECT_STATUS_HEX_COLORS, type ProjectStatus } from '../../constants/crm';
 import projectsAPI from '../../services/api/crm/projects';
 import { useNavigate } from 'react-router-dom';
 
@@ -18,11 +18,11 @@ const CurrentProjectsWidget = () => {
       try {
         setLoading(true);
         // Fetch active, planning, and on_hold projects
-        const response = await (projectsAPI as any).list({
-          statuses: [(PROJECT_STATUS as any).ACTIVE, (PROJECT_STATUS as any).PLANNING, (PROJECT_STATUS as any).ON_HOLD]
-        });
+        const response = await projectsAPI.list({
+          statuses: [PROJECT_STATUS.ACTIVE, PROJECT_STATUS.PLANNING, PROJECT_STATUS.ON_HOLD]
+        }) as { items?: { id: string; name: string; status: string; start_date?: string; services_count?: number }[] };
         // Sort by start_date (most recent first) and limit to 3
-        const sortedProjects = (response.items || response || [])
+        const sortedProjects = (response.items || [])
           .sort((a: any, b: any) => {
             if (!a.start_date) return 1;
             if (!b.start_date) return -1;
@@ -97,10 +97,10 @@ const CurrentProjectsWidget = () => {
                   <div className="flex items-center gap-2 mt-1">
                     <div
                       className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: (PROJECT_STATUS_HEX_COLORS as any)[project.status] }}
+                      style={{ backgroundColor: PROJECT_STATUS_HEX_COLORS[project.status as ProjectStatus] }}
                     />
                     <span className="text-xs text-gray-500">
-                      {(PROJECT_STATUS_LABELS as any)[project.status]}
+                      {PROJECT_STATUS_LABELS[project.status as ProjectStatus]}
                     </span>
                     {project.services_count > 0 && (
                       <>

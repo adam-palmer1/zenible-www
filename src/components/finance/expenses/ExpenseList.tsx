@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Filter, MoreVertical, Repeat, ArrowUpDown, ArrowUp, ArrowDown, PieChart, Users, X, Check } from 'lucide-react';
 import { useExpenses } from '../../../contexts/ExpenseContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
@@ -8,6 +8,7 @@ import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { formatCurrency } from '../../../utils/currency';
 import expensesAPI from '../../../services/api/finance/expenses';
+import type { ExpenseStatusEnum } from '../../../types/finance';
 import ExpenseHistoryModal from './ExpenseHistoryModal';
 import ExpenseFormModal from './ExpenseFormModal';
 import DateRangeFilter from './DateRangeFilter';
@@ -86,7 +87,6 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({ label, sortKey, current
 };
 
 const ExpenseList: React.FC = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     expenses,
@@ -108,11 +108,11 @@ const ExpenseList: React.FC = () => {
     selectAllExpenses,
     clearSelection,
     refresh,
-  } = useExpenses() as any;
-  const { contacts: vendors } = useContacts({ is_vendor: true, per_page: 500, sort_by: 'last_used', sort_order: 'desc' }) as any;
-  const { showSuccess, showError, showConfirm } = useNotification() as any;
-  const { numberFormats } = useCRMReferenceData() as any;
-  const { getNumberFormat } = useCompanyAttributes() as any;
+  } = useExpenses();
+  const { contacts: vendors } = useContacts({ is_vendor: true, per_page: 500, sort_by: 'last_used', sort_order: 'desc' });
+  const { showSuccess, showError, showConfirm } = useNotification();
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
 
   // URL parameter for opening specific expense
   const urlExpenseId = searchParams.get('expense');
@@ -135,7 +135,7 @@ const ExpenseList: React.FC = () => {
   const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(null);
   const [selectedExpenseName, setSelectedExpenseName] = useState('');
   const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const [, setExporting] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editExpenseId, setEditExpenseId] = useState<string | null>(null);
   const [dateField, setDateField] = useState(filters.date_field || 'entry'); // 'entry' (expense_date) or 'paid' (paid_at)
@@ -191,7 +191,7 @@ const ExpenseList: React.FC = () => {
     // Set a new timeout to update filters after debounce period
     searchTimeoutRef.current = setTimeout(() => {
       if (searchQuery !== (filters.search || '')) {
-        updateFilters({ search: searchQuery || null });
+        updateFilters({ search: searchQuery || '' });
       }
     }, 300);
 
@@ -246,7 +246,7 @@ const ExpenseList: React.FC = () => {
   };
 
   // Handle date field change (entry date vs paid date)
-  const handleDateFieldChange = (field: string) => {
+  const handleDateFieldChange = useCallback((field: string) => {
     setDateField(field);
     // Re-apply the current date filter with the new field
     if (filters.start_date || filters.end_date) {
@@ -258,16 +258,16 @@ const ExpenseList: React.FC = () => {
     } else {
       updateFilters({ date_field: field });
     }
-  };
+  }, [filters.start_date, filters.end_date, updateFilters]);
 
   // Handle date range change
-  const handleDateRangeChange = ({ start_date, end_date }: { start_date: string | null; end_date: string | null }) => {
+  const handleDateRangeChange = useCallback(({ start_date, end_date }: { start_date: string | null; end_date: string | null }) => {
     updateFilters({
       start_date,
       end_date,
       date_field: dateField,
     });
-  };
+  }, [updateFilters, dateField]);
 
   // Handle vendor filter toggle (updates pending state only)
   const handleVendorToggle = (vendorId: string) => {
@@ -329,48 +329,49 @@ const ExpenseList: React.FC = () => {
     return name || vendor.email || 'Unknown';
   };
 
-  const handleViewHistory = (expense: any) => {
+  const handleViewHistory = useCallback((expense: any) => {
     setSelectedExpenseId(expense.id);
     setSelectedExpenseName(expense.description || `Expense #${expense.expense_number}`);
     setShowHistory(true);
     setOpenActionMenuId(null);
-  };
+  }, []);
 
-  const handleView = (expense: any) => {
+  const handleView = useCallback((expense: any) => {
     setEditExpenseId(expense.id);
     setShowEditModal(true);
     setOpenActionMenuId(null);
-  };
+  }, []);
 
-  const handleEdit = (expense: any) => {
+  const handleEdit = useCallback((expense: any) => {
     setEditExpenseId(expense.id);
     setShowEditModal(true);
     setOpenActionMenuId(null);
-  };
+  }, []);
 
-  const handleEditModalClose = () => {
+  const handleEditModalClose = useCallback(() => {
     setShowEditModal(false);
     setEditExpenseId(null);
-  };
+  }, []);
 
-  const handleEditSuccess = () => {
+  const handleEditSuccess = useCallback(() => {
     // Expenses will be refreshed by the context after update
-    handleEditModalClose();
-  };
+    setShowEditModal(false);
+    setEditExpenseId(null);
+  }, []);
 
-  const handleOpenAllocation = (expense: any, e?: React.MouseEvent) => {
+  const handleOpenAllocation = useCallback((expense: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setAllocationExpense(expense);
     setShowAllocationModal(true);
     setOpenActionMenuId(null);
-  };
+  }, []);
 
-  const handleAllocationUpdate = () => {
+  const handleAllocationUpdate = useCallback(() => {
     // Refresh expenses to get updated allocation data
     refresh();
-  };
+  }, [refresh]);
 
-  const handleDelete = async (expense: any) => {
+  const handleDelete = useCallback(async (expense: any) => {
     const confirmed = await showConfirm('Delete Expense', 'Are you sure you want to delete this expense?');
     if (confirmed) {
       try {
@@ -381,17 +382,17 @@ const ExpenseList: React.FC = () => {
       }
     }
     setOpenActionMenuId(null);
-  };
+  }, [showConfirm, deleteExpense, showSuccess, showError]);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (selectedExpenseIds.length === filteredExpenses.length) {
       clearSelection();
     } else {
       selectAllExpenses();
     }
-  };
+  }, [selectedExpenseIds.length, filteredExpenses.length, clearSelection, selectAllExpenses]);
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = useCallback(async () => {
     const confirmed = await showConfirm(
       'Delete Expenses',
       `Are you sure you want to delete ${selectedExpenseIds.length} expense${selectedExpenseIds.length > 1 ? 's' : ''}?`
@@ -405,25 +406,25 @@ const ExpenseList: React.FC = () => {
         showError(error.message || 'Failed to delete expenses');
       }
     }
-  };
+  }, [selectedExpenseIds, showConfirm, bulkDeleteExpenses, clearSelection, showSuccess, showError]);
 
-  const handleBulkUpdateCategory = () => {
+  const handleBulkUpdateCategory = useCallback(() => {
     setShowBulkUpdateModal(true);
-  };
+  }, []);
 
-  const handleToggleStatus = async (expense: any) => {
-    const newStatus = expense.status === EXPENSE_STATUS.PAID ? EXPENSE_STATUS.PENDING : EXPENSE_STATUS.PAID;
+  const handleToggleStatus = useCallback(async (expense: any) => {
+    const newStatus = (expense.status === EXPENSE_STATUS.PAID ? EXPENSE_STATUS.PENDING : EXPENSE_STATUS.PAID) as ExpenseStatusEnum;
     try {
-      await (expensesAPI as any).update(expense.id, { status: newStatus });
+      await expensesAPI.update(expense.id, { status: newStatus });
       showSuccess(`Expense marked as ${EXPENSE_STATUS_LABELS[newStatus]}`);
       refresh();
     } catch (error: any) {
       showError(error.message || 'Failed to update expense status');
     }
     setOpenActionMenuId(null);
-  };
+  }, [showSuccess, showError, refresh]);
 
-  const handleBulkUpdateConfirm = async (updates: any) => {
+  const handleBulkUpdateConfirm = useCallback(async (updates: any) => {
     try {
       await bulkUpdateExpenses(selectedExpenseIds, updates);
       showSuccess(`${selectedExpenseIds.length} expense${selectedExpenseIds.length > 1 ? 's' : ''} updated successfully`);
@@ -431,9 +432,9 @@ const ExpenseList: React.FC = () => {
     } catch (error: any) {
       showError(error.message || 'Failed to update expenses');
     }
-  };
+  }, [selectedExpenseIds, bulkUpdateExpenses, showSuccess, showError]);
 
-  const handleExportCSV = async () => {
+  const _handleExportCSV = useCallback(async () => {
     try {
       setExporting(true);
       const exportParams: Record<string, any> = {};
@@ -443,7 +444,7 @@ const ExpenseList: React.FC = () => {
         }
       });
 
-      const blob = await (expensesAPI as any).exportCSV(exportParams);
+      const blob = await expensesAPI.exportCSV(exportParams);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -460,7 +461,7 @@ const ExpenseList: React.FC = () => {
     } finally {
       setExporting(false);
     }
-  };
+  }, [filters, showSuccess, showError]);
 
   // Status badge component
   const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -818,7 +819,7 @@ const ExpenseList: React.FC = () => {
                           compact={true}
                           showLabel={true}
                           showTooltip={true}
-                          onClick={(e: React.MouseEvent) => handleOpenAllocation(expense, e)}
+                          onClick={(e?: React.MouseEvent) => handleOpenAllocation(expense, e)}
                         />
                       </div>
                     </td>

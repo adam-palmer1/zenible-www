@@ -1,12 +1,22 @@
-import React, { useMemo } from 'react';
-import SalesPipeline from '../SalesPipelineNew';
-import ContactsListView from '../ContactsListView';
-import ClientsView from '../ClientsView';
-import VendorsView from '../VendorsView';
-import ServicesView from '../ServicesView';
-import ProjectsTable from '../ProjectsTable';
+import React, { Suspense, useMemo } from 'react';
 import { ContactActionsProvider } from '../../../contexts/ContactActionsContext';
 import contactsAPI from '../../../services/api/crm/contacts';
+
+// Lazy-load tab views - only one is rendered at a time
+const SalesPipeline = React.lazy(() => import('../SalesPipelineNew'));
+const ContactsListView = React.lazy(() => import('../ContactsListView'));
+const ClientsView = React.lazy(() => import('../ClientsView'));
+const VendorsView = React.lazy(() => import('../VendorsView'));
+const ServicesView = React.lazy(() => import('../ServicesView'));
+const ProjectsTable = React.lazy(() => import('../ProjectsTable'));
+
+function TabLoadingFallback() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  );
+}
 
 interface CRMTabContentProps {
   activeTab: string;
@@ -109,19 +119,21 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
             }}
             onRefreshContacts={refreshWithScrollPreservation}
           >
-            <SalesPipeline
-              contacts={filteredContacts}
-              statuses={orderedStatuses}
-              globalStatuses={globalStatuses}
-              customStatuses={customStatuses}
-              onAddContact={() => openContactModal()}
-              onContactClick={selectContact}
-              onUpdateContact={updateContact}
-              sortOrder={sortOrder}
-              onStatusUpdate={handleStatusUpdate}
-              onRefresh={refreshWithScrollPreservation}
-              onColumnReorder={handleColumnReorder}
-            />
+            <Suspense fallback={<TabLoadingFallback />}>
+              <SalesPipeline
+                contacts={filteredContacts}
+                statuses={orderedStatuses}
+                globalStatuses={globalStatuses}
+                customStatuses={customStatuses}
+                onAddContact={() => openContactModal()}
+                onContactClick={selectContact}
+                onUpdateContact={updateContact}
+                sortOrder={sortOrder}
+                onStatusUpdate={handleStatusUpdate}
+                onRefresh={refreshWithScrollPreservation}
+                onColumnReorder={handleColumnReorder}
+              />
+            </Suspense>
           </ContactActionsProvider>
         </div>
       );
@@ -129,63 +141,73 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
 
     // List view
     return (
-      <ContactsListView
-        contacts={filteredContacts}
-        statuses={allStatuses}
-        onContactClick={selectContact}
-        onEdit={openContactModal}
-        onDelete={async (contact: any) => {
-          await contactsAPI.delete(contact.id);
-          window.location.reload(); // Temporary - should use proper refresh
-        }}
-        onUpdateStatus={async (contactId: string, updateData: any) => {
-          return await updateContact(contactId, updateData);
-        }}
-      />
+      <Suspense fallback={<TabLoadingFallback />}>
+        <ContactsListView
+          contacts={filteredContacts}
+          statuses={allStatuses}
+          onContactClick={selectContact}
+          onEdit={openContactModal}
+          onDelete={async (contact: any) => {
+            await contactsAPI.delete(contact.id);
+            window.location.reload(); // Temporary - should use proper refresh
+          }}
+          onUpdateStatus={async (contactId: string, updateData: any) => {
+            return await updateContact(contactId, updateData);
+          }}
+        />
+      </Suspense>
     );
   }
 
   if (activeTab === 'clients') {
     return (
-      <ClientsView
-        onClientClick={selectContact}
-        openContactModal={openContactModal}
-        refreshKey={refreshKey}
-        {...clientsFilters}
-      />
+      <Suspense fallback={<TabLoadingFallback />}>
+        <ClientsView
+          onClientClick={selectContact}
+          openContactModal={openContactModal}
+          refreshKey={refreshKey}
+          {...clientsFilters}
+        />
+      </Suspense>
     );
   }
 
   if (activeTab === 'vendors') {
     return (
-      <VendorsView
-        onVendorClick={selectContact}
-        openContactModal={openContactModal}
-        refreshKey={refreshKey}
-        {...vendorsFilters}
-      />
+      <Suspense fallback={<TabLoadingFallback />}>
+        <VendorsView
+          onVendorClick={selectContact}
+          openContactModal={openContactModal}
+          refreshKey={refreshKey}
+          {...vendorsFilters}
+        />
+      </Suspense>
     );
   }
 
   if (activeTab === 'services') {
     return (
-      <ServicesView
-        services={services}
-        servicesLoading={servicesLoading}
-        onEditService={openServiceModal}
-        onDeleteService={(service: any) => deleteService(service.id)}
-        onClientClick={selectContact}
-        refreshKey={refreshKey}
-        {...servicesFilters}
-      />
+      <Suspense fallback={<TabLoadingFallback />}>
+        <ServicesView
+          services={services}
+          servicesLoading={servicesLoading}
+          onEditService={openServiceModal}
+          onDeleteService={(service: any) => deleteService(service.id)}
+          onClientClick={selectContact}
+          refreshKey={refreshKey}
+          {...servicesFilters}
+        />
+      </Suspense>
     );
   }
 
   if (activeTab === 'projects') {
     return (
-      <div className="bg-white rounded-lg shadow h-full overflow-hidden">
-        <ProjectsTable selectedStatuses={projectsFilters?.selectedStatuses || []} />
-      </div>
+      <Suspense fallback={<TabLoadingFallback />}>
+        <div className="bg-white rounded-lg shadow h-full overflow-hidden">
+          <ProjectsTable selectedStatuses={projectsFilters?.selectedStatuses || []} />
+        </div>
+      </Suspense>
     );
   }
 

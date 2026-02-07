@@ -6,6 +6,50 @@ import BookingCalendar from '../../components/booking/BookingCalendar';
 import TimeSlotPicker from '../../components/booking/TimeSlotPicker';
 import BookingForm from '../../components/booking/BookingForm';
 
+import type {
+  AvailableSlotsResponse,
+  DayAvailability,
+  BookingConfirmationResponse,
+} from '../../types';
+
+/** Shape of the page data returned by the public booking page endpoint. */
+interface BookingPageData {
+  host: {
+    username: string;
+    name: string;
+    avatar_url: string | null;
+  };
+  call_type: {
+    id: string;
+    name: string;
+    shortcode: string;
+    description: string | null;
+    duration_minutes: number;
+    color: string | null;
+  };
+  timezone: string;
+  settings?: {
+    min_notice_hours?: number;
+    max_days_ahead?: number;
+  };
+}
+
+/** A visitor-timezone-adjusted time slot. */
+interface VisitorSlot {
+  hostDate: string;
+  time: string;
+  adjustedDate?: Date;
+  visitorTime?: string;
+}
+
+/** Form data submitted by the booking form. */
+interface BookingFormData {
+  name: string;
+  email: string;
+  phone?: string;
+  notes?: string;
+}
+
 interface TimezoneEntry {
   value: string;
   label: string;
@@ -110,7 +154,7 @@ const PublicBookingPage: React.FC = () => {
   const { username, shortcode } = useParams<{ username: string; shortcode: string }>();
 
   // Page data state
-  const [pageData, setPageData] = useState<any>(null);
+  const [pageData, setPageData] = useState<BookingPageData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -119,15 +163,15 @@ const PublicBookingPage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedTimeDisplay, setSelectedTimeDisplay] = useState<string | null>(null);
-  const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<(string | VisitorSlot)[]>([]);
   const [slotsLoading, setSlotsLoading] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [bookingResult, setBookingResult] = useState<any>(null);
+  const [bookingResult, setBookingResult] = useState<BookingConfirmationResponse | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Availability data for the visible calendar range (keyed by date)
   const [availabilityData, setAvailabilityData] = useState<Record<string, string[]>>({});
-  const [availabilityLoading, setAvailabilityLoading] = useState<boolean>(false);
+  const [, setAvailabilityLoading] = useState<boolean>(false);
 
   // Timezone state - default to visitor's detected timezone
   const [selectedTimezone, setSelectedTimezone] = useState<string>(() =>
@@ -145,16 +189,17 @@ const PublicBookingPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await (publicBookingAPI as any).getCallTypePage(username, shortcode);
+        const data = await publicBookingAPI.getCallTypePage<BookingPageData>(username!, shortcode!);
         setPageData(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const apiError = err as { status?: number; message?: string };
         console.error('Error fetching call type page:', err);
-        if (err.status === 404) {
+        if (apiError.status === 404) {
           setError('Booking page not found');
-        } else if (err.status === 403) {
+        } else if (apiError.status === 403) {
           setError('Booking is not available');
         } else {
-          setError(err.message || 'Failed to load booking page');
+          setError(apiError.message || 'Failed to load booking page');
         }
       } finally {
         setLoading(false);
@@ -173,16 +218,16 @@ const PublicBookingPage: React.FC = () => {
     try {
       setAvailabilityLoading(true);
 
-      const data = await (publicBookingAPI as any).getAvailableSlots(
-        username,
-        shortcode,
+      const data = await publicBookingAPI.getAvailableSlots<AvailableSlotsResponse>(
+        username!,
+        shortcode!,
         startDate,
         endDate
       );
 
       // Convert days array to object keyed by date
       const newAvailability: Record<string, string[]> = {};
-      (data.days as any[])?.forEach((day: any) => {
+      data.days?.forEach((day: DayAvailability) => {
         if (day.slots && day.slots.length > 0) {
           newAvailability[day.date] = day.slots;
         }
@@ -230,7 +275,7 @@ const PublicBookingPage: React.FC = () => {
     }
 
     // Group slots by their date in the visitor's timezone
-    const visitorSlots: Record<string, any[]> = {};
+    const visitorSlots: Record<string, VisitorSlot[]> = {};
 
     Object.entries(availabilityData).forEach(([hostDate, slots]) => {
       slots.forEach((time) => {
@@ -284,7 +329,7 @@ const PublicBookingPage: React.FC = () => {
             adjustedDate,
             visitorTime: visitorTimeFormatted, // Pre-formatted for display
           });
-        } catch (e) {
+        } catch (_e) {
           // On error, keep original date
           if (!visitorSlots[hostDate]) {
             visitorSlots[hostDate] = [];
@@ -296,7 +341,7 @@ const PublicBookingPage: React.FC = () => {
 
     // Sort slots within each date by time
     Object.values(visitorSlots).forEach((slots) => {
-      slots.sort((a: any, b: any) => (a.adjustedDate || 0) - (b.adjustedDate || 0));
+      slots.sort((a: VisitorSlot, b: VisitorSlot) => (a.adjustedDate?.getTime() || 0) - (b.adjustedDate?.getTime() || 0));
     });
 
     return {
@@ -317,7 +362,7 @@ const PublicBookingPage: React.FC = () => {
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
     // Find the display time for this slot
-    const slot = availableSlots.find((s: any) => (typeof s === 'object' ? s.time : s) === time);
+    const slot = availableSlots.find((s: string | VisitorSlot) => (typeof s === 'object' ? s.time : s) === time);
     const displayTime = slot && typeof slot === 'object' && slot.visitorTime
       ? slot.visitorTime
       : formatTime(time);
@@ -326,7 +371,7 @@ const PublicBookingPage: React.FC = () => {
   };
 
   // Handle form submission
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: BookingFormData) => {
     try {
       setSubmitting(true);
       setSubmitError(null);
@@ -343,20 +388,21 @@ const PublicBookingPage: React.FC = () => {
         notes: formData.notes || null,
       };
 
-      const result = await (publicBookingAPI as any).createBooking(username, shortcode, bookingData);
+      const result = await publicBookingAPI.createBooking<BookingConfirmationResponse>(username!, shortcode!, bookingData);
       setBookingResult(result);
       setStep('confirmed');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const apiError = err as { status?: number; message?: string };
       console.error('Error creating booking:', err);
-      if (err.status === 409) {
+      if (apiError.status === 409) {
         setSubmitError('This time slot is no longer available. Please select another time.');
         setStep('calendar');
         setSelectedTime(null);
         // Refetch single date to get updated slots
         setSlotsLoading(true);
         try {
-          const data = await (publicBookingAPI as any).getAvailableSlots(username, shortcode, selectedDate, selectedDate);
-          const dayData = (data.days as any[])?.find((d: any) => d.date === selectedDate);
+          const data = await publicBookingAPI.getAvailableSlots<AvailableSlotsResponse>(username!, shortcode!, selectedDate!, selectedDate!);
+          const dayData = data.days?.find((d: DayAvailability) => d.date === selectedDate);
           const slots = dayData?.slots || [];
           setAvailabilityData((prev) => ({ ...prev, [selectedDate as string]: slots }));
           setAvailableSlots(slots);
@@ -366,7 +412,7 @@ const PublicBookingPage: React.FC = () => {
           setSlotsLoading(false);
         }
       } else {
-        setSubmitError(err.message || 'Failed to create booking. Please try again.');
+        setSubmitError(apiError.message || 'Failed to create booking. Please try again.');
       }
     } finally {
       setSubmitting(false);
@@ -456,7 +502,7 @@ const PublicBookingPage: React.FC = () => {
     );
   }
 
-  const { host, call_type } = pageData;
+  const { host, call_type } = pageData!;
 
   // Confirmed state
   if (step === 'confirmed' && bookingResult) {
@@ -642,7 +688,7 @@ const PublicBookingPage: React.FC = () => {
                 </h2>
                 <BookingCalendar
                   availableDates={availableDates}
-                  selectedDate={selectedDate}
+                  selectedDate={selectedDate ?? undefined}
                   onSelect={handleDateSelect}
                   onMonthChange={handleMonthChange}
                   minDate={minDate}
@@ -663,7 +709,7 @@ const PublicBookingPage: React.FC = () => {
                 {selectedDate ? (
                   <TimeSlotPicker
                     slots={availableSlots}
-                    selectedTime={selectedTime}
+                    selectedTime={selectedTime ?? undefined}
                     onSelect={handleTimeSelect}
                     loading={slotsLoading}
                   />
@@ -679,9 +725,9 @@ const PublicBookingPage: React.FC = () => {
           {step === 'form' && (
             <div className="p-6">
               <BookingForm
-                date={selectedDate}
-                time={selectedTime}
-                displayTime={selectedTimeDisplay}
+                date={selectedDate ?? ''}
+                time={selectedTime ?? ''}
+                displayTime={selectedTimeDisplay ?? undefined}
                 duration={call_type.duration_minutes}
                 timezone={timezoneLabel}
                 onSubmit={handleSubmit}

@@ -1,6 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import { contactsAPI } from '../../services/api/crm';
 import { removeItem, updateItem, prependItem } from '../../utils/stateHelpers';
+import type {
+  ContactResponse,
+  ContactCreate,
+  ContactServiceCreate,
+  ContactServiceAttributionCreate,
+  ContactServiceInvoiceCreate,
+  PaginatedResponse,
+} from '../../types';
 
 interface Pagination {
   page: number;
@@ -23,7 +31,7 @@ export function useContacts(
   options: UseContactsOptions = {}
 ) {
   const { skipInitialFetch = false } = options;
-  const [contacts, setContacts] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<ContactResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<Pagination>({
@@ -46,16 +54,16 @@ export function useContacts(
         sort_order: 'desc',
         ...filters,
         ...params,
-      };
+      } as unknown as Record<string, string>;
 
-      const response = await contactsAPI.list(mergedParams as any);
+      const response = await contactsAPI.list(mergedParams);
 
-      setContacts((response as any).items || []);
+      setContacts(response.items || []);
       setPagination({
-        page: (response as any).page,
-        per_page: (response as any).per_page,
-        total: (response as any).total,
-        total_pages: (response as any).total_pages,
+        page: response.page,
+        per_page: response.per_page,
+        total: response.total,
+        total_pages: response.total_pages,
       });
 
       return response;
@@ -85,7 +93,7 @@ export function useContacts(
   }, []);
 
   // Create contact
-  const createContact = useCallback(async (data: Record<string, unknown>): Promise<unknown> => {
+  const createContact = useCallback(async (data: ContactCreate): Promise<unknown> => {
     try {
       setLoading(true);
       setError(null);
@@ -122,12 +130,12 @@ export function useContacts(
 
       // Update in local state - merge with existing contact to preserve fields
       // that may not be returned by the PATCH API (like service counts, totals, etc.)
-      setContacts(prev => updateItem(prev, contactId, (existingContact: unknown) => ({
-        ...(existingContact as any),
-        ...(updatedContact as any),
+      setContacts(prev => updateItem(prev, contactId, (existingContact: ContactResponse) => ({
+        ...existingContact,
+        ...(updatedContact as ContactResponse),
       })));
 
-      return { success: true, ...(updatedContact as any) };
+      return { success: true, ...(updatedContact as ContactResponse) };
     } catch (err: unknown) {
       console.error('[useContacts] Failed to update contact:', err);
       setError((err as Error).message);
@@ -181,14 +189,14 @@ export function useContacts(
   }, []);
 
   // Create contact-specific service
-  const createContactService = useCallback(async (contactId: string, serviceData: Record<string, unknown>): Promise<unknown> => {
+  const createContactService = useCallback(async (contactId: string, serviceData: ContactServiceCreate): Promise<unknown> => {
     try {
       setLoading(true);
       setError(null);
       const updatedContact = await contactsAPI.createContactService(contactId, serviceData);
 
-      // Update in local state
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
+      // Update in local state - service response used to update contact entry
+      setContacts(prev => updateItem(prev, contactId, updatedContact as unknown as ContactResponse));
 
       return updatedContact;
     } catch (err: unknown) {
@@ -207,8 +215,8 @@ export function useContacts(
       setError(null);
       const updatedContact = await contactsAPI.assignService(contactId, serviceId);
 
-      // Update in local state
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
+      // Update in local state - service response used to update contact entry
+      setContacts(prev => updateItem(prev, contactId, updatedContact as unknown as ContactResponse));
 
       return updatedContact;
     } catch (err: unknown) {
@@ -286,7 +294,7 @@ export function useContacts(
   const createAttribution = useCallback(async (
     contactId: string,
     serviceId: string,
-    data: Record<string, unknown>
+    data: ContactServiceAttributionCreate
   ): Promise<unknown> => {
     try {
       setError(null);
@@ -346,7 +354,7 @@ export function useContacts(
   const createInvoiceLink = useCallback(async (
     contactId: string,
     serviceId: string,
-    data: Record<string, unknown>
+    data: ContactServiceInvoiceCreate
   ): Promise<unknown> => {
     try {
       setError(null);

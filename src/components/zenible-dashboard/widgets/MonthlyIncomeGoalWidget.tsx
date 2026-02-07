@@ -3,6 +3,7 @@ import { TrophyIcon } from '@heroicons/react/24/outline';
 import reportsAPI from '../../../services/api/finance/reports';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { formatCurrency } from '../../../utils/currency';
+import { LoadingSpinner } from '../../shared';
 
 interface MonthlyIncomeGoalWidgetProps {
   settings?: Record<string, any>;
@@ -13,7 +14,7 @@ interface MonthlyIncomeGoalWidgetProps {
  * Shows progress toward monthly income target with two-segment ring
  */
 const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps) => {
-  const { defaultCurrency: companyDefaultCurrency, loading: currencyLoading } = useCompanyCurrencies() as any;
+  const { defaultCurrency: companyDefaultCurrency, loading: currencyLoading } = useCompanyCurrencies();
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +37,7 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        const response = await (reportsAPI as any).getSummary({
+        const response = await reportsAPI.getSummary({
           start_date: startOfMonth.toISOString().split('T')[0],
           end_date: endOfMonth.toISOString().split('T')[0],
         });
@@ -66,7 +67,6 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
   // Dash arrays for segments
   const paymentsDash = (paymentsPercent / 100) * circumference;
   const outstandingDash = (outstandingPercent / 100) * circumference;
-  const paymentsDashOffset = 0;
   const outstandingDashOffset = -paymentsDash;
 
   // Display percentage based on hover
@@ -94,11 +94,7 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
   const monthName = new Date().toLocaleDateString('en-US', { month: 'long' });
 
   if (loading || currencyLoading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[100px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 
   if (error) {

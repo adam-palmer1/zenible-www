@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import tipAPI from '../services/tipAPI';
+import type { RandomTipResponse as BaseRandomTipResponse } from '../types';
+
+interface TipCharacter {
+  name?: string;
+  avatar_url?: string;
+  [key: string]: unknown;
+}
+
+type RandomTipResponse = BaseRandomTipResponse & { character?: TipCharacter };
 import bulb1 from '../assets/icons/dashboard/bulb-1.svg';
 import bulb2 from '../assets/icons/dashboard/bulb-2.svg';
 import bulb3 from '../assets/icons/dashboard/bulb-3.svg';
@@ -31,7 +40,7 @@ export default function TipOfTheDay({ characterId = null, className = "" }: TipO
         params.character_id = characterId;
       }
 
-      const response = await tipAPI.getRandomTipWithCharacter(params) as any;
+      const response = await tipAPI.getRandomTipWithCharacter(params) as RandomTipResponse;
       setTipData(response);
 
       // Set character data if available
@@ -40,7 +49,7 @@ export default function TipOfTheDay({ characterId = null, className = "" }: TipO
       }
     } catch (err) {
       console.error('Failed to load tip:', err);
-      setError((err as any).message);
+      setError((err as Error).message);
 
       // Fallback to static tip if API fails
       setTipData({

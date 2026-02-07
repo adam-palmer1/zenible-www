@@ -27,8 +27,8 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
 
   // Selected tax state
   const [selectedTaxId, setSelectedTaxId] = useState<string | null>(null);
-  const [taxRate, setTaxRate] = useState(initialTaxRate);
-  const [taxLabel, setTaxLabel] = useState(initialTaxLabel);
+  const [, setTaxRate] = useState(initialTaxRate);
+  const [, setTaxLabel] = useState(initialTaxLabel);
 
   // Add new tax form
   const [showAddForm, setShowAddForm] = useState(false);
@@ -82,7 +82,7 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
     try {
       setLoading(true);
       setError(null);
-      const data = await (taxesAPI as any).list();
+      const data = await (taxesAPI as Record<string, Function>).list();
       setTaxes(data || []);
     } catch (err: any) {
       console.error('Failed to fetch taxes:', err);
@@ -118,7 +118,7 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
 
     try {
       setSaving(true);
-      const newTax = await (taxesAPI as any).create({
+      const newTax = await (taxesAPI as Record<string, Function>).create({
         tax_name: newTaxName.trim(),
         tax_rate: rate,
       });

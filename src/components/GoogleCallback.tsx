@@ -19,7 +19,7 @@ function isValidInternalRedirect(path: string | null): boolean {
 export default function GoogleCallback() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { handleGoogleCallback } = useAuth() as any;
+  const { handleGoogleCallback } = useAuth();
   const hasProcessed = useRef(false);
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function GoogleCallback() {
         if (result.success) {
           // Small delay to ensure state is updated before navigation
           setTimeout(() => {
-            const targetPath = isValidInternalRedirect(state) ? state : '/dashboard';
+            const targetPath = isValidInternalRedirect(state) ? state! : '/dashboard';
             navigate(targetPath);
           }, 100);
         } else {

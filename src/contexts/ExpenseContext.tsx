@@ -1,8 +1,7 @@
 import { createContext, useState, useCallback, useMemo, useContext, useEffect, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { usePreferences } from './PreferencesContext';
 import expensesAPI from '../services/api/finance/expenses';
-import { DEFAULT_PAGE_SIZE } from '../constants/pagination';
+import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
 
 interface ExpenseFilters {
   search: string;
@@ -17,27 +16,46 @@ interface ExpenseFilters {
   is_template: boolean | null;
 }
 
-interface ExpensePagination {
-  page: number;
-  limit: number;
-  total: number;
+export interface Expense {
+  id: string;
+  status?: string;
+  amount?: number | string;
+  category_id?: string;
+  vendor_id?: string;
+  expense_date?: string;
+  [key: string]: unknown;
+}
+
+export interface ExpenseStats {
+  total_count?: number;
+  converted_total?: { currency_symbol?: string; total?: string | number; [key: string]: unknown };
+  converted_outstanding?: { currency_symbol?: string; total?: string | number; [key: string]: unknown };
+  total_by_currency?: Array<{ currency_symbol?: string; total?: string | number; [key: string]: unknown }>;
+  outstanding_by_currency?: Array<{ currency_symbol?: string; total?: string | number; [key: string]: unknown }>;
+  [key: string]: unknown;
+}
+
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  [key: string]: unknown;
 }
 
 interface ExpenseContextValue {
-  expenses: unknown[];
-  stats: unknown;
-  categories: unknown[];
+  expenses: Expense[];
+  stats: ExpenseStats | null;
+  categories: ExpenseCategory[];
   loading: boolean;
   error: string | null;
   initialized: boolean;
   categoriesLoaded: boolean;
   filters: ExpenseFilters;
-  pagination: ExpensePagination;
+  pagination: Pagination;
   sortBy: string;
   sortOrder: string;
   showExpenseModal: boolean;
-  editingExpense: unknown;
-  selectedExpense: unknown;
+  editingExpense: Expense | null;
+  selectedExpense: Expense | null;
   selectedExpenseIds: string[];
   bulkActionLoading: boolean;
   fetchExpenses: () => Promise<void>;
@@ -47,7 +65,7 @@ interface ExpenseContextValue {
   deleteExpense: (expenseId: string) => Promise<void>;
   bulkDeleteExpenses: (expenseIds: string[]) => Promise<void>;
   bulkUpdateExpenses: (expenseIds: string[], updates: unknown) => Promise<void>;
-  createCategory: (categoryData: unknown) => Promise<unknown>;
+  createCategory: (categoryData: unknown) => Promise<{ id: string; [key: string]: unknown }>;
   updateCategory: (categoryId: string, categoryData: unknown) => Promise<unknown>;
   deleteCategory: (categoryId: string) => Promise<void>;
   uploadAttachment: (expenseId: string, file: File) => Promise<unknown>;
@@ -55,7 +73,7 @@ interface ExpenseContextValue {
   getRecurringChildren: (expenseId: string, params?: unknown) => Promise<unknown>;
   updateFilters: (newFilters: Partial<ExpenseFilters>) => void;
   updateSort: (field: string, order: string) => void;
-  setPagination: Dispatch<SetStateAction<ExpensePagination>>;
+  setPagination: Dispatch<SetStateAction<Pagination>>;
   refresh: () => void;
   refreshCategories: () => void;
   openExpenseModal: (expense?: unknown) => void;
@@ -68,151 +86,131 @@ interface ExpenseContextValue {
 
 export const ExpenseContext = createContext<ExpenseContextValue | null>(null);
 
+// ExpenseContext-specific: translate date fields based on date_field filter
+const transformFilterParam = (key: string, value: unknown, filters: ExpenseFilters) => {
+  // Don't pass date_field directly, it's handled by translating start_date/end_date
+  if (key === 'date_field') return null;
+
+  if (key === 'start_date' || key === 'end_date') {
+    const dateField = filters.date_field || 'entry';
+    if (dateField === 'paid') {
+      // For paid date, use paid_from/paid_to
+      if (key === 'start_date') {
+        return { key: 'paid_from', value };
+      } else {
+        return { key: 'paid_to', value };
+      }
+    }
+    // For entry date (expense_date), use start_date/end_date as-is
+    return { key, value };
+  }
+
+  return { key, value };
+};
+
+// Default to last 30 days
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(today.getDate() - 29); // 29 days ago + today = 30 days
+  return {
+    start_date: thirtyDaysAgo.toISOString().split('T')[0],
+    end_date: today.toISOString().split('T')[0],
+  };
+};
+
+// Load expense-specific preference keys
+const loadExtraPreferences = (
+  getPreference: (key: string, defaultValue: unknown) => unknown,
+) => ({
+  category_id: getPreference('expense_filter_category', null) as string | null,
+  vendor_id: getPreference('expense_filter_vendor', null) as string | null,
+  vendor_ids: getPreference('expense_filter_vendor_ids', null) as string | null,
+  date_field: getPreference('expense_date_field', 'entry') as string,
+  pricing_type: getPreference('expense_filter_pricing_type', null) as string | null,
+  is_template: getPreference('expense_filter_is_template', null) as boolean | null,
+});
+
+// Save expense-specific preference keys
+const saveExtraPreferences = (
+  newFilters: Partial<ExpenseFilters>,
+  updatePreference: (key: string, value: unknown, category?: string) => void,
+) => {
+  if (newFilters.category_id !== undefined) {
+    updatePreference('expense_filter_category', newFilters.category_id, 'finance');
+  }
+  if (newFilters.vendor_id !== undefined) {
+    updatePreference('expense_filter_vendor', newFilters.vendor_id, 'finance');
+  }
+  if (newFilters.vendor_ids !== undefined) {
+    updatePreference('expense_filter_vendor_ids', newFilters.vendor_ids, 'finance');
+  }
+  if (newFilters.date_field !== undefined) {
+    updatePreference('expense_date_field', newFilters.date_field, 'finance');
+  }
+  if (newFilters.pricing_type !== undefined) {
+    updatePreference('expense_filter_pricing_type', newFilters.pricing_type, 'finance');
+  }
+  if (newFilters.is_template !== undefined) {
+    updatePreference('expense_filter_is_template', newFilters.is_template, 'finance');
+  }
+};
+
 export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  const { getPreference, updatePreference } = usePreferences();
 
-  const [expenses, setExpenses] = useState<unknown[]>([]);
-  const [stats, setStats] = useState<unknown>(null);
-  const [categories, setCategories] = useState<unknown[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
+  // -------------------------------------------------------------------------
+  // Expense-specific state
+  // -------------------------------------------------------------------------
+  const [stats, setStats] = useState<ExpenseStats | null>(null);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const [showExpenseModal, setShowExpenseModal] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<unknown>(null);
-  const [selectedExpense, setSelectedExpense] = useState<unknown>(null);
 
   // Bulk selection state
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
-  // Default to last 30 days
-  const getDefaultDateRange = () => {
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 29); // 29 days ago + today = 30 days
-    return {
-      start_date: thirtyDaysAgo.toISOString().split('T')[0],
-      end_date: today.toISOString().split('T')[0],
-    };
-  };
-
   const defaultRange = getDefaultDateRange();
-  const [filters, setFilters] = useState<ExpenseFilters>({
-    search: '',
-    category_id: null,
-    vendor_id: null,
-    vendor_ids: null, // comma-separated string of vendor IDs for multi-select filter
-    start_date: defaultRange.start_date,
-    end_date: defaultRange.end_date,
-    date_field: 'entry', // 'entry' (expense_date) or 'paid' (paid_at)
-    status: null, // pending, paid, completed, cancelled
-    pricing_type: null, // fixed, recurring
-    is_template: null, // true to show only recurring templates
+
+  // -------------------------------------------------------------------------
+  // Shared document state (filters, pagination, sort, CRUD, modal, fetch)
+  // -------------------------------------------------------------------------
+  const doc = useDocumentState<ExpenseFilters>({
+    name: 'Expense',
+    apiService: expensesAPI as unknown as DocumentStateConfig<ExpenseFilters>['apiService'],
+    paginationStyle: 'page-perpage',
+    defaultSort: 'expense_date',
+    preferencePrefix: 'expense',
+    defaultFilters: {
+      search: '',
+      category_id: null,
+      vendor_id: null,
+      vendor_ids: null,
+      start_date: defaultRange.start_date,
+      end_date: defaultRange.end_date,
+      date_field: 'entry',
+      status: null,
+      pricing_type: null,
+      is_template: null,
+    },
+    loadExtraPreferences,
+    saveExtraPreferences,
+    transformFilterParam,
+    onFetchSuccess: (response) => {
+      setStats((response.stats as ExpenseStats) || null);
+    },
   });
 
-  const [pagination, setPagination] = useState<ExpensePagination>({
-    page: 1,
-    limit: DEFAULT_PAGE_SIZE,
-    total: 0,
-  });
-
-  const [sortBy, setSortBy] = useState('expense_date');
-  const [sortOrder, setSortOrder] = useState('desc');
-
-  useEffect(() => {
-    if (user) {
-      const savedDateField = getPreference('expense_date_field', 'entry');
-      const savedFilters = {
-        search: getPreference('expense_search', '') as string,
-        category_id: getPreference('expense_filter_category', null) as string | null,
-        vendor_id: getPreference('expense_filter_vendor', null) as string | null,
-        vendor_ids: getPreference('expense_filter_vendor_ids', null) as string | null,
-        date_field: savedDateField as string,
-        status: getPreference('expense_filter_status', null) as string | null,
-        pricing_type: getPreference('expense_filter_pricing_type', null) as string | null,
-        is_template: getPreference('expense_filter_is_template', null) as boolean | null,
-      };
-      const savedSort = getPreference('expense_sort_by', 'expense_date') as string;
-      const savedOrder = getPreference('expense_sort_order', 'desc') as string;
-
-      setFilters(prev => ({ ...prev, ...savedFilters }));
-      setSortBy(savedSort);
-      setSortOrder(savedOrder);
-      setPreferencesLoaded(true);
-    }
-  }, [user, getPreference]);
-
-  const fetchExpenses = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Build params, filtering out null/undefined values
-      const params: Record<string, unknown> = {
-        page: pagination.page,
-        per_page: pagination.limit,
-        sort_by: sortBy,
-        sort_direction: sortOrder,
-      };
-
-      // Only add filter params if they have actual values
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-          // Handle date field translation
-          if (key === 'date_field') {
-            // Don't pass date_field directly, it's handled by translating start_date/end_date
-            return;
-          }
-          if (key === 'start_date' || key === 'end_date') {
-            // Translate based on date_field
-            const dateField = filters.date_field || 'entry';
-            if (dateField === 'paid') {
-              // For paid date, use paid_from/paid_to
-              if (key === 'start_date') {
-                params.paid_from = value;
-              } else {
-                params.paid_to = value;
-              }
-            } else {
-              // For entry date (expense_date), use start_date/end_date
-              params[key] = value;
-            }
-            return;
-          }
-          params[key] = value;
-        }
-      });
-
-      const response = await expensesAPI.list(params as Record<string, string>) as any;
-      setExpenses(response.items || response);
-      setStats(response.stats || null);
-      setPagination(prev => ({
-        ...prev,
-        total: response.total || response.length,
-      }));
-      setInitialized(true);
-    } catch (err) {
-      console.error('[ExpenseContext] Error fetching expenses:', err);
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, pagination.page, pagination.limit, sortBy, sortOrder, filters]);
-
+  // -------------------------------------------------------------------------
+  // Expense-specific: fetch categories
+  // -------------------------------------------------------------------------
   const fetchCategories = useCallback(async () => {
     if (!user) return;
 
     try {
       const data = await expensesAPI.getCategories();
       // Handle both array and paginated response formats
-      const categoriesArray = Array.isArray(data) ? data : ((data as any)?.items || []);
+      const categoriesArray = Array.isArray(data) ? data : ((data as { items?: ExpenseCategory[] })?.items || []);
       setCategories(categoriesArray);
       setCategoriesLoaded(true);
     } catch (err) {
@@ -221,70 +219,26 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
   }, [user]);
 
   useEffect(() => {
-    if (preferencesLoaded) {
-      fetchExpenses();
-    }
-  }, [fetchExpenses, refreshKey, preferencesLoaded]);
-
-  useEffect(() => {
     if (user && !categoriesLoaded) {
       fetchCategories();
     }
   }, [user, categoriesLoaded, fetchCategories]);
 
-  const createExpense = useCallback(async (expenseData: unknown) => {
-    try {
-      setLoading(true);
-      const created = await expensesAPI.create(expenseData);
-      setExpenses(prev => [created, ...prev]);
-      return created;
-    } catch (err) {
-      console.error('[ExpenseContext] Error creating expense:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const updateExpense = useCallback(async (expenseId: string, expenseData: unknown) => {
-    try {
-      setLoading(true);
-      const updated = await expensesAPI.update(expenseId, expenseData);
-      setExpenses(prev => prev.map((e: any) => e.id === expenseId ? updated : e));
-      return updated;
-    } catch (err) {
-      console.error('[ExpenseContext] Error updating expense:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const deleteExpense = useCallback(async (expenseId: string) => {
-    try {
-      setLoading(true);
-      await expensesAPI.delete(expenseId);
-      setExpenses(prev => prev.filter((e: any) => e.id !== expenseId));
-    } catch (err) {
-      console.error('[ExpenseContext] Error deleting expense:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // -------------------------------------------------------------------------
+  // Expense-specific actions (using doc.setItems and doc.setLoading)
+  // -------------------------------------------------------------------------
   const bulkDeleteExpenses = useCallback(async (expenseIds: string[]) => {
     try {
-      setLoading(true);
+      doc.setLoading(true);
       await expensesAPI.bulkDelete(expenseIds);
-      setExpenses(prev => prev.filter((e: any) => !expenseIds.includes(e.id)));
+      doc.setItems(prev => prev.filter((e) => !expenseIds.includes((e as Expense).id)));
     } catch (err) {
       console.error('[ExpenseContext] Error bulk deleting expenses:', err);
       throw err;
     } finally {
-      setLoading(false);
+      doc.setLoading(false);
     }
-  }, []);
+  }, [doc.setLoading, doc.setItems]);
 
   const createCategory = useCallback(async (categoryData: unknown) => {
     try {
@@ -300,7 +254,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
   const updateCategory = useCallback(async (categoryId: string, categoryData: unknown) => {
     try {
       const updated = await expensesAPI.updateCategory(categoryId, categoryData);
-      setCategories(prev => prev.map((c: any) => c.id === categoryId ? updated : c));
+      setCategories(prev => prev.map((c) => c.id === categoryId ? (updated as ExpenseCategory) : c));
       return updated;
     } catch (err) {
       console.error('[ExpenseContext] Error updating category:', err);
@@ -311,7 +265,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
   const deleteCategory = useCallback(async (categoryId: string) => {
     try {
       await expensesAPI.deleteCategory(categoryId);
-      setCategories(prev => prev.filter((c: any) => c.id !== categoryId));
+      setCategories(prev => prev.filter((c) => c.id !== categoryId));
     } catch (err) {
       console.error('[ExpenseContext] Error deleting category:', err);
       throw err;
@@ -321,29 +275,29 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
   const uploadAttachment = useCallback(async (expenseId: string, file: File) => {
     try {
       const result = await expensesAPI.uploadAttachment(expenseId, file);
-      setExpenses(prev => prev.map((e: any) =>
-        e.id === expenseId ? { ...e, has_attachment: true, attachment_filename: file.name } : e
+      doc.setItems(prev => prev.map((e) =>
+        (e as Expense).id === expenseId ? { ...e as Expense, has_attachment: true, attachment_filename: file.name } : e
       ));
       return result;
     } catch (err) {
       console.error('[ExpenseContext] Error uploading attachment:', err);
       throw err;
     }
-  }, []);
+  }, [doc.setItems]);
 
   const generateNextExpense = useCallback(async (expenseId: string) => {
     try {
-      setLoading(true);
+      doc.setLoading(true);
       const newExpense = await expensesAPI.generateNext(expenseId);
-      setExpenses(prev => [newExpense, ...prev]);
+      doc.setItems(prev => [newExpense, ...prev]);
       return newExpense;
     } catch (err) {
       console.error('[ExpenseContext] Error generating next expense:', err);
       throw err;
     } finally {
-      setLoading(false);
+      doc.setLoading(false);
     }
-  }, []);
+  }, [doc.setLoading, doc.setItems]);
 
   const getRecurringChildren = useCallback(async (expenseId: string, params: unknown = {}) => {
     try {
@@ -354,65 +308,13 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const updateFilters = useCallback((newFilters: Partial<ExpenseFilters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-    setPagination(prev => ({ ...prev, page: 1 }));
-
-    if (newFilters.category_id !== undefined) {
-      updatePreference('expense_filter_category', newFilters.category_id, 'finance');
-    }
-    if (newFilters.vendor_id !== undefined) {
-      updatePreference('expense_filter_vendor', newFilters.vendor_id, 'finance');
-    }
-    if (newFilters.vendor_ids !== undefined) {
-      updatePreference('expense_filter_vendor_ids', newFilters.vendor_ids, 'finance');
-    }
-    if (newFilters.search !== undefined) {
-      updatePreference('expense_search', newFilters.search, 'finance');
-    }
-    if (newFilters.date_field !== undefined) {
-      updatePreference('expense_date_field', newFilters.date_field, 'finance');
-    }
-    if (newFilters.status !== undefined) {
-      updatePreference('expense_filter_status', newFilters.status, 'finance');
-    }
-    if (newFilters.pricing_type !== undefined) {
-      updatePreference('expense_filter_pricing_type', newFilters.pricing_type, 'finance');
-    }
-    if (newFilters.is_template !== undefined) {
-      updatePreference('expense_filter_is_template', newFilters.is_template, 'finance');
-    }
-  }, [updatePreference]);
-
-  const updateSort = useCallback((field: string, order: string) => {
-    setSortBy(field);
-    setSortOrder(order);
-    updatePreference('expense_sort_by', field, 'finance');
-    updatePreference('expense_sort_order', order, 'finance');
-  }, [updatePreference]);
-
-  const refresh = useCallback(() => {
-    setRefreshKey(prev => prev + 1);
-  }, []);
-
   const refreshCategories = useCallback(() => {
     setCategoriesLoaded(false);
   }, []);
 
-  const openExpenseModal = useCallback((expense: unknown = null) => {
-    setEditingExpense(expense);
-    setShowExpenseModal(true);
-  }, []);
-
-  const closeExpenseModal = useCallback(() => {
-    setShowExpenseModal(false);
-    setEditingExpense(null);
-  }, []);
-
-  const selectExpense = useCallback((expense: unknown) => {
-    setSelectedExpense(expense);
-  }, []);
-
+  // -------------------------------------------------------------------------
+  // Bulk selection helpers
+  // -------------------------------------------------------------------------
   const toggleExpenseSelection = useCallback((expenseId: string) => {
     setSelectedExpenseIds(prev => {
       if (prev.includes(expenseId)) {
@@ -424,8 +326,8 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const selectAllExpenses = useCallback(() => {
-    setSelectedExpenseIds(expenses.map((e: any) => e.id));
-  }, [expenses]);
+    setSelectedExpenseIds(doc.items.map((e) => (e as Expense).id));
+  }, [doc.items]);
 
   const clearSelection = useCallback(() => {
     setSelectedExpenseIds([]);
@@ -436,7 +338,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
       setBulkActionLoading(true);
       await expensesAPI.bulkUpdate(expenseIds, updates);
       // Refresh expenses to get updated data
-      await fetchExpenses();
+      await doc.fetchItems();
       clearSelection();
     } catch (err) {
       console.error('[ExpenseContext] Error bulk updating expenses:', err);
@@ -444,30 +346,36 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setBulkActionLoading(false);
     }
-  }, [fetchExpenses, clearSelection]);
+  }, [doc.fetchItems, clearSelection]);
 
+  // -------------------------------------------------------------------------
+  // Context value - map shared doc state to ExpenseContext's existing API
+  // -------------------------------------------------------------------------
   const value = useMemo(() => ({
-    expenses,
+    // State (aliased to match existing ExpenseContextValue interface)
+    expenses: doc.items as Expense[],
     stats,
     categories,
-    loading,
-    error,
-    initialized,
+    loading: doc.loading,
+    error: doc.error,
+    initialized: doc.initialized,
     categoriesLoaded,
-    filters,
-    pagination,
-    sortBy,
-    sortOrder,
-    showExpenseModal,
-    editingExpense,
-    selectedExpense,
+    filters: doc.filters,
+    pagination: doc.pagination,
+    sortBy: doc.sortBy,
+    sortOrder: doc.sortOrder,
+    showExpenseModal: doc.showModal,
+    editingExpense: doc.editingEntity as Expense | null,
+    selectedExpense: doc.selectedEntity as Expense | null,
     selectedExpenseIds,
     bulkActionLoading,
-    fetchExpenses,
+    // Shared CRUD (aliased)
+    fetchExpenses: doc.fetchItems,
     fetchCategories,
-    createExpense,
-    updateExpense,
-    deleteExpense,
+    createExpense: doc.createItem,
+    updateExpense: doc.updateItem,
+    deleteExpense: doc.deleteItem,
+    // Expense-specific actions
     bulkDeleteExpenses,
     bulkUpdateExpenses,
     createCategory,
@@ -476,39 +384,41 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
     uploadAttachment,
     generateNextExpense,
     getRecurringChildren,
-    updateFilters,
-    updateSort,
-    setPagination,
-    refresh,
+    // Shared UI actions (aliased)
+    updateFilters: doc.updateFilters,
+    updateSort: doc.updateSort,
+    setPagination: doc.setPagination,
+    refresh: doc.refresh,
     refreshCategories,
-    openExpenseModal,
-    closeExpenseModal,
-    selectExpense,
+    openExpenseModal: doc.openModal,
+    closeExpenseModal: doc.closeModal,
+    selectExpense: doc.selectEntity,
+    // Selection helpers
     toggleExpenseSelection,
     selectAllExpenses,
     clearSelection,
   }), [
-    expenses,
+    doc.items,
     stats,
     categories,
-    loading,
-    error,
-    initialized,
+    doc.loading,
+    doc.error,
+    doc.initialized,
     categoriesLoaded,
-    filters,
-    pagination,
-    sortBy,
-    sortOrder,
-    showExpenseModal,
-    editingExpense,
-    selectedExpense,
+    doc.filters,
+    doc.pagination,
+    doc.sortBy,
+    doc.sortOrder,
+    doc.showModal,
+    doc.editingEntity,
+    doc.selectedEntity,
     selectedExpenseIds,
     bulkActionLoading,
-    fetchExpenses,
+    doc.fetchItems,
     fetchCategories,
-    createExpense,
-    updateExpense,
-    deleteExpense,
+    doc.createItem,
+    doc.updateItem,
+    doc.deleteItem,
     bulkDeleteExpenses,
     bulkUpdateExpenses,
     createCategory,
@@ -517,13 +427,13 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
     uploadAttachment,
     generateNextExpense,
     getRecurringChildren,
-    updateFilters,
-    updateSort,
-    refresh,
+    doc.updateFilters,
+    doc.updateSort,
+    doc.refresh,
     refreshCategories,
-    openExpenseModal,
-    closeExpenseModal,
-    selectExpense,
+    doc.openModal,
+    doc.closeModal,
+    doc.selectEntity,
     toggleExpenseSelection,
     selectAllExpenses,
     clearSelection,

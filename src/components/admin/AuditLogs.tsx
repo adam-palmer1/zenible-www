@@ -1,14 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import { LoadingSpinner } from '../shared';
 
 interface AdminOutletContext {
   darkMode: boolean;
 }
 
+interface AuditLog {
+  id?: string;
+  timestamp?: string;
+  created_at?: string;
+  user_email?: string;
+  user_id?: string;
+  action: string;
+  resource?: string;
+  ip_address?: string;
+  changes?: unknown;
+  details?: unknown;
+}
+
+interface AuditLogsResponse {
+  audit_logs: AuditLog[];
+  total: number;
+  page: number;
+  total_pages: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
 export default function AuditLogs() {
   const { darkMode } = useOutletContext<AdminOutletContext>();
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
@@ -34,15 +57,15 @@ export default function AuditLogs() {
   const fetchAuditLogs = async () => {
     setLoading(true);
     try {
-      const params: any = {};
+      const params: Record<string, string> = {};
       if (filters.user_id) params.user_id = filters.user_id;
       if (filters.action) params.action = filters.action;
       if (filters.start_date) params.start_date = filters.start_date;
       if (filters.end_date) params.end_date = filters.end_date;
-      params.page = filters.page;
-      params.per_page = filters.per_page;
+      params.page = String(filters.page);
+      params.per_page = String(filters.per_page);
 
-      const response = await adminAPI.getAuditLogs(params) as any;
+      const response = await adminAPI.getAuditLogs(params) as AuditLogsResponse;
       setLogs(response.audit_logs || []);
       setPagination({
         total: response.total || 0,
@@ -51,8 +74,8 @@ export default function AuditLogs() {
         has_next: response.has_next || false,
         has_prev: response.has_prev || false
       });
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -131,9 +154,7 @@ export default function AuditLogs() {
       <div className="px-6 pb-6">
         <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-            </div>
+            <LoadingSpinner height="py-12" />
           ) : error ? (
             <div className="text-red-500 text-center py-12">Error: {error}</div>
           ) : logs.length === 0 ? (
@@ -156,7 +177,7 @@ export default function AuditLogs() {
                 {logs.map((log, index) => (
                   <tr key={log.id || index}>
                     <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      {formatDate(log.timestamp || log.created_at)}
+                      {formatDate(log.timestamp || log.created_at || null)}
                     </td>
                     <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                       {log.user_email || log.user_id || 'System'}

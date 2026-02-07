@@ -3,6 +3,15 @@ import { usePaymentIntegrations } from '../../../contexts/PaymentIntegrationsCon
 import paymentIntegrationsAPI from '../../../services/api/finance/paymentIntegrations';
 import { format } from 'date-fns';
 
+interface OAuthURLResponse {
+  oauth_url: string;
+  state: string;
+}
+
+interface SyncTransactionsResponse {
+  synced_count: number;
+}
+
 interface SyncResult {
   provider: string;
   count?: number;
@@ -16,15 +25,13 @@ interface SyncResult {
  */
 const PaymentIntegrations: React.FC = () => {
   const {
-    integrations,
-    loading,
     isStripeConnected,
     isPayPalConnected,
     stripeIntegration,
     paypalIntegration,
     disconnectIntegration,
     refresh,
-  } = usePaymentIntegrations() as any;
+  } = usePaymentIntegrations();
 
   const [syncing, setSyncing] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
@@ -34,9 +41,9 @@ const PaymentIntegrations: React.FC = () => {
    */
   const handleConnectStripe = async () => {
     try {
-      const { oauth_url, state } = await (paymentIntegrationsAPI as any).getStripeOAuthURL({
+      const { oauth_url, state } = await paymentIntegrationsAPI.getStripeOAuthURL({
         redirect_uri: `${window.location.origin}/payment-callback`,
-      });
+      }) as OAuthURLResponse;
 
       // Store state in session storage for verification
       sessionStorage.setItem('stripe_oauth_state', state);
@@ -54,9 +61,9 @@ const PaymentIntegrations: React.FC = () => {
    */
   const handleConnectPayPal = async () => {
     try {
-      const { oauth_url, state } = await (paymentIntegrationsAPI as any).getPayPalOAuthURL({
+      const { oauth_url, state } = await paymentIntegrationsAPI.getPayPalOAuthURL({
         redirect_uri: `${window.location.origin}/payment-callback`,
-      });
+      }) as OAuthURLResponse;
 
       // Store state in session storage for verification
       sessionStorage.setItem('paypal_oauth_state', state);
@@ -94,10 +101,10 @@ const PaymentIntegrations: React.FC = () => {
       setSyncing(integrationId);
       setSyncResult(null);
 
-      const result = await (paymentIntegrationsAPI as any).syncTransactions(integrationId, {
+      const result = await paymentIntegrationsAPI.syncTransactions(integrationId, {
         days: 30, // Last 30 days
         limit: 100,
-      });
+      }) as SyncTransactionsResponse;
 
       setSyncResult({
         provider,
@@ -162,14 +169,14 @@ const PaymentIntegrations: React.FC = () => {
             {isStripeConnected ? (
               <>
                 <button
-                  onClick={() => handleSyncTransactions(stripeIntegration.id, 'Stripe')}
-                  disabled={syncing === stripeIntegration.id}
+                  onClick={() => handleSyncTransactions(stripeIntegration!.id, 'Stripe')}
+                  disabled={syncing === stripeIntegration!.id}
                   className="px-3 py-1.5 text-sm font-medium text-design-text-primary bg-white dark:bg-zenible-dark-card border border-design-border rounded-lg hover:bg-gray-50 dark:hover:bg-zenible-dark-hover transition-colors disabled:opacity-50"
                 >
-                  {syncing === stripeIntegration.id ? 'Syncing...' : 'Sync'}
+                  {syncing === stripeIntegration!.id ? 'Syncing...' : 'Sync'}
                 </button>
                 <button
-                  onClick={() => handleDisconnect(stripeIntegration.id, 'Stripe')}
+                  onClick={() => handleDisconnect(stripeIntegration!.id, 'Stripe')}
                   className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-zenible-dark-card border border-design-border rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 >
                   Disconnect
@@ -213,14 +220,14 @@ const PaymentIntegrations: React.FC = () => {
             {isPayPalConnected ? (
               <>
                 <button
-                  onClick={() => handleSyncTransactions(paypalIntegration.id, 'PayPal')}
-                  disabled={syncing === paypalIntegration.id}
+                  onClick={() => handleSyncTransactions(paypalIntegration!.id, 'PayPal')}
+                  disabled={syncing === paypalIntegration!.id}
                   className="px-3 py-1.5 text-sm font-medium text-design-text-primary bg-white dark:bg-zenible-dark-card border border-design-border rounded-lg hover:bg-gray-50 dark:hover:bg-zenible-dark-hover transition-colors disabled:opacity-50"
                 >
-                  {syncing === paypalIntegration.id ? 'Syncing...' : 'Sync'}
+                  {syncing === paypalIntegration!.id ? 'Syncing...' : 'Sync'}
                 </button>
                 <button
-                  onClick={() => handleDisconnect(paypalIntegration.id, 'PayPal')}
+                  onClick={() => handleDisconnect(paypalIntegration!.id, 'PayPal')}
                   className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-zenible-dark-card border border-design-border rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 >
                   Disconnect

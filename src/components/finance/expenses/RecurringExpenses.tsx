@@ -76,8 +76,7 @@ interface RecurringExpenseRowProps {
   numberFormat: any;
 }
 
-const RecurringExpenseRow: React.FC<RecurringExpenseRowProps> = ({ expense, onAction, actionLoading, onToggleMenu, isMenuOpen, numberFormat }) => {
-  const navigate = useNavigate();
+const RecurringExpenseRow: React.FC<RecurringExpenseRowProps> = ({ expense, onAction: _onAction, actionLoading, onToggleMenu, isMenuOpen: _isMenuOpen, numberFormat }) => {
 
   // Get currency code from expense
   const currencyCode = expense.currency?.code || 'USD';
@@ -171,8 +170,8 @@ const GeneratedExpensesModal: React.FC<GeneratedExpensesModalProps> = ({ open, o
   const loadChildren = async () => {
     try {
       setLoading(true);
-      const response = await (expensesAPI as any).getRecurringChildren(templateId);
-      setChildren(response?.items || response || []);
+      const response = await expensesAPI.getRecurringChildren(templateId!);
+      setChildren(response?.items || []);
     } catch (error: any) {
       console.error('Failed to load generated expenses:', error);
     } finally {
@@ -259,9 +258,9 @@ const GeneratedExpensesModal: React.FC<GeneratedExpensesModalProps> = ({ open, o
  */
 const RecurringExpenses: React.FC = () => {
   const navigate = useNavigate();
-  const { showSuccess, showError, showConfirm } = useNotification() as any;
-  const { numberFormats } = useCRMReferenceData() as any;
-  const { getNumberFormat } = useCompanyAttributes() as any;
+  const { showSuccess, showError, showConfirm } = useNotification();
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
 
   // Get number format from company settings
   const numberFormat = useMemo(() => {
@@ -297,8 +296,8 @@ const RecurringExpenses: React.FC = () => {
         pricing_type: 'recurring',
         generated_from_template: 'false', // Only templates, not generated children
       };
-      const response = await (expensesAPI as any).list(params);
-      setAllExpenses(response?.items || response || []);
+      const response = await expensesAPI.list(params);
+      setAllExpenses(response?.items || []);
     } catch (error: any) {
       console.error('Failed to load recurring expenses:', error);
       showError('Failed to load recurring expenses');
@@ -340,23 +339,23 @@ const RecurringExpenses: React.FC = () => {
 
       switch (action) {
         case 'generateNext': {
-          const newExpense = await (expensesAPI as any).generateNext(expenseId);
+          const newExpense = await expensesAPI.generateNext(expenseId);
           showSuccess(`Generated expense ${newExpense.expense_number}`);
           break;
         }
 
         case 'pause':
-          await (expensesAPI as any).update(expenseId, { recurring_status: 'paused' });
+          await expensesAPI.update(expenseId, { recurring_status: 'paused' });
           showSuccess('Recurring expense paused');
           break;
 
         case 'resume':
-          await (expensesAPI as any).update(expenseId, { recurring_status: 'active' });
+          await expensesAPI.update(expenseId, { recurring_status: 'active' });
           showSuccess('Recurring expense resumed');
           break;
 
         case 'cancel':
-          await (expensesAPI as any).update(expenseId, { recurring_status: 'cancelled' });
+          await expensesAPI.update(expenseId, { recurring_status: 'cancelled' });
           showSuccess('Recurring expense cancelled');
           break;
 

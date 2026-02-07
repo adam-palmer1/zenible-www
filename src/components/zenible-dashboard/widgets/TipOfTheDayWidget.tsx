@@ -21,20 +21,20 @@ interface TipOfTheDayWidgetProps {
  * Tip of the Day Widget for Dashboard
  * Shows a daily tip with optional character avatar
  */
-const TipOfTheDayWidget = ({ settings = {} }: TipOfTheDayWidgetProps) => {
+const TipOfTheDayWidget = ({ settings: _settings = {} }: TipOfTheDayWidgetProps) => {
   const [tipData, setTipData] = useState<TipData | null>(null);
   const [character, setCharacter] = useState<Character | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadTip = async () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await (tipAPI as any).getRandomTipWithCharacter();
+        const response = await tipAPI.getRandomTipWithCharacter() as { tip: TipData; character?: Character };
         setTipData(response.tip);
-        setCharacter(response.character);
+        setCharacter(response.character ?? null);
       } catch (err: any) {
         console.error('Failed to load tip:', err);
         setError(err.message);

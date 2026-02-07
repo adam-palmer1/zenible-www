@@ -18,8 +18,18 @@ export interface EmailTemplatePagination {
   total_pages: number;
 }
 
+export interface EmailTemplateItem {
+  id: string;
+  template_type: string;
+  is_system_default: boolean;
+  subject?: string;
+  description?: string;
+  is_active?: boolean;
+  [key: string]: unknown;
+}
+
 interface EmailTemplateListResponse {
-  items: unknown[];
+  items: EmailTemplateItem[];
   page: number;
   per_page: number;
   total: number;
@@ -34,6 +44,11 @@ interface UpdateTemplateVariables {
 interface PreviewTemplateVariables {
   id: string;
   variables: Record<string, unknown>;
+}
+
+interface EmailTemplateResponseData {
+  template_type?: string;
+  [key: string]: unknown;
 }
 
 type QueryOptions = Record<string, unknown>;
@@ -144,8 +159,9 @@ export function useCreateEmailTemplate(options: MutationOptions = {}) {
       // Invalidate templates list to refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.emailTemplates.lists() });
       // Optionally invalidate effective template if this is a new company template
-      if ((data as any).template_type) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.emailTemplates.effective((data as any).template_type) });
+      const responseData = data as EmailTemplateResponseData;
+      if (responseData.template_type) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.emailTemplates.effective(responseData.template_type) });
       }
     },
     ...options,
@@ -166,8 +182,9 @@ export function useUpdateEmailTemplate(options: MutationOptions = {}) {
       // Invalidate templates list
       queryClient.invalidateQueries({ queryKey: queryKeys.emailTemplates.lists() });
       // Invalidate effective template
-      if ((data as any).template_type) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.emailTemplates.effective((data as any).template_type) });
+      const responseData = data as EmailTemplateResponseData;
+      if (responseData.template_type) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.emailTemplates.effective(responseData.template_type) });
       }
     },
     ...options,

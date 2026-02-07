@@ -1,86 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
 import adminAPI from '../../services/adminAPI';
-
-interface BackendProvider {
-  value: string;
-  label: string;
-  description: string;
-}
+import {
+  AvatarUploadSection,
+  BasicInfoFields,
+  ModelSettingsFields,
+  SystemInstructionsSection,
+  AssistantConfigSection,
+  RAGConfigSection,
+} from './character-form';
+import type {
+  BackendProvider,
+  JsonSchema,
+  CustomFunction,
+  CharacterRecord,
+  SelectOption,
+  ToolDefinition,
+  ShortcodeItem,
+  ValidationError,
+  CharacterFormState,
+} from './character-form';
 
 interface CharacterFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  character: any | null;
+  character: CharacterRecord | null;
   isCloning: boolean;
-  categories: any[];
-  availableModels: any[];
-  embeddingModels: any[];
+  categories: Array<{ id: string; name: string }>;
+  availableModels: SelectOption[];
+  embeddingModels: SelectOption[];
   modelsLoading: boolean;
-  availableTools: any[];
-  toolDefinitions: Record<string, any>;
-  shortcodes: any[];
+  availableTools: SelectOption[];
+  toolDefinitions: Record<string, ToolDefinition>;
+  shortcodes: ShortcodeItem[];
   shortcodesLoading: boolean;
   backendProviders: BackendProvider[];
   onSave: () => void;
   darkMode: boolean;
 }
-
-const responseFormats = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'text', label: 'Text' },
-  { value: 'json_object', label: 'JSON Object' },
-  { value: 'json_schema', label: 'JSON Schema' }
-];
-
-const schemaTemplates = {
-  simple: {
-    name: "simple_response",
-    schema: {
-      type: "object",
-      properties: {
-        answer: { type: "string" }
-      },
-      required: ["answer"],
-      additionalProperties: false
-    }
-  },
-  detailed: {
-    name: "detailed_response",
-    schema: {
-      type: "object",
-      properties: {
-        answer: { type: "string" },
-        confidence: { type: "number", minimum: 0, maximum: 1 },
-        sources: {
-          type: "array",
-          items: { type: "string" }
-        }
-      },
-      required: ["answer"],
-      additionalProperties: false
-    }
-  },
-  structured: {
-    name: "structured_analysis",
-    schema: {
-      type: "object",
-      properties: {
-        summary: { type: "string" },
-        key_points: {
-          type: "array",
-          items: { type: "string" }
-        },
-        sentiment: {
-          type: "string",
-          enum: ["positive", "neutral", "negative"]
-        },
-        action_required: { type: "boolean" }
-      },
-      required: ["summary", "key_points"],
-      additionalProperties: false
-    }
-  }
-};
 
 export default function CharacterFormModal({
   isOpen,
@@ -102,7 +58,7 @@ export default function CharacterFormModal({
   const [modalError, setModalError] = useState<string | null>(null);
 
   // Form states for character
-  const [characterForm, setCharacterForm] = useState({
+  const [characterForm, setCharacterForm] = useState<CharacterFormState>({
     name: '',
     internal_name: '',
     description: '',
@@ -113,15 +69,15 @@ export default function CharacterFormModal({
       temperature: 0.7,
       top_p: 1.0,
       response_format: 'auto',
-      json_schema: null as any,
+      json_schema: null as JsonSchema | null,
       max_tokens: 2000,
       enable_code_interpreter: false,
       enable_file_search: false,
-      custom_functions: [] as any[],
+      custom_functions: [] as CustomFunction[],
       embedding_model: 'text-embedding-3-large',
       chunk_size: 1024,
       chunk_overlap: 100,
-      vector_store_id: null as any
+      vector_store_id: null as string | null
     },
     category_id: '',
     is_active: true,
@@ -134,10 +90,10 @@ export default function CharacterFormModal({
   const [uploadingAvatar, setUploadingAvatar] = useState<boolean>(false);
   const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null) as React.RefObject<HTMLInputElement>;
 
   // Custom functions state
-  const [customFunctions, setCustomFunctions] = useState<any[]>([]);
+  const [customFunctions, setCustomFunctions] = useState<CustomFunction[]>([]);
 
   // Initialize form when modal opens or character changes
   useEffect(() => {
@@ -262,7 +218,7 @@ export default function CharacterFormModal({
     onClose();
   };
 
-  const handleProviderChange = (provider: any) => {
+  const handleProviderChange = (provider: string) => {
     setCharacterForm(prev => ({
       ...prev,
       backend_provider: provider,
@@ -275,8 +231,8 @@ export default function CharacterFormModal({
     }));
   };
 
-  const handleAvatarFileChange = (e: any) => {
-    const file = e.target.files[0];
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
     setAvatarError(null);
@@ -311,9 +267,9 @@ export default function CharacterFormModal({
       await adminAPI.uploadAICharacterAvatar(characterId, avatarFile);
       setAvatarFile(null);
       setAvatarPreview(null);
-    } catch (err: any) {
-      console.error('Failed to upload avatar:', err);
-      throw new Error('Failed to upload avatar: ' + err.message);
+    } catch (_err: any) {
+      console.error('Failed to upload avatar:', _err);
+      throw new Error('Failed to upload avatar: ' + _err.message);
     } finally {
       setUploadingAvatar(false);
     }
@@ -340,9 +296,9 @@ export default function CharacterFormModal({
         setCurrentAvatar(null);
         setCharacterForm({ ...characterForm, avatar_url: '' });
         onSave(); // Refresh the list to update avatar display
-      } catch (err: any) {
-        console.error('Failed to delete avatar:', err);
-        setAvatarError('Failed to delete avatar: ' + err.message);
+      } catch (_err: any) {
+        console.error('Failed to delete avatar:', _err);
+        setAvatarError('Failed to delete avatar: ' + _err.message);
       }
     }
   };
@@ -370,7 +326,7 @@ export default function CharacterFormModal({
         await adminAPI.updateAICharacter(character.id, data);
         characterId = character.id;
       } else {
-        const response = await adminAPI.createAICharacter(data) as any;
+        const response = await adminAPI.createAICharacter(data) as { id: string };
         characterId = response.id;
       }
 
@@ -381,11 +337,11 @@ export default function CharacterFormModal({
       onClose();
       onSave();
       setModalError(null);
-    } catch (err: any) {
-      if (err.response?.detail) {
-        const detail = err.response.detail;
+    } catch (_err: any) {
+      if (_err.response?.detail) {
+        const detail = _err.response.detail;
         if (Array.isArray(detail)) {
-          const errors = detail.map((error: any) => {
+          const errors = detail.map((error: ValidationError) => {
             const field = error.loc?.join('.') || 'Field';
             return `${field}: ${error.msg}`;
           }).join('\n');
@@ -393,35 +349,12 @@ export default function CharacterFormModal({
         } else if (typeof detail === 'string') {
           setModalError(detail);
         } else {
-          setModalError(err.message);
+          setModalError(_err.message);
         }
       } else {
-        setModalError(err.message || 'An error occurred while saving the character');
+        setModalError(_err.message || 'An error occurred while saving the character');
       }
     }
-  };
-
-  const addCustomFunction = () => {
-    const newFunction = {
-      name: '',
-      description: '',
-      parameters: {
-        type: 'object',
-        properties: {},
-        required: []
-      }
-    };
-    setCustomFunctions([...customFunctions, newFunction]);
-  };
-
-  const updateCustomFunction = (index: number, updatedFunction: any) => {
-    const newFunctions = [...customFunctions];
-    newFunctions[index] = updatedFunction;
-    setCustomFunctions(newFunctions);
-  };
-
-  const removeCustomFunction = (index: number) => {
-    setCustomFunctions(customFunctions.filter((_: any, i: number) => i !== index));
   };
 
   if (!isOpen) return null;
@@ -452,864 +385,60 @@ export default function CharacterFormModal({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Avatar Upload Section */}
-          <div className="md:col-span-2">
-            <label className={`block text-sm font-medium mb-2 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              Character Avatar
-            </label>
-            <div className="flex items-start gap-4">
-              {/* Avatar Preview */}
-              <div className="flex-shrink-0">
-                {(avatarPreview || currentAvatar) ? (
-                  <div className="relative">
-                    <img
-                      src={avatarPreview || currentAvatar!}
-                      alt="Avatar preview"
-                      className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200"
-                    />
-                    {(avatarPreview || currentAvatar) && (
-                      <button
-                        type="button"
-                        onClick={handleDeleteAvatar}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
-                        title="Remove avatar"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className={`w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center ${
-                    darkMode ? 'border-zenible-dark-border bg-zenible-dark-bg' : 'border-gray-300 bg-gray-50'
-                  }`}>
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                )}
-              </div>
+          <AvatarUploadSection
+            avatarPreview={avatarPreview}
+            currentAvatar={currentAvatar}
+            avatarError={avatarError}
+            uploadingAvatar={uploadingAvatar}
+            fileInputRef={fileInputRef}
+            onFileChange={handleAvatarFileChange}
+            onDeleteAvatar={handleDeleteAvatar}
+            darkMode={darkMode}
+          />
 
-              {/* Upload Controls */}
-              <div className="flex-1">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleAvatarFileChange}
-                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    darkMode
-                      ? 'bg-zenible-dark-bg border border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-hover'
-                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                  disabled={uploadingAvatar}
-                >
-                  {uploadingAvatar ? 'Uploading...' : 'Choose Image'}
-                </button>
-                <p className={`mt-2 text-xs ${
-                  darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
-                }`}>
-                  Accepts JPEG, PNG, GIF, WebP. Max 5MB.
-                </p>
-                {avatarError && (
-                  <p className="mt-2 text-xs text-red-500">
-                    {avatarError}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+          <BasicInfoFields
+            characterForm={characterForm}
+            setCharacterForm={setCharacterForm}
+            categories={categories}
+            backendProviders={backendProviders}
+            onProviderChange={handleProviderChange}
+            darkMode={darkMode}
+          />
 
-          <div>
-            <label className={`block text-sm font-medium mb-1 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              Display Name *
-            </label>
-            <input
-              type="text"
-              value={characterForm.name}
-              onChange={(e) => setCharacterForm({...characterForm, name: e.target.value})}
-              className={`w-full px-3 py-2 border rounded-lg ${
-                darkMode
-                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
-              placeholder="e.g., Customer Support Agent"
-            />
-          </div>
+          <ModelSettingsFields
+            characterForm={characterForm}
+            setCharacterForm={setCharacterForm}
+            availableModels={availableModels}
+            modelsLoading={modelsLoading}
+            setModalError={setModalError}
+            darkMode={darkMode}
+          />
 
-          <div>
-            <label className={`block text-sm font-medium mb-1 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              Internal Name * (lowercase, hyphens/underscores only)
-            </label>
-            <input
-              type="text"
-              value={characterForm.internal_name}
-              onChange={(e) => setCharacterForm({...characterForm, internal_name: e.target.value.toLowerCase()})}
-              className={`w-full px-3 py-2 border rounded-lg font-mono ${
-                darkMode
-                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
-              placeholder="e.g., customer-support-agent"
-              pattern="^[a-z0-9_-]+$"
-            />
-          </div>
+          <SystemInstructionsSection
+            characterForm={characterForm}
+            setCharacterForm={setCharacterForm}
+            shortcodes={shortcodes}
+            shortcodesLoading={shortcodesLoading}
+            darkMode={darkMode}
+          />
 
-          <div className="md:col-span-2">
-            <label className={`block text-sm font-medium mb-1 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              Description
-            </label>
-            <textarea
-              value={characterForm.description}
-              onChange={(e) => setCharacterForm({...characterForm, description: e.target.value})}
-              className={`w-full px-3 py-2 border rounded-lg ${
-                darkMode
-                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
-              rows={3}
-              placeholder="Brief description of the character's purpose..."
-            />
-          </div>
+          <AssistantConfigSection
+            characterForm={characterForm}
+            setCharacterForm={setCharacterForm}
+            customFunctions={customFunctions}
+            setCustomFunctions={setCustomFunctions}
+            availableTools={availableTools}
+            toolDefinitions={toolDefinitions}
+            darkMode={darkMode}
+          />
 
-          <div>
-            <label className={`block text-sm font-medium mb-1 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              Backend Provider *
-            </label>
-            <select
-              value={characterForm.backend_provider}
-              onChange={(e) => handleProviderChange(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg ${
-                darkMode
-                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
-            >
-              {backendProviders.map(provider => (
-                <option key={provider.value} value={provider.value}>
-                  {provider.label} - {provider.description}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-1 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              Category
-            </label>
-            <select
-              value={characterForm.category_id}
-              onChange={(e) => setCharacterForm({...characterForm, category_id: e.target.value})}
-              className={`w-full px-3 py-2 border rounded-lg ${
-                darkMode
-                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
-            >
-              <option value="">No Category</option>
-              {Array.isArray(categories) && categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-1 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              Model
-            </label>
-            <select
-              value={characterForm.metadata.model}
-              onChange={(e) => setCharacterForm({
-                ...characterForm,
-                metadata: {...characterForm.metadata, model: e.target.value}
-              })}
-              className={`w-full px-3 py-2 border rounded-lg ${
-                darkMode
-                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
-            >
-              {modelsLoading ? (
-                <option value="">Loading models...</option>
-              ) : availableModels.length > 0 ? (
-                availableModels.map(model => (
-                  <option key={model.value} value={model.value}>{model.label}</option>
-                ))
-              ) : (
-                <option value="">No models available</option>
-              )}
-            </select>
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-1 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              Temperature ({characterForm.metadata.temperature})
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="2"
-              step="0.1"
-              value={characterForm.metadata.temperature}
-              onChange={(e) => setCharacterForm({
-                ...characterForm,
-                metadata: {...characterForm.metadata, temperature: parseFloat(e.target.value)}
-              })}
-              className="w-full"
-            />
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-1 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              Top P ({characterForm.metadata.top_p})
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={characterForm.metadata.top_p}
-              onChange={(e) => setCharacterForm({
-                ...characterForm,
-                metadata: {...characterForm.metadata, top_p: parseFloat(e.target.value)}
-              })}
-              className="w-full"
-            />
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-1 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              Response Format
-            </label>
-            <select
-              value={characterForm.metadata.response_format}
-              onChange={(e) => {
-                const newMetadata = {...characterForm.metadata, response_format: e.target.value};
-                // Clear json_schema if not using json_schema format
-                if (e.target.value !== 'json_schema') {
-                  delete (newMetadata as any).json_schema;
-                }
-                setCharacterForm({
-                  ...characterForm,
-                  metadata: newMetadata
-                });
-              }}
-              className={`w-full px-3 py-2 border rounded-lg ${
-                darkMode
-                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
-            >
-              {responseFormats.map(format => (
-                <option key={format.value} value={format.value}>{format.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* JSON Schema Editor - Conditional */}
-          {characterForm.metadata.response_format === 'json_schema' && (
-            <div className="md:col-span-2">
-              <label className={`block text-sm font-medium mb-1 ${
-                darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-              }`}>
-                JSON Schema Configuration
-              </label>
-
-              {/* Schema Templates */}
-              <div className="mb-2">
-                <label className={`text-xs ${
-                  darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
-                }`}>
-                  Quick Templates:
-                </label>
-                <div className="flex gap-2 mt-1">
-                  {Object.keys(schemaTemplates).map(templateKey => (
-                    <button
-                      key={templateKey}
-                      type="button"
-                      onClick={() => {
-                        const template = schemaTemplates[templateKey];
-                        setCharacterForm({
-                          ...characterForm,
-                          metadata: {
-                            ...characterForm.metadata,
-                            json_schema: template
-                          }
-                        });
-                      }}
-                      className={`px-3 py-1 text-xs rounded-lg border transition-colors ${
-                        darkMode
-                          ? 'border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-bg'
-                          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      {templateKey.charAt(0).toUpperCase() + templateKey.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Schema Name Input */}
-              <div className="mb-2">
-                <input
-                  type="text"
-                  value={characterForm.metadata.json_schema?.name || ''}
-                  onChange={(e) => setCharacterForm({
-                    ...characterForm,
-                    metadata: {
-                      ...characterForm.metadata,
-                      json_schema: {
-                        ...characterForm.metadata.json_schema,
-                        name: e.target.value
-                      }
-                    }
-                  })}
-                  placeholder="Schema name (e.g., my_response_format)"
-                  className={`w-full px-3 py-2 border rounded-lg text-sm ${
-                    darkMode
-                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text placeholder-zenible-dark-text-secondary'
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                  }`}
-                />
-              </div>
-
-              {/* JSON Schema Editor */}
-              <textarea
-                value={JSON.stringify(characterForm.metadata.json_schema?.schema || {}, null, 2)}
-                onChange={(e) => {
-                  try {
-                    const schema = JSON.parse(e.target.value);
-                    setCharacterForm({
-                      ...characterForm,
-                      metadata: {
-                        ...characterForm.metadata,
-                        json_schema: {
-                          ...characterForm.metadata.json_schema,
-                          schema: schema
-                        }
-                      }
-                    });
-                    setModalError(null);
-                  } catch (err: any) {
-                    setModalError('Invalid JSON schema format');
-                  }
-                }}
-                placeholder={`{
-  "type": "object",
-  "properties": {
-    "answer": {
-      "type": "string"
-    }
-  },
-  "required": ["answer"],
-  "additionalProperties": false
-}`}
-                rows={10}
-                className={`w-full px-3 py-2 border rounded-lg font-mono text-sm ${
-                  darkMode
-                    ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text placeholder-zenible-dark-text-secondary'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                }`}
-              />
-
-              <p className={`text-xs mt-1 ${
-                darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
-              }`}>
-                Define the JSON schema that the AI response must conform to. The schema should be a valid JSON Schema (draft 7).
-              </p>
-            </div>
-          )}
-
-          <div>
-            <label className={`block text-sm font-medium mb-1 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              Max Tokens
-            </label>
-            <input
-              type="number"
-              value={characterForm.metadata.max_tokens}
-              onChange={(e) => setCharacterForm({
-                ...characterForm,
-                metadata: {...characterForm.metadata, max_tokens: parseInt(e.target.value)}
-              })}
-              className={`w-full px-3 py-2 border rounded-lg ${
-                darkMode
-                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
-              min="1"
-              max="32000"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className={`block text-sm font-medium mb-1 ${
-              darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-            }`}>
-              System Instructions
-            </label>
-            <textarea
-              value={characterForm.metadata.system_instructions}
-              onChange={(e) => setCharacterForm({
-                ...characterForm,
-                metadata: {...characterForm.metadata, system_instructions: e.target.value}
-              })}
-              className={`w-full px-3 py-2 border rounded-lg font-mono text-sm ${
-                darkMode
-                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
-              rows={6}
-              placeholder="You are a helpful assistant..."
-            />
-
-            {/* Shortcodes section - only show for OpenAI Chat */}
-            {characterForm.backend_provider === 'openai_chat' && (
-              <div className={`mt-3 p-3 rounded-lg border ${
-                darkMode
-                  ? 'bg-zenible-dark-bg border-zenible-dark-border'
-                  : 'bg-blue-50 border-blue-200'
-              }`}>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className={`text-sm font-semibold ${
-                    darkMode ? 'text-zenible-dark-text' : 'text-gray-800'
-                  }`}>
-                    Available Placeholder Variables
-                  </h4>
-                  {shortcodesLoading && (
-                    <span className={`text-xs ${
-                      darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
-                    }`}>
-                      Loading...
-                    </span>
-                  )}
-                </div>
-
-                {shortcodes.length > 0 ? (
-                  <div className="space-y-2">
-                    {shortcodes.map((sc) => (
-                      <div
-                        key={sc.shortcode}
-                        className={`text-xs p-2 rounded ${
-                          darkMode
-                            ? 'bg-zenible-dark-surface'
-                            : 'bg-white'
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <code className={`font-mono font-semibold ${
-                            darkMode ? 'text-blue-400' : 'text-blue-600'
-                          }`}>
-                            {sc.shortcode}
-                          </code>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(sc.shortcode);
-                            }}
-                            className={`px-2 py-0.5 rounded text-xs ${
-                              darkMode
-                                ? 'bg-zenible-dark-bg hover:bg-zenible-dark-border text-zenible-dark-text'
-                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                            }`}
-                            title="Copy to clipboard"
-                          >
-                            Copy
-                          </button>
-                        </div>
-                        <p className={`mt-1 ${
-                          darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'
-                        }`}>
-                          {sc.description}
-                        </p>
-                        {sc.example && (
-                          <p className={`mt-1 font-mono text-xs ${
-                            darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
-                          }`}>
-                            Example: {sc.example}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : !shortcodesLoading && (
-                  <p className={`text-xs ${
-                    darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
-                  }`}>
-                    No placeholder variables available.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Assistant-specific configuration */}
-          {characterForm.backend_provider === 'openai_assistant' && (
-            <div className={`md:col-span-2 border rounded-lg p-4 ${
-              darkMode ? 'border-zenible-dark-border bg-zenible-dark-bg' : 'border-blue-200 bg-blue-50'
-            }`}>
-              <h3 className={`font-semibold mb-3 ${
-                darkMode ? 'text-zenible-dark-text' : 'text-gray-800'
-              }`}>
-                OpenAI Assistant Configuration
-              </h3>
-
-              <div className="space-y-3">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={characterForm.metadata.enable_code_interpreter}
-                    onChange={(e) => setCharacterForm({
-                      ...characterForm,
-                      metadata: {...characterForm.metadata, enable_code_interpreter: e.target.checked}
-                    })}
-                    className="mr-2"
-                  />
-                  <span className={`text-sm ${
-                    darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-                  }`}>
-                    Enable Code Interpreter ($0.03 per session)
-                  </span>
-                </label>
-
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={characterForm.metadata.enable_file_search}
-                    onChange={(e) => setCharacterForm({
-                      ...characterForm,
-                      metadata: {...characterForm.metadata, enable_file_search: e.target.checked}
-                    })}
-                    className="mr-2"
-                  />
-                  <span className={`text-sm ${
-                    darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-                  }`}>
-                    Enable File Search
-                  </span>
-                </label>
-
-                {/* Custom Functions */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className={`text-sm font-medium ${
-                      darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-                    }`}>
-                      Functions & Tools
-                    </label>
-                    <div className="flex gap-2">
-                      {/* Add available tool dropdown */}
-                      {availableTools.length > 0 && availableTools.some(tool => !customFunctions.some(f => f.name === tool.value)) && (
-                        <select
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              const toolName = e.target.value;
-                              const toolDef = toolDefinitions[toolName];
-
-                              if (toolDef) {
-                                const newFunction = {
-                                  name: toolDef.function.name,
-                                  description: toolDef.function.description,
-                                  parameters: toolDef.function.parameters
-                                };
-                                setCustomFunctions([...customFunctions, newFunction]);
-                              }
-                              e.target.value = '';
-                            }
-                          }}
-                          className={`px-3 py-1 text-sm rounded ${
-                            darkMode
-                              ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                              : 'bg-white border-gray-300 text-gray-700'
-                          }`}
-                        >
-                          <option value="">Add Available Tool...</option>
-                          {availableTools
-                            .filter(tool => !customFunctions.some(f => f.name === tool.value))
-                            .map(tool => (
-                              <option key={tool.value} value={tool.value}>
-                                {tool.label}
-                              </option>
-                            ))}
-                        </select>
-                      )}
-                      <button
-                        type="button"
-                        onClick={addCustomFunction}
-                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                      >
-                        Add Custom Function
-                      </button>
-                    </div>
-                  </div>
-
-                  {customFunctions.map((func, index) => (
-                    <div key={index} className={`border rounded p-3 mb-2 ${
-                      darkMode ? 'border-zenible-dark-border' : 'border-gray-300'
-                    }`}>
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
-                          <h4 className={`font-medium ${
-                            darkMode ? 'text-zenible-dark-text' : 'text-gray-800'
-                          }`}>
-                            {func.name || `Function ${index + 1}`}
-                          </h4>
-                          {/* Show badge if this is a backend tool */}
-                          {availableTools.some(tool => tool.value === func.name) && (
-                            <span className={`text-xs px-2 py-0.5 rounded ${
-                              darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'
-                            }`}>
-                              Backend Tool
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeCustomFunction(index)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          Remove
-                        </button>
-                      </div>
-
-                      <div className="space-y-2">
-                        {/* Check if this is a backend tool */}
-                        {availableTools.some(tool => tool.value === func.name) ? (
-                          <>
-                            {/* Read-only display for backend tools */}
-                            <input
-                              type="text"
-                              value={func.name}
-                              disabled
-                              className={`w-full px-2 py-1 border rounded opacity-75 ${
-                                darkMode
-                                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
-                                  : 'bg-gray-100 border-gray-300 text-gray-600'
-                              }`}
-                            />
-                            <textarea
-                              value={func.description}
-                              disabled
-                              className={`w-full px-2 py-1 border rounded opacity-75 ${
-                                darkMode
-                                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
-                                  : 'bg-gray-100 border-gray-300 text-gray-600'
-                              }`}
-                              rows={2}
-                            />
-                            <textarea
-                              value={JSON.stringify(func.parameters, null, 2)}
-                              disabled
-                              className={`w-full px-2 py-1 border rounded font-mono text-xs opacity-75 ${
-                                darkMode
-                                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text-secondary'
-                                  : 'bg-gray-100 border-gray-300 text-gray-600'
-                              }`}
-                              rows={4}
-                            />
-                          </>
-                        ) : (
-                          <>
-                            {/* Editable fields for custom functions */}
-                            <input
-                              type="text"
-                              placeholder="Function Name (e.g., get_weather)"
-                              value={func.name}
-                              onChange={(e) => updateCustomFunction(index, {...func, name: e.target.value})}
-                              className={`w-full px-2 py-1 border rounded ${
-                                darkMode
-                                  ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                                  : 'bg-white border-gray-300 text-gray-900'
-                              }`}
-                            />
-                            <textarea
-                              placeholder="Function Description"
-                              value={func.description}
-                              onChange={(e) => updateCustomFunction(index, {...func, description: e.target.value})}
-                              className={`w-full px-2 py-1 border rounded ${
-                                darkMode
-                                  ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                                  : 'bg-white border-gray-300 text-gray-900'
-                              }`}
-                              rows={2}
-                            />
-                            <textarea
-                              placeholder='Parameters JSON (e.g., {"type": "object", "properties": {...}})'
-                              value={JSON.stringify(func.parameters, null, 2)}
-                              onChange={(e) => {
-                                try {
-                                  const params = JSON.parse(e.target.value);
-                                  updateCustomFunction(index, {...func, parameters: params});
-                                } catch (err: any) {
-                                  // Invalid JSON, just update the string for now
-                                }
-                              }}
-                              className={`w-full px-2 py-1 border rounded font-mono text-xs ${
-                                darkMode
-                                  ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                                  : 'bg-white border-gray-300 text-gray-900'
-                              }`}
-                              rows={4}
-                            />
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* RAG-specific configuration */}
-          {characterForm.backend_provider === 'openai_rag' && (
-            <div className={`md:col-span-2 border rounded-lg p-4 ${
-              darkMode ? 'border-zenible-dark-border bg-zenible-dark-bg' : 'border-green-200 bg-green-50'
-            }`}>
-              <h3 className={`font-semibold mb-3 ${
-                darkMode ? 'text-zenible-dark-text' : 'text-gray-800'
-              }`}>
-                RAG Configuration
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${
-                    darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-                  }`}>
-                    Embedding Model
-                  </label>
-                  <select
-                    value={characterForm.metadata.embedding_model}
-                    onChange={(e) => setCharacterForm({
-                      ...characterForm,
-                      metadata: {...characterForm.metadata, embedding_model: e.target.value}
-                    })}
-                    className={`w-full px-3 py-2 border rounded-lg ${
-                      darkMode
-                        ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  >
-                    {modelsLoading ? (
-                      <option value="">Loading models...</option>
-                    ) : embeddingModels.length > 0 ? (
-                      embeddingModels.map(model => (
-                        <option key={model.value} value={model.value}>{model.label}</option>
-                      ))
-                    ) : (
-                      <option value="">No embedding models available</option>
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${
-                    darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-                  }`}>
-                    Chunk Size
-                  </label>
-                  <input
-                    type="number"
-                    value={characterForm.metadata.chunk_size}
-                    onChange={(e) => setCharacterForm({
-                      ...characterForm,
-                      metadata: {...characterForm.metadata, chunk_size: parseInt(e.target.value)}
-                    })}
-                    className={`w-full px-3 py-2 border rounded-lg ${
-                      darkMode
-                        ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                    min="100"
-                    max="4000"
-                  />
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${
-                    darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-                  }`}>
-                    Chunk Overlap
-                  </label>
-                  <input
-                    type="number"
-                    value={characterForm.metadata.chunk_overlap}
-                    onChange={(e) => setCharacterForm({
-                      ...characterForm,
-                      metadata: {...characterForm.metadata, chunk_overlap: parseInt(e.target.value)}
-                    })}
-                    className={`w-full px-3 py-2 border rounded-lg ${
-                      darkMode
-                        ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                    min="0"
-                    max="500"
-                  />
-                </div>
-
-                <div>
-                  <label className="flex items-center mt-6">
-                    <input
-                      type="checkbox"
-                      checked={characterForm.metadata.enable_file_search}
-                      onChange={(e) => setCharacterForm({
-                        ...characterForm,
-                        metadata: {...characterForm.metadata, enable_file_search: e.target.checked}
-                      })}
-                      className="mr-2"
-                    />
-                    <span className={`text-sm ${
-                      darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-                    }`}>
-                      Enable File Search ($0.10/GB/day)
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              <div className={`mt-3 p-3 rounded ${
-                darkMode ? 'bg-zenible-dark-card' : 'bg-green-100'
-              }`}>
-                <p className={`text-sm ${
-                  darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
-                }`}>
-                  Upload documents to the vector store after creating the character.
-                </p>
-              </div>
-            </div>
-          )}
-
+          <RAGConfigSection
+            characterForm={characterForm}
+            setCharacterForm={setCharacterForm}
+            embeddingModels={embeddingModels}
+            modelsLoading={modelsLoading}
+            darkMode={darkMode}
+          />
 
           <div className="md:col-span-2">
             <label className="flex items-center">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useContactFinancials, useCompanyCurrencies } from '../../hooks/crm';
 import { formatCurrencyWithCommas } from '../../utils/currency';
+import { LoadingSpinner } from '../shared';
 
 interface FinancialSummaryProps {
   data: any;
@@ -77,9 +78,9 @@ const ContactFinancialsTab: React.FC<ContactFinancialsTabProps> = ({ contactId }
     loading,
     error,
     refresh,
-  } = useContactFinancials(contactId) as any;
+  } = useContactFinancials(contactId);
 
-  const { defaultCurrency, numberFormat } = useCompanyCurrencies() as any;
+  const { defaultCurrency, numberFormat } = useCompanyCurrencies();
   const defaultCurrencyCode = defaultCurrency?.currency?.code || 'GBP';
 
   // Get per-category currencies with fallback to default
@@ -93,11 +94,7 @@ const ContactFinancialsTab: React.FC<ContactFinancialsTabProps> = ({ contactId }
   const hasData = summaryData && (summaryData.billed > 0 || summaryData.outstanding > 0 || summaryData.expenses > 0);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="py-8" />;
   }
 
   if (error) {

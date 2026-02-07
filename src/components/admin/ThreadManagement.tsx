@@ -1,10 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import { LoadingSpinner } from '../shared';
+
+interface AdminThread {
+  id: string;
+  thread_id?: string;
+  openai_thread_id?: string;
+  user_id?: string;
+  assistant_id?: string;
+  character_name?: string;
+  ai_character_id?: string;
+  status: string;
+  last_run_status?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at?: string;
+}
+
+interface OpenAIThreadDetails {
+  assistant_id?: string;
+  created_at?: number;
+  metadata?: Record<string, unknown>;
+}
+
+interface ThreadMessage {
+  id?: string;
+  role: string;
+  content?: Array<{ text?: { value?: string } }>;
+  created_at?: number;
+  file_ids?: string[];
+}
+
+interface CleanupResult {
+  orphaned_count?: number;
+  deleted_count?: number;
+}
 
 export default function ThreadManagement() {
-  const { darkMode } = useOutletContext() as any;
-  const [threads, setThreads] = useState<any[]>([]);
+  const { darkMode } = useOutletContext<{ darkMode: boolean }>();
+  const [threads, setThreads] = useState<AdminThread[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -12,9 +47,9 @@ export default function ThreadManagement() {
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [showMessagesModal, setShowMessagesModal] = useState<boolean>(false);
   const [showCleanupModal, setShowCleanupModal] = useState<boolean>(false);
-  const [selectedThread, setSelectedThread] = useState<any>(null);
-  const [threadMessages, setThreadMessages] = useState<any[]>([]);
-  const [openAIDetails, setOpenAIDetails] = useState<any>(null);
+  const [selectedThread, setSelectedThread] = useState<AdminThread | null>(null);
+  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const [openAIDetails, setOpenAIDetails] = useState<OpenAIThreadDetails | null>(null);
   const [loadingMessages, setLoadingMessages] = useState<boolean>(false);
 
   // Pagination and filtering
@@ -28,7 +63,7 @@ export default function ThreadManagement() {
   const [orderDir, setOrderDir] = useState<string>('desc');
 
   // Cleanup state
-  const [cleanupResults, setCleanupResults] = useState<any>(null);
+  const [cleanupResults, setCleanupResults] = useState<CleanupResult | null>(null);
   const [cleanupLoading, setCleanupLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -39,9 +74,9 @@ export default function ThreadManagement() {
     setLoading(true);
     setError(null);
     try {
-      const params = {
-        page,
-        per_page: perPage,
+      const params: Record<string, string> = {
+        page: String(page),
+        per_page: String(perPage),
         ...(search && { search }),
         ...(userId && { user_id: userId }),
         ...(status && { status }),
@@ -49,7 +84,7 @@ export default function ThreadManagement() {
         order_dir: orderDir,
       };
 
-      const response = await (adminAPI as any).getThreads(params);
+      const response = await adminAPI.getThreads(params) as { threads?: AdminThread[]; items?: AdminThread[]; total?: number; total_pages?: number };
       setThreads(response.threads || response.items || []);
       // Calculate total pages from total and per_page
       const totalCount = response.total || 0;
@@ -63,13 +98,13 @@ export default function ThreadManagement() {
     }
   };
 
-  const handleViewDetails = async (thread: any) => {
+  const handleViewDetails = async (thread: AdminThread) => {
     setSelectedThread(thread);
     setShowDetailsModal(true);
 
     // Fetch OpenAI details
     try {
-      const details = await (adminAPI as any).getOpenAIThread(thread.id);
+      const details = await adminAPI.getOpenAIThread(thread.id) as OpenAIThreadDetails;
       setOpenAIDetails(details);
     } catch (err: any) {
       console.error('Error fetching OpenAI thread details:', err);
@@ -77,16 +112,16 @@ export default function ThreadManagement() {
     }
   };
 
-  const handleViewMessages = async (thread: any) => {
+  const handleViewMessages = async (thread: AdminThread) => {
     setSelectedThread(thread);
     setShowMessagesModal(true);
     setLoadingMessages(true);
 
     try {
-      const messages = await (adminAPI as any).getThreadMessages(thread.id, {
-        limit: 100,
+      const messages = await adminAPI.getThreadMessages(thread.id, {
+        limit: '100',
         order: 'asc',
-      });
+      }) as { data?: ThreadMessage[] };
       setThreadMessages(messages.data || []);
     } catch (err: any) {
       console.error('Error fetching thread messages:', err);
@@ -102,7 +137,7 @@ export default function ThreadManagement() {
     }
 
     try {
-      await (adminAPI as any).deleteThread(threadId, deleteFromOpenAI);
+      await adminAPI.deleteThread(threadId, deleteFromOpenAI);
       fetchThreads();
       if (showDetailsModal || showMessagesModal) {
         setShowDetailsModal(false);
@@ -115,7 +150,7 @@ export default function ThreadManagement() {
 
   const handleUpdateStatus = async (threadId: string, newStatus: string) => {
     try {
-      await (adminAPI as any).updateThreadStatus(threadId, newStatus);
+      await adminAPI.updateThreadStatus(threadId, newStatus);
       fetchThreads();
       if (selectedThread) {
         setSelectedThread({ ...selectedThread, status: newStatus });
@@ -128,9 +163,9 @@ export default function ThreadManagement() {
   const handleCleanup = async (dryRun: boolean = true) => {
     setCleanupLoading(true);
     try {
-      const result = await (adminAPI as any).cleanupOrphanedThreads(dryRun);
+      const result = await adminAPI.cleanupOrphanedThreads(dryRun) as CleanupResult;
       setCleanupResults(result);
-      if (!dryRun && result.deleted_count > 0) {
+      if (!dryRun && (result.deleted_count ?? 0) > 0) {
         fetchThreads();
       }
     } catch (err: any) {
@@ -254,9 +289,7 @@ export default function ThreadManagement() {
       <div className="px-6 pb-6">
         <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-            </div>
+            <LoadingSpinner height="py-12" />
           ) : error ? (
             <div className="text-red-500 text-center py-12">Error: {error}</div>
           ) : (
@@ -289,7 +322,7 @@ export default function ThreadManagement() {
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
-                    {threads.map((thread: any) => (
+                    {threads.map((thread: AdminThread) => (
                       <tr key={thread.id}>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-mono ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                           {thread.thread_id ? thread.thread_id.substring(0, 12) : thread.id.substring(0, 8)}...
@@ -306,9 +339,9 @@ export default function ThreadManagement() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {(thread.last_run_status || thread.metadata?.analysis_type) && (
-                            <span className={`px-2 py-1 text-xs rounded-full ${getRunStatusBadge(thread.last_run_status || thread.metadata?.analysis_type)}`}>
-                              {thread.last_run_status || thread.metadata?.analysis_type}
+                          {(thread.last_run_status || (thread.metadata?.analysis_type as string)) && (
+                            <span className={`px-2 py-1 text-xs rounded-full ${getRunStatusBadge(thread.last_run_status || String(thread.metadata?.analysis_type))}`}>
+                              {thread.last_run_status || String(thread.metadata?.analysis_type)}
                             </span>
                           )}
                         </td>
@@ -444,7 +477,7 @@ export default function ThreadManagement() {
                     <div>
                       <dt className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Updated</dt>
                       <dd className={`text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                        {formatDate(selectedThread.updated_at)}
+                        {formatDate(selectedThread.updated_at ?? '')}
                       </dd>
                     </div>
                   </dl>
@@ -532,16 +565,14 @@ export default function ThreadManagement() {
             </div>
             <div className="p-6">
               {loadingMessages ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-                </div>
+                <LoadingSpinner height="py-12" />
               ) : threadMessages.length === 0 ? (
                 <div className={`text-center py-12 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                   No messages found
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {threadMessages.map((message: any, index: number) => (
+                  {threadMessages.map((message: ThreadMessage, index: number) => (
                     <div
                       key={message.id || index}
                       className={`p-4 rounded-lg border ${

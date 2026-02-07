@@ -7,33 +7,95 @@ import vendorTypesAPI from '../services/api/crm/vendorTypes';
 import numberFormatsAPI from '../services/api/crm/numberFormats';
 import appointmentEnumsAPI from '../services/api/crm/appointmentEnums';
 
+export interface ReferenceCountry {
+  id: string;
+  name: string;
+  code: string;
+  [key: string]: unknown;
+}
+
+export interface ReferenceCompanyCountry {
+  id: string;
+  country: ReferenceCountry;
+  is_default: boolean;
+  [key: string]: unknown;
+}
+
+export interface Industry {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+export interface EmployeeRange {
+  id: string;
+  name: string;
+  min_employees?: number;
+  max_employees?: number;
+  [key: string]: unknown;
+}
+
+export interface VendorType {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+export interface NumberFormat {
+  id: string;
+  name?: string;
+  format_string?: string;
+  decimal_separator: string;
+  thousands_separator: string;
+  [key: string]: unknown;
+}
+
+export interface EnumItem {
+  value: string;
+  label: string;
+  color?: string;
+  [key: string]: unknown;
+}
+
+/** Shape of the appointment enums API response (superset of generated AppointmentEnumsResponse) */
+interface AppointmentEnumsData {
+  appointment_types?: EnumItem[];
+  appointment_statuses?: EnumItem[];
+  sync_statuses?: EnumItem[];
+  recurring_types?: EnumItem[];
+  recurring_statuses?: EnumItem[];
+  monthly_recurring_types?: EnumItem[];
+  edit_scopes?: EnumItem[];
+  [key: string]: unknown;
+}
+
 interface CRMReferenceDataState {
-  countries: unknown[];
-  companyEnabledCountries: unknown[];
-  industries: unknown[];
-  employeeRanges: unknown[];
-  vendorTypes: unknown[];
-  numberFormats: unknown[];
-  appointmentTypes: unknown[];
-  appointmentStatuses: unknown[];
-  syncStatuses: unknown[];
-  recurringTypes: unknown[];
-  recurringStatuses: unknown[];
-  monthlyRecurringTypes: unknown[];
-  editScopes: unknown[];
+  countries: ReferenceCountry[];
+  companyEnabledCountries: ReferenceCompanyCountry[];
+  industries: Industry[];
+  employeeRanges: EmployeeRange[];
+  vendorTypes: VendorType[];
+  numberFormats: NumberFormat[];
+  appointmentTypes: EnumItem[];
+  appointmentStatuses: EnumItem[];
+  syncStatuses: EnumItem[];
+  recurringTypes: EnumItem[];
+  recurringStatuses: EnumItem[];
+  monthlyRecurringTypes: EnumItem[];
+  editScopes: EnumItem[];
   loading: boolean;
   error: string | null;
   lastFetch: number | null;
 }
 
 interface CRMReferenceDataContextValue extends CRMReferenceDataState {
-  getCountryByCode: (code: string) => unknown;
-  getCountryById: (id: string) => unknown;
-  getIndustryById: (id: string) => unknown;
-  getIndustryByName: (name: string) => unknown;
-  getEmployeeRangeById: (id: string) => unknown;
-  getNumberFormatById: (id: string) => unknown;
-  getVendorTypeById: (id: string) => unknown;
+  getCountryByCode: (code: string) => ReferenceCountry | undefined;
+  getCountryById: (id: string) => ReferenceCountry | undefined;
+  getIndustryById: (id: string) => Industry | undefined;
+  getIndustryByName: (name: string) => Industry | undefined;
+  getEmployeeRangeById: (id: string) => EmployeeRange | undefined;
+  getNumberFormatById: (id: string) => NumberFormat | undefined;
+  getVendorTypeById: (id: string) => VendorType | undefined;
   getTypeLabel: (value: string) => string;
   getStatusLabel: (value: string) => string;
   getStatusColor: (value: string) => string;
@@ -75,6 +137,7 @@ export const CRMReferenceDataProvider = ({ children }: { children: React.ReactNo
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
+      const failedSources: string[] = [];
       const [
         countriesData,
         companyCountriesData,
@@ -84,31 +147,31 @@ export const CRMReferenceDataProvider = ({ children }: { children: React.ReactNo
         numberFormatsData,
         appointmentEnumsData
       ] = await Promise.all([
-        countriesAPI.list().catch(() => []),
-        countriesAPI.getCompanyCountries().catch(() => []),
-        industriesAPI.list().catch(() => []),
-        employeeRangesAPI.list().catch(() => []),
-        vendorTypesAPI.list().catch(() => []),
-        numberFormatsAPI.list().catch(() => []),
-        appointmentEnumsAPI.getEnums().catch(() => ({}))
+        countriesAPI.list().catch((err: unknown) => { console.error('Failed to load countries:', err); failedSources.push('countries'); return []; }),
+        countriesAPI.getCompanyCountries().catch((err: unknown) => { console.error('Failed to load company countries:', err); failedSources.push('companyCountries'); return []; }),
+        industriesAPI.list().catch((err: unknown) => { console.error('Failed to load industries:', err); failedSources.push('industries'); return []; }),
+        employeeRangesAPI.list().catch((err: unknown) => { console.error('Failed to load employee ranges:', err); failedSources.push('employeeRanges'); return []; }),
+        vendorTypesAPI.list().catch((err: unknown) => { console.error('Failed to load vendor types:', err); failedSources.push('vendorTypes'); return []; }),
+        numberFormatsAPI.list().catch((err: unknown) => { console.error('Failed to load number formats:', err); failedSources.push('numberFormats'); return []; }),
+        appointmentEnumsAPI.getEnums().catch((err: unknown) => { console.error('Failed to load appointment enums:', err); failedSources.push('appointmentEnums'); return {}; })
       ]);
 
       setState({
-        countries: (countriesData as unknown[]) || [],
-        companyEnabledCountries: (companyCountriesData as unknown[]) || [],
-        industries: (industriesData as unknown[]) || [],
-        employeeRanges: (employeeRangesData as unknown[]) || [],
-        vendorTypes: (vendorTypesData as unknown[]) || [],
-        numberFormats: (numberFormatsData as unknown[]) || [],
-        appointmentTypes: (appointmentEnumsData as any)?.appointment_types || [],
-        appointmentStatuses: (appointmentEnumsData as any)?.appointment_statuses || [],
-        syncStatuses: (appointmentEnumsData as any)?.sync_statuses || [],
-        recurringTypes: (appointmentEnumsData as any)?.recurring_types || [],
-        recurringStatuses: (appointmentEnumsData as any)?.recurring_statuses || [],
-        monthlyRecurringTypes: (appointmentEnumsData as any)?.monthly_recurring_types || [],
-        editScopes: (appointmentEnumsData as any)?.edit_scopes || [],
+        countries: (countriesData as ReferenceCountry[]) || [],
+        companyEnabledCountries: (companyCountriesData as ReferenceCompanyCountry[]) || [],
+        industries: (industriesData as Industry[]) || [],
+        employeeRanges: (employeeRangesData as EmployeeRange[]) || [],
+        vendorTypes: (vendorTypesData as VendorType[]) || [],
+        numberFormats: (numberFormatsData as NumberFormat[]) || [],
+        appointmentTypes: (appointmentEnumsData as AppointmentEnumsData)?.appointment_types || [],
+        appointmentStatuses: (appointmentEnumsData as AppointmentEnumsData)?.appointment_statuses || [],
+        syncStatuses: (appointmentEnumsData as AppointmentEnumsData)?.sync_statuses || [],
+        recurringTypes: (appointmentEnumsData as AppointmentEnumsData)?.recurring_types || [],
+        recurringStatuses: (appointmentEnumsData as AppointmentEnumsData)?.recurring_statuses || [],
+        monthlyRecurringTypes: (appointmentEnumsData as AppointmentEnumsData)?.monthly_recurring_types || [],
+        editScopes: (appointmentEnumsData as AppointmentEnumsData)?.edit_scopes || [],
         loading: false,
-        error: null,
+        error: failedSources.length > 0 ? `Partially loaded. Failed sources: ${failedSources.join(', ')}` : null,
         lastFetch: Date.now()
       });
     } catch (err) {
@@ -135,26 +198,26 @@ export const CRMReferenceDataProvider = ({ children }: { children: React.ReactNo
   // Helper methods for quick lookups
   const helpers = useMemo(() => ({
     // Country helpers
-    getCountryByCode: (code: string) => (state.countries as any[]).find(c => c.code === code),
-    getCountryById: (id: string) => (state.countries as any[]).find(c => c.id === id),
+    getCountryByCode: (code: string) => state.countries.find(c => c.code === code),
+    getCountryById: (id: string) => state.countries.find(c => c.id === id),
 
     // Industry helpers
-    getIndustryById: (id: string) => (state.industries as any[]).find(i => i.id === id),
-    getIndustryByName: (name: string) => (state.industries as any[]).find(i => i.name === name),
+    getIndustryById: (id: string) => state.industries.find(i => i.id === id),
+    getIndustryByName: (name: string) => state.industries.find(i => i.name === name),
 
     // Employee range helpers
-    getEmployeeRangeById: (id: string) => (state.employeeRanges as any[]).find(e => e.id === id),
+    getEmployeeRangeById: (id: string) => state.employeeRanges.find(e => e.id === id),
 
     // Number format helpers
-    getNumberFormatById: (id: string) => (state.numberFormats as any[]).find(n => n.id === id),
+    getNumberFormatById: (id: string) => state.numberFormats.find(n => n.id === id),
 
     // Vendor type helpers
-    getVendorTypeById: (id: string) => (state.vendorTypes as any[]).find(v => v.id === id),
+    getVendorTypeById: (id: string) => state.vendorTypes.find(v => v.id === id),
 
     // Appointment type helpers (migrated from EnumMetadataContext)
-    getTypeLabel: (value: string) => (state.appointmentTypes as any[]).find(t => t.value === value)?.label || value,
-    getStatusLabel: (value: string) => (state.appointmentStatuses as any[]).find(s => s.value === value)?.label || value,
-    getStatusColor: (value: string) => (state.appointmentStatuses as any[]).find(s => s.value === value)?.color || '#6B7280'
+    getTypeLabel: (value: string) => state.appointmentTypes.find(t => t.value === value)?.label || value,
+    getStatusLabel: (value: string) => state.appointmentStatuses.find(s => s.value === value)?.label || value,
+    getStatusColor: (value: string) => state.appointmentStatuses.find(s => s.value === value)?.color || '#6B7280'
   }), [state]);
 
   const value: CRMReferenceDataContextValue = {

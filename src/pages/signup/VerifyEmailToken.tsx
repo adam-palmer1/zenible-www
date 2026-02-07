@@ -16,7 +16,7 @@ export default function VerifyEmailToken() {
   const urlCode = searchParams.get('code') || '';
 
   const navigate = useNavigate();
-  const { setTokens } = useAuth() as any;
+  const { setTokens } = useAuth();
 
   const [email, setEmail] = useState<string>(urlEmail);
   const [code, setCode] = useState<string>(urlCode);
@@ -80,7 +80,7 @@ export default function VerifyEmailToken() {
           setCode(''); // Clear code so user can re-enter manually
         }
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Network error. Please try again.');
     } finally {
       setIsLoading(false);
@@ -130,7 +130,7 @@ export default function VerifyEmailToken() {
         }
         setError(errorMessage);
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to resend verification email. Please try again.');
     } finally {
       setIsResending(false);

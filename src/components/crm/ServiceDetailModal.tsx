@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { XMarkIcon, PlusIcon, LinkIcon, DocumentPlusIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import Modal from '../ui/modal/Modal';
 import { formatCurrency } from '../../utils/currencyUtils';
-import { SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS } from '../../constants/crm';
+import { SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS, type ServiceStatus } from '../../constants/crm';
 import { useContacts } from '../../hooks/crm';
+import type { ContactServiceAttributionResponse, ContactServiceInvoiceResponse } from '../../types/crm';
 import { useNotification } from '../../contexts/NotificationContext';
 import AttributionsList from './AttributionsList';
 import InvoiceLinksList from './InvoiceLinksList';
@@ -33,8 +34,8 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   onServiceUpdate,
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [attributions, setAttributions] = useState<any[]>([]);
-  const [invoiceLinks, setInvoiceLinks] = useState<any[]>([]);
+  const [attributions, setAttributions] = useState<ContactServiceAttributionResponse[]>([]);
+  const [invoiceLinks, setInvoiceLinks] = useState<ContactServiceInvoiceResponse[]>([]);
   const [loadingAttributions, setLoadingAttributions] = useState(false);
   const [loadingInvoiceLinks, setLoadingInvoiceLinks] = useState(false);
   const [showAttributionModal, setShowAttributionModal] = useState(false);
@@ -46,7 +47,7 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
 
-  const { showError, showSuccess } = useNotification() as any;
+  const { showError, showSuccess } = useNotification();
 
   const {
     listAttributions,
@@ -56,7 +57,7 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
     createInvoiceLink,
     deleteInvoiceLink,
     unlinkServiceFromTemplate,
-  } = useContacts({}, 0, { skipInitialFetch: true }) as any;
+  } = useContacts({}, 0, { skipInitialFetch: true });
 
   // Load attributions when tab is selected
   useEffect(() => {
@@ -75,7 +76,7 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   const loadAttributions = async () => {
     try {
       setLoadingAttributions(true);
-      const data = await listAttributions(contactId, service.id);
+      const data = await listAttributions(contactId, service.id) as ContactServiceAttributionResponse[];
       setAttributions(data || []);
     } catch (error) {
       console.error('Failed to load attributions:', error);
@@ -87,7 +88,7 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   const loadInvoiceLinks = async () => {
     try {
       setLoadingInvoiceLinks(true);
-      const data = await listInvoiceLinks(contactId, service.id);
+      const data = await listInvoiceLinks(contactId, service.id) as ContactServiceInvoiceResponse[];
       setInvoiceLinks(data || []);
     } catch (error) {
       console.error('Failed to load invoice links:', error);
@@ -148,7 +149,6 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   const totalAttributed = parseFloat(service.total_attributed) || 0;
   const totalInvoiced = parseFloat(service.total_invoiced) || 0;
   const amountRemaining = parseFloat(service.amount_remaining) ?? price;
-  const hasProgress = totalAttributed > 0 || totalInvoiced > 0;
   const invoicedPercent = price > 0 ? (totalInvoiced / price) * 100 : 0;
   const attributedPercent = price > 0 ? (totalAttributed / price) * 100 : 0;
 
@@ -175,8 +175,8 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
           {/* Header with status badge */}
           <div className="flex items-center gap-3 flex-wrap">
             {service.status && (
-              <span className={`text-sm px-3 py-1 rounded-full ${(SERVICE_STATUS_COLORS as any)[service.status] || 'bg-gray-100 text-gray-800'}`}>
-                {(SERVICE_STATUS_LABELS as any)[service.status] || service.status}
+              <span className={`text-sm px-3 py-1 rounded-full ${SERVICE_STATUS_COLORS[service.status as ServiceStatus] || 'bg-gray-100 text-gray-800'}`}>
+                {SERVICE_STATUS_LABELS[service.status as ServiceStatus] || service.status}
               </span>
             )}
             {isRecurring && (

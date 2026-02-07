@@ -15,7 +15,7 @@ import { useDebouncedPreference } from '../useDebouncedPreference';
  * Replaces ~200 lines of filter management code in CRMDashboard
  */
 export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, unknown> = {}) {
-  const { getPreference, initialized: preferencesInitialized } = usePreferences() as any;
+  const { getPreference, initialized: preferencesInitialized } = usePreferences();
   const { updatePreference: updateDebouncedPreference } = useDebouncedPreference(500);
 
   // Filter state
@@ -55,14 +55,13 @@ export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, 
 
   // Build contact filters for CRM tab
   // - has_crm_status=true: Only fetch contacts that have been assigned to the CRM pipeline
-  //   (have a global or custom status). This excludes vendor-only contacts.
-  // - Note: We don't send is_hidden to the API because the backend does strict matching.
-  //   Hidden contact filtering is done client-side in CRMDashboard.jsx
+  // - is_hidden: Server-side filtering for hidden contacts
   const contactFilters = useMemo(() => ({
     ...baseFilters,
     has_crm_status: true,  // Only get contacts in the CRM pipeline
-    per_page: 500,         // Get all CRM contacts (pipeline needs all to display columns)
-  }), [baseFilters]);
+    per_page: 100,         // Use server-side pagination
+    ...(showHidden ? {} : { is_hidden: false }),  // Exclude hidden unless toggled
+  }), [baseFilters, showHidden]);
 
   // Filter contacts by selected statuses
   const filteredContacts = useMemo(() => {

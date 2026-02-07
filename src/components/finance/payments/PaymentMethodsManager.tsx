@@ -15,8 +15,8 @@ const PaymentMethodsManager: React.FC<PaymentMethodsManagerProps> = ({ isOpen, o
     methodsLoading,
     fetchPaymentMethods,
     removePaymentMethod
-  } = usePayments() as any;
-  const { showSuccess, showError } = useNotification() as any;
+  } = usePayments();
+  const { showSuccess, showError } = useNotification();
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [removeConfirmModal, setRemoveConfirmModal] = useState<{ isOpen: boolean; methodId: string | null }>({ isOpen: false, methodId: null });

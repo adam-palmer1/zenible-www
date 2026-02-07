@@ -4,6 +4,7 @@ import { ExclamationTriangleIcon, ArrowRightIcon, BanknotesIcon } from '@heroico
 import invoicesAPI from '../../../services/api/finance/invoices';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { formatCurrency } from '../../../utils/currency';
+import { LoadingSpinner } from '../../shared';
 
 interface OutstandingInvoicesWidgetProps {
   settings?: Record<string, any>;
@@ -13,9 +14,9 @@ interface OutstandingInvoicesWidgetProps {
  * Outstanding Invoices Widget for Dashboard
  * Shows summary of unpaid and overdue invoices using the stats API
  */
-const OutstandingInvoicesWidget = ({ settings = {} }: OutstandingInvoicesWidgetProps) => {
+const OutstandingInvoicesWidget = ({ settings: _settings = {} }: OutstandingInvoicesWidgetProps) => {
   const navigate = useNavigate();
-  const { defaultCurrency, loading: currencyLoading } = useCompanyCurrencies() as any;
+  const { defaultCurrency, loading: currencyLoading } = useCompanyCurrencies();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,7 @@ const OutstandingInvoicesWidget = ({ settings = {} }: OutstandingInvoicesWidgetP
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const data = await (invoicesAPI as any).getStats();
+        const data = await invoicesAPI.getStats();
         setStats(data);
         setError(null);
       } catch (err: any) {
@@ -49,11 +50,7 @@ const OutstandingInvoicesWidget = ({ settings = {} }: OutstandingInvoicesWidgetP
   const handleViewOverdue = () => navigate('/finance/invoices?status=overdue');
 
   if (loading || currencyLoading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[100px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 
   if (error) {

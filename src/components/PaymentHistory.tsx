@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { usePreferences } from '../contexts/PreferencesContext';
 import planAPI from '../services/planAPI';
+import { LoadingSpinner } from './shared';
 
 export default function PaymentHistory() {
-  const { darkMode } = usePreferences() as any;
+  const { darkMode } = usePreferences();
   const [payments, setPayments] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,10 +71,10 @@ export default function PaymentHistory() {
       if (startDate) params.start_date = new Date(startDate).toISOString();
       if (endDate) params.end_date = new Date(endDate).toISOString();
 
-      const response = await planAPI.getPayments(params) as any;
+      const response = await planAPI.getPayments(params) as { items?: any[]; total_pages?: number; total?: number };
 
-      setPayments(response.payments || []);
-      setTotalPages(response.pages || 1);
+      setPayments(response.items || []);
+      setTotalPages(response.total_pages || 1);
       setTotalItems(response.total || 0);
     } catch (err) {
       console.error('Error fetching payments:', err);
@@ -93,10 +94,10 @@ export default function PaymentHistory() {
         per_page: perPage,
       };
 
-      const response = await planAPI.getInvoices(params) as any;
+      const response = await planAPI.getInvoices(params) as { items?: any[]; total_pages?: number; total?: number };
 
-      setInvoices(response.invoices || []);
-      setTotalPages(response.pages || 1);
+      setInvoices(response.items || []);
+      setTotalPages(response.total_pages || 1);
       setTotalItems(response.total || 0);
     } catch (err) {
       console.error('Error fetching invoices:', err);
@@ -412,9 +413,7 @@ export default function PaymentHistory() {
           )}
 
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-            </div>
+            <LoadingSpinner height="py-12" />
           ) : activeView === 'payments' ? (
             // Payments Table
             payments.length === 0 ? (

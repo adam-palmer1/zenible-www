@@ -5,6 +5,7 @@ import {
   PROJECT_STATUS_LABELS,
   PROJECT_STATUS_HEX_COLORS
 } from '../../../constants/crm';
+import type { ProjectStatus } from '../../../constants/crm';
 
 interface ProjectsFiltersBarProps {
   selectedStatuses: string[];
@@ -75,10 +76,10 @@ const ProjectsFiltersBar: React.FC<ProjectsFiltersBarProps> = ({
                   <div className="flex items-center gap-2 flex-1">
                     <div
                       className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: (PROJECT_STATUS_HEX_COLORS as any)[status] }}
+                      style={{ backgroundColor: PROJECT_STATUS_HEX_COLORS[status as ProjectStatus] }}
                     />
                     <span className="text-sm text-gray-900">
-                      {(PROJECT_STATUS_LABELS as any)[status]}
+                      {PROJECT_STATUS_LABELS[status as ProjectStatus]}
                     </span>
                   </div>
                 </label>

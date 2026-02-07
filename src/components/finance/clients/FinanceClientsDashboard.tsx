@@ -7,7 +7,7 @@ import ConvertToClientModal from './ConvertToClientModal';
 import { useModalState } from '../../../hooks/useModalState';
 
 const FinanceClientsDashboard: React.FC = () => {
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const convertModal = useModalState();
 
   return (
@@ -39,9 +39,9 @@ const FinanceClientsDashboard: React.FC = () => {
 
           {/* Clients View */}
           <div className="p-6">
-            {/* Cast as any - ClientsView has many required props but works with defaults in the original JSX */}
-            {React.createElement(ClientsView as any, {
-              onClientClick: (client: any) => {
+            {/* ClientsView requires many props - cast to component type accepting partial props */}
+            {React.createElement(ClientsView as React.ComponentType<{ onClientClick?: (client: unknown) => void }>, {
+              onClientClick: (_client: unknown) => {
                 // Navigate to contact details or open modal
               }
             })}

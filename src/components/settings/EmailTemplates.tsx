@@ -7,6 +7,7 @@ import {
 } from '../../hooks/queries/useEmailTemplatesQuery';
 import { useNotification } from '../../contexts/NotificationContext';
 import { TEMPLATE_TYPE_LABELS, EmailTemplateType, TEMPLATE_CATEGORIES } from '../../types/emailTemplate';
+import { LoadingSpinner } from '../shared';
 
 /**
  * EmailTemplates Management Page
@@ -27,7 +28,7 @@ const EmailTemplates = () => {
   const { templates, isLoading, refetch } = useEmailTemplatesList(
     { include_system_defaults: true },
     { refetchOnMount: true }
-  ) as any;
+  );
 
   // Delete mutation
   const deleteMutation = useDeleteEmailTemplate({
@@ -36,7 +37,7 @@ const EmailTemplates = () => {
       setDeleteModal({ isOpen: false, template: null });
       refetch();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       showError(error.message || 'Failed to delete template');
     }
   });
@@ -90,7 +91,7 @@ const EmailTemplates = () => {
     return {
       userTemplate,
       systemTemplate,
-      label: (TEMPLATE_TYPE_LABELS as any)[type] || type
+      label: TEMPLATE_TYPE_LABELS[type as EmailTemplateType] || type
     };
   };
 
@@ -99,7 +100,7 @@ const EmailTemplates = () => {
       <div className="max-w-7xl mx-auto">
         <EmailTemplateEditor
           template={editingTemplate}
-          templateType={editingTemplateType}
+          templateType={editingTemplateType ?? undefined}
           onSave={handleSaveTemplate}
           onCancel={handleCancelEditor}
         />
@@ -128,11 +129,8 @@ const EmailTemplates = () => {
 
       {/* Templates List */}
       {isLoading ? (
-        <div className="flex justify-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary mx-auto"></div>
-            <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">Loading templates...</p>
-          </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <LoadingSpinner height="py-12" message="Loading templates..." />
         </div>
       ) : (
         <div className="space-y-8">

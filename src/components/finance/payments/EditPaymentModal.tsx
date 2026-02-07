@@ -27,8 +27,8 @@ interface EditPaymentModalProps {
 }
 
 const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, payment: paymentProp, refreshKey }) => {
-  const { updatePayment, refresh } = usePayments() as any;
-  const { showSuccess, showError } = useNotification() as any;
+  const { updatePayment, refresh } = usePayments();
+  const { showSuccess, showError } = useNotification();
   const methodDropdownRef = useRef<HTMLDivElement>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -71,7 +71,7 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
 
     try {
       if (showLoading) setLoadingDetails(true);
-      const data = await (paymentsAPI as any).get(paymentProp.id);
+      const data = await paymentsAPI.get(paymentProp.id);
       setPayment(data);
     } catch (err) {
       console.error('Error fetching payment details:', err);
@@ -211,10 +211,12 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
 
     try {
       setUnlinkingExpenseId(expenseId);
-      await (expensesAPI as any).update(expenseId, { payment_id: null });
+      // payment_id is accepted by the backend but not in the generated ExpenseUpdate schema
+      type UnlinkPayload = Parameters<typeof expensesAPI.update>[1] & { payment_id: null };
+      await expensesAPI.update(expenseId, { payment_id: null } as UnlinkPayload);
       showSuccess('Expense unlinked successfully');
       // Refetch payment details to get updated fee_expenses
-      const updatedPayment = await (paymentsAPI as any).get(payment.id);
+      const updatedPayment = await paymentsAPI.get(payment.id);
       setPayment(updatedPayment);
       refresh();
     } catch (err: any) {
@@ -509,7 +511,7 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
             Cancel
           </button>
           <button
-            onClick={handleSubmit as any}
+            onClick={(e: React.MouseEvent) => handleSubmit(e as unknown as React.FormEvent)}
             disabled={submitting}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
           >

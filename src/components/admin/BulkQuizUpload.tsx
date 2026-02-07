@@ -58,7 +58,7 @@ const validateQuestion = (question: any, questionIndex: number) => {
   }
 
   // At least one answer must be correct
-  const hasCorrectAnswer = question.answers?.some(a => a.is_correct);
+  const hasCorrectAnswer = question.answers?.some((a: { is_correct: boolean }) => a.is_correct);
   if (!hasCorrectAnswer) {
     errors.push({
       field: `quizzes[].questions[${questionIndex}].answers`,
@@ -68,7 +68,7 @@ const validateQuestion = (question: any, questionIndex: number) => {
   }
 
   // Validate each answer
-  question.answers?.forEach((answer, answerIndex) => {
+  question.answers?.forEach((answer: Record<string, unknown>, answerIndex: number) => {
     errors.push(...validateAnswer(answer, questionIndex, answerIndex));
   });
 
@@ -98,7 +98,7 @@ const validateQuiz = (quiz: any, quizIndex: number) => {
   }
 
   // Validate each question
-  quiz.questions.forEach((question, questionIndex) => {
+  quiz.questions.forEach((question: Record<string, unknown>, questionIndex: number) => {
     const questionErrors = validateQuestion(question, questionIndex);
     questionErrors.forEach(err => {
       errors.push({
@@ -145,12 +145,34 @@ const validateBulkUpload = (data: any) => {
   }
 
   // Validate each quiz
-  data.quizzes.forEach((quiz, quizIndex) => {
+  data.quizzes.forEach((quiz: Record<string, unknown>, quizIndex: number) => {
     errors.push(...validateQuiz(quiz, quizIndex));
   });
 
   return errors;
 };
+
+interface BulkUploadResult {
+  total_submitted: number;
+  successful: number;
+  failed: number;
+  created_tags?: string[];
+  results: Array<{
+    index: number;
+    title?: string;
+    success: boolean;
+    error?: string;
+  }>;
+}
+
+interface ValidationError {
+  field: string;
+  message: string;
+  quizIndex?: number;
+  questionIndex?: number;
+  answerIndex?: number;
+  index?: number;
+}
 
 interface BulkQuizUploadProps {
   darkMode?: boolean;
@@ -163,8 +185,8 @@ export default function BulkQuizUpload({ darkMode, onSuccess }: BulkQuizUploadPr
   const [jsonInput, setJsonInput] = useState<string>('');
   const [defaultTagIcon, setDefaultTagIcon] = useState<string>('book-open');
   const [uploading, setUploading] = useState<boolean>(false);
-  const [validationErrors, setValidationErrors] = useState<any[]>([]);
-  const [uploadResult, setUploadResult] = useState<any>(null);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [uploadResult, setUploadResult] = useState<BulkUploadResult | null>(null);
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -197,10 +219,10 @@ export default function BulkQuizUpload({ darkMode, onSuccess }: BulkQuizUploadPr
       }
 
       return data;
-    } catch (error: any) {
+    } catch (error) {
       setValidationErrors([{
         field: 'file',
-        message: 'Invalid JSON format: ' + error.message
+        message: 'Invalid JSON format: ' + (error as Error).message
       }]);
       return null;
     }
@@ -222,10 +244,10 @@ export default function BulkQuizUpload({ darkMode, onSuccess }: BulkQuizUploadPr
       }
 
       return data;
-    } catch (error: any) {
+    } catch (error) {
       setValidationErrors([{
         field: 'json',
-        message: 'Invalid JSON format: ' + error.message
+        message: 'Invalid JSON format: ' + (error as Error).message
       }]);
       return null;
     }
@@ -245,7 +267,7 @@ export default function BulkQuizUpload({ darkMode, onSuccess }: BulkQuizUploadPr
       // Parse and validate based on input mode
       let data;
       if (inputMode === 'file') {
-        data = await parseAndValidateFile(file);
+        data = await parseAndValidateFile(file!);
       } else {
         data = parseAndValidateText(jsonInput);
       }
@@ -256,7 +278,7 @@ export default function BulkQuizUpload({ darkMode, onSuccess }: BulkQuizUploadPr
       }
 
       // Call API
-      const result = await quizAPI.bulkUploadQuizzes(data) as any;
+      const result = await quizAPI.bulkUploadQuizzes(data) as BulkUploadResult;
       setUploadResult(result);
 
       if (result.failed === 0 && onSuccess) {
@@ -267,8 +289,8 @@ export default function BulkQuizUpload({ darkMode, onSuccess }: BulkQuizUploadPr
           onSuccess();
         }, 2000);
       }
-    } catch (error: any) {
-      alert(`Upload failed: ${error.message}`);
+    } catch (error) {
+      alert(`Upload failed: ${(error as Error).message}`);
     } finally {
       setUploading(false);
     }
@@ -378,18 +400,18 @@ export default function BulkQuizUpload({ darkMode, onSuccess }: BulkQuizUploadPr
       const template = getTemplate();
       await navigator.clipboard.writeText(JSON.stringify(template, null, 2));
       alert('Template copied to clipboard!');
-    } catch (error: any) {
+    } catch (_error) {
       alert('Failed to copy template to clipboard');
     }
   };
 
   // Group errors by quiz index
-  const groupedErrors = validationErrors.reduce((acc: Record<string, any[]>, error: any) => {
+  const groupedErrors = validationErrors.reduce((acc: Record<string, ValidationError[]>, error: ValidationError) => {
     const key = error.quizIndex !== undefined ? `quiz-${error.quizIndex}` : 'general';
     if (!acc[key]) acc[key] = [];
     acc[key].push(error);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, ValidationError[]>);
 
   return (
     <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-gray-50 border-gray-300'}`}>
@@ -540,7 +562,7 @@ export default function BulkQuizUpload({ darkMode, onSuccess }: BulkQuizUploadPr
             Validation Errors ({validationErrors.length}):
           </h5>
           <div className="space-y-2">
-            {Object.entries(groupedErrors).map(([key, errors]: [string, any[]]) => (
+            {Object.entries(groupedErrors).map(([key, errors]: [string, ValidationError[]]) => (
               <div key={key}>
                 {key !== 'general' && (
                   <p className={`text-xs font-medium ${darkMode ? 'text-red-400' : 'text-red-700'}`}>

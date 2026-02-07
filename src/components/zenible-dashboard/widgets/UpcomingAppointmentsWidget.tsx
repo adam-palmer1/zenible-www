@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, ArrowRightIcon, ClockIcon } from '@heroicons/react/24/outline';
 import appointmentsAPI from '../../../services/api/crm/appointments';
+import { LoadingSpinner } from '../../shared';
 
 interface UpcomingAppointmentsWidgetProps {
   settings?: Record<string, any>;
@@ -28,14 +29,14 @@ const UpcomingAppointmentsWidget = ({ settings = {}, isHovered = false }: Upcomi
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + days);
 
-        const response = await (appointmentsAPI as any).list({
+        const response = await appointmentsAPI.list<{ items?: any[] }>({
           start_date: now.toISOString(),
           end_date: endDate.toISOString(),
-          per_page: limit,
+          per_page: String(limit),
         });
 
         // Sort by start_datetime
-        const sorted = (response.items || response || [])
+        const sorted = (response.items || [])
           .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())
           .slice(0, limit);
 
@@ -83,11 +84,7 @@ const UpcomingAppointmentsWidget = ({ settings = {}, isHovered = false }: Upcomi
   const handleAppointmentClick = (id: string) => navigate(`/calendar?appointment=${id}`);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[100px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 
   return (

@@ -4,6 +4,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
 import planAPI from '../services/planAPI';
 import companyUsersAPI from '../services/api/crm/companyUsers';
+import type { PlanDetailResponse, UserPermissionsResponse } from '../types';
 import UserProfileSection from './sidebar/UserProfileSection';
 import {
   UserIcon,
@@ -24,8 +25,8 @@ interface SettingsSidebarProps {
 }
 
 export default function SettingsSidebar({ activeTab, setActiveTab }: SettingsSidebarProps) {
-  const { darkMode } = usePreferences() as any;
-  const { user } = useAuth() as any;
+  const { darkMode } = usePreferences();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [planName, setPlanName] = useState('Free Plan');
   const [isCompanyAdmin, setIsCompanyAdmin] = useState(false);
@@ -34,7 +35,7 @@ export default function SettingsSidebar({ activeTab, setActiveTab }: SettingsSid
     const fetchPlanName = async () => {
       if (user && user.current_plan_id) {
         try {
-          const planDetails = await planAPI.getPublicPlanDetails(user.current_plan_id) as any;
+          const planDetails = await planAPI.getPublicPlanDetails(user.current_plan_id) as PlanDetailResponse;
           if (planDetails && planDetails.name) {
             setPlanName(`${planDetails.name} Plan`);
           }
@@ -50,9 +51,9 @@ export default function SettingsSidebar({ activeTab, setActiveTab }: SettingsSid
   useEffect(() => {
     const fetchCompanyPermissions = async () => {
       try {
-        const permissions = await companyUsersAPI.getMyPermissions() as any;
+        const permissions = await companyUsersAPI.getMyPermissions() as UserPermissionsResponse;
         setIsCompanyAdmin(permissions?.is_company_admin || false);
-      } catch (error) {
+      } catch (_error) {
         // User may not be part of a company, default to false
         setIsCompanyAdmin(false);
       }

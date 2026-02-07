@@ -3,8 +3,9 @@ import { X, FileText, Calendar, User, Mail, DollarSign, Loader2, Send, Download,
 import { useNavigate } from 'react-router-dom';
 import {
   CREDIT_NOTE_STATUS_LABELS,
-  CREDIT_NOTE_STATUS_COLORS
+  CREDIT_NOTE_STATUS_COLORS,
 } from '../../../constants/finance';
+import type { CreditNoteStatus } from '../../../constants/finance';
 import { formatCurrency } from '../../../utils/currency';
 import { useNotification } from '../../../contexts/NotificationContext';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
@@ -21,7 +22,7 @@ interface CreditNoteDetailModalProps {
 
 const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, onClose, creditNote: creditNoteProp, onUpdate }) => {
   const navigate = useNavigate();
-  const { showSuccess, showError, showConfirm } = useNotification() as any;
+  const { showSuccess, showError, showConfirm } = useNotification();
   const [creditNote, setCreditNote] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -35,7 +36,7 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
 
     try {
       if (showLoading) setLoadingDetails(true);
-      const data = await (creditNotesAPI as any).get(creditNoteProp.id);
+      const data = await creditNotesAPI.get(creditNoteProp.id);
       setCreditNote(data);
     } catch (err: any) {
       console.error('Error fetching credit note details:', err);
@@ -111,7 +112,7 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
     if (confirmed) {
       try {
         setIssuingOrVoiding(true);
-        await (creditNotesAPI as any).issue(creditNote.id);
+        await creditNotesAPI.issue(creditNote.id);
         showSuccess('Credit note issued successfully');
         fetchCreditNoteDetails(false);
         if (onUpdate) onUpdate();
@@ -132,7 +133,7 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
     if (confirmed) {
       try {
         setIssuingOrVoiding(true);
-        await (creditNotesAPI as any).void(creditNote.id);
+        await creditNotesAPI.void(creditNote.id);
         showSuccess('Credit note voided successfully');
         fetchCreditNoteDetails(false);
         if (onUpdate) onUpdate();
@@ -152,7 +153,7 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
 
     if (confirmed) {
       try {
-        await (creditNotesAPI as any).delete(creditNote.id);
+        await creditNotesAPI.delete(creditNote.id);
         showSuccess('Credit note deleted successfully');
         onClose();
         if (onUpdate) onUpdate();
@@ -170,7 +171,7 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
   const handleDownloadPdf = async () => {
     try {
       setDownloadingPdf(true);
-      await (creditNotesAPI as any).downloadPdf(creditNote.id, creditNote.credit_note_number);
+      await creditNotesAPI.downloadPdf(creditNote.id, creditNote.credit_note_number);
       showSuccess('PDF downloaded successfully');
     } catch (err: any) {
       showError(err.message || 'Failed to download PDF');
@@ -224,8 +225,8 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
         <div className="p-4 space-y-6">
           {/* Status Badge */}
           <div className="flex items-center justify-between">
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${(CREDIT_NOTE_STATUS_COLORS as any)[creditNote.status] || 'bg-gray-100 text-gray-700'}`}>
-              {(CREDIT_NOTE_STATUS_LABELS as any)[creditNote.status] || creditNote.status}
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${CREDIT_NOTE_STATUS_COLORS[creditNote.status as CreditNoteStatus] || 'bg-gray-100 text-gray-700'}`}>
+              {CREDIT_NOTE_STATUS_LABELS[creditNote.status as CreditNoteStatus] || creditNote.status}
             </span>
           </div>
 

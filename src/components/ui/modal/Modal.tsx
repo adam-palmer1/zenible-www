@@ -87,7 +87,7 @@ const Modal: React.FC<ModalProps> = ({
           `}
         >
           {/* Provide portal context to all children */}
-          <ModalPortalContext.Provider value={portalContainerRef as any}>
+          <ModalPortalContext.Provider value={portalContainerRef.current}>
             {/* Header */}
             {(title || showCloseButton) && (
               <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">

@@ -47,11 +47,11 @@ import discoverLogo from '../assets/payment-modal/discover.svg';
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 // Card form component with Figma design
-function CheckoutForm({ planName, price, billingCycle, onSuccess, onError, onCancel, loading }: CheckoutFormProps) {
+function CheckoutForm({ planName, price, billingCycle, onSuccess, onError: _onError, onCancel: _onCancel, loading }: CheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
-  const { darkMode } = usePreferences() as any;
-  const { user } = useAuth() as any;
+  const { darkMode } = usePreferences();
+  const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
 
@@ -67,11 +67,17 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError, onCan
 
     const cardNumber = elements.getElement(CardNumberElement);
 
+    if (!cardNumber) {
+      setCardError('Card element not found');
+      setIsProcessing(false);
+      return;
+    }
+
     try {
       // Create payment method using existing user data
       const { error, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
-        card: cardNumber as any,
+        card: cardNumber,
         billing_details: {
           email: user?.email,
           name: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.name,
@@ -86,7 +92,7 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError, onCan
 
       // Call the success callback with the payment method
       onSuccess(paymentMethod!.id);
-    } catch (err) {
+    } catch (_err) {
       setCardError('An unexpected error occurred');
       setIsProcessing(false);
     }
@@ -276,13 +282,13 @@ export default function StripePaymentModal({
   isOpen,
   onClose,
   planName,
-  planId,
+  planId: _planId,
   price,
   billingCycle,
   onSuccess,
   onError
 }: StripePaymentModalProps) {
-  const { darkMode } = usePreferences() as any;
+  const { darkMode } = usePreferences();
   const [loading, setLoading] = useState(false);
 
   const handleSuccess = async (paymentMethodId: string) => {

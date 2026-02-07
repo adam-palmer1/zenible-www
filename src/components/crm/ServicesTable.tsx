@@ -2,6 +2,8 @@ import React from 'react';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS } from '../../constants/crm';
+import type { ServiceStatus } from '../../constants/crm';
+import { LoadingSpinner } from '../shared';
 
 interface ServicesTableProps {
   services?: any[];
@@ -15,11 +17,7 @@ interface ServicesTableProps {
  */
 const ServicesTable: React.FC<ServicesTableProps> = ({ services = [], onEdit, onDelete, loading = false }) => {
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="py-12" />;
   }
 
   if (services.length === 0) {
@@ -93,9 +91,9 @@ const ServicesTable: React.FC<ServicesTableProps> = ({ services = [], onEdit, on
               <td className="px-4 py-4 whitespace-nowrap">
                 {service.status && (
                   <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(SERVICE_STATUS_COLORS as any)[service.status] || 'bg-gray-100 text-gray-800'}`}
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${SERVICE_STATUS_COLORS[service.status as ServiceStatus] || 'bg-gray-100 text-gray-800'}`}
                   >
-                    {(SERVICE_STATUS_LABELS as any)[service.status] || service.status}
+                    {SERVICE_STATUS_LABELS[service.status as ServiceStatus] || service.status}
                   </span>
                 )}
               </td>

@@ -230,7 +230,7 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, total,
  */
 const TransactionList: React.FC = () => {
   const navigate = useNavigate();
-  const { transactions, total, totalPages, loading, filters, setSort, setPage } = useReports() as any;
+  const { transactions, total, totalPages, loading, filters, setSort, setPage } = useReports();
 
   const handleSort = (field: string) => {
     setSort(field);

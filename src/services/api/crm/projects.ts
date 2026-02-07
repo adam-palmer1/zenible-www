@@ -1,48 +1,18 @@
 // API service for Project endpoints
 
-import { API_BASE_URL } from '@/config/api';
-import logger from '../../../utils/logger';
+import { createCRUDService } from '../createCRUDService';
 
-class ProjectsAPI {
-  private async request<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+const baseCRUD = createCRUDService('/crm/projects/', 'ProjectsAPI');
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string>),
-    };
-
-    // Add auth token
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        throw new Error(error.detail || `Request failed with status ${response.status}`);
-      }
-
-      // Handle 204 No Content
-      if (response.status === 204) {
-        return null as T;
-      }
-
-      return await response.json() as T;
-    } catch (error) {
-      logger.error('Projects API request failed:', error);
-      throw error;
-    }
-  }
+/**
+ * Projects API Client
+ */
+const projectsAPI = {
+  ...baseCRUD,
 
   // List projects with filters
-  async list<T = unknown>(params: Record<string, string | string[]> = {}): Promise<T> {
+  // (Overrides factory list to support array parameters like statuses)
+  async list(params: Record<string, string | string[]> = {}): Promise<unknown> {
     // Build query string manually to handle array parameters
     const queryParts: string[] = [];
 
@@ -67,75 +37,45 @@ class ProjectsAPI {
     const queryString = queryParts.join('&');
     const endpoint = queryString ? `/crm/projects/?${queryString}` : '/crm/projects/';
 
-    return this.request<T>(endpoint, {
+    return baseCRUD.request(endpoint, {
       method: 'GET',
     });
-  }
-
-  // Get single project with details
-  async get<T = unknown>(projectId: string): Promise<T> {
-    return this.request<T>(`/crm/projects/${projectId}`, {
-      method: 'GET',
-    });
-  }
-
-  // Create project
-  async create<T = unknown>(data: unknown): Promise<T> {
-    return this.request<T>('/crm/projects/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Update project
-  async update<T = unknown>(projectId: string, data: unknown): Promise<T> {
-    return this.request<T>(`/crm/projects/${projectId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Soft delete project
-  async delete<T = unknown>(projectId: string): Promise<T> {
-    return this.request<T>(`/crm/projects/${projectId}`, {
-      method: 'DELETE',
-    });
-  }
+  },
 
   // Get project statistics
-  async getStats<T = unknown>(): Promise<T> {
-    return this.request<T>('/crm/projects/stats', {
+  async getStats(): Promise<unknown> {
+    return baseCRUD.request('/crm/projects/stats', {
       method: 'GET',
     });
-  }
+  },
 
   // Service assignment methods
-  async listServices<T = unknown>(projectId: string): Promise<T> {
-    return this.request<T>(`/crm/projects/${projectId}/services`, {
+  async listServices(projectId: string): Promise<unknown> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${projectId}/services`, {
       method: 'GET',
     });
-  }
+  },
 
-  async assignService<T = unknown>(projectId: string, data: unknown): Promise<T> {
-    return this.request<T>(`/crm/projects/${projectId}/services`, {
+  async assignService(projectId: string, data: unknown): Promise<unknown> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${projectId}/services`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
-  }
+  },
 
-  async unassignService<T = unknown>(projectId: string, assignmentId: string): Promise<T> {
-    return this.request<T>(`/crm/projects/${projectId}/services/${assignmentId}`, {
+  async unassignService(projectId: string, assignmentId: string): Promise<unknown> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${projectId}/services/${assignmentId}`, {
       method: 'DELETE',
     });
-  }
+  },
 
-  async updateServiceAssignment<T = unknown>(projectId: string, assignmentId: string, data: unknown): Promise<T> {
-    return this.request<T>(`/crm/projects/${projectId}/services/${assignmentId}`, {
+  async updateServiceAssignment(projectId: string, assignmentId: string, data: unknown): Promise<unknown> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${projectId}/services/${assignmentId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
-  }
-}
+  },
+};
 
-export const projectsAPI = new ProjectsAPI();
+export { projectsAPI };
 export default projectsAPI;

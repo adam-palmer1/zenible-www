@@ -5,11 +5,18 @@
  * Usage:
  *   import { createCRUDService } from '../createCRUDService';
  *
+ *   // Untyped (backward compatible):
  *   const baseCRUD = createCRUDService('/crm/credit-notes/', 'CreditNotesAPI');
+ *
+ *   // Typed (recommended):
+ *   const baseCRUD = createCRUDService<CreditNoteResponse, CreditNoteListResponse>(
+ *     '/crm/credit-notes/', 'CreditNotesAPI'
+ *   );
+ *
  *   const creditNotesAPI = {
  *     ...baseCRUD,
  *     // Add custom methods beyond basic CRUD
- *     async send(id: string, data: unknown): Promise<unknown> { ... },
+ *     async send(id: string, data: unknown): Promise<SendResponse> { ... },
  *   };
  *   export default creditNotesAPI;
  */
@@ -23,25 +30,43 @@ interface CRUDServiceOptions {
   updateMethod?: 'PATCH' | 'PUT';
 }
 
-export interface CRUDService {
+/**
+ * Typed CRUD service interface.
+ *
+ * @typeParam TItem - The single-item response type (e.g. InvoiceResponse). Defaults to `unknown`.
+ * @typeParam TList - The list response type (e.g. InvoiceListResponse). Defaults to `unknown`.
+ * @typeParam TCreate - The create payload type. Defaults to `unknown`.
+ * @typeParam TUpdate - The update payload type. Defaults to `unknown`.
+ */
+export interface CRUDService<
+  TItem = unknown,
+  TList = unknown,
+  TCreate = unknown,
+  TUpdate = unknown,
+> {
   /** The request function, exposed so custom methods can reuse it */
   request: RequestFn;
   /** The base endpoint, exposed so custom methods can build URLs from it */
   baseEndpoint: string;
   /** List items with optional query parameters */
-  list: (params?: Record<string, string>) => Promise<unknown>;
+  list: (params?: Record<string, string>) => Promise<TList>;
   /** Get a single item by ID */
-  get: (id: string) => Promise<unknown>;
+  get: (id: string) => Promise<TItem>;
   /** Create a new item */
-  create: (data: unknown) => Promise<unknown>;
+  create: (data: TCreate) => Promise<TItem>;
   /** Update an item by ID (uses PATCH or PUT depending on options) */
-  update: (id: string, data: unknown) => Promise<unknown>;
+  update: (id: string, data: TUpdate) => Promise<TItem>;
   /** Delete an item by ID */
   delete: (id: string) => Promise<unknown>;
 }
 
 /**
  * Create a service object with standard CRUD operations.
+ *
+ * @typeParam TItem - Single-item response type. Defaults to `unknown` for backward compatibility.
+ * @typeParam TList - List response type. Defaults to `unknown` for backward compatibility.
+ * @typeParam TCreate - Create payload type. Defaults to `unknown`.
+ * @typeParam TUpdate - Update payload type. Defaults to `unknown`.
  *
  * @param baseEndpoint - The API endpoint prefix, e.g. '/crm/credit-notes/'.
  *   If the endpoint ends with '/', URLs are built by direct concatenation (e.g. `${base}${id}`).
@@ -50,11 +75,16 @@ export interface CRUDService {
  * @param context - Logging context passed to createRequest, e.g. 'CreditNotesAPI'.
  * @param options - Optional configuration like updateMethod.
  */
-export function createCRUDService(
+export function createCRUDService<
+  TItem = unknown,
+  TList = unknown,
+  TCreate = unknown,
+  TUpdate = unknown,
+>(
   baseEndpoint: string,
   context = 'API',
   options: CRUDServiceOptions = {},
-): CRUDService {
+): CRUDService<TItem, TList, TCreate, TUpdate> {
   const request = createRequest(context);
   const updateMethod = options.updateMethod ?? 'PATCH';
 
@@ -74,25 +104,25 @@ export function createCRUDService(
     request,
     baseEndpoint,
 
-    async list(params: Record<string, string> = {}): Promise<unknown> {
+    async list(params: Record<string, string> = {}): Promise<TList> {
       const queryString = new URLSearchParams(params).toString();
       const endpoint = queryString ? `${listEndpoint}?${queryString}` : listEndpoint;
-      return request(endpoint, { method: 'GET' });
+      return request<TList>(endpoint, { method: 'GET' });
     },
 
-    async get(id: string): Promise<unknown> {
-      return request(joinPath(id), { method: 'GET' });
+    async get(id: string): Promise<TItem> {
+      return request<TItem>(joinPath(id), { method: 'GET' });
     },
 
-    async create(data: unknown): Promise<unknown> {
-      return request(listEndpoint, {
+    async create(data: TCreate): Promise<TItem> {
+      return request<TItem>(listEndpoint, {
         method: 'POST',
         body: JSON.stringify(data),
       });
     },
 
-    async update(id: string, data: unknown): Promise<unknown> {
-      return request(joinPath(id), {
+    async update(id: string, data: TUpdate): Promise<TItem> {
+      return request<TItem>(joinPath(id), {
         method: updateMethod,
         body: JSON.stringify(data),
       });

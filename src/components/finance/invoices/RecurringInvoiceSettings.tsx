@@ -10,11 +10,11 @@ const RECURRING_STATUS = {
 };
 
 const FREQUENCY_OPTIONS = [
-  { value: (RECURRING_TYPE as any).WEEKLY, label: 'Weekly', description: 'Every week' },
-  { value: (RECURRING_TYPE as any).MONTHLY, label: 'Monthly', description: 'Every month' },
-  { value: (RECURRING_TYPE as any).QUARTERLY, label: 'Quarterly', description: 'Every 3 months' },
-  { value: (RECURRING_TYPE as any).YEARLY, label: 'Yearly', description: 'Every year' },
-  { value: (RECURRING_TYPE as any).CUSTOM, label: 'Custom', description: 'Set your own schedule' },
+  { value: RECURRING_TYPE.WEEKLY, label: 'Weekly', description: 'Every week' },
+  { value: RECURRING_TYPE.MONTHLY, label: 'Monthly', description: 'Every month' },
+  { value: RECURRING_TYPE.QUARTERLY, label: 'Quarterly', description: 'Every 3 months' },
+  { value: RECURRING_TYPE.YEARLY, label: 'Yearly', description: 'Every year' },
+  { value: RECURRING_TYPE.CUSTOM, label: 'Custom', description: 'Set your own schedule' },
 ];
 
 interface RecurringInvoiceSettingsProps {
@@ -57,7 +57,7 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
   };
 
   const nextBillingDate = isRecurring && startDate
-    ? (calculateNextBillingDate as any)(startDate, recurringType, customEvery, customPeriod)
+    ? calculateNextBillingDate(startDate, recurringType, customEvery, customPeriod)
     : null;
 
   const selectedFrequency = FREQUENCY_OPTIONS.find(f => f.value === recurringType) || FREQUENCY_OPTIONS[1];
@@ -121,7 +121,7 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
             </label>
             {readOnly ? (
               <div className="design-text-secondary">
-                {(getRecurringFrequencyLabel as any)(recurringType, customEvery, customPeriod)}
+                {getRecurringFrequencyLabel(recurringType, customEvery, customPeriod)}
               </div>
             ) : (
               <div className="relative">
@@ -190,7 +190,7 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
           </div>
 
           {/* Custom Frequency */}
-          {recurringType === (RECURRING_TYPE as any).CUSTOM && !readOnly && (
+          {recurringType === RECURRING_TYPE.CUSTOM && !readOnly && (
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium design-text-primary mb-2">

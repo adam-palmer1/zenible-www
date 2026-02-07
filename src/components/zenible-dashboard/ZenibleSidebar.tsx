@@ -53,7 +53,7 @@ interface ZenibleSidebarProps {
 export default function ZenibleSidebar({ darkMode, toggleDarkMode }: ZenibleSidebarProps) {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { user, logout, isAdmin } = useAuth() as any;
+  const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {

@@ -5,6 +5,7 @@ import {
   PROJECT_STATUS_LABELS,
   PROJECT_STATUS_HEX_COLORS,
 } from '../../constants/crm';
+import type { ProjectStatus } from '../../constants/crm';
 
 interface StatusSelectorModalProps {
   isOpen: boolean;
@@ -53,10 +54,10 @@ const StatusSelectorModal: React.FC<StatusSelectorModalProps> = ({
               <div className="flex items-center gap-3">
                 <div
                   className="w-4 h-4 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: (PROJECT_STATUS_HEX_COLORS as any)[status] }}
+                  style={{ backgroundColor: PROJECT_STATUS_HEX_COLORS[status as ProjectStatus] }}
                 />
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {(PROJECT_STATUS_LABELS as any)[status]}
+                  {PROJECT_STATUS_LABELS[status as ProjectStatus]}
                 </span>
               </div>
             </button>

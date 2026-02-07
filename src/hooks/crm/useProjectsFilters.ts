@@ -7,7 +7,7 @@ import { useDebouncedPreference } from '../useDebouncedPreference';
  * Handles status filtering with preference persistence
  */
 export function useProjectsFilters() {
-  const { getPreference } = usePreferences() as any;
+  const { getPreference } = usePreferences();
   const { updatePreference: updateDebouncedPreference } = useDebouncedPreference();
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [preferencesLoaded, setPreferencesLoaded] = useState<boolean>(false);

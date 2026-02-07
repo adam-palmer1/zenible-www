@@ -12,29 +12,41 @@ import { useContactActivities } from '../../hooks/crm/useContactActivities';
 import { useContacts } from '../../hooks/crm/useContacts';
 import { useServices } from '../../hooks/crm/useServices';
 import { useCompanyCurrencies } from '../../hooks/crm/useCompanyCurrencies';
+import type { CompanyCurrency, Currency } from '../../hooks/crm/useCompanyCurrencies';
 import { useCRM } from '../../contexts/CRMContext';
 import { useModalState } from '../../hooks/useModalState';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
+import { LoadingSpinner } from '../shared';
+import type { ContactResponse, ContactServiceResponse, ContactServiceUpdate, ContactActivityResponse, ProjectResponse } from '../../types';
+
+/** Extended contact type that includes runtime-only fields not in the generated schema. */
+interface ContactWithExtras extends ContactResponse {
+  currency_code?: string | null;
+  projects?: ProjectResponse[];
+}
+
+/** Contact data as used internally. Initially partial (from list view), then full (after fetching). */
+type ContactData = Partial<ContactWithExtras> & { id: string };
 
 interface ContactDetailsPanelProps {
-  contact: any;
+  contact: ContactData | (Record<string, unknown> & { id: string });
   onClose: () => void;
 }
 
 const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: initialContact, onClose }) => {
   const [activeTab, setActiveTab] = useState('notes');
-  const [contact, setContact] = useState<any>(initialContact);
-  const [loadingContact, setLoadingContact] = useState(false);
-  const [selectedService, setSelectedService] = useState<any>(null);
+  const [contact, setContact] = useState<ContactData>(initialContact as ContactData);
+  const [, setLoadingContact] = useState(false);
+  const [selectedService, setSelectedService] = useState<ContactServiceResponse | null>(null);
   const serviceDetailModal = useModalState();
-  const { refresh } = useCRM() as any;
-  const { activities, loading, error, fetchActivities, loadMore, pagination } = useContactActivities(contact?.id) as any;
-  const { createContactService, assignService, updateContactService, unassignService, getContact } = useContacts({}, 0, { skipInitialFetch: true }) as any;
-  const { services: allServices, fetchServices } = useServices() as any;
-  const { companyCurrencies, defaultCurrency, loadData: loadCurrencies } = useCompanyCurrencies() as any;
+  const { refresh } = useCRM();
+  const { activities, loading, error, fetchActivities, loadMore, pagination } = useContactActivities(contact?.id);
+  const { createContactService, assignService, updateContactService, unassignService, getContact } = useContacts({}, 0, { skipInitialFetch: true });
+  const { fetchServices } = useServices();
+  const { companyCurrencies, defaultCurrency, loadData: loadCurrencies } = useCompanyCurrencies();
 
   // Extract currency objects from company currencies for backward compatibility
-  const currencies = companyCurrencies.map((cc: any) => cc.currency);
+  const currencies = companyCurrencies.map((cc: CompanyCurrency) => cc.currency);
 
   // Resolve contact's default currency code
   // Priority: contact.currency?.code > contact.currency_code > lookup by currency_id > company default
@@ -49,7 +61,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
     }
     // If contact has currency_id, look it up in currencies
     if (contact?.currency_id && currencies.length > 0) {
-      const contactCurrency = currencies.find((c: any) => c.id === contact.currency_id);
+      const contactCurrency = currencies.find((c: Currency) => c.id === contact.currency_id);
       if (contactCurrency?.code) {
         return contactCurrency.code;
       }
@@ -74,7 +86,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
       if (initialContact?.id) {
         setLoadingContact(true);
         try {
-          const fullContact = await getContact(initialContact.id);
+          const fullContact = await getContact(initialContact.id) as ContactWithExtras;
           setContact(fullContact);
         } catch (err) {
           console.error('Failed to load full contact details:', err);
@@ -102,20 +114,20 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
   }, [activeTab, fetchServices]);
 
   // Handle service assignment (creates contact-specific service or assigns global service)
-  const handleAssignService = async (service: any) => {
+  const handleAssignService = async (service: Record<string, unknown>) => {
     try {
-      let updatedContact;
+      let updatedContact: unknown;
 
       if (service.id) {
         // Existing service from catalog - assign it
-        updatedContact = await assignService(contact.id, service.id);
+        updatedContact = await assignService(contact.id, service.id as string);
       } else {
         // New service - create it directly for this contact (not global)
-        updatedContact = await createContactService(contact.id, service);
+        updatedContact = await createContactService(contact.id, service as unknown as Parameters<typeof createContactService>[1]);
       }
 
       // Update local contact state with new services
-      setContact(updatedContact);
+      setContact(updatedContact as ContactWithExtras);
 
       // Refresh CRM list to show updated service count/value on contact cards
       refresh();
@@ -125,13 +137,13 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
   };
 
   // Handle service removal
-  const handleRemoveService = async (service: any) => {
+  const handleRemoveService = async (service: ContactServiceResponse) => {
     try {
       await unassignService(contact.id, service.id);
       // Update local contact by removing the service
-      setContact((prev: any) => ({
+      setContact((prev: ContactData) => ({
         ...prev,
-        services: prev.services.filter((s: any) => s.id !== service.id),
+        services: (prev.services || []).filter((s: ContactServiceResponse) => s.id !== service.id),
       }));
 
       // Refresh CRM list to show updated service count/value on contact cards
@@ -142,13 +154,13 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
   };
 
   // Handle service update (uses contact-scoped endpoint)
-  const handleUpdateService = async (serviceId: string, serviceData: any) => {
+  const handleUpdateService = async (serviceId: string, serviceData: ContactServiceUpdate) => {
     try {
       const updatedService = await updateContactService(contact.id, serviceId, serviceData);
 
       // Fetch full contact to get complete service data (including currency, status labels, etc.)
       // This ensures ServicesList and other components have all the data they need
-      const fullContact = await getContact(contact.id);
+      const fullContact = await getContact(contact.id) as ContactWithExtras;
       setContact(fullContact);
 
       // Refresh CRM list to show updated service values on contact cards
@@ -162,7 +174,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
   };
 
   // Handle opening service detail modal
-  const handleServiceClick = (service: any) => {
+  const handleServiceClick = (service: ContactServiceResponse) => {
     setSelectedService(service);
     serviceDetailModal.open();
   };
@@ -170,11 +182,11 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
   // Handle refreshing contact after service attribution/invoice changes
   const handleServiceUpdate = async () => {
     try {
-      const updatedContact = await getContact(contact.id);
+      const updatedContact = await getContact(contact.id) as ContactResponse;
       setContact(updatedContact);
       // Also update selected service with fresh data
       if (selectedService) {
-        const updatedService = updatedContact.services?.find((s: any) => s.id === selectedService.id);
+        const updatedService = updatedContact.services?.find((s: ContactServiceResponse) => s.id === selectedService.id);
         if (updatedService) {
           setSelectedService(updatedService);
         }
@@ -311,9 +323,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
               /* Timeline Tab */
               <>
                 {loading && activities.length === 0 ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
+                  <LoadingSpinner size="h-8 w-8" height="py-8" />
                 ) : error ? (
                   <div className="text-center py-8">
                     <p className="text-red-500 text-sm mb-2">Failed to load timeline</p>
@@ -343,7 +353,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
                     )}
 
                     {/* Timeline Items */}
-                    {activities.map((activity: any, index: number) => (
+                    {activities.map((activity: ContactActivityResponse, index: number) => (
                       <UnifiedTimelineItem
                         key={activity.id}
                         activity={activity}

@@ -45,17 +45,17 @@ const ZoomCallback: React.FC = () => {
 
       try {
         // Exchange code for tokens
-        await (zoomAPI as any).handleCallback(code, state);
+        await zoomAPI.handleCallback(code, state);
         setStatus('success');
 
         // Redirect to integrations tab after a short delay
         setTimeout(() => {
           navigate('/settings?tab=integrations', { replace: true });
         }, 2000);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error handling Zoom callback:', err);
         setStatus('error');
-        setError(err.message || 'Failed to connect Zoom account');
+        setError((err as Error).message || 'Failed to connect Zoom account');
       }
     };
 

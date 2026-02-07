@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import planAPI from '../../services/planAPI';
+import type { PlanDetailResponse } from '../../types';
 
 interface SidebarHeaderProps {
   isCollapsed: boolean;
@@ -9,14 +10,14 @@ interface SidebarHeaderProps {
 
 export default function SidebarHeader({ isCollapsed, onToggle }: SidebarHeaderProps) {
   const { user: rawUser } = useAuth();
-  const user = rawUser as any;
+  const user = rawUser;
   const [planName, setPlanName] = useState('Free Plan');
 
   useEffect(() => {
     const fetchPlanName = async () => {
       if (user && user.current_plan_id) {
         try {
-          const planDetails = await planAPI.getPublicPlanDetails(user.current_plan_id) as any;
+          const planDetails = await planAPI.getPublicPlanDetails(user.current_plan_id) as PlanDetailResponse;
           if (planDetails && planDetails.name) {
             setPlanName(`${planDetails.name} Plan`);
           }

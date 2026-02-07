@@ -4,19 +4,80 @@ import DraftPostSection from './DraftPostSection';
 import StrategyInputSection from './StrategyInputSection';
 import PlatformContentOptions from './PlatformContentOptions';
 import AIFeedbackSection from '../shared/AIFeedbackSection';
+import type { MetricsData } from '../shared/ai-feedback/types';
 import PersonalizeAIBanner from '../shared/PersonalizeAIBanner';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useViralPostAnalysis } from '../../hooks/useViralPostAnalysis';
-import { WebSocketContext } from '../../contexts/WebSocketContext';
+import { WebSocketContext, WebSocketContextValue } from '../../contexts/WebSocketContext';
 import { useAuth } from '../../contexts/AuthContext';
 import aiCharacterAPI from '../../services/aiCharacterAPI';
 import userAPI from '../../services/userAPI';
 import { getCharacterTools } from '../../services/toolDiscoveryAPI';
 import UsageLimitBadge from '../ui/UsageLimitBadge';
 
+interface AICharacter {
+  id: string;
+  name: string;
+  internal_name?: string;
+  avatar_url: string | null;
+  description?: string;
+}
+
+interface UserFeatures {
+  viral_post_generator?: { enabled?: boolean };
+  system_features?: { viral_post_generator_model?: string[] };
+  [key: string]: unknown;
+}
+
+interface ViralPostFeedback {
+  isProcessing: boolean;
+  analysis?: { raw?: string; structured?: unknown } | null;
+  structured?: unknown;
+  raw?: string;
+  messageId?: string;
+  usage?: unknown;
+  contentType?: unknown;
+  error?: string;
+}
+
+interface AnalysisHistoryEntry {
+  role: string;
+  type: string;
+  content: string;
+  structured?: unknown;
+  messageId?: string;
+  usage?: unknown;
+  timestamp: string;
+}
+
+interface FollowUpMessageEntry {
+  role: string;
+  content: string;
+  timestamp: string;
+  messageId?: string;
+  usage?: unknown;
+}
+
+interface WebSocketChunkData {
+  toolName?: string;
+  fullContent?: string;
+}
+
+interface WebSocketCompleteData {
+  toolName?: string;
+  fullResponse?: string;
+  messageId?: string;
+  usage?: unknown;
+}
+
+interface WebSocketErrorData {
+  error?: string;
+  [key: string]: unknown;
+}
+
 export default function ViralPostGenerator() {
   const { darkMode } = usePreferences();
-  const { isAdmin } = useAuth();
+  useAuth();
 
   // Tab state
   const [activeTab, setActiveTab] = useState('polish'); // 'polish' or 'strategy'
@@ -31,26 +92,26 @@ export default function ViralPostGenerator() {
 
   // Common state
   const [platformFocus, setPlatformFocus] = useState('linkedin');
-  const [feedback, setFeedback] = useState<any>(null);
-  const [availableCharacters, setAvailableCharacters] = useState<any[]>([]);
+  const [feedback, setFeedback] = useState<ViralPostFeedback | null>(null);
+  const [_availableCharacters, setAvailableCharacters] = useState<AICharacter[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [selectedCharacterName, setSelectedCharacterName] = useState('');
   const [selectedCharacterAvatar, setSelectedCharacterAvatar] = useState<string | null>(null);
   const [selectedCharacterDescription, setSelectedCharacterDescription] = useState('');
-  const [loadingCharacters, setLoadingCharacters] = useState(true);
-  const [userFeatures, setUserFeatures] = useState<any>(null);
-  const [featureEnabled, setFeatureEnabled] = useState(true);
-  const [followUpMessages, setFollowUpMessages] = useState<any[]>([]);
+  const [, setLoadingCharacters] = useState(true);
+  const [, setUserFeatures] = useState<UserFeatures | null>(null);
+  const [, setFeatureEnabled] = useState(true);
+  const [followUpMessages, setFollowUpMessages] = useState<FollowUpMessageEntry[]>([]);
   const [isFollowUpStreaming, setIsFollowUpStreaming] = useState(false);
   const [followUpStreamingContent, setFollowUpStreamingContent] = useState('');
-  const [characterTools, setCharacterTools] = useState<any>(null);
-  const [analysisHistory, setAnalysisHistory] = useState<any[]>([]);
+  const [, setCharacterTools] = useState<Awaited<ReturnType<typeof getCharacterTools>> | null>(null);
+  const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryEntry[]>([]);
 
   // Get WebSocket context
   const {
     isConnected,
     onConversationEvent
-  } = useContext(WebSocketContext) as any;
+  } = useContext(WebSocketContext) as WebSocketContextValue;
 
   // Use Viral Post Analysis hook
   const {
@@ -60,51 +121,50 @@ export default function ViralPostGenerator() {
     streamingContent,
     analysis,
     structuredAnalysis,
-    error: analysisError,
-    metrics,
+    error: _analysisError,
     messageId,
     analyzeFromDraft,
     analyzeFromStrategy,
     sendFollowUpMessage: sendFollowUp,
-    reset: resetAnalysis,
     clearConversation
   } = useViralPostAnalysis({
-    characterId: selectedCharacterId,
+    characterId: selectedCharacterId || '',
     panelId: 'viral_post_generator',
-    onAnalysisStarted: (data: any) => {
+    onAnalysisStarted: (_data: { conversationId: string; toolName: string }) => {
       setFeedback({
         isProcessing: true,
         analysis: null
       });
     },
-    onAnalysisComplete: (data: any) => {
+    onAnalysisComplete: (data: unknown) => {
+      const result = data as { analysis?: { raw?: string; structured?: unknown }; messageId?: string; usage?: unknown; contentType?: unknown };
       // Set current feedback
       setFeedback({
         isProcessing: false,
-        analysis: data.analysis,
-        structured: data.analysis?.structured,
-        raw: data.analysis?.raw,
-        messageId: data.messageId,
-        usage: data.usage,
-        contentType: data.contentType
+        analysis: result.analysis,
+        structured: result.analysis?.structured,
+        raw: result.analysis?.raw,
+        messageId: result.messageId,
+        usage: result.usage,
+        contentType: result.contentType
       });
 
       // Add to analysis history
-      const newAnalysis = {
+      const newAnalysis: AnalysisHistoryEntry = {
         role: 'assistant',
         type: 'analysis',
-        content: data.analysis?.raw,
-        structured: data.analysis?.structured,
-        messageId: data.messageId,
-        usage: data.usage,
+        content: result.analysis?.raw || '',
+        structured: result.analysis?.structured,
+        messageId: result.messageId,
+        usage: result.usage,
         timestamp: new Date().toISOString()
       };
       setAnalysisHistory(prev => [...prev, newAnalysis]);
     },
-    onStreamingChunk: (data: any) => {
+    onStreamingChunk: (_data: { chunk: string; fullContent: string; chunkIndex: number; toolName: string }) => {
       // Optional: handle streaming chunks if needed
     },
-    onError: (error: any) => {
+    onError: (error: { error: string; validationErrors?: unknown[]; toolName?: string }) => {
       console.error('[ViralPostGenerator] Analysis error:', error);
       setFeedback({
         isProcessing: false,
@@ -121,7 +181,8 @@ export default function ViralPostGenerator() {
 
     // Handle follow-up message chunks
     unsubscribers.push(
-      onConversationEvent(conversationId, 'chunk', (data: any) => {
+      onConversationEvent(conversationId, 'chunk', (...args: unknown[]) => {
+        const data = args[0] as WebSocketChunkData;
         // Only handle non-tool responses (regular messages)
         if (!data.toolName) {
           setIsFollowUpStreaming(true);
@@ -132,7 +193,8 @@ export default function ViralPostGenerator() {
 
     // Handle follow-up message completion
     unsubscribers.push(
-      onConversationEvent(conversationId, 'complete', (data: any) => {
+      onConversationEvent(conversationId, 'complete', (...args: unknown[]) => {
+        const data = args[0] as WebSocketCompleteData;
         // Only handle non-tool responses (regular messages)
         if (!data.toolName) {
           setIsFollowUpStreaming(false);
@@ -141,7 +203,7 @@ export default function ViralPostGenerator() {
           // Add completed message to follow-up messages
           setFollowUpMessages(prev => [...prev, {
             role: 'assistant',
-            content: data.fullResponse,
+            content: data.fullResponse || '',
             timestamp: new Date().toISOString(),
             messageId: data.messageId,
             usage: data.usage
@@ -152,7 +214,8 @@ export default function ViralPostGenerator() {
 
     // Handle errors
     unsubscribers.push(
-      onConversationEvent(conversationId, 'error', (data: any) => {
+      onConversationEvent(conversationId, 'error', (...args: unknown[]) => {
+        const data = args[0] as WebSocketErrorData;
         console.error('[ViralPostGenerator] Follow-up error:', data);
         setIsFollowUpStreaming(false);
         setFollowUpStreamingContent('');
@@ -168,9 +231,9 @@ export default function ViralPostGenerator() {
   useEffect(() => {
     const loadUserFeatures = async () => {
       try {
-        const features = await userAPI.getCurrentUserFeatures();
+        const features = await userAPI.getCurrentUserFeatures() as UserFeatures;
         setUserFeatures(features);
-        const isEnabled = (features as any)?.viral_post_generator?.enabled ?? true;
+        const isEnabled = features?.viral_post_generator?.enabled ?? true;
         setFeatureEnabled(isEnabled);
       } catch (error) {
         console.error('Failed to load user features:', error);
@@ -188,17 +251,17 @@ export default function ViralPostGenerator() {
         setLoadingCharacters(true);
 
         // Get user features to see which characters are available
-        const userFeatures = await userAPI.getCurrentUserFeatures();
-        const allowedCharacterNames = (userFeatures as any)?.system_features?.viral_post_generator_model || [];
+        const userFeatures = await userAPI.getCurrentUserFeatures() as UserFeatures;
+        const allowedCharacterNames = userFeatures?.system_features?.viral_post_generator_model || [];
 
         // Get all characters
-        const characters = await aiCharacterAPI.getUserCharacters();
+        const characters = await aiCharacterAPI.getUserCharacters() as AICharacter[];
 
         // Filter characters based on what's allowed
         let filteredCharacters = characters;
         if (allowedCharacterNames.length > 0) {
-          filteredCharacters = characters.filter((char: any) =>
-            allowedCharacterNames.includes(char.internal_name) ||
+          filteredCharacters = characters.filter((char: AICharacter) =>
+            allowedCharacterNames.includes(char.internal_name || '') ||
             allowedCharacterNames.includes(char.name.toLowerCase())
           );
         }
@@ -206,7 +269,7 @@ export default function ViralPostGenerator() {
         setAvailableCharacters(filteredCharacters);
 
         if (filteredCharacters.length > 0 && !selectedCharacterId) {
-          const defaultChar = filteredCharacters[0] as any;
+          const defaultChar = filteredCharacters[0];
           setSelectedCharacterId(defaultChar.id);
           setSelectedCharacterName(defaultChar.name);
           setSelectedCharacterAvatar(defaultChar.avatar_url);
@@ -217,15 +280,15 @@ export default function ViralPostGenerator() {
 
         // Fallback: load all characters
         try {
-          const characters = await aiCharacterAPI.getUserCharacters();
+          const characters = await aiCharacterAPI.getUserCharacters() as AICharacter[];
           setAvailableCharacters(characters);
 
           if (characters.length > 0 && !selectedCharacterId) {
-            const defaultChar = characters[0] as any;
+            const defaultChar = characters[0];
             setSelectedCharacterId(defaultChar.id);
             setSelectedCharacterName(defaultChar.name);
             setSelectedCharacterAvatar(defaultChar.avatar_url);
-            setSelectedCharacterDescription(defaultChar.description);
+            setSelectedCharacterDescription(defaultChar.description || '');
           }
         } catch (fallbackError) {
           console.error('Failed to load characters even in fallback:', fallbackError);
@@ -249,11 +312,11 @@ export default function ViralPostGenerator() {
         setCharacterTools(tools);
 
         // Check if character has the required tools
-        const hasPolishTool = (tools as any).available_tools?.some(
-          (tool: any) => tool.name === 'linkedin_post_from_draft' && tool.is_enabled
+        const hasPolishTool = tools.available_tools?.some(
+          (tool) => tool.name === 'linkedin_post_from_draft' && tool.is_enabled
         );
-        const hasStrategyTool = (tools as any).available_tools?.some(
-          (tool: any) => tool.name === 'linkedin_strategy_from_topic_goal_audience' && tool.is_enabled
+        const hasStrategyTool = tools.available_tools?.some(
+          (tool) => tool.name === 'linkedin_strategy_from_topic_goal_audience' && tool.is_enabled
         );
 
         if (!hasPolishTool) {
@@ -271,7 +334,7 @@ export default function ViralPostGenerator() {
   }, [selectedCharacterId]);
 
   // Handle character selection
-  const handleCharacterSelect = (character: any) => {
+  const _handleCharacterSelect = (character: AICharacter) => {
     setSelectedCharacterId(character.id);
     setSelectedCharacterName(character.name);
     setSelectedCharacterAvatar(character.avatar_url);
@@ -310,12 +373,12 @@ export default function ViralPostGenerator() {
     try {
       // Save current feedback to history before clearing (if not already saved)
       if (feedback && feedback.messageId && !feedback.isProcessing) {
-        const isAlreadyInHistory = analysisHistory.some((a: any) => a.messageId === feedback.messageId);
+        const isAlreadyInHistory = analysisHistory.some((a) => a.messageId === feedback.messageId);
         if (!isAlreadyInHistory) {
-          const previousAnalysis = {
+          const previousAnalysis: AnalysisHistoryEntry = {
             role: 'assistant',
             type: 'analysis',
-            content: feedback.raw || feedback.analysis?.raw,
+            content: feedback.raw || feedback.analysis?.raw || '',
             structured: feedback.structured || feedback.analysis?.structured,
             messageId: feedback.messageId,
             usage: feedback.usage,
@@ -342,7 +405,7 @@ export default function ViralPostGenerator() {
 
         await analyzeFromStrategy(topic, goal, audience);
       }
-    } catch (error) {
+    } catch (_error) {
       setFeedback({
         isProcessing: false,
         error: 'Failed to analyze. Please try again.'
@@ -360,11 +423,7 @@ export default function ViralPostGenerator() {
       throw new Error('Not connected to server');
     }
 
-    try {
-      await sendFollowUp(message);
-    } catch (error) {
-      throw error;
-    }
+    await sendFollowUp(message);
   };
 
   return (
@@ -379,7 +438,7 @@ export default function ViralPostGenerator() {
               Viral Post Generator
             </h1>
             <UsageLimitBadge
-              characterId={selectedCharacterId}
+              characterId={selectedCharacterId ?? undefined}
               variant="compact"
               showUpgradeLink={true}
               darkMode={darkMode}
@@ -473,32 +532,29 @@ export default function ViralPostGenerator() {
 
             {/* Right Panel - AI Feedback */}
             <div className="flex-1 min-w-0">
-              {/* Cast props as any due to extended props not in base interface */}
               <AIFeedbackSection
-                {...{
-                  isStreaming,
-                  streamingContent,
-                  rawAnalysis: analysis?.raw,
-                  structuredAnalysis,
-                  feedback,
-                  error: analysisError,
-                  conversationId,
-                  messageId,
-                  characterAvatarUrl: selectedCharacterAvatar,
-                  characterName: selectedCharacterName,
-                  characterDescription: selectedCharacterDescription,
-                  isAnalyzing: analyzing,
-                  availableCharacters,
-                  selectedCharacterId,
-                  onCharacterSelect: handleCharacterSelect,
-                  onSendMessage: handleSendFollowUpMessage,
-                  isFollowUpStreaming,
-                  followUpStreamingContent,
-                  followUpMessages,
-                  conversationHistory: [],
-                  analysisHistory,
-                  darkMode,
-                } as any}
+                isStreaming={isStreaming}
+                streamingContent={streamingContent}
+                rawAnalysis={analysis?.raw || ''}
+                structuredAnalysis={structuredAnalysis}
+                feedback={feedback ? { ...feedback, analysis: feedback.analysis ?? undefined } : null}
+                analyzing={analyzing}
+                isProcessing={feedback?.isProcessing || false}
+                metrics={null}
+                usage={(feedback?.usage as MetricsData) ?? null}
+                conversationId={conversationId || ''}
+                messageId={messageId || ''}
+                onCancel={() => {}}
+                onSendMessage={handleSendFollowUpMessage}
+                characterId={selectedCharacterId || ''}
+                characterAvatarUrl={selectedCharacterAvatar ?? undefined}
+                characterName={selectedCharacterName}
+                characterDescription={selectedCharacterDescription}
+                isFollowUpStreaming={isFollowUpStreaming}
+                followUpStreamingContent={followUpStreamingContent}
+                followUpMessages={followUpMessages}
+                analysisHistory={analysisHistory}
+                darkMode={darkMode}
               />
             </div>
           </div>

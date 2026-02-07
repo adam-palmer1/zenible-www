@@ -10,7 +10,7 @@ interface Tab {
 }
 
 export default function FeatureManagement() {
-  const { darkMode } = useOutletContext() as any;
+  const { darkMode } = useOutletContext<{ darkMode: boolean }>();
   const [activeTab, setActiveTab] = useState<string>('display');
 
   const tabs: Tab[] = [

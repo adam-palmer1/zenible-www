@@ -24,11 +24,11 @@ const ServiceValueDisplay: React.FC<ServiceValueDisplayProps> = ({ oneOffTotal, 
   const parts: string[] = [];
 
   if (oneOffTotal && parseFloat(oneOffTotal as string) > 0) {
-    parts.push((formatCurrency as any)(oneOffTotal, displayCurrency, numberFormat));
+    parts.push(formatCurrency(oneOffTotal, displayCurrency, numberFormat));
   }
 
   if (recurringTotal && parseFloat(recurringTotal as string) > 0) {
-    const formatted = (formatCurrency as any)(recurringTotal, displayCurrency, numberFormat);
+    const formatted = formatCurrency(recurringTotal, displayCurrency, numberFormat);
     parts.push(`${formatted}/yr`);
   }
 

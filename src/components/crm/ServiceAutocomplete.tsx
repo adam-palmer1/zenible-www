@@ -23,7 +23,7 @@ const ServiceAutocomplete: React.FC<ServiceAutocompleteProps> = ({
   className = '',
   disabled = false
 }) => {
-  const { services } = useServices() as any;
+  const { services } = useServices();
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredServices, setFilteredServices] = useState<any[]>([]);
 

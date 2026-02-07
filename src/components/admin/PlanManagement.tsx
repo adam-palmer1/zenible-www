@@ -1,20 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import { LoadingSpinner } from '../shared';
+
+interface PlanResponse {
+  id: string;
+  name: string;
+  description?: string | null;
+  monthly_price: string;
+  annual_price: string | null;
+  old_monthly_price?: string | null;
+  old_annual_price?: string | null;
+  is_recommended: boolean;
+  is_active: boolean;
+  features?: string[];
+  stripe_product_id?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+interface PlanFormData {
+  name: string;
+  description: string;
+  monthly_price: string;
+  annual_price: string;
+  old_monthly_price?: string;
+  old_annual_price?: string;
+  is_recommended?: boolean;
+  api_call_limit?: string;
+  features: string[];
+  is_free?: boolean;
+  is_active: boolean;
+}
+
+interface ValidationError {
+  loc?: string[];
+  msg: string;
+}
 
 export default function PlanManagement() {
-  const { darkMode } = useOutletContext() as any;
-  const [plans, setPlans] = useState<any[]>([]);
+  const { darkMode } = useOutletContext<{ darkMode: boolean }>();
+  const [plans, setPlans] = useState<PlanResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [selectedPlan, setSelectedPlan] = useState<PlanResponse | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
   const [actionDropdown, setActionDropdown] = useState<string | null>(null);
   const [forceUpgrades, setForceUpgrades] = useState<boolean>(false);
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<PlanFormData>({
     name: '',
     description: '',
     monthly_price: '',
@@ -47,7 +83,7 @@ export default function PlanManagement() {
     setLoading(true);
     setError(null);
     try {
-      const response = await (adminAPI as any).getPlans();
+      const response = await adminAPI.getPlans() as { plans?: PlanResponse[] };
       setPlans(response.plans || []);
     } catch (err: any) {
       setError(err.message);
@@ -68,7 +104,7 @@ export default function PlanManagement() {
         old_annual_price: formData.old_annual_price || null,
         is_recommended: formData.is_recommended || false,
       };
-      await (adminAPI as any).createPlan(data);
+      await adminAPI.createPlan(data);
       setShowCreateModal(false);
       fetchPlans();
       resetForm();
@@ -78,7 +114,7 @@ export default function PlanManagement() {
         const detail = err.response.detail;
         if (Array.isArray(detail)) {
           // Format validation errors
-          const errors = detail.map((error: any) => {
+          const errors = detail.map((error: ValidationError) => {
             const field = error.loc?.join('.') || 'Field';
             return `${field}: ${error.msg}`;
           }).join('\n');
@@ -107,7 +143,7 @@ export default function PlanManagement() {
         old_annual_price: formData.old_annual_price || null,
         is_recommended: formData.is_recommended || false,
       };
-      await (adminAPI as any).updatePlan(selectedPlan.id, data);
+      await adminAPI.updatePlan(selectedPlan.id, data);
       setShowEditModal(false);
       fetchPlans();
       resetForm();
@@ -117,7 +153,7 @@ export default function PlanManagement() {
         const detail = err.response.detail;
         if (Array.isArray(detail)) {
           // Format validation errors
-          const errors = detail.map((error: any) => {
+          const errors = detail.map((error: ValidationError) => {
             const field = error.loc?.join('.') || 'Field';
             return `${field}: ${error.msg}`;
           }).join('\n');
@@ -133,19 +169,9 @@ export default function PlanManagement() {
     }
   };
 
-  const handleDeletePlan = async (planId: string) => {
-    if (!confirm('Are you sure you want to delete this plan?')) return;
-    try {
-      await (adminAPI as any).deletePlan(planId);
-      fetchPlans();
-    } catch (err: any) {
-      alert(`Error deleting plan: ${err.message}`);
-    }
-  };
-
   const handleActivatePlan = async (planId: string) => {
     try {
-      await (adminAPI as any).activatePlan(planId);
+      await adminAPI.activatePlan(planId);
       fetchPlans();
     } catch (err: any) {
       alert(`Error activating plan: ${err.message}`);
@@ -154,14 +180,14 @@ export default function PlanManagement() {
 
   const handleDeactivatePlan = async (planId: string) => {
     try {
-      await (adminAPI as any).deactivatePlan(planId);
+      await adminAPI.deactivatePlan(planId);
       fetchPlans();
     } catch (err: any) {
       alert(`Error deactivating plan: ${err.message}`);
     }
   };
 
-  const openSyncModal = (plan: any) => {
+  const openSyncModal = (plan: PlanResponse) => {
     setSelectedPlan(plan);
     setForceUpgrades(false);
     setShowSyncModal(true);
@@ -177,7 +203,7 @@ export default function PlanManagement() {
         archive_old_prices: forceUpgrades
       };
 
-      await (adminAPI as any).syncPlanWithStripe(selectedPlan.id, options);
+      await adminAPI.syncPlanWithStripe(selectedPlan.id, options);
       setShowSyncModal(false);
       setSelectedPlan(null);
       setForceUpgrades(false);
@@ -205,13 +231,13 @@ export default function PlanManagement() {
     setModalError(null);
   };
 
-  const openEditModal = (plan: any) => {
+  const openEditModal = (plan: PlanResponse) => {
     setSelectedPlan(plan);
     setFormData({
       name: plan.name,
       description: plan.description || '',
       monthly_price: plan.monthly_price,
-      annual_price: plan.annual_price,
+      annual_price: plan.annual_price ?? '',
       old_monthly_price: plan.old_monthly_price || '',
       old_annual_price: plan.old_annual_price || '',
       is_recommended: plan.is_recommended || false,
@@ -221,11 +247,11 @@ export default function PlanManagement() {
     setShowEditModal(true);
   };
 
-  const formatCurrency = (amount: any) => {
+  const formatCurrency = (amount: string | number | null) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    }).format(amount);
+    }).format(Number(amount));
   };
 
   return (
@@ -251,14 +277,12 @@ export default function PlanManagement() {
 
       <div className="p-6">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-          </div>
+          <LoadingSpinner height="py-12" />
         ) : error ? (
           <div className="text-red-500 text-center py-12">Error: {error}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {plans.map((plan: any) => (
+            {plans.map((plan: PlanResponse) => (
               <div
                 key={plan.id}
                 className={`rounded-xl border p-6 ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}

@@ -104,7 +104,7 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
   currency = 'USD',
   onUpdate,
 }) => {
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

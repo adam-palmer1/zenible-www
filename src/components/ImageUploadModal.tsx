@@ -65,14 +65,14 @@ export default function ImageUploadModal({ collectionId, onClose, onSuccess }: I
     setError(null);
 
     try {
-      const result = await (apiHelpers as any).uploadCollectionAvatar(
+      const result = await (apiHelpers as Record<string, Function>).uploadCollectionAvatar(
         collectionId,
         file,
         cropData,
         adjustments
       );
 
-      onSuccess((result as any).image_data);
+      onSuccess((result as Record<string, unknown>).image_data);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to upload image');

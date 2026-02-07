@@ -29,6 +29,27 @@ export interface Pagination {
   total: number;
 }
 
+/** Shape returned by apiService.list() */
+export interface ListResponse {
+  items?: unknown[];
+  total?: number;
+  length?: number;
+  stats?: unknown;
+  [key: string]: unknown;
+}
+
+/** Minimal shape for items with an id field */
+interface Identifiable {
+  id: string;
+  [key: string]: unknown;
+}
+
+/** Filters that have the common `status` and `search` keys */
+interface CommonFilterKeys {
+  status?: unknown;
+  search?: unknown;
+}
+
 /**
  * Describes how fetch params are built for the backend.
  * InvoiceContext sends skip/limit + sort_order,
@@ -41,7 +62,12 @@ export interface DocumentStateConfig<TFilters extends object> {
   name: string;
 
   /** The API service object – must have a `.list(params)` method */
-  apiService: { list: (params: Record<string, string>) => Promise<unknown> };
+  apiService: {
+    list: (params: Record<string, string>) => Promise<unknown>;
+    create?: (data: unknown) => Promise<unknown>;
+    update?: (id: string, data: unknown) => Promise<unknown>;
+    delete?: (id: string) => Promise<unknown>;
+  };
 
   /**
    * How to translate pagination state into request params.
@@ -100,7 +126,7 @@ export interface DocumentStateConfig<TFilters extends object> {
    * Optional callback invoked after a successful fetch response.
    * Useful for extracting extra data from the response (e.g. stats).
    */
-  onFetchSuccess?: (response: any) => void;
+  onFetchSuccess?: (response: ListResponse) => void;
 }
 
 export interface DocumentState<TFilters extends object> {
@@ -265,11 +291,12 @@ export function useDocumentState<TFilters extends object>(
         }
       });
 
-      const response = await apiService.list(params as Record<string, string>) as any;
-      setItems(response.items || response);
+      const raw = await apiService.list(params as Record<string, string>);
+      const response = (Array.isArray(raw) ? { items: raw, total: raw.length } : raw) as ListResponse;
+      setItems(response.items || []);
       setPagination(prev => ({
         ...prev,
-        total: response.total || response.length,
+        total: response.total || 0,
       }));
 
       if (onFetchSuccess) {
@@ -300,7 +327,8 @@ export function useDocumentState<TFilters extends object>(
   const createItem = useCallback(async (data: unknown) => {
     try {
       setLoading(true);
-      const created = await (apiService as any).create(data);
+      if (!apiService.create) throw new Error(`[${name}Context] apiService.create is not defined`);
+      const created = await apiService.create(data);
       setItems(prev => [created, ...prev]);
       return created;
     } catch (err) {
@@ -315,8 +343,9 @@ export function useDocumentState<TFilters extends object>(
   const updateItem = useCallback(async (id: string, data: unknown) => {
     try {
       setLoading(true);
-      const updated = await (apiService as any).update(id, data);
-      setItems(prev => prev.map((item: any) => item.id === id ? updated : item));
+      if (!apiService.update) throw new Error(`[${name}Context] apiService.update is not defined`);
+      const updated = await apiService.update(id, data);
+      setItems(prev => prev.map((item) => (item as Identifiable).id === id ? updated : item));
       return updated;
     } catch (err) {
       console.error(`[${name}Context] Error updating ${name.toLowerCase()}:`, err);
@@ -330,8 +359,9 @@ export function useDocumentState<TFilters extends object>(
   const deleteItem = useCallback(async (id: string) => {
     try {
       setLoading(true);
-      await (apiService as any).delete(id);
-      setItems(prev => prev.filter((item: any) => item.id !== id));
+      if (!apiService.delete) throw new Error(`[${name}Context] apiService.delete is not defined`);
+      await apiService.delete(id);
+      setItems(prev => prev.filter((item) => (item as Identifiable).id !== id));
     } catch (err) {
       console.error(`[${name}Context] Error deleting ${name.toLowerCase()}:`, err);
       throw err;
@@ -349,11 +379,12 @@ export function useDocumentState<TFilters extends object>(
     setPagination(prev => ({ ...prev, page: 1 }));
 
     // Persist common prefs
-    if ((newFilters as any).status !== undefined) {
-      updatePreference(`${preferencePrefix}_filter_status`, (newFilters as any).status, 'finance');
+    const commonFilters = newFilters as Partial<CommonFilterKeys>;
+    if (commonFilters.status !== undefined) {
+      updatePreference(`${preferencePrefix}_filter_status`, commonFilters.status, 'finance');
     }
-    if ((newFilters as any).search !== undefined) {
-      updatePreference(`${preferencePrefix}_search`, (newFilters as any).search, 'finance');
+    if (commonFilters.search !== undefined) {
+      updatePreference(`${preferencePrefix}_search`, commonFilters.search, 'finance');
     }
 
     // Persist domain-specific prefs

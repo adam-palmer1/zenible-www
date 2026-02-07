@@ -10,8 +10,8 @@ interface CategoryManagementModalProps {
 }
 
 const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({ open, onOpenChange }) => {
-  const { categories, createCategory, updateCategory, deleteCategory, refreshCategories } = useExpenses() as any;
-  const { showSuccess, showError, showConfirm } = useNotification() as any;
+  const { categories, createCategory, updateCategory, deleteCategory, refreshCategories } = useExpenses();
+  const { showSuccess, showError, showConfirm } = useNotification();
 
   const [showForm, setShowForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<any>(null);

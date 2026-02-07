@@ -18,14 +18,8 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-
-    /* Strict settings - relaxed for incremental migration */
-    "strict": false,
+    "strict": true,
     "allowJs": true,
-    "checkJs": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "strictPropertyInitialization": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false
   },

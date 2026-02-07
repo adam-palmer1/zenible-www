@@ -46,10 +46,10 @@ import lockIcon from '../assets/payment-modal-figma/lock-icon.svg';
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 // Card form component - Exact Figma implementation
-function UpdatePaymentForm({ onSuccess, onError, onCancel, loading }: UpdatePaymentFormProps) {
+function UpdatePaymentForm({ onSuccess, onError: _onError, onCancel, loading }: UpdatePaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
-  const { darkMode } = usePreferences() as any;
+  const { darkMode: _darkMode } = usePreferences();
   const [isProcessing, setIsProcessing] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
 
@@ -65,11 +65,17 @@ function UpdatePaymentForm({ onSuccess, onError, onCancel, loading }: UpdatePaym
 
     const cardNumber = elements.getElement(CardNumberElement);
 
+    if (!cardNumber) {
+      setCardError('Card element not found');
+      setIsProcessing(false);
+      return;
+    }
+
     try {
       // Create payment method
       const { error, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
-        card: cardNumber as any,
+        card: cardNumber,
       });
 
       if (error) {
@@ -80,7 +86,7 @@ function UpdatePaymentForm({ onSuccess, onError, onCancel, loading }: UpdatePaym
 
       // Call the success callback with the payment method
       onSuccess(paymentMethod!.id);
-    } catch (err) {
+    } catch (_err) {
       setCardError('An unexpected error occurred');
       setIsProcessing(false);
     }

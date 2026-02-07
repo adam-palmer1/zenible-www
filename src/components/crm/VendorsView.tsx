@@ -1,56 +1,13 @@
-import React, { useState } from 'react';
-import { UserMinusIcon, EyeSlashIcon, EyeIcon, PencilIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import React from 'react';
+import { UserMinusIcon, EyeSlashIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useContacts, useCompanyCurrencies } from '../../hooks/crm';
 import { useNotification } from '../../contexts/NotificationContext';
 import { formatCurrencyWithCommas } from '../../utils/currency';
 import Dropdown from '../ui/dropdown/Dropdown';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
-
-interface SortableColumnHeaderProps {
-  field: string;
-  label: string;
-  sortField: string;
-  sortDirection: string;
-  onSort: (field: string) => void;
-  align?: 'left' | 'right';
-}
-
-// Sortable Column Header Component
-const SortableColumnHeader: React.FC<SortableColumnHeaderProps> = ({ field, label, sortField, sortDirection, onSort, align = 'left' }) => {
-  const isActive = sortField === field;
-  const alignClass = align === 'right' ? 'justify-end' : 'justify-start';
-
-  // Sort icon when not active
-  const SortIcon = () => (
-    <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M8 3L12 7H4L8 3Z" />
-      <path d="M8 13L4 9H12L8 13Z" />
-    </svg>
-  );
-
-  return (
-    <th
-      className="px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 select-none"
-      onClick={() => onSort(field)}
-    >
-      <div className={`flex items-center gap-1 ${alignClass}`}>
-        <span>{label}</span>
-        <span className={`transition-colors ${isActive ? 'text-zenible-primary' : 'text-gray-300'}`}>
-          {isActive ? (
-            sortDirection === 'asc' ? (
-              <ChevronUpIcon className="h-4 w-4" />
-            ) : (
-              <ChevronDownIcon className="h-4 w-4" />
-            )
-          ) : (
-            <SortIcon />
-          )}
-        </span>
-      </div>
-    </th>
-  );
-};
+import { SortableHeader, EmptyState, LoadingSpinner } from '../shared';
+import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
 
 interface VendorsViewProps {
   onVendorClick?: (vendor: any) => void;
@@ -85,13 +42,11 @@ const VendorsView: React.FC<VendorsViewProps> = ({
   showPreferredCurrency = true,
   visibleColumns = {},
 }) => {
-  const [showRemoveVendorModal, setShowRemoveVendorModal] = useState(false);
-  const [vendorToRemove, setVendorToRemove] = useState<any>(null);
-  const [showDeleteVendorModal, setShowDeleteVendorModal] = useState(false);
-  const [vendorToDelete, setVendorToDelete] = useState<any>(null);
+  const removeConfirmation = useDeleteConfirmation<any>();
+  const deleteConfirmation = useDeleteConfirmation<any>();
 
-  const { showError, showSuccess } = useNotification() as any;
-  const { defaultCurrency, numberFormat } = useCompanyCurrencies() as any;
+  const { showError, showSuccess } = useNotification();
+  const { defaultCurrency, numberFormat } = useCompanyCurrencies();
   const defaultCurrencyCode = defaultCurrency?.currency?.code || 'GBP';
 
   // Fetch vendors (contacts with is_vendor: true) with financial details
@@ -101,9 +56,12 @@ const VendorsView: React.FC<VendorsViewProps> = ({
       is_vendor: true,
       include_financial_details: true,
       ...(showPreferredCurrency === false && { preserve_currencies: true }),
+      ...(searchQuery ? { search: searchQuery } : {}),
+      ...(sortField ? { sort_by: sortField, sort_order: sortDirection || 'desc' } : {}),
+      ...(showHiddenVendors ? {} : { is_hidden: false }),
     },
     refreshKey
-  ) as any;
+  );
 
   // Helper to format financial values from backend
   // Handles both single values and array format (when preserve_currencies=true)
@@ -138,81 +96,8 @@ const VendorsView: React.FC<VendorsViewProps> = ({
     return formatCurrencyWithCommas(parseFloat(value), currency || defaultCurrencyCode, numberFormat);
   };
 
-  // Filter and sort vendors
-  const getFilteredVendors = () => {
-    let filtered = [...(vendors || [])];
-
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((vendor: any) =>
-        vendor.first_name?.toLowerCase().includes(query) ||
-        vendor.last_name?.toLowerCase().includes(query) ||
-        vendor.email?.toLowerCase().includes(query) ||
-        vendor.business_name?.toLowerCase().includes(query) ||
-        vendor.display_name?.toLowerCase().includes(query)
-      );
-    }
-
-    // Apply hidden filter
-    if (!showHiddenVendors) {
-      filtered = filtered.filter((vendor: any) => vendor.is_visible_in_vendors !== false);
-    }
-
-    // Apply field-based sorting
-    filtered.sort((a: any, b: any) => {
-      let comparison = 0;
-
-      switch (sortField) {
-        case 'name':
-        case 'display_name': {
-          const nameA = (a.display_name || a.business_name || '').toLowerCase();
-          const nameB = (b.display_name || b.business_name || '').toLowerCase();
-          comparison = nameA.localeCompare(nameB);
-          break;
-        }
-        case 'email': {
-          const emailA = (a.email || '').toLowerCase();
-          const emailB = (b.email || '').toLowerCase();
-          comparison = emailA.localeCompare(emailB);
-          break;
-        }
-        case 'phone': {
-          const phoneA = (a.phone || '').toLowerCase();
-          const phoneB = (b.phone || '').toLowerCase();
-          comparison = phoneA.localeCompare(phoneB);
-          break;
-        }
-        case 'business_name': {
-          const bizA = (a.business_name || '').toLowerCase();
-          const bizB = (b.business_name || '').toLowerCase();
-          comparison = bizA.localeCompare(bizB);
-          break;
-        }
-        case 'expenses_paid':
-        case 'total_expenses_paid': {
-          comparison = (parseFloat(a.total_expenses_paid) || 0) - (parseFloat(b.total_expenses_paid) || 0);
-          break;
-        }
-        case 'expenses_outstanding':
-        case 'total_expenses_outstanding': {
-          comparison = (parseFloat(a.total_expenses_outstanding) || 0) - (parseFloat(b.total_expenses_outstanding) || 0);
-          break;
-        }
-        case 'vendor_since':
-        case 'created_at':
-        default: {
-          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-          break;
-        }
-      }
-
-      // Apply sort direction
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return filtered;
-  };
+  // Search, sort, and hidden filtering are now server-side via useContacts filters
+  const getFilteredVendors = () => vendors || [];
 
   const handleEditVendor = (vendor: any) => {
     if (openContactModal) {
@@ -233,31 +118,31 @@ const VendorsView: React.FC<VendorsViewProps> = ({
   };
 
   const handleRemoveFromVendorList = async () => {
-    if (!vendorToRemove) return;
-    try {
-      await updateContact(vendorToRemove.id, { is_vendor: false });
-      const displayName = getContactDisplayName(vendorToRemove);
-      showSuccess(`${displayName} removed from vendor list`);
-      setShowRemoveVendorModal(false);
-      setVendorToRemove(null);
-    } catch (error) {
-      console.error('Error removing vendor from list:', error);
-      showError('Failed to remove vendor from list');
-    }
+    await removeConfirmation.confirmDelete(async (vendor) => {
+      try {
+        await updateContact(vendor.id, { is_vendor: false });
+        const displayName = getContactDisplayName(vendor);
+        showSuccess(`${displayName} removed from vendor list`);
+      } catch (error) {
+        console.error('Error removing vendor from list:', error);
+        showError('Failed to remove vendor from list');
+        throw error;
+      }
+    });
   };
 
   const handleDeleteVendor = async () => {
-    if (!vendorToDelete) return;
-    try {
-      await deleteContact(vendorToDelete.id);
-      const displayName = getContactDisplayName(vendorToDelete);
-      showSuccess(`${displayName} deleted permanently`);
-      setShowDeleteVendorModal(false);
-      setVendorToDelete(null);
-    } catch (error) {
-      console.error('Error deleting vendor:', error);
-      showError('Failed to delete vendor');
-    }
+    await deleteConfirmation.confirmDelete(async (vendor) => {
+      try {
+        await deleteContact(vendor.id);
+        const displayName = getContactDisplayName(vendor);
+        showSuccess(`${displayName} deleted permanently`);
+      } catch (error) {
+        console.error('Error deleting vendor:', error);
+        showError('Failed to delete vendor');
+        throw error;
+      }
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -269,7 +154,7 @@ const VendorsView: React.FC<VendorsViewProps> = ({
         day: '2-digit',
         year: 'numeric'
       });
-    } catch (error) {
+    } catch (_error) {
       return '-';
     }
   };
@@ -292,11 +177,7 @@ const VendorsView: React.FC<VendorsViewProps> = ({
   const visibleColumnCount = Object.values(columns).filter(Boolean).length;
 
   if (vendorsLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
@@ -307,67 +188,67 @@ const VendorsView: React.FC<VendorsViewProps> = ({
           <thead>
             <tr className="border-b border-[#e5e5e5] dark:border-gray-700">
               {columns.name && (
-                <SortableColumnHeader
+                <SortableHeader
                   field="name"
                   label="Vendor"
-                  sortField={sortField}
-                  sortDirection={sortDirection}
+                  currentSort={sortField}
+                  currentDirection={sortDirection as 'asc' | 'desc'}
                   onSort={handleSortChange!}
                 />
               )}
               {columns.email && (
-                <SortableColumnHeader
+                <SortableHeader
                   field="email"
                   label="Email"
-                  sortField={sortField}
-                  sortDirection={sortDirection}
+                  currentSort={sortField}
+                  currentDirection={sortDirection as 'asc' | 'desc'}
                   onSort={handleSortChange!}
                 />
               )}
               {columns.phone && (
-                <SortableColumnHeader
+                <SortableHeader
                   field="phone"
                   label="Phone"
-                  sortField={sortField}
-                  sortDirection={sortDirection}
+                  currentSort={sortField}
+                  currentDirection={sortDirection as 'asc' | 'desc'}
                   onSort={handleSortChange!}
                 />
               )}
               {columns.business_name && (
-                <SortableColumnHeader
+                <SortableHeader
                   field="business_name"
                   label="Company"
-                  sortField={sortField}
-                  sortDirection={sortDirection}
+                  currentSort={sortField}
+                  currentDirection={sortDirection as 'asc' | 'desc'}
                   onSort={handleSortChange!}
                 />
               )}
               {columns.expenses_paid && (
-                <SortableColumnHeader
+                <SortableHeader
                   field="expenses_paid"
                   label="Expenses Paid"
-                  sortField={sortField}
-                  sortDirection={sortDirection}
+                  currentSort={sortField}
+                  currentDirection={sortDirection as 'asc' | 'desc'}
                   onSort={handleSortChange!}
                   align="right"
                 />
               )}
               {columns.expenses_outstanding && (
-                <SortableColumnHeader
+                <SortableHeader
                   field="expenses_outstanding"
                   label="Outstanding"
-                  sortField={sortField}
-                  sortDirection={sortDirection}
+                  currentSort={sortField}
+                  currentDirection={sortDirection as 'asc' | 'desc'}
                   onSort={handleSortChange!}
                   align="right"
                 />
               )}
               {columns.vendor_since && (
-                <SortableColumnHeader
+                <SortableHeader
                   field="vendor_since"
                   label="Vendor Since"
-                  sortField={sortField}
-                  sortDirection={sortDirection}
+                  currentSort={sortField}
+                  currentDirection={sortDirection as 'asc' | 'desc'}
                   onSort={handleSortChange!}
                 />
               )}
@@ -378,11 +259,10 @@ const VendorsView: React.FC<VendorsViewProps> = ({
           </thead>
           <tbody>
             {filteredVendors.length === 0 ? (
-              <tr>
-                <td colSpan={visibleColumnCount} className="px-4 py-12 text-center text-gray-600 dark:text-gray-400">
-                  {searchQuery ? 'No vendors match your search' : 'No vendors found'}
-                </td>
-              </tr>
+              <EmptyState
+                title={searchQuery ? 'No vendors match your search' : 'No vendors found'}
+                colSpan={visibleColumnCount}
+              />
             ) : (
               filteredVendors.map((vendor: any, index: number) => {
                 const isHidden = vendor.is_visible_in_vendors === false;
@@ -476,8 +356,7 @@ const VendorsView: React.FC<VendorsViewProps> = ({
                           <Dropdown.Item
                             onSelect={(e: any) => {
                               e.stopPropagation();
-                              setVendorToRemove(vendor);
-                              setShowRemoveVendorModal(true);
+                              removeConfirmation.requestDelete(vendor);
                             }}
                           >
                             <UserMinusIcon className="h-4 w-4" />
@@ -506,8 +385,7 @@ const VendorsView: React.FC<VendorsViewProps> = ({
                           <Dropdown.Item
                             onSelect={(e: any) => {
                               e.stopPropagation();
-                              setVendorToDelete(vendor);
-                              setShowDeleteVendorModal(true);
+                              deleteConfirmation.requestDelete(vendor);
                             }}
                             className="text-red-600 hover:text-red-700"
                           >
@@ -527,17 +405,14 @@ const VendorsView: React.FC<VendorsViewProps> = ({
 
       {/* Remove from Vendor List Confirmation Modal */}
       <ConfirmationModal
-        isOpen={showRemoveVendorModal}
-        onClose={() => {
-          setShowRemoveVendorModal(false);
-          setVendorToRemove(null);
-        }}
+        isOpen={removeConfirmation.isOpen}
+        onClose={removeConfirmation.cancelDelete}
         onConfirm={handleRemoveFromVendorList}
         title="Remove from Vendor List?"
         message={
           <div>
             <p className="mb-2">
-              Are you sure you want to remove {vendorToRemove ? getContactDisplayName(vendorToRemove) : 'this vendor'} from your vendor list?
+              Are you sure you want to remove {removeConfirmation.item ? getContactDisplayName(removeConfirmation.item) : 'this vendor'} from your vendor list?
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Note: This will not remove them from the CRM or delete any history.
@@ -553,17 +428,14 @@ const VendorsView: React.FC<VendorsViewProps> = ({
 
       {/* Delete Vendor Confirmation Modal */}
       <ConfirmationModal
-        isOpen={showDeleteVendorModal}
-        onClose={() => {
-          setShowDeleteVendorModal(false);
-          setVendorToDelete(null);
-        }}
+        isOpen={deleteConfirmation.isOpen}
+        onClose={deleteConfirmation.cancelDelete}
         onConfirm={handleDeleteVendor}
         title="Delete Vendor?"
         message={
           <div>
             <p className="mb-2">
-              Are you sure you want to permanently delete {vendorToDelete ? getContactDisplayName(vendorToDelete) : 'this vendor'}?
+              Are you sure you want to permanently delete {deleteConfirmation.item ? getContactDisplayName(deleteConfirmation.item) : 'this vendor'}?
             </p>
             <p className="text-sm text-red-600 dark:text-red-400 font-medium">
               Warning: This action cannot be undone. All data associated with this vendor will be permanently deleted.

@@ -7,6 +7,22 @@ import companyUsersAPI from '../../../../../services/api/crm/companyUsers';
 /**
  * Modal for editing a user's permissions
  */
+interface Permission {
+  code: string;
+  name: string;
+  description?: string | null;
+  category: string;
+}
+
+interface EditPermissionsModalProps {
+  user: any;
+  permissions?: Permission[];
+  categories?: string[];
+  categoryLabels?: Record<string, string>;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
 const EditPermissionsModal = ({
   user,
   permissions = [],
@@ -14,23 +30,23 @@ const EditPermissionsModal = ({
   categoryLabels = {},
   onClose,
   onSuccess,
-}) => {
+}: EditPermissionsModalProps) => {
   const { darkMode } = usePreferences();
   const { showError } = useNotification();
 
-  const [selectedPermissions, setSelectedPermissions] = useState(user.permissions || []);
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(user.permissions || []);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Group permissions by category
-  const permissionsByCategory = categories.reduce((acc, category) => {
+  const permissionsByCategory = categories.reduce<Record<string, Permission[]>>((acc, category) => {
     acc[category] = permissions.filter((p) => p.category === category);
     return acc;
   }, {});
 
   // Toggle a permission
-  const togglePermission = (code) => {
-    setSelectedPermissions((prev) =>
-      prev.includes(code) ? prev.filter((p) => p !== code) : [...prev, code]
+  const togglePermission = (code: string) => {
+    setSelectedPermissions((prev: string[]) =>
+      prev.includes(code) ? prev.filter((p: string) => p !== code) : [...prev, code]
     );
   };
 
@@ -57,7 +73,7 @@ const EditPermissionsModal = ({
       onSuccess?.();
     } catch (error) {
       console.error('Failed to update permissions:', error);
-      showError(error.message || 'Failed to update permissions. Please try again.');
+      showError((error as Error).message || 'Failed to update permissions. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

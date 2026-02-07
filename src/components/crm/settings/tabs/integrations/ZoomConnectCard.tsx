@@ -2,6 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import zoomAPI from '../../../../../services/api/crm/zoom';
 
+interface ZoomConnectUrlResponse {
+  authorization_url: string;
+  state: string;
+}
+
 // Zoom logo SVG component
 const ZoomLogo = ({ className = 'h-6 w-6' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -9,12 +14,19 @@ const ZoomLogo = ({ className = 'h-6 w-6' }) => (
   </svg>
 );
 
-const ZoomConnectCard = ({ onStatusChange }) => {
-  const [status, setStatus] = useState(null);
+interface ZoomStatus {
+  is_connected: boolean;
+  account?: {
+    zoom_email?: string;
+  } | null;
+}
+
+const ZoomConnectCard = ({ onStatusChange }: { onStatusChange?: (gateway: string, status: any) => void }) => {
+  const [status, setStatus] = useState<ZoomStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
 
   // Load Zoom status
@@ -22,10 +34,10 @@ const ZoomConnectCard = ({ onStatusChange }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await zoomAPI.getStatus();
+      const data = await zoomAPI.getStatus() as ZoomStatus;
       setStatus(data);
       return data;
-    } catch (err) {
+    } catch (err: any) {
       console.error('[ZoomConnect] Error loading status:', err);
       if (err.status !== 404) {
         setError(err.message);
@@ -54,14 +66,14 @@ const ZoomConnectCard = ({ onStatusChange }) => {
       setConnecting(true);
       setError(null);
 
-      const { authorization_url, state } = await zoomAPI.getConnectUrl() as any;
+      const { authorization_url, state } = await zoomAPI.getConnectUrl() as ZoomConnectUrlResponse;
 
       // Store state for validation
       sessionStorage.setItem('zoom_oauth_state', state);
 
       // Redirect to Zoom OAuth
       window.location.href = authorization_url;
-    } catch (err) {
+    } catch (err: any) {
       console.error('[ZoomConnect] Error connecting:', err);
       setError(err.message || 'Failed to start Zoom connection');
       setConnecting(false);
@@ -81,7 +93,7 @@ const ZoomConnectCard = ({ onStatusChange }) => {
       const newStatus = { is_connected: false, account: null };
       setStatus(newStatus);
       onStatusChange?.('zoom', newStatus);
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to disconnect Zoom');
     } finally {
       setDisconnecting(false);

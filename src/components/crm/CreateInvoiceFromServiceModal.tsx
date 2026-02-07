@@ -23,8 +23,8 @@ const CreateInvoiceFromServiceModal: React.FC<CreateInvoiceFromServiceModalProps
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { showError, showSuccess } = useNotification() as any;
-  const { createInvoiceFromService } = useContacts({}, 0, { skipInitialFetch: true }) as any;
+  const { showError, showSuccess } = useNotification();
+  const { createInvoiceFromService } = useContacts({}, 0, { skipInitialFetch: true });
 
   // Calculate service values
   const price = parseFloat(service?.price) || 0;

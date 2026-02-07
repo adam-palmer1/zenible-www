@@ -52,6 +52,32 @@ const SettingsIcon = ({ size = 18, className = '' }: IconProps) => (
   </svg>
 );
 
+interface AvailablePlatform {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+interface PlatformConfig {
+  id: string;
+  platform_id: string;
+  additional_instructions?: string;
+  is_enabled: boolean;
+  priority: number;
+  metadata?: {
+    merge_strategy?: string;
+    emphasis_level?: string;
+  };
+  platform?: {
+    name?: string;
+    icon_svg?: string;
+  };
+}
+
+interface CharacterPlatformsResponse {
+  configurations: PlatformConfig[];
+}
+
 interface CharacterPlatformConfigProps {
   characterId: string;
   characterName: string;
@@ -61,8 +87,8 @@ interface CharacterPlatformConfigProps {
 }
 
 export default function CharacterPlatformConfig({ characterId, characterName, isOpen, onClose, darkMode }: CharacterPlatformConfigProps) {
-  const [configurations, setConfigurations] = useState<any[]>([]);
-  const [availablePlatforms, setAvailablePlatforms] = useState<any[]>([]);
+  const [configurations, setConfigurations] = useState<PlatformConfig[]>([]);
+  const [availablePlatforms, setAvailablePlatforms] = useState<AvailablePlatform[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,11 +118,11 @@ export default function CharacterPlatformConfig({ characterId, characterName, is
       setError(null);
 
       // Fetch character's platform configurations
-      const configResponse = await adminAPI.getCharacterPlatforms(characterId) as any;
+      const configResponse = await adminAPI.getCharacterPlatforms(characterId) as CharacterPlatformsResponse;
       setConfigurations(configResponse.configurations || []);
 
       // Fetch all available platforms
-      const platformsResponse = await platformAPI.getActivePlatforms();
+      const platformsResponse = await platformAPI.getActivePlatforms() as AvailablePlatform[];
       setAvailablePlatforms(platformsResponse);
     } catch (err) {
       console.error('Failed to fetch data:', err);
@@ -144,7 +170,7 @@ export default function CharacterPlatformConfig({ characterId, characterName, is
     }
   };
 
-  const handleUpdateConfig = async (platformId: string, data: any) => {
+  const handleUpdateConfig = async (platformId: string, data: Partial<PlatformConfig>) => {
     try {
       setSaving(true);
       await adminAPI.updateCharacterPlatform(characterId, platformId, data);
@@ -174,7 +200,7 @@ export default function CharacterPlatformConfig({ characterId, characterName, is
     }
   };
 
-  const handlePriorityChange = async (config: any, direction: string) => {
+  const handlePriorityChange = async (config: PlatformConfig, direction: string) => {
     const currentIndex = configurations.findIndex(c => c.id === config.id);
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
 
@@ -396,6 +422,7 @@ export default function CharacterPlatformConfig({ characterId, characterName, is
                           <button
                             onClick={() => {
                               const configToUpdate = configurations.find(c => c.id === config.id);
+                              if (!configToUpdate) return;
                               handleUpdateConfig(config.platform_id, {
                                 additional_instructions: configToUpdate.additional_instructions,
                                 is_enabled: configToUpdate.is_enabled,

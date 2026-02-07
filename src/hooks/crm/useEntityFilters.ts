@@ -90,7 +90,7 @@ export function useEntityFilters(config: EntityFiltersConfig): EntityFiltersRetu
     showPreferredCurrency: `${entityName}_show_preferred_currency`,
   };
 
-  const { preferences, updatePreference, initialized: preferencesInitialized } = usePreferences() as any;
+  const { preferences, updatePreference, initialized: preferencesInitialized } = usePreferences();
   const columnSelectorRef = useRef<HTMLDivElement | null>(null);
   const [isReadyToSave, setIsReadyToSave] = useState<boolean>(false);
   const hasInitializedFromPrefs = useRef<boolean>(false);

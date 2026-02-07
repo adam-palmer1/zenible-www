@@ -65,7 +65,7 @@ export default function SignIn() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string>('');
 
-  const { login, googleLogin, isAuthenticated, loading: authLoading, checkAuth } = useAuth() as any;
+  const { login, googleLogin, isAuthenticated, loading: authLoading, checkAuth } = useAuth();
   const navigate = useNavigate();
 
   // Force re-check authentication when component mounts
@@ -81,7 +81,7 @@ export default function SignIn() {
 
     // Don't redirect while auth is still loading
     if (!authLoading && isAuthenticated) {
-      const targetPath = isValidInternalRedirect(redirectPath) ? redirectPath : '/dashboard';
+      const targetPath = isValidInternalRedirect(redirectPath) ? redirectPath! : '/dashboard';
       navigate(targetPath);
     }
 
@@ -156,12 +156,12 @@ export default function SignIn() {
         // Get redirect path from URL params
         const searchParams = new URLSearchParams(window.location.search);
         const redirectPath = searchParams.get('redirect');
-        const targetPath = isValidInternalRedirect(redirectPath) ? redirectPath : '/dashboard';
+        const targetPath = isValidInternalRedirect(redirectPath) ? redirectPath! : '/dashboard';
         navigate(targetPath);
       } else {
         setApiError(result.error || 'Login failed. Please try again.');
       }
-    } catch (error) {
+    } catch (_error) {
       setApiError('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
@@ -176,13 +176,13 @@ export default function SignIn() {
       // Get redirect path from URL params
       const searchParams = new URLSearchParams(window.location.search);
       const redirectPath = searchParams.get('redirect');
-      const result = await googleLogin(redirectPath);
+      const result = await googleLogin(redirectPath ?? undefined);
 
       if (!result.success && result.error) {
         setApiError(result.error);
       }
       // If successful, the googleLogin function will redirect to the auth URL
-    } catch (error) {
+    } catch (_error) {
       setApiError('Google sign in failed. Please try again.');
     } finally {
       setIsLoading(false);

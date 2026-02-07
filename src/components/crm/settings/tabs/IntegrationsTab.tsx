@@ -7,6 +7,8 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import paymentIntegrationsAPI from '../../../../services/api/finance/paymentIntegrations';
+import type { OAuthUrlResponse } from '../../../../types/auth';
+import type { DashboardLinkResponse, PayPalConnectResponse } from '../../../../types/finance';
 
 // Stripe logo SVG component
 const StripeLogo = ({ className = 'h-6 w-6' }) => (
@@ -30,13 +32,23 @@ interface ConnectCardProps {
   onStatusChange?: (gateway: string, status: any) => void;
 }
 
+interface StripeStatus {
+  is_connected?: boolean;
+  status?: string;
+  charges_enabled?: boolean;
+  stripe_account_id?: string;
+  business_name?: string;
+  default_currency?: string;
+  currently_due?: string[];
+}
+
 const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState<StripeStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
 
   // Load Stripe status
@@ -44,14 +56,14 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await paymentIntegrationsAPI.getStripeConnectStatus();
+      const data = await paymentIntegrationsAPI.getStripeConnectStatus() as StripeStatus;
       setStatus(data);
       return data;
-    } catch (err) {
-      console.error('[StripeConnect] Error loading status:', err);
+    } catch (_err: any) {
+      console.error('[StripeConnect] Error loading status:', _err);
       // Not connected is a valid state
-      if (err.status !== 404) {
-        setError(err.message);
+      if (_err.status !== 404) {
+        setError(_err.message);
       }
       const fallbackStatus = { is_connected: false };
       setStatus(fallbackStatus);
@@ -78,7 +90,7 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
           newParams.delete('code');
           newParams.delete('state');
           setSearchParams(newParams, { replace: true });
-        } catch (err) {
+        } catch (_err) {
           setError('Failed to connect Stripe account. Please try again.');
         } finally {
           setConnecting(false);
@@ -106,13 +118,13 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
       setError(null);
 
       // Get OAuth URL
-      const { oauth_url } = await paymentIntegrationsAPI.initiateStripeOAuth() as any;
+      const { oauth_url } = await paymentIntegrationsAPI.initiateStripeOAuth() as OAuthUrlResponse;
 
       // Redirect to Stripe OAuth
       window.location.href = oauth_url;
-    } catch (err) {
-      console.error('[StripeConnect] Error connecting:', err);
-      setError(err.message || 'Failed to start Stripe connection');
+    } catch (_err: any) {
+      console.error('[StripeConnect] Error connecting:', _err);
+      setError(_err.message || 'Failed to start Stripe connection');
       setConnecting(false);
     }
   };
@@ -120,9 +132,9 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
   // Open Stripe Dashboard
   const handleOpenDashboard = async () => {
     try {
-      const { url } = await paymentIntegrationsAPI.getStripeDashboardLink() as any;
+      const { url } = await paymentIntegrationsAPI.getStripeDashboardLink() as DashboardLinkResponse;
       window.open(url, '_blank');
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to open Stripe dashboard');
     }
   };
@@ -139,7 +151,7 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
       await paymentIntegrationsAPI.disconnectStripe();
       setStatus({ is_connected: false });
       onStatusChange?.('stripe', { is_connected: false });
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to disconnect Stripe');
     } finally {
       setDisconnecting(false);
@@ -315,9 +327,9 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
               Your Stripe account needs additional information before you can accept payments.
             </p>
-            {status.currently_due?.length > 0 && (
+            {(status.currently_due?.length ?? 0) > 0 && (
               <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-4">
-                Required: {status.currently_due.join(', ')}
+                Required: {status.currently_due!.join(', ')}
               </p>
             )}
             <ErrorDisplay />
@@ -425,14 +437,24 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
 /**
  * PayPal Connect Card Component
  */
+interface PayPalStatus {
+  is_connected?: boolean;
+  onboarding_status?: string;
+  is_ready_for_payments?: boolean;
+  payments_receivable?: boolean;
+  primary_email_confirmed?: boolean;
+  paypal_email?: string;
+  merchant_id?: string;
+}
+
 const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState<PayPalStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
 
   // Load PayPal status
@@ -440,13 +462,13 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await paymentIntegrationsAPI.getPayPalStatus();
+      const data = await paymentIntegrationsAPI.getPayPalStatus() as PayPalStatus;
       setStatus(data);
       return data;
-    } catch (err) {
-      console.error('[PayPalConnect] Error loading status:', err);
-      if (err.status !== 404) {
-        setError(err.message);
+    } catch (_err: any) {
+      console.error('[PayPalConnect] Error loading status:', _err);
+      if (_err.status !== 404) {
+        setError(_err.message);
       }
       const fallbackStatus = { is_connected: false };
       setStatus(fallbackStatus);
@@ -471,7 +493,7 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
           const newParams = new URLSearchParams(searchParams);
           newParams.delete('paypal_connected');
           setSearchParams(newParams, { replace: true });
-        } catch (err) {
+        } catch (_err) {
           setError('Failed to verify PayPal connection. Please try again.');
         } finally {
           setRefreshing(false);
@@ -502,13 +524,13 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
 
       const { action_url } = await paymentIntegrationsAPI.initiatePayPalConnect({
         return_url: returnUrl,
-      }) as any;
+      }) as PayPalConnectResponse;
 
       // Redirect to PayPal
       window.location.href = action_url;
-    } catch (err) {
-      console.error('[PayPalConnect] Error connecting:', err);
-      setError(err.message || 'Failed to start PayPal connection');
+    } catch (_err: any) {
+      console.error('[PayPalConnect] Error connecting:', _err);
+      setError(_err.message || 'Failed to start PayPal connection');
       setConnecting(false);
     }
   };
@@ -520,7 +542,7 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
       setError(null);
       await paymentIntegrationsAPI.refreshPayPalStatus();
       await loadStatus();
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to refresh status');
     } finally {
       setRefreshing(false);
@@ -539,7 +561,7 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
       await paymentIntegrationsAPI.disconnectPayPal({ confirm: true });
       setStatus({ is_connected: false });
       onStatusChange?.('paypal', { is_connected: false });
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to disconnect PayPal');
     } finally {
       setDisconnecting(false);
@@ -720,13 +742,18 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
 /**
  * Integrations Tab - Third-party service integrations
  */
+interface GatewayStatusMap {
+  stripe: StripeStatus | null;
+  paypal: PayPalStatus | null;
+}
+
 const IntegrationsTab = () => {
-  const [gatewayStatus, setGatewayStatus] = useState({
+  const [gatewayStatus, setGatewayStatus] = useState<GatewayStatusMap>({
     stripe: null,
     paypal: null,
   });
 
-  const handleStatusChange = (gateway, status) => {
+  const handleStatusChange = (gateway: string, status: any) => {
     setGatewayStatus((prev) => ({ ...prev, [gateway]: status }));
   };
 

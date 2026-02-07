@@ -112,16 +112,16 @@ export default function UsageLimitBadge({
   if (entityType) {
     const data = getEntityLimit(entityType);
     if (!data) return null;
-    current = (data as any).current ?? 0;
-    limit = (data as any).limit;
+    current = data.current ?? 0;
+    limit = data.limit ?? 0;
     isUnlimited = limit === null || limit === -1;
     label = formatEntityLabel(entityType);
   } else if (characterId) {
     // For AI features - compare character limit vs total AI limit, show the greater limit
     if (!aiData) return null;
 
-    const totalData = (aiData as any).total;
-    const characterData = (aiData as any).per_character?.find((c: any) => c.character_id === characterId);
+    const totalData = aiData.total;
+    const characterData = aiData.per_character?.find((c) => c.character_id === characterId);
 
     // Get both limits (treat null as unlimited/very high)
     const totalLimit = totalData?.limit ?? Infinity;
@@ -134,22 +134,22 @@ export default function UsageLimitBadge({
 
     // Use whichever has the greater limit
     if (totalLimit >= characterLimit && totalLimit !== Infinity) {
-      current = totalData.current ?? 0;
+      current = totalData?.current ?? 0;
       limit = totalLimit;
       isUnlimited = false;
       label = 'AI messages';
     } else if (characterLimit !== Infinity) {
-      current = characterData.usage ?? 0;
+      current = characterData?.usage ?? 0;
       limit = characterLimit;
       isUnlimited = false;
-      label = characterData.character_name || 'AI messages';
+      label = characterData?.character_name || 'AI messages';
     } else {
       return null;
     }
   } else if (aiUsage) {
-    if (!(aiData as any)?.total) return null;
-    current = (aiData as any).total.current ?? 0;
-    limit = (aiData as any).total.limit;
+    if (!aiData?.total) return null;
+    current = aiData.total.current ?? 0;
+    limit = aiData.total.limit ?? 0;
     isUnlimited = limit === null;
     label = 'AI messages';
   } else {

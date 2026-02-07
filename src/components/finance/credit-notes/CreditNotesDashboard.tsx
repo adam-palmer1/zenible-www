@@ -24,6 +24,37 @@ import NewSidebar from '../../sidebar/NewSidebar';
 import KPICard from '../shared/KPICard';
 import CreditNoteDetailModal from './CreditNoteDetailModal';
 import { useModalState } from '../../../hooks/useModalState';
+import type { NumberFormat } from '../../../contexts/CRMReferenceDataContext';
+import type { CreditNoteStatus } from '../../../constants/finance';
+
+interface CreditNoteContact {
+  business_name?: string;
+  first_name?: string;
+  last_name?: string;
+}
+
+interface CreditNoteCurrency {
+  symbol?: string;
+  code?: string;
+}
+
+interface CreditNoteItem {
+  id: string;
+  credit_note_number?: string;
+  contact?: CreditNoteContact;
+  issue_date: string;
+  total: number | string;
+  remaining_amount: number | string;
+  status: string;
+  currency?: CreditNoteCurrency;
+}
+
+interface CreditNoteStats {
+  total_credits?: number;
+  applied_credits?: number;
+  remaining_credits?: number;
+  draft_count?: number;
+}
 
 // Date filter presets
 const DATE_PRESETS = [
@@ -43,16 +74,16 @@ interface StatusBadgeProps {
 
 const CreditNotesDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { showError } = useNotification() as any;
-  const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true }) as any;
-  const { numberFormats } = useCRMReferenceData() as any;
-  const { getNumberFormat } = useCompanyAttributes() as any;
+  const { showError } = useNotification();
+  const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true });
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
 
   // Number format from company settings
   const numberFormat = useMemo(() => {
     const formatId = getNumberFormat();
     if (formatId && numberFormats.length > 0) {
-      return numberFormats.find((f: any) => f.id === formatId);
+      return numberFormats.find((f: NumberFormat) => f.id === formatId);
     }
     return null;
   }, [getNumberFormat, numberFormats]);
@@ -63,10 +94,10 @@ const CreditNotesDashboard: React.FC = () => {
   };
 
   // State
-  const [creditNotes, setCreditNotes] = useState<any[]>([]);
+  const [creditNotes, setCreditNotes] = useState<CreditNoteItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<any>(null);
-  const [selectedCreditNote, setSelectedCreditNote] = useState<any>(null);
+  const [stats, setStats] = useState<CreditNoteStats | null>(null);
+  const [selectedCreditNote, setSelectedCreditNote] = useState<CreditNoteItem | null>(null);
   const detailModal = useModalState();
 
   // Filter state
@@ -185,7 +216,7 @@ const CreditNotesDashboard: React.FC = () => {
     try {
       setLoading(true);
       const filters = buildFilters();
-      const response = await (creditNotesAPI as any).list(filters);
+      const response = await creditNotesAPI.list(filters) as { items?: CreditNoteItem[]; total?: number };
       setCreditNotes(response.items || []);
       setTotalItems(response.total || response.items?.length || 0);
     } catch (error) {
@@ -199,7 +230,7 @@ const CreditNotesDashboard: React.FC = () => {
   // Load stats
   const loadStats = async () => {
     try {
-      const data = await (creditNotesAPI as any).getStats();
+      const data = await creditNotesAPI.getStats() as CreditNoteStats;
       setStats(data);
     } catch (error) {
       console.error('Error loading credit note stats:', error);
@@ -327,8 +358,8 @@ const CreditNotesDashboard: React.FC = () => {
   // Status badge component
   const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${(CREDIT_NOTE_STATUS_COLORS as any)[status] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}>
-        {(CREDIT_NOTE_STATUS_LABELS as any)[status] || status}
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${CREDIT_NOTE_STATUS_COLORS[status as CreditNoteStatus] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}>
+        {CREDIT_NOTE_STATUS_LABELS[status as CreditNoteStatus] || status}
       </span>
     );
   };
@@ -521,7 +552,7 @@ const CreditNotesDashboard: React.FC = () => {
                   {filterStatus !== 'all' && (
                     <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm">
                       <span>Status:</span>
-                      <span className="font-medium">{(CREDIT_NOTE_STATUS_LABELS as any)[filterStatus] || filterStatus}</span>
+                      <span className="font-medium">{CREDIT_NOTE_STATUS_LABELS[filterStatus as CreditNoteStatus] || filterStatus}</span>
                       <button
                         onClick={() => setFilterStatus('all')}
                         className="ml-1 p-0.5 hover:bg-purple-200 rounded-full"
@@ -567,26 +598,26 @@ const CreditNotesDashboard: React.FC = () => {
                                 All Credit Notes
                               </button>
                               <button
-                                onClick={() => setFilterStatus((CREDIT_NOTE_STATUS as any).DRAFT)}
-                                className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (CREDIT_NOTE_STATUS as any).DRAFT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                                onClick={() => setFilterStatus(CREDIT_NOTE_STATUS.DRAFT)}
+                                className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === CREDIT_NOTE_STATUS.DRAFT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                               >
                                 Draft
                               </button>
                               <button
-                                onClick={() => setFilterStatus((CREDIT_NOTE_STATUS as any).ISSUED)}
-                                className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (CREDIT_NOTE_STATUS as any).ISSUED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                                onClick={() => setFilterStatus(CREDIT_NOTE_STATUS.ISSUED)}
+                                className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === CREDIT_NOTE_STATUS.ISSUED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                               >
                                 Issued
                               </button>
                               <button
-                                onClick={() => setFilterStatus((CREDIT_NOTE_STATUS as any).APPLIED)}
-                                className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (CREDIT_NOTE_STATUS as any).APPLIED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                                onClick={() => setFilterStatus(CREDIT_NOTE_STATUS.APPLIED)}
+                                className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === CREDIT_NOTE_STATUS.APPLIED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                               >
                                 Applied
                               </button>
                               <button
-                                onClick={() => setFilterStatus((CREDIT_NOTE_STATUS as any).VOID)}
-                                className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (CREDIT_NOTE_STATUS as any).VOID ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                                onClick={() => setFilterStatus(CREDIT_NOTE_STATUS.VOID)}
+                                className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === CREDIT_NOTE_STATUS.VOID ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                               >
                                 Void
                               </button>

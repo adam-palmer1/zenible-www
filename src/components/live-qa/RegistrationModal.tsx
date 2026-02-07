@@ -12,7 +12,7 @@ interface RegistrationModalProps {
   darkMode: boolean;
 }
 
-export default function RegistrationModal({ event, onClose, darkMode }: RegistrationModalProps) {
+export default function RegistrationModal({ event, onClose, darkMode: _darkMode }: RegistrationModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

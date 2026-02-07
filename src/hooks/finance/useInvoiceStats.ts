@@ -13,6 +13,28 @@ interface ConvertedAmount {
   currency_symbol: string;
 }
 
+/** Shape of per-currency stats from the backend (matches InvoiceCurrencyStats) */
+interface BackendCurrencyStats {
+  currency_code?: string;
+  currency_symbol?: string;
+  total_invoiced?: string | number;
+  total_paid?: string | number;
+  total_outstanding?: string | number;
+  total_overdue?: string | number;
+  [key: string]: unknown;
+}
+
+/** Shape of the stats object returned by the invoice list endpoint (matches InvoiceListStats) */
+interface BackendInvoiceStats {
+  total_invoices?: number;
+  overdue_count?: number;
+  by_currency?: BackendCurrencyStats[];
+  converted_total?: ConvertedAmount | null;
+  converted_outstanding?: ConvertedAmount | null;
+  converted_overdue?: ConvertedAmount | null;
+  [key: string]: unknown;
+}
+
 export interface InvoiceStats {
   total: number;
   revenue: number;
@@ -57,25 +79,25 @@ export function useInvoiceStats(): InvoiceStats {
       overdueByCurrencyArray: [],
     };
 
-    const typedStats = backendStats as Record<string, unknown> | null | undefined;
+    const typedStats = backendStats as BackendInvoiceStats | null | undefined;
 
-    if (!typedStats || !(typedStats as any).by_currency) {
+    if (!typedStats || !typedStats.by_currency) {
       return defaultStats;
     }
 
     const result: InvoiceStats = {
-      total: (typedStats as any).total_invoices || 0,
+      total: typedStats.total_invoices || 0,
       revenue: 0,
       outstanding: 0,
       overdue: 0,
-      overdueCount: (typedStats as any).overdue_count || 0,
+      overdueCount: typedStats.overdue_count || 0,
       outstandingByCurrency: {},
       revenueByCurrency: {},
       overdueByCurrency: {},
       // Converted totals from API
-      convertedTotal: (typedStats as any).converted_total || null,
-      convertedOutstanding: (typedStats as any).converted_outstanding || null,
-      convertedOverdue: (typedStats as any).converted_overdue || null,
+      convertedTotal: typedStats.converted_total || null,
+      convertedOutstanding: typedStats.converted_outstanding || null,
+      convertedOverdue: typedStats.converted_overdue || null,
       // By currency breakdown arrays
       totalByCurrency: [],
       outstandingByCurrencyArray: [],
@@ -83,13 +105,13 @@ export function useInvoiceStats(): InvoiceStats {
     };
 
     // Process stats by currency from backend
-    ((typedStats as any).by_currency as any[]).forEach((currencyStats: any) => {
+    typedStats.by_currency.forEach((currencyStats: BackendCurrencyStats) => {
       const code: string = currencyStats.currency_code || 'USD';
       const symbol: string = currencyStats.currency_symbol || '$';
-      const totalInvoiced: number = parseFloat(currencyStats.total_invoiced || 0);
-      const totalPaid: number = parseFloat(currencyStats.total_paid || 0);
-      const totalOutstanding: number = parseFloat(currencyStats.total_outstanding || 0);
-      const totalOverdue: number = parseFloat(currencyStats.total_overdue || 0);
+      const totalInvoiced: number = parseFloat(String(currencyStats.total_invoiced || 0));
+      const totalPaid: number = parseFloat(String(currencyStats.total_paid || 0));
+      const totalOutstanding: number = parseFloat(String(currencyStats.total_outstanding || 0));
+      const totalOverdue: number = parseFloat(String(currencyStats.total_overdue || 0));
 
       // Revenue is total paid amount
       result.revenue += totalPaid;

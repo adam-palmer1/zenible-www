@@ -2,6 +2,34 @@ import React, { useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import adminAPI from '../../services/adminAPI';
 
+interface Platform {
+  id: string;
+  system_id: string;
+  name: string;
+  description: string;
+  icon_svg: string;
+  is_active: boolean;
+  is_configured?: boolean;
+  character_count?: number;
+  display_order: number;
+  metadata?: Record<string, unknown>;
+}
+
+interface PlatformFormData {
+  system_id: string;
+  name: string;
+  description: string;
+  icon_svg: string;
+  is_active: boolean;
+  display_order: number | string;
+  metadata: Record<string, unknown>;
+}
+
+interface PlatformsResponse {
+  platforms: Platform[];
+  total_pages: number;
+}
+
 // Icon components as inline SVGs
 interface IconProps {
   size?: number;
@@ -57,12 +85,12 @@ interface PlatformManagementProps {
 }
 
 export default function PlatformManagement({ isOpen, onClose, darkMode }: PlatformManagementProps) {
-  const [platforms, setPlatforms] = useState<any[]>([]);
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
-  const [editingPlatform, setEditingPlatform] = useState<any>(null);
-  const [formData, setFormData] = useState<any>({
+  const [editingPlatform, setEditingPlatform] = useState<Platform | null>(null);
+  const [formData, setFormData] = useState<PlatformFormData>({
     system_id: '',
     name: '',
     description: '',
@@ -85,11 +113,11 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
   const fetchPlatforms = async () => {
     try {
       setLoading(true);
-      const response = await (adminAPI as any).getAllPlatforms({
-        page,
-        per_page: 10,
-        search: searchQuery,
-      });
+      const response = await adminAPI.getAllPlatforms({
+        page: String(page),
+        per_page: '10',
+        ...(searchQuery && { search: searchQuery }),
+      }) as PlatformsResponse;
       setPlatforms(response.platforms || []);
       setTotalPages(response.total_pages || 1);
     } catch (error) {
@@ -128,13 +156,13 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
     try {
       const dataToSubmit = {
         ...formData,
-        display_order: parseInt(formData.display_order) || 0,
+        display_order: parseInt(String(formData.display_order)) || 0,
       };
 
       if (editingPlatform) {
-        await (adminAPI as any).updatePlatform(editingPlatform.id, dataToSubmit);
+        await adminAPI.updatePlatform(editingPlatform.id, dataToSubmit);
       } else {
-        await (adminAPI as any).createPlatform(dataToSubmit);
+        await adminAPI.createPlatform(dataToSubmit);
       }
 
       // Reset form
@@ -158,7 +186,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
     }
   };
 
-  const handleEdit = (platform: any) => {
+  const handleEdit = (platform: Platform) => {
     setEditingPlatform(platform);
     setFormData({
       system_id: platform.system_id,
@@ -175,7 +203,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
 
   const handleDelete = async (platformId: string) => {
     try {
-      await (adminAPI as any).deletePlatform(platformId);
+      await adminAPI.deletePlatform(platformId);
       setDeleteConfirm(null);
       fetchPlatforms();
     } catch (error: any) {
@@ -184,17 +212,17 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
     }
   };
 
-  const handleMoveUp = async (platform: any, index: number) => {
+  const handleMoveUp = async (platform: Platform, index: number) => {
     if (index === 0) return;
     const prevPlatform = platforms[index - 1];
 
     try {
       // Swap display orders
-      await (adminAPI as any).updatePlatform(platform.id, {
+      await adminAPI.updatePlatform(platform.id, {
         ...platform,
         display_order: prevPlatform.display_order
       });
-      await (adminAPI as any).updatePlatform(prevPlatform.id, {
+      await adminAPI.updatePlatform(prevPlatform.id, {
         ...prevPlatform,
         display_order: platform.display_order
       });
@@ -204,17 +232,17 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
     }
   };
 
-  const handleMoveDown = async (platform: any, index: number) => {
+  const handleMoveDown = async (platform: Platform, index: number) => {
     if (index === platforms.length - 1) return;
     const nextPlatform = platforms[index + 1];
 
     try {
       // Swap display orders
-      await (adminAPI as any).updatePlatform(platform.id, {
+      await adminAPI.updatePlatform(platform.id, {
         ...platform,
         display_order: nextPlatform.display_order
       });
-      await (adminAPI as any).updatePlatform(nextPlatform.id, {
+      await adminAPI.updatePlatform(nextPlatform.id, {
         ...nextPlatform,
         display_order: platform.display_order
       });
@@ -309,7 +337,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
                       type="text"
                       value={formData.system_id}
                       onChange={(e) => setFormData({ ...formData, system_id: e.target.value })}
-                      disabled={editingPlatform}
+                      disabled={!!editingPlatform}
                       className={`w-full px-3 py-2 rounded-lg border ${
                         formErrors.system_id ? 'border-red-500' : ''
                       } ${
@@ -487,7 +515,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
               </div>
             ) : (
               <div className="space-y-3">
-                {platforms.map((platform: any, index: number) => (
+                {platforms.map((platform: Platform, index: number) => (
                   <div
                     key={platform.id}
                     className={`p-4 rounded-lg border ${

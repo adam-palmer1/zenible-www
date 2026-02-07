@@ -19,7 +19,7 @@ const InvoiceHistory: React.FC<InvoiceHistoryProps> = ({ invoiceId }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await (invoicesAPI as any).getHistory(invoiceId);
+      const data = await invoicesAPI.getHistory(String(invoiceId));
       setHistory(data);
     } catch (error) {
       console.error('Error loading history:', error);
@@ -49,27 +49,6 @@ const InvoiceHistory: React.FC<InvoiceHistoryProps> = ({ invoiceId }) => {
       minute: '2-digit',
       hour12: true,
     });
-  };
-
-  // Get relative time (e.g., "1d ago")
-  const getRelativeTime = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-
-    if (diffDays > 0) {
-      return `${diffDays}d ago`;
-    } else if (diffHours > 0) {
-      return `${diffHours}h ago`;
-    } else if (diffMinutes > 0) {
-      return `${diffMinutes}m ago`;
-    } else {
-      return 'Just now';
-    }
   };
 
   // Determine if this is a creation event

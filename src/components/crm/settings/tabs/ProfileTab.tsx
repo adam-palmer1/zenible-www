@@ -5,6 +5,7 @@ import companiesAPI from '../../../../services/api/crm/companies';
 import countriesAPI from '../../../../services/api/crm/countries';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import TaxesSection from './TaxesSection';
+import type { CompanyResponse, CountryResponse } from '../../../../types/common';
 
 /**
  * Profile Tab - Company profile and business information
@@ -14,27 +15,27 @@ interface ProfileTabProps {
 }
 
 const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
-  const [company, setCompany] = useState(null);
+  const [company, setCompany] = useState<CompanyResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [logoUrl, setLogoUrl] = useState(null);
-  const [countries, setCountries] = useState([]);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [countries, setCountries] = useState<CountryResponse[]>([]);
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
-  const countryTriggerRef = useRef(null);
-  const countryDropdownRef = useRef(null);
+  const countryTriggerRef = useRef<HTMLButtonElement>(null);
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
 
-  const { industries, employeeRanges, loading: refDataLoading } = useCRMReferenceData();
+  const { loading: refDataLoading } = useCRMReferenceData();
   const { showSuccess, showError } = useNotification();
 
   // Load company data
   useEffect(() => {
     const loadCompany = async () => {
       try {
-        const data = await companiesAPI.getCurrent() as any;
+        const data = await companiesAPI.getCurrent<CompanyResponse>();
         setCompany(data);
         setLogoUrl(data.logo_url || null);
         setFormData({
@@ -80,7 +81,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
   useEffect(() => {
     const loadCountries = async () => {
       try {
-        const data = await countriesAPI.list() as any;
+        const data = await countriesAPI.list() as CountryResponse[];
         setCountries(data);
       } catch (error) {
         console.error('Failed to load countries:', error);
@@ -113,7 +114,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
   useEffect(() => {
     if (!showCountryDropdown) return;
 
-    const handleEscape = (event) => {
+    const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setShowCountryDropdown(false);
         setCountrySearch('');
@@ -129,8 +130,8 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
     onUnsavedChanges?.(hasChanges);
   }, [hasChanges, onUnsavedChanges]);
 
-  const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleChange = (field: string, value: any) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
     setHasChanges(true);
   };
 
@@ -151,7 +152,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
   };
 
   // Logo upload handler
-  const handleLogoUpload = async (e) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -171,7 +172,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
 
     setUploadingLogo(true);
     try {
-      const result = await companiesAPI.uploadLogo(file) as any;
+      const result = await companiesAPI.uploadLogo<{ logo_url: string }>(file);
       setLogoUrl(result.logo_url);
       showSuccess('Logo uploaded successfully');
     } catch (error) {
@@ -761,7 +762,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
         </p>
         <TaxesSection
           initialTaxes={formData.company_taxes}
-          onTaxesChange={(taxes) => handleChange('company_taxes', taxes)}
+          onTaxesChange={(taxes: any) => handleChange('company_taxes', taxes)}
         />
       </div>
 
@@ -769,6 +770,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
       <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
         <button
           onClick={() => {
+            if (!company) return;
             setFormData({
               name: company.name || '',
               email: company.email || '',

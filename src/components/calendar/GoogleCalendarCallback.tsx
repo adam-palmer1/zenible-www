@@ -53,7 +53,7 @@ const GoogleCalendarCallback: React.FC = () => {
       setMessage('Connecting to Google Calendar...');
 
       // Exchange code for tokens via backend
-      const response = await (appointmentsAPI as any).handleGoogleCallback(code, state);
+      const response = await appointmentsAPI.handleGoogleCallback<{ success: boolean }>(code, state);
 
       if (response.success) {
         // Clean up state token
@@ -74,12 +74,13 @@ const GoogleCalendarCallback: React.FC = () => {
         setTimeout(() => navigate('/calendar'), 3000);
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('OAuth callback error:', error);
       setStatus('error');
+      const err = error as { response?: { data?: { detail?: string } }; message?: string };
       setMessage(
-        error.response?.data?.detail ||
-        error.message ||
+        err.response?.data?.detail ||
+        err.message ||
         'An error occurred while connecting to Google Calendar'
       );
 

@@ -18,7 +18,7 @@ export default function SubscriptionSuccessModal({
   billingCycle,
   onContinue
 }: SubscriptionSuccessModalProps) {
-  const { darkMode } = usePreferences() as any;
+  const { darkMode } = usePreferences();
 
   useEffect(() => {
     if (isOpen) {

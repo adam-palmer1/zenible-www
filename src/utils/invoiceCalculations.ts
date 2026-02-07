@@ -103,7 +103,7 @@ export const getTaxBreakdown = (lineItems: LineItem[] = []): TaxBreakdownEntry[]
   }));
 };
 
-interface InvoiceTotalResult {
+export interface InvoiceTotalResult {
   subtotal: number;
   discount: number;
   subtotalAfterDiscount: number;

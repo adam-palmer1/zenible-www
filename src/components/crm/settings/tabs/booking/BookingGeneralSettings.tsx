@@ -46,7 +46,7 @@ const TIMEZONES = [
   { value: 'Africa/Johannesburg', label: 'Johannesburg', region: 'South Africa' },
 ];
 
-const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }) => {
+const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }: { settings: any; onUpdate: (updated: any) => void; onUnsavedChanges?: (hasChanges: boolean) => void }) => {
   const [formData, setFormData] = useState({
     timezone: settings?.timezone || 'UTC',
     buffer_before_minutes: settings?.buffer_before_minutes || 0,
@@ -65,7 +65,7 @@ const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }) => {
   const { showSuccess, showError } = useNotification();
 
   // Get display label for selected timezone
-  const getTimezoneLabel = (value) => {
+  const getTimezoneLabel = (value: string) => {
     const tz = TIMEZONES.find((t) => t.value === value);
     if (tz) return `${tz.label}, ${tz.region}`;
     return value;
@@ -84,7 +84,7 @@ const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }) => {
     onUnsavedChanges?.(hasChanges);
   }, [hasChanges, onUnsavedChanges]);
 
-  const handleChange = (field, value) => {
+  const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
   };

@@ -4,21 +4,50 @@ import { useNotification } from '../../../contexts/NotificationContext';
 import { formatCurrency } from '../../../utils/currency';
 import paymentsAPI from '../../../services/api/finance/payments';
 
+interface PaymentItem {
+  id: string;
+  payment_number?: string;
+  payment_date: string;
+  amount: string;
+  reference_number?: string;
+  currency_id?: string;
+  currency?: { id?: string; code?: string } | null;
+  unallocated_amount?: string;
+}
+
+interface PaymentListResult {
+  items?: PaymentItem[];
+}
+
+interface UnallocatedResult {
+  unallocated_amount: string;
+}
+
+interface InvoiceProp {
+  id: string;
+  invoice_number?: string;
+  contact_id?: string;
+  total?: string;
+  outstanding_balance?: string | null;
+  currency_id?: string;
+  currency?: { id?: string; code?: string } | null;
+}
+
 interface LinkPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  invoice: any;
+  invoice: InvoiceProp;
   onSuccess?: () => void;
 }
 
 const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, invoice, onSuccess }) => {
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
 
-  const [payments, setPayments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentItem | null>(null);
   const [amountToApply, setAmountToApply] = useState('');
 
   // Load unallocated payments for the same contact when modal opens
@@ -41,8 +70,8 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
   // Pre-fill amount when payment is selected
   useEffect(() => {
     if (selectedPayment && invoice) {
-      const outstanding = parseFloat(invoice.outstanding_balance || 0);
-      const unallocated = parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || 0);
+      const outstanding = parseFloat(invoice.outstanding_balance || '0');
+      const unallocated = parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || '0');
       // Default to the smaller of outstanding balance or unallocated amount
       const suggestedAmount = Math.min(outstanding, unallocated);
       setAmountToApply(suggestedAmount.toFixed(2));
@@ -54,16 +83,16 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
       setLoading(true);
       // Fetch payments for this contact that have unallocated amounts
       // Backend already filters with unallocated_only=true
-      const response = await (paymentsAPI as any).list({
-        contact_id: invoice.contact_id,
-        unallocated_only: true,
-        per_page: 100,
-      });
+      const response = await paymentsAPI.list({
+        contact_id: invoice.contact_id || '',
+        unallocated_only: 'true',
+        per_page: '100',
+      }) as PaymentListResult;
 
-      const rawPayments = response.items || response || [];
+      const rawPayments = response.items || [];
 
       // Filter to only show payments with matching currency
-      const currencyFilteredPayments = rawPayments.filter((payment: any) => {
+      const currencyFilteredPayments = rawPayments.filter((payment: PaymentItem) => {
         const paymentCurrencyId = payment.currency_id || payment.currency?.id;
         const invoiceCurrencyId = invoice.currency_id || invoice.currency?.id;
         return paymentCurrencyId === invoiceCurrencyId;
@@ -71,9 +100,9 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
 
       // Fetch unallocated amounts for each payment
       const paymentsWithUnallocated = await Promise.all(
-        currencyFilteredPayments.map(async (payment: any) => {
+        currencyFilteredPayments.map(async (payment: PaymentItem) => {
           try {
-            const unallocatedData = await (paymentsAPI as any).getUnallocated(payment.id);
+            const unallocatedData = await paymentsAPI.getUnallocated(payment.id) as UnallocatedResult;
             return {
               ...payment,
               unallocated_amount: unallocatedData.unallocated_amount,
@@ -91,7 +120,7 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
 
       // Filter out payments with no unallocated amount
       const availablePayments = paymentsWithUnallocated.filter(
-        (payment: any) => parseFloat(payment.unallocated_amount || 0) > 0
+        (payment: PaymentItem) => parseFloat(String(payment.unallocated_amount || 0)) > 0
       );
 
       setPayments(availablePayments);
@@ -117,13 +146,13 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
       return;
     }
 
-    const unallocated = parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || 0);
+    const unallocated = parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || '0');
     if (amount > unallocated) {
       showError(`Amount cannot exceed unallocated balance of ${formatCurrency(unallocated, invoice.currency?.code)}`);
       return;
     }
 
-    const outstanding = parseFloat(invoice.outstanding_balance || 0);
+    const outstanding = parseFloat(invoice.outstanding_balance || '0');
     if (amount > outstanding) {
       showError(`Amount cannot exceed outstanding balance of ${formatCurrency(outstanding, invoice.currency?.code)}`);
       return;
@@ -132,7 +161,7 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
     try {
       setSubmitting(true);
 
-      await (paymentsAPI as any).allocate(selectedPayment.id, {
+      await paymentsAPI.allocate(selectedPayment.id, {
         allocations: [
           {
             invoice_id: invoice.id,
@@ -156,7 +185,7 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
     }
   };
 
-  const getPaymentDisplayName = (payment: any) => {
+  const getPaymentDisplayName = (payment: PaymentItem) => {
     return payment.payment_number || `PAY-${payment.id?.toString().slice(-8)}`;
   };
 
@@ -169,7 +198,7 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
     });
   };
 
-  const filteredPayments = payments.filter((payment: any) => {
+  const filteredPayments = payments.filter((payment: PaymentItem) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     const paymentName = getPaymentDisplayName(payment).toLowerCase();
@@ -181,8 +210,8 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
     if (!selectedPayment || !amountToApply) return null;
 
     const amount = parseFloat(amountToApply) || 0;
-    const outstanding = parseFloat(invoice?.outstanding_balance || 0);
-    const unallocated = parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || 0);
+    const outstanding = parseFloat(invoice?.outstanding_balance || '0');
+    const unallocated = parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || '0');
 
     if (amount > unallocated) {
       return {
@@ -303,9 +332,9 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
                         </p>
                       </div>
                     ) : (
-                      filteredPayments.map((payment: any) => {
+                      filteredPayments.map((payment: PaymentItem) => {
                         const isSelected = selectedPayment?.id === payment.id;
-                        const unallocated = parseFloat(payment.unallocated_amount || payment.amount || 0);
+                        const unallocated = parseFloat(payment.unallocated_amount || payment.amount || '0');
 
                         return (
                           <button
@@ -358,8 +387,8 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
                       step="0.01"
                       min="0.01"
                       max={Math.min(
-                        parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || 0),
-                        parseFloat(invoice.outstanding_balance || 0)
+                        parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || '0'),
+                        parseFloat(invoice.outstanding_balance || '0')
                       )}
                       value={amountToApply}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAmountToApply(e.target.value)}

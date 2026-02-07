@@ -33,7 +33,7 @@ const AddInvoiceLinkModal: React.FC<AddInvoiceLinkModalProps> = ({
   const [searching, setSearching] = useState(false);
   const [linkWithoutInvoice, setLinkWithoutInvoice] = useState(false);
 
-  const { showError } = useNotification() as any;
+  const { showError } = useNotification();
 
   // Reset form when modal opens
   useEffect(() => {
@@ -58,11 +58,14 @@ const AddInvoiceLinkModal: React.FC<AddInvoiceLinkModalProps> = ({
       try {
         setSearching(true);
         // Fetch invoices for this contact
-        const response = await (invoicesAPI as any).list({
+        const params: Record<string, string> = {
           contact_ids: contactId,
-          search: searchQuery || undefined,
-          per_page: 10,
-        });
+          per_page: '10',
+        };
+        if (searchQuery) {
+          params.search = searchQuery;
+        }
+        const response = await invoicesAPI.list(params);
         setInvoices(response?.items || []);
       } catch (error) {
         console.error('Failed to search invoices:', error);

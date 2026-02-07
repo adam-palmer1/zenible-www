@@ -1,6 +1,7 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { contactsAPI } from '../../services/api/crm';
 import { queryKeys, invalidateContactQueries } from '../../lib/query-keys';
+import type { ContactServiceCreate, ContactCreate } from '../../types';
 
 // ---- Shared types ----
 
@@ -18,18 +19,18 @@ interface ContactListPage {
 
 // Context objects for optimistic-update rollback
 interface UpdateContactContext {
-  previousLists: Array<[unknown, unknown]>;
+  previousLists: Array<[QueryKey, unknown]>;
   previousDetail: unknown;
   contactId: string;
 }
 
 interface DeleteContactContext {
-  previousLists: Array<[unknown, unknown]>;
+  previousLists: Array<[QueryKey, unknown]>;
   contactId: string;
 }
 
 interface ChangeStatusContext {
-  previousLists: Array<[unknown, unknown]>;
+  previousLists: Array<[QueryKey, unknown]>;
   contactId: string;
   statusData: Record<string, unknown>;
 }
@@ -47,7 +48,7 @@ interface ChangeStatusVariables {
 
 interface CreateContactServiceVariables {
   contactId: string;
-  serviceData: Record<string, unknown>;
+  serviceData: ContactServiceCreate;
 }
 
 interface AssignServiceVariables {
@@ -78,7 +79,7 @@ export function useCreateContactMutation(options: MutationCallbacks = {}) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (contactData: unknown) => {
+    mutationFn: async (contactData: ContactCreate) => {
       return await contactsAPI.create(contactData);
     },
     onSuccess: (newContact: unknown) => {
@@ -119,7 +120,7 @@ export function useUpdateContactMutation(options: MutationCallbacks<unknown, Upd
       await queryClient.cancelQueries({ queryKey: queryKeys.contacts.detail(contactId) });
 
       // Snapshot previous values
-      const previousLists = queryClient.getQueriesData({ queryKey: queryKeys.contacts.lists() }) as Array<[unknown, unknown]>;
+      const previousLists = queryClient.getQueriesData({ queryKey: queryKeys.contacts.lists() }) as Array<[QueryKey, unknown]>;
       const previousDetail = queryClient.getQueryData(queryKeys.contacts.detail(contactId));
 
       // Optimistically update lists
@@ -130,7 +131,7 @@ export function useUpdateContactMutation(options: MutationCallbacks<unknown, Upd
         return {
           ...page,
           items: page.items.map((contact) =>
-            (contact as any).id === contactId ? { ...contact, ...data } : contact
+            contact.id === contactId ? { ...contact, ...data } : contact
           ),
         };
       });
@@ -150,8 +151,8 @@ export function useUpdateContactMutation(options: MutationCallbacks<unknown, Upd
 
       // Rollback optimistic updates
       if (context?.previousLists) {
-        context.previousLists.forEach(([queryKey, data]: [unknown, unknown]) => {
-          queryClient.setQueryData(queryKey as any, data);
+        context.previousLists.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
         });
       }
 
@@ -198,7 +199,7 @@ export function useDeleteContactMutation(options: MutationCallbacks<string> = {}
       await queryClient.cancelQueries({ queryKey: queryKeys.contacts.lists() });
 
       // Snapshot previous value
-      const previousLists = queryClient.getQueriesData({ queryKey: queryKeys.contacts.lists() }) as Array<[unknown, unknown]>;
+      const previousLists = queryClient.getQueriesData({ queryKey: queryKeys.contacts.lists() }) as Array<[QueryKey, unknown]>;
 
       // Optimistically remove contact
       queryClient.setQueriesData({ queryKey: queryKeys.contacts.lists() }, (old: unknown) => {
@@ -207,7 +208,7 @@ export function useDeleteContactMutation(options: MutationCallbacks<string> = {}
 
         return {
           ...page,
-          items: page.items.filter((contact) => (contact as any).id !== contactId),
+          items: page.items.filter((contact) => contact.id !== contactId),
           total: (page.total || 0) - 1,
         };
       });
@@ -219,8 +220,8 @@ export function useDeleteContactMutation(options: MutationCallbacks<string> = {}
 
       // Rollback
       if (context?.previousLists) {
-        context.previousLists.forEach(([queryKey, data]: [unknown, unknown]) => {
-          queryClient.setQueryData(queryKey as any, data);
+        context.previousLists.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
         });
       }
 
@@ -265,7 +266,7 @@ export function useChangeContactStatusMutation(options: MutationCallbacks<unknow
       await queryClient.cancelQueries({ queryKey: queryKeys.contacts.lists() });
 
       // Snapshot previous value
-      const previousLists = queryClient.getQueriesData({ queryKey: queryKeys.contacts.lists() }) as Array<[unknown, unknown]>;
+      const previousLists = queryClient.getQueriesData({ queryKey: queryKeys.contacts.lists() }) as Array<[QueryKey, unknown]>;
 
       // Optimistically update status
       queryClient.setQueriesData({ queryKey: queryKeys.contacts.lists() }, (old: unknown) => {
@@ -275,7 +276,7 @@ export function useChangeContactStatusMutation(options: MutationCallbacks<unknow
         return {
           ...page,
           items: page.items.map((contact) =>
-            (contact as any).id === contactId ? { ...contact, ...statusData } : contact
+            contact.id === contactId ? { ...contact, ...statusData } : contact
           ),
         };
       });
@@ -287,8 +288,8 @@ export function useChangeContactStatusMutation(options: MutationCallbacks<unknow
 
       // Rollback optimistic update
       if (context?.previousLists) {
-        context.previousLists.forEach(([queryKey, data]: [unknown, unknown]) => {
-          queryClient.setQueryData(queryKey as any, data);
+        context.previousLists.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
         });
       }
 
@@ -305,7 +306,7 @@ export function useChangeContactStatusMutation(options: MutationCallbacks<unknow
         return {
           ...page,
           items: page.items.map((contact) =>
-            (contact as any).id === (updatedContact as any).id ? updatedContact : contact
+            contact.id === (updatedContact as Record<string, unknown>).id ? updatedContact as Record<string, unknown> : contact
           ),
         };
       });

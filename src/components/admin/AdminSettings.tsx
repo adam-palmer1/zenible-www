@@ -3,12 +3,27 @@ import adminAPI from '../../services/adminAPI';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 
+interface UserProfile {
+  email: string;
+  first_name: string;
+  last_name: string;
+  profile_image_url?: string;
+  status?: string;
+  role?: string;
+  created_at?: string;
+  subscriptions?: Array<{
+    plan_name?: string;
+    status: string;
+    current_period_end?: string;
+  }>;
+}
+
 export default function AdminSettings() {
-  const { user, updateUser } = useAuth() as any;
+  const { updateUser } = useAuth();
   const { darkMode } = usePreferences();
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -26,16 +41,16 @@ export default function AdminSettings() {
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
-      const data = await adminAPI.getUserProfile() as any;
+      const data = await adminAPI.getUserProfile() as UserProfile;
       setProfile(data);
       setFormData({
         first_name: data.first_name || '',
         last_name: data.last_name || '',
         profile_image_url: data.profile_image_url || ''
       });
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to load user profile');
-      console.error('Error fetching profile:', err);
+      console.error('Error fetching profile:', _err);
     } finally {
       setLoading(false);
     }
@@ -54,8 +69,8 @@ export default function AdminSettings() {
       updateUser({ first_name: formData.first_name, last_name: formData.last_name });
       // Refresh profile to get updated data
       await fetchUserProfile();
-    } catch (err: any) {
-      setError(err.message || 'Failed to update profile');
+    } catch (err) {
+      setError((err as Error).message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -71,7 +86,7 @@ export default function AdminSettings() {
         setShowPasswordResetModal(false);
         setPasswordResetSent(false);
       }, 3000);
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to send password reset email');
     }
   };
@@ -80,7 +95,7 @@ export default function AdminSettings() {
     try {
       await adminAPI.resendVerificationEmail();
       setSuccessMessage('Verification email sent successfully');
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to send verification email');
     }
   };

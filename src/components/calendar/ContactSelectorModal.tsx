@@ -71,7 +71,7 @@ const ContactSelectorModal: React.FC<ContactSelectorModalProps> = ({ isOpen, onC
         params.search = searchQuery;
       }
 
-      const response = await (contactsAPI as any).list(params);
+      const response = await (contactsAPI as unknown as Record<string, Function>).list(params);
       setContacts(response.items || []);
       setTotalPages(response.total_pages || 1);
     } catch (error) {
@@ -118,7 +118,7 @@ const ContactSelectorModal: React.FC<ContactSelectorModalProps> = ({ isOpen, onC
 
     setCreating(true);
     try {
-      const created = await (contactsAPI as any).create({
+      const created = await (contactsAPI as unknown as Record<string, Function>).create({
         first_name: newContact.first_name || null,
         last_name: newContact.last_name || null,
         business_name: newContact.business_name || null,

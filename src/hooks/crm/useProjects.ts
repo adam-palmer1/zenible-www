@@ -20,8 +20,8 @@ export function useProjects(filters: Record<string, unknown> = {}) {
   const projectsQuery = useQuery({
     queryKey: queryKeys.projects.list(filters),
     queryFn: async () => {
-      const data = await projectsAPI.list(filters as any) as any;
-      return data.items || data;
+      const data = await projectsAPI.list(filters as Record<string, string>) as { items?: Record<string, unknown>[]; [key: string]: unknown };
+      return (data.items || []) as Record<string, unknown>[];
     },
   });
 
@@ -87,7 +87,7 @@ export function useProjects(filters: Record<string, unknown> = {}) {
   const error = projectsQuery.error?.message || statsQuery.error?.message || null;
 
   return {
-    projects: projectsQuery.data || [],
+    projects: (projectsQuery.data || []) as Record<string, unknown>[],
     stats: statsQuery.data || null,
     loading,
     error,

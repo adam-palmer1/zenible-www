@@ -19,7 +19,7 @@ import CurrencySelectModal from '../invoices/CurrencySelectModal';
 import SendQuoteModal from './SendQuoteModal';
 import QuoteSettingsModal from './QuoteSettingsModal';
 import FinanceLayout from '../layout/FinanceLayout';
-const FinanceLayoutAny = FinanceLayout as any;
+// FinanceLayout accepts { header?: ReactNode; children: ReactNode }
 
 interface QuoteFormProps {
   quote?: any;
@@ -30,11 +30,11 @@ interface QuoteFormProps {
 const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSuccess, isInModal = false }) => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { createQuote, updateQuote } = useQuotes() as any;
-  const { contacts: allContacts, loading: contactsLoading } = useContacts({ is_client: true }) as any;
-  const { showSuccess, showError } = useNotification() as any;
-  const { numberFormats } = useCRMReferenceData() as any;
-  const { getNumberFormat } = useCompanyAttributes() as any;
+  const { createQuote, updateQuote } = useQuotes();
+  const { contacts: allContacts, loading: contactsLoading } = useContacts({ is_client: true });
+  const { showSuccess, showError } = useNotification();
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
 
   // Get number format from company settings
   const numberFormat = useMemo(() => {
@@ -54,7 +54,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
   const [loading, setLoading] = useState(!!id && !quoteProp);
 
   // Currency hook
-  const { companyCurrencies: currencies, defaultCurrency: defaultCurrencyAssoc, loading: currenciesLoading } = useCompanyCurrencies() as any;
+  const { companyCurrencies: currencies, defaultCurrency: defaultCurrencyAssoc, loading: currenciesLoading } = useCompanyCurrencies();
 
   const isEditing = !!quote || !!id;
 
@@ -64,7 +64,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
   const [quoteDate, setQuoteDate] = useState(new Date().toISOString().split('T')[0]);
   const [validUntil, setValidUntil] = useState('');
   const [currency, setCurrency] = useState('');
-  const [status, setStatus] = useState((QUOTE_STATUS as any).DRAFT);
+  const [, setStatus] = useState(QUOTE_STATUS.DRAFT);
 
   // Line items
   const [items, setItems] = useState<any[]>([]);
@@ -120,7 +120,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
       if (id && !quoteProp) {
         try {
           setLoading(true);
-          const data = await (quotesAPI as any).get(id);
+          const data = await quotesAPI.get(id);
           setQuote(data);
         } catch (error: any) {
           console.error('Failed to load quote:', error);
@@ -150,7 +150,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
         quote.valid_until ? new Date(quote.valid_until).toISOString().split('T')[0] : ''
       );
       setCurrency(quote.currency_id || '');
-      setStatus(quote.status || (QUOTE_STATUS as any).DRAFT);
+      setStatus(quote.status || QUOTE_STATUS.DRAFT);
 
       // Normalize items to have description field
       const quoteItems = quote.quote_items || quote.items || [];
@@ -240,7 +240,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
         const contactCurrencyId =
           selectedContact.preferred_currency_id ||
           selectedContact.currency_id ||
-          selectedContact.default_currency_id ||
+          (selectedContact as Record<string, unknown>).default_currency_id as string ||
           selectedContact.currency?.id;
 
         if (contactCurrencyId) {
@@ -258,7 +258,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
     const loadNextNumber = async () => {
       if (!quote && !id) {
         try {
-          const data = await (quotesAPI as any).getNextNumber();
+          const data = await quotesAPI.getNextNumber();
           if (data?.next_number) {
             setQuoteNumber(data.next_number);
           }
@@ -281,7 +281,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
   }, [quote, quoteDate, validUntil]);
 
   // Calculate totals
-  const totals = calculateInvoiceTotal(items, documentTaxes, discountType, discountValue) as any;
+  const totals = calculateInvoiceTotal(items, documentTaxes, discountType, discountValue);
   const getCurrencyCode = () => {
     if (!currency || !currencies.length) return 'USD';
     const currencyAssoc = currencies.find((cc: any) => cc.currency.id === currency);
@@ -364,7 +364,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
     }
   };
 
-  const handleSave = async (saveStatus = (QUOTE_STATUS as any).DRAFT, openSendModal = false) => {
+  const handleSave = async (saveStatus: string = QUOTE_STATUS.DRAFT, openSendModal = false) => {
     // Validation
     if (!contactId) {
       showError('Please select a client');
@@ -514,7 +514,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
               selectedClientId={contactId}
               onSelect={setContactId}
               loading={contactsLoading}
-              triggerRef={clientButtonRef}
+              triggerRef={clientButtonRef as React.RefObject<HTMLElement>}
             />
           </div>
         </div>
@@ -602,7 +602,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
               selectedCurrencyId={currency}
               onSelect={setCurrency}
               loading={currenciesLoading}
-              triggerRef={currencyButtonRef}
+              triggerRef={currencyButtonRef as React.RefObject<HTMLElement>}
             />
           </div>
         </div>
@@ -681,7 +681,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
           </button>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => handleSave(quote?.status && quote.status !== 'draft' ? quote.status : (QUOTE_STATUS as any).DRAFT)}
+              onClick={() => handleSave(quote?.status && quote.status !== 'draft' ? quote.status : QUOTE_STATUS.DRAFT)}
               disabled={saving}
               className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
@@ -689,7 +689,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
               {getSaveButtonText()}
             </button>
             <button
-              onClick={() => handleSave((QUOTE_STATUS as any).SENT, true)}
+              onClick={() => handleSave(QUOTE_STATUS.SENT, true)}
               disabled={saving}
               className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
             >
@@ -736,7 +736,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
       <DepositModal
         isOpen={showDepositModal}
         onClose={() => setShowDepositModal(false)}
-        onSave={(type: string, value: number) => {
+        onSave={(type: string | null, value: number) => {
           setDepositType(type);
           setDepositValue(value);
         }}
@@ -804,7 +804,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
 
   // Otherwise, wrap in FinanceLayout with header and action buttons
   return (
-    <FinanceLayoutAny
+    <FinanceLayout
       header={
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
@@ -835,7 +835,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
                 Quote Settings
               </button>
               <button
-                onClick={() => handleSave(quote?.status && quote.status !== 'draft' ? quote.status : (QUOTE_STATUS as any).DRAFT)}
+                onClick={() => handleSave(quote?.status && quote.status !== 'draft' ? quote.status : QUOTE_STATUS.DRAFT)}
                 disabled={saving}
                 className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
@@ -843,7 +843,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
                 {getSaveButtonText()}
               </button>
               <button
-                onClick={() => handleSave((QUOTE_STATUS as any).SENT, true)}
+                onClick={() => handleSave(QUOTE_STATUS.SENT, true)}
                 disabled={saving}
                 className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
               >
@@ -856,7 +856,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
       }
     >
       {formContent}
-    </FinanceLayoutAny>
+    </FinanceLayout>
   );
 };
 

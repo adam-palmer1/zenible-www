@@ -176,6 +176,11 @@ const observer = new MutationObserver((mutations) => {
 observer.observe(document.body, { childList: true, subtree: true });
 
 // Export for programmatic usage
-(window as any).ZenibleBookingWidget = ZenibleBookingWidget;
+declare global {
+  interface Window {
+    ZenibleBookingWidget: typeof ZenibleBookingWidget;
+  }
+}
+window.ZenibleBookingWidget = ZenibleBookingWidget;
 
 export default ZenibleBookingWidget;

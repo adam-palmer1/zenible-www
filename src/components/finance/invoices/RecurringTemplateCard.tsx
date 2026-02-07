@@ -3,8 +3,6 @@ import { Repeat, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import invoicesAPI from '../../../services/api/finance/invoices';
 
-const invoicesAPIAny = invoicesAPI as any;
-
 interface RecurringTemplateCardProps {
   invoice: any;
   onUpdate?: () => void;
@@ -24,7 +22,7 @@ const RecurringTemplateCard: React.FC<RecurringTemplateCardProps> = ({ invoice }
   const loadChildren = async () => {
     try {
       setChildrenLoading(true);
-      const data = await invoicesAPIAny.getRecurringChildren(invoice.id);
+      const data = await invoicesAPI.getRecurringChildren(invoice.id);
       setChildren(data.items || []);
     } catch (error: any) {
       console.error('Error loading recurring children:', error);

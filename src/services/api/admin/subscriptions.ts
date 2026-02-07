@@ -19,7 +19,7 @@ const adminSubscriptionsAPI = {
   },
 
   async createSubscription(data: unknown): Promise<unknown> {
-    return request('/subscriptions/create', {
+    return request('/subscriptions/', {
       method: 'POST',
       body: JSON.stringify(data),
     });

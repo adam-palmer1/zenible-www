@@ -12,7 +12,7 @@ interface CRMHeaderProps {
  */
 const CRMHeader: React.FC<CRMHeaderProps> = ({
   activeTab,
-  setActiveTab,
+  setActiveTab: _setActiveTab,
   children,
 }) => {
   return (

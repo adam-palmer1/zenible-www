@@ -11,8 +11,8 @@ interface RefundModalProps {
 }
 
 const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment }) => {
-  const { refundPayment, loading } = usePayments() as any;
-  const { showSuccess, showError } = useNotification() as any;
+  const { refundPayment, loading } = usePayments();
+  const { showSuccess, showError } = useNotification();
 
   const [refundType, setRefundType] = useState('full');
   const [refundAmount, setRefundAmount] = useState('');
@@ -239,7 +239,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment }) =
             Cancel
           </button>
           <button
-            onClick={handleSubmit as any}
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => handleSubmit(e as unknown as React.FormEvent)}
             disabled={submitting || loading}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
           >

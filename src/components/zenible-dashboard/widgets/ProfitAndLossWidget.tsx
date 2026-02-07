@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { ChartBarIcon, ArrowRightIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
 import reportsAPI from '../../../services/api/finance/reports';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { formatCurrency } from '../../../utils/currency';
+import { LoadingSpinner } from '../../shared';
 
 interface ProfitAndLossWidgetProps {
   settings?: Record<string, any>;
@@ -23,9 +24,8 @@ interface HoveredBar {
  * Shows revenue vs expenses with net profit/loss chart
  */
 const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
-  const navigate = useNavigate();
-  const { defaultCurrency, loading: currencyLoading } = useCompanyCurrencies() as any;
-  const [summary, setSummary] = useState<any>(null);
+  const { defaultCurrency, loading: currencyLoading } = useCompanyCurrencies();
+  const [, setSummary] = useState<any>(null);
   const [periodData, setPeriodData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,9 +47,9 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
         setLoading(true);
         setError(null);
 
-        const response = await (reportsAPI as any).getSummary({
+        const response = await reportsAPI.getSummary({
           past_months: periodMonths,
-        });
+        }) as { by_period?: any[]; [key: string]: unknown };
 
         setSummary(response);
         setPeriodData(response.by_period || []);
@@ -199,11 +199,8 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
           {data.map((month: any, i: number) => {
             const paidIncome = parseFloat(month.payments_total || month.paid_invoices_total || 0);
             const unpaidIncome = parseFloat(month.outstanding_invoices || 0);
-            const totalIncome = paidIncome + unpaidIncome;
-
             const paidExpenses = parseFloat(month.paid_expenses || month.expense_total || 0);
             const unpaidExpenses = parseFloat(month.unpaid_expenses || 0);
-            const totalExpenses = paidExpenses + unpaidExpenses;
 
             const paidIncomeHeight = (paidIncome / maxValue) * chartHeight;
             const unpaidIncomeHeight = (unpaidIncome / maxValue) * chartHeight;
@@ -321,14 +318,8 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
     );
   };
 
-  const handleViewReports = () => navigate('/finance/reports');
-
   if (loading || currencyLoading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[100px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8e51ff]" />
-      </div>
-    );
+    return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 
   if (error) {

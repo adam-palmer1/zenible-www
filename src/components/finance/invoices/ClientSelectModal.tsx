@@ -8,7 +8,7 @@ interface ClientSelectModalProps {
   selectedClientId: string;
   onSelect: (clientId: string) => void;
   loading: boolean;
-  triggerRef?: React.RefObject<HTMLElement>;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 /**

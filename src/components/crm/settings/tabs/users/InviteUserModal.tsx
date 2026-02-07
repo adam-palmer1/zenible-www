@@ -7,36 +7,51 @@ import companyUsersAPI from '../../../../../services/api/crm/companyUsers';
 /**
  * Modal for inviting a new user to the company
  */
+interface Permission {
+  code: string;
+  name: string;
+  description?: string | null;
+  category: string;
+}
+
+interface InviteUserModalProps {
+  permissions?: Permission[];
+  categories?: string[];
+  categoryLabels?: Record<string, string>;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
 const InviteUserModal = ({
   permissions = [],
   categories = [],
   categoryLabels = {},
   onClose,
   onSuccess,
-}) => {
+}: InviteUserModalProps) => {
   const { darkMode } = usePreferences();
   const { showError } = useNotification();
 
   const [email, setEmail] = useState('');
-  const [selectedPermissions, setSelectedPermissions] = useState([]);
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [sendEmail, setSendEmail] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Group permissions by category
-  const permissionsByCategory = categories.reduce((acc, category) => {
+  const permissionsByCategory = categories.reduce<Record<string, Permission[]>>((acc, category) => {
     acc[category] = permissions.filter((p) => p.category === category);
     return acc;
   }, {});
 
   // Toggle a permission
-  const togglePermission = (code) => {
-    setSelectedPermissions((prev) =>
-      prev.includes(code) ? prev.filter((p) => p !== code) : [...prev, code]
+  const togglePermission = (code: string) => {
+    setSelectedPermissions((prev: string[]) =>
+      prev.includes(code) ? prev.filter((p: string) => p !== code) : [...prev, code]
     );
   };
 
   // Handle form submission
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!email.trim()) {
@@ -55,7 +70,7 @@ const InviteUserModal = ({
       onSuccess?.();
     } catch (error) {
       console.error('Failed to invite user:', error);
-      showError(error.message || 'Failed to invite user. Please try again.');
+      showError((error as Error).message || 'Failed to invite user. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

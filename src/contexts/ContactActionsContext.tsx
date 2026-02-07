@@ -4,6 +4,36 @@ import { getContactDisplayName } from '../utils/crm/contactUtils';
 import appointmentsAPI from '../services/api/crm/appointments';
 import { prepareAppointmentData, getNextAppointment } from '../utils/crm/appointmentUtils';
 
+/** Minimal contact shape used throughout contact actions */
+interface ContactActionContact {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  business_name?: string | null;
+  email?: string | null;
+  is_hidden?: boolean;
+  is_client?: boolean;
+  appointments?: AppointmentLike[] | null;
+  [key: string]: unknown;
+}
+
+/** Minimal appointment shape for accessing appointment data */
+interface AppointmentLike {
+  id?: string;
+  start_datetime?: string | null;
+  deleted_at?: string | null;
+  [key: string]: unknown;
+}
+
+/** Status shape as stored in globalStatuses / customStatuses */
+interface StatusEntry {
+  id: string;
+  name: string;
+  friendly_name?: string;
+  color?: string;
+  [key: string]: unknown;
+}
+
 interface ContactActionResult {
   success: boolean;
   error?: unknown;
@@ -13,24 +43,24 @@ interface ContactActionResult {
 
 interface ContactActionsProviderProps {
   children: React.ReactNode;
-  globalStatuses: unknown[];
-  customStatuses: unknown[];
-  onEdit: ((contact: unknown) => void) | undefined;
-  onDelete: (contact: unknown) => Promise<void>;
+  globalStatuses: StatusEntry[];
+  customStatuses: StatusEntry[];
+  onEdit: ((contact: ContactActionContact) => void) | undefined;
+  onDelete: (contact: ContactActionContact) => Promise<void>;
   onUpdateStatus: (contactId: string, updates: Record<string, unknown>) => Promise<ContactActionResult>;
   onRefreshContacts?: () => void;
 }
 
 interface ContactActionsContextValue {
-  markAsLost: (contact: unknown) => Promise<ContactActionResult>;
-  markAsWon: (contact: unknown) => Promise<ContactActionResult>;
-  changeStatus: (contact: unknown, statusId: string, isGlobal?: boolean) => Promise<ContactActionResult>;
-  editContact: (contact: unknown) => void;
-  deleteContact: (contact: unknown) => Promise<ContactActionResult>;
-  toggleHidden: (contact: unknown) => Promise<ContactActionResult>;
-  toggleClient: (contact: unknown, showSuccessModal?: boolean) => Promise<ContactActionResult>;
-  setFollowUp: (contact: unknown, followUpDateTime: string, appointmentType?: string) => Promise<ContactActionResult>;
-  dismissFollowUp: (contact: unknown) => Promise<ContactActionResult>;
+  markAsLost: (contact: ContactActionContact) => Promise<ContactActionResult>;
+  markAsWon: (contact: ContactActionContact) => Promise<ContactActionResult>;
+  changeStatus: (contact: ContactActionContact, statusId: string, isGlobal?: boolean) => Promise<ContactActionResult>;
+  editContact: (contact: ContactActionContact) => void;
+  deleteContact: (contact: ContactActionContact) => Promise<ContactActionResult>;
+  toggleHidden: (contact: ContactActionContact) => Promise<ContactActionResult>;
+  toggleClient: (contact: ContactActionContact, showSuccessModal?: boolean) => Promise<ContactActionResult>;
+  setFollowUp: (contact: ContactActionContact, followUpDateTime: string, appointmentType?: string) => Promise<ContactActionResult>;
+  dismissFollowUp: (contact: ContactActionContact) => Promise<ContactActionResult>;
   refreshContacts?: () => void;
 }
 
@@ -61,15 +91,15 @@ export const ContactActionsProvider = ({
   /**
    * Mark contact as lost
    */
-  const markAsLost = useCallback(async (contact: unknown): Promise<ContactActionResult> => {
+  const markAsLost = useCallback(async (contact: ContactActionContact): Promise<ContactActionResult> => {
     try {
-      const lostStatus = (globalStatuses as any[])?.find((s: any) => s.name === 'lost');
+      const lostStatus = globalStatuses?.find((s: StatusEntry) => s.name === 'lost');
       if (!lostStatus) {
         showError('Lost status not found');
         return { success: false, error: 'Status not found' };
       }
 
-      const result = await onUpdateStatus((contact as any).id, {
+      const result = await onUpdateStatus(contact.id, {
         current_global_status_id: lostStatus.id,
         current_custom_status_id: null
       });
@@ -90,15 +120,15 @@ export const ContactActionsProvider = ({
   /**
    * Mark contact as won
    */
-  const markAsWon = useCallback(async (contact: unknown): Promise<ContactActionResult> => {
+  const markAsWon = useCallback(async (contact: ContactActionContact): Promise<ContactActionResult> => {
     try {
-      const wonStatus = (globalStatuses as any[])?.find((s: any) => s.name === 'won');
+      const wonStatus = globalStatuses?.find((s: StatusEntry) => s.name === 'won');
       if (!wonStatus) {
         showError('Won status not found');
         return { success: false, error: 'Status not found' };
       }
 
-      const result = await onUpdateStatus((contact as any).id, {
+      const result = await onUpdateStatus(contact.id, {
         current_global_status_id: wonStatus.id,
         current_custom_status_id: null
       });
@@ -119,9 +149,9 @@ export const ContactActionsProvider = ({
   /**
    * Change contact status (generic)
    */
-  const changeStatus = useCallback(async (contact: unknown, statusId: string, isGlobal = true): Promise<ContactActionResult> => {
+  const changeStatus = useCallback(async (contact: ContactActionContact, statusId: string, isGlobal = true): Promise<ContactActionResult> => {
     try {
-      const result = await onUpdateStatus((contact as any).id, isGlobal
+      const result = await onUpdateStatus(contact.id, isGlobal
         ? { current_global_status_id: statusId, current_custom_status_id: null }
         : { current_custom_status_id: statusId, current_global_status_id: null }
       );
@@ -141,14 +171,14 @@ export const ContactActionsProvider = ({
   /**
    * Edit contact
    */
-  const editContact = useCallback((contact: unknown) => {
+  const editContact = useCallback((contact: ContactActionContact) => {
     onEdit && onEdit(contact);
   }, [onEdit]);
 
   /**
    * Delete contact (confirmation handled by caller)
    */
-  const deleteContact = useCallback(async (contact: unknown): Promise<ContactActionResult> => {
+  const deleteContact = useCallback(async (contact: ContactActionContact): Promise<ContactActionResult> => {
     const displayName = getContactDisplayName(contact, 'this contact');
 
     try {
@@ -165,12 +195,12 @@ export const ContactActionsProvider = ({
   /**
    * Toggle contact hidden state
    */
-  const toggleHidden = useCallback(async (contact: unknown): Promise<ContactActionResult> => {
+  const toggleHidden = useCallback(async (contact: ContactActionContact): Promise<ContactActionResult> => {
     const displayName = getContactDisplayName(contact, 'Contact');
-    const newHiddenState = !(contact as any).is_hidden;
+    const newHiddenState = !contact.is_hidden;
 
     try {
-      const result = await onUpdateStatus((contact as any).id, { is_hidden: newHiddenState });
+      const result = await onUpdateStatus(contact.id, { is_hidden: newHiddenState });
 
       if (result.success) {
         showSuccess(
@@ -200,12 +230,12 @@ export const ContactActionsProvider = ({
   /**
    * Toggle contact client status
    */
-  const toggleClient = useCallback(async (contact: unknown, _showSuccessModal = false): Promise<ContactActionResult> => {
+  const toggleClient = useCallback(async (contact: ContactActionContact, _showSuccessModal = false): Promise<ContactActionResult> => {
     const displayName = getContactDisplayName(contact, 'Contact');
-    const newClientState = !(contact as any).is_client;
+    const newClientState = !contact.is_client;
 
     try {
-      const result = await onUpdateStatus((contact as any).id, { is_client: newClientState });
+      const result = await onUpdateStatus(contact.id, { is_client: newClientState });
 
       if (result.success) {
         // Return success with flag to show modal if adding to client list
@@ -230,13 +260,13 @@ export const ContactActionsProvider = ({
    * @param followUpDateTime - The follow-up date/time (ISO 8601 format)
    * @param appointmentType - The appointment type ('call' or 'follow_up')
    */
-  const setFollowUp = useCallback(async (contact: unknown, followUpDateTime: string, appointmentType = 'follow_up'): Promise<ContactActionResult> => {
+  const setFollowUp = useCallback(async (contact: ContactActionContact, followUpDateTime: string, appointmentType = 'follow_up'): Promise<ContactActionResult> => {
     const displayName = getContactDisplayName(contact, 'Contact');
     const isCall = appointmentType === 'call';
 
     try {
       // Prepare appointment data
-      const appointmentData = prepareAppointmentData(contact as any, followUpDateTime, appointmentType);
+      const appointmentData = prepareAppointmentData(contact, followUpDateTime, appointmentType);
 
       // Create appointment via Appointments API
       await appointmentsAPI.create(appointmentData);
@@ -263,12 +293,12 @@ export const ContactActionsProvider = ({
   /**
    * Dismiss follow-up date for contact
    */
-  const dismissFollowUp = useCallback(async (contact: unknown): Promise<ContactActionResult> => {
+  const dismissFollowUp = useCallback(async (contact: ContactActionContact): Promise<ContactActionResult> => {
     const displayName = getContactDisplayName(contact, 'Contact');
 
     try {
       // Get the next appointment from appointments array
-      const nextAppointment = getNextAppointment((contact as any).appointments);
+      const nextAppointment = getNextAppointment(contact.appointments);
 
       // Verify appointment exists
       if (!nextAppointment?.id) {

@@ -35,7 +35,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
         <div className="flex items-center gap-4">
           {showBackButton && (
             <button
-              onClick={onBack as any}
+              onClick={onBack ?? undefined}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
               title="Go back"
             >
@@ -66,7 +66,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           )}
           {showAddButton && (
             <button
-              onClick={onAddClick as any}
+              onClick={onAddClick ?? undefined}
               className="flex gap-2 justify-center items-center self-stretch px-4 py-3 my-auto text-sm font-medium tracking-tight leading-none bg-design-input-bg dark:bg-gray-800 border border-solid border-design-border-input dark:border-gray-600 min-h-11 rounded-[44px] text-design-text-muted dark:text-gray-400 w-[122px] hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <svg

@@ -90,7 +90,7 @@ const FALLBACK_VISIBLE_COLUMNS: Record<string, boolean> = {
  * Adds clients-specific logic: dynamic API fields, column categories, visibleFieldNames.
  */
 export const useClientsFilters = () => {
-  const { fields, defaultVisibility, loading: fieldsLoading, error: fieldsError } = useContactFields() as any;
+  const { fields, defaultVisibility, loading: fieldsLoading, error: fieldsError } = useContactFields();
 
   // Use the generic entity filters hook for common state + persistence
   const entityFilters = useEntityFilters({

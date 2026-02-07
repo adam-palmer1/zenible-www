@@ -1,6 +1,32 @@
 import { useState, useCallback } from 'react';
 import billableHoursAPI from '../../services/api/crm/billableHours';
 
+interface BillableHourEntry {
+  id: string;
+  project_id: string;
+  hours: string;
+  description?: string | null;
+  notes?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  is_billable: boolean;
+  hourly_rate?: string | null;
+  currency_id?: string | null;
+  invoice_id?: string | null;
+  amount?: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+interface BillableHourListResponse {
+  items: BillableHourEntry[];
+  total: number;
+  total_hours: string;
+  total_amount: string;
+  uninvoiced_hours: string;
+  uninvoiced_amount: string;
+}
+
 interface BillableHoursSummary {
   total: number;
   total_hours: number;
@@ -13,7 +39,7 @@ interface BillableHoursSummary {
  * Custom hook for managing billable hours for a project
  */
 export function useBillableHours(projectId: string | undefined) {
-  const [entries, setEntries] = useState<any[]>([]);
+  const [entries, setEntries] = useState<BillableHourEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<BillableHoursSummary>({
@@ -34,7 +60,7 @@ export function useBillableHours(projectId: string | undefined) {
       setLoading(true);
       setError(null);
 
-      const response = await billableHoursAPI.list(projectId, filters) as any;
+      const response = await billableHoursAPI.list(projectId, filters) as BillableHourListResponse;
 
       setEntries(response.items || []);
       // Parse all values to numbers to avoid mixing strings and numbers in arithmetic
@@ -64,14 +90,14 @@ export function useBillableHours(projectId: string | undefined) {
 
     try {
       setError(null);
-      const newEntry = await billableHoursAPI.create(projectId, data) as any;
+      const newEntry = await billableHoursAPI.create(projectId, data) as BillableHourEntry;
 
       // Add to local state
       setEntries(prev => [newEntry, ...prev]);
 
       // Update summary - ensure all values are numbers to avoid string concatenation
       const hoursToAdd = parseFloat(newEntry.hours) || 0;
-      const amountToAdd = parseFloat(newEntry.amount) || 0;
+      const amountToAdd = parseFloat(newEntry.amount ?? '') || 0;
       setSummary(prev => ({
         ...prev,
         total: prev.total + 1,
@@ -101,10 +127,10 @@ export function useBillableHours(projectId: string | undefined) {
 
     try {
       setError(null);
-      const updatedEntry = await billableHoursAPI.update(projectId, entryId, data) as any;
+      const updatedEntry = await billableHoursAPI.update(projectId, entryId, data) as BillableHourEntry;
 
       // Update in local state
-      setEntries(prev => prev.map((entry: any) =>
+      setEntries(prev => prev.map((entry) =>
         entry.id === entryId ? updatedEntry : entry
       ));
 
@@ -129,17 +155,17 @@ export function useBillableHours(projectId: string | undefined) {
       setError(null);
 
       // Find entry for summary update
-      const entry = entries.find((e: any) => e.id === entryId) as any;
+      const entry = entries.find((e) => e.id === entryId);
 
       await billableHoursAPI.delete(projectId, entryId);
 
       // Remove from local state
-      setEntries(prev => prev.filter((e: any) => e.id !== entryId));
+      setEntries(prev => prev.filter((e) => e.id !== entryId));
 
       // Update summary - ensure all values are numbers to avoid string concatenation
       if (entry) {
         const hoursToRemove = parseFloat(entry.hours) || 0;
-        const amountToRemove = parseFloat(entry.amount) || 0;
+        const amountToRemove = parseFloat(entry.amount ?? '') || 0;
         setSummary(prev => ({
           ...prev,
           total: prev.total - 1,
@@ -180,7 +206,7 @@ export function useBillableHours(projectId: string | undefined) {
    * Duplicate an entry (creates new entry with same data)
    */
   const duplicateEntry = useCallback(async (entryId: string): Promise<unknown> => {
-    const entry = entries.find((e: any) => e.id === entryId) as any;
+    const entry = entries.find((e) => e.id === entryId);
     if (!entry) throw new Error('Entry not found');
 
     // Create new entry with same data (without id, invoice_id, created_at, etc.)

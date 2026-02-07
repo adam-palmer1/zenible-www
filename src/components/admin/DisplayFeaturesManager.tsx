@@ -1,18 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import adminAPI from '../../services/adminAPI';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import { LoadingSpinner } from '../shared';
+
+interface DisplayFeature {
+  id: string;
+  name: string;
+  description: string;
+  display_order: number;
+}
+
+interface DisplayFeaturesResponse {
+  features: DisplayFeature[];
+}
 
 interface DisplayFeaturesManagerProps {
   darkMode?: boolean;
 }
 
 export default function DisplayFeaturesManager({ darkMode }: DisplayFeaturesManagerProps) {
-  const [features, setFeatures] = useState<any[]>([]);
+  const [features, setFeatures] = useState<DisplayFeature[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingFeature, setEditingFeature] = useState<any>(null);
+  const [editingFeature, setEditingFeature] = useState<DisplayFeature | null>(null);
   const [showModal, setShowModal] = useState<boolean>(false);
-  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; feature: any }>({ isOpen: false, feature: null });
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; feature: DisplayFeature | null }>({ isOpen: false, feature: null });
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -27,10 +39,10 @@ export default function DisplayFeaturesManager({ darkMode }: DisplayFeaturesMana
     setLoading(true);
     setError(null);
     try {
-      const response = await adminAPI.getDisplayFeatures() as any;
+      const response = await adminAPI.getDisplayFeatures() as DisplayFeaturesResponse;
       setFeatures(response.features || []);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -46,7 +58,7 @@ export default function DisplayFeaturesManager({ darkMode }: DisplayFeaturesMana
     setShowModal(true);
   };
 
-  const handleEdit = (feature: any) => {
+  const handleEdit = (feature: DisplayFeature) => {
     setEditingFeature(feature);
     setFormData({
       name: feature.name,
@@ -65,8 +77,8 @@ export default function DisplayFeaturesManager({ darkMode }: DisplayFeaturesMana
       }
       setShowModal(false);
       fetchFeatures();
-    } catch (err: any) {
-      alert(`Error saving feature: ${err.message}`);
+    } catch (err) {
+      alert(`Error saving feature: ${(err as Error).message}`);
     }
   };
 
@@ -76,8 +88,8 @@ export default function DisplayFeaturesManager({ darkMode }: DisplayFeaturesMana
       await adminAPI.deleteDisplayFeature(deleteModal.feature.id);
       setDeleteModal({ isOpen: false, feature: null });
       fetchFeatures();
-    } catch (err: any) {
-      alert(`Error deleting feature: ${err.message}`);
+    } catch (err) {
+      alert(`Error deleting feature: ${(err as Error).message}`);
     }
   };
 
@@ -101,8 +113,8 @@ export default function DisplayFeaturesManager({ darkMode }: DisplayFeaturesMana
         }),
       ]);
       fetchFeatures();
-    } catch (err: any) {
-      alert(`Error reordering features: ${err.message}`);
+    } catch (err) {
+      alert(`Error reordering features: ${(err as Error).message}`);
     }
   };
 
@@ -126,18 +138,14 @@ export default function DisplayFeaturesManager({ darkMode }: DisplayFeaturesMana
         }),
       ]);
       fetchFeatures();
-    } catch (err: any) {
-      alert(`Error reordering features: ${err.message}`);
+    } catch (err) {
+      alert(`Error reordering features: ${(err as Error).message}`);
     }
   };
 
 
   if (loading) {
-    return (
-      <div className={`flex justify-center items-center h-64 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error) {

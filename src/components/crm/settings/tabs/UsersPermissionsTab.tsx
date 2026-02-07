@@ -7,6 +7,13 @@ import companyUsersAPI from '../../../../services/api/crm/companyUsers';
 import InviteUserModal from './users/InviteUserModal';
 import EditPermissionsModal from './users/EditPermissionsModal';
 import RemoveUserModal from './users/RemoveUserModal';
+import { LoadingSpinner } from '../../../shared';
+import type { CompanyUserSummary, PermissionResponse } from '../../../../types/common';
+
+/** Extended user type including runtime `is_active` field from the API */
+interface CompanyUser extends CompanyUserSummary {
+  is_active?: boolean;
+}
 
 const CategoryLabels: Record<string, string> = {
   admin: 'Administration',
@@ -18,17 +25,17 @@ const CategoryLabels: Record<string, string> = {
  * Users & Permissions Settings Tab
  */
 const UsersPermissionsTab: React.FC = () => {
-  const { darkMode } = usePreferences() as any;
-  const { showSuccess, showError } = useNotification() as any;
-  const { user: currentUser } = useAuth() as any;
+  const { darkMode } = usePreferences();
+  const { showSuccess, showError } = useNotification();
+  const { user: currentUser } = useAuth();
 
-  const [users, setUsers] = useState<any[]>([]);
-  const [permissions, setPermissions] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [users, setUsers] = useState<CompanyUser[]>([]);
+  const [permissions, setPermissions] = useState<PermissionResponse[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<CompanyUser | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
 
@@ -36,8 +43,8 @@ const UsersPermissionsTab: React.FC = () => {
     try {
       setLoading(true);
       const [usersData, permsData] = await Promise.all([
-        (companyUsersAPI as any).getCompanyUsers({ include_inactive: true }),
-        (companyUsersAPI as any).getPermissions(),
+        companyUsersAPI.getCompanyUsers({ include_inactive: true }) as Promise<{ users: CompanyUser[] }>,
+        companyUsersAPI.getPermissions() as Promise<{ permissions: PermissionResponse[]; categories: string[] }>,
       ]);
       setUsers(usersData.users || []);
       setPermissions(permsData.permissions || []);
@@ -53,12 +60,12 @@ const UsersPermissionsTab: React.FC = () => {
   useEffect(() => { loadData(); }, [loadData]);
 
   const filteredUsers = users
-    .filter((user: any) => {
+    .filter((user: CompanyUser) => {
       if (!search) return true;
       const searchLower = search.toLowerCase();
       return user.email?.toLowerCase().includes(searchLower) || user.first_name?.toLowerCase().includes(searchLower) || user.last_name?.toLowerCase().includes(searchLower) || user.full_name?.toLowerCase().includes(searchLower);
     })
-    .sort((a: any, b: any) => {
+    .sort((a: CompanyUser, b: CompanyUser) => {
       if (a.id === currentUser?.id) return -1;
       if (b.id === currentUser?.id) return 1;
       if (a.is_active && !b.is_active) return -1;
@@ -66,36 +73,36 @@ const UsersPermissionsTab: React.FC = () => {
       return 0;
     });
 
-  const handleEditClick = (user: any) => { setSelectedUser(user); setShowEditModal(true); };
-  const handleRemoveClick = (user: any) => { setSelectedUser(user); setShowRemoveModal(true); };
+  const handleEditClick = (user: CompanyUser) => { setSelectedUser(user); setShowEditModal(true); };
+  const handleRemoveClick = (user: CompanyUser) => { setSelectedUser(user); setShowRemoveModal(true); };
   const handleInviteSuccess = () => { setShowInviteModal(false); showSuccess('User invited successfully'); loadData(); };
   const handleEditSuccess = () => { setShowEditModal(false); setSelectedUser(null); showSuccess('Permissions updated successfully'); loadData(); };
   const handleRemoveSuccess = () => { setShowRemoveModal(false); setSelectedUser(null); showSuccess('User removed from company'); loadData(); };
 
-  const handleReactivateUser = async (user: any) => {
+  const handleReactivateUser = async (user: CompanyUser) => {
     try {
-      await (companyUsersAPI as any).activateUser(user.id);
+      await companyUsersAPI.activateUser(user.id);
       showSuccess(`${user.full_name || user.email} has been reactivated`);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to reactivate user:', error);
-      showError(error.message || 'Failed to reactivate user. Please try again.');
+      showError((error as Error).message || 'Failed to reactivate user. Please try again.');
     }
   };
 
   const getPermissionName = (code: string) => {
-    const perm = permissions.find((p: any) => p.code === code);
+    const perm = permissions.find((p: PermissionResponse) => p.code === code);
     return perm?.name || code;
   };
 
-  const getInitials = (user: any) => {
+  const getInitials = (user: CompanyUser) => {
     if (user.first_name && user.last_name) return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
     if (user.full_name) { const parts = user.full_name.split(' '); return parts.length > 1 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : parts[0][0].toUpperCase(); }
     return user.email?.[0]?.toUpperCase() || '?';
   };
 
   if (loading) {
-    return (<div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary"></div></div>);
+    return <LoadingSpinner size="h-8 w-8" height="py-12" />;
   }
 
   return (
@@ -116,7 +123,7 @@ const UsersPermissionsTab: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredUsers.map((user: any) => (
+          {filteredUsers.map((user: CompanyUser) => (
             <div key={user.id} className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border' : 'bg-gray-50 border-gray-200'}`}>
               <div className="flex items-start gap-4">
                 <div className="flex-shrink-0">
@@ -161,8 +168,8 @@ const UsersPermissionsTab: React.FC = () => {
         </div>
       )}
 
-      {showInviteModal && <InviteUserModal permissions={permissions} categories={categories} categoryLabels={CategoryLabels} onClose={() => setShowInviteModal(false)} onSuccess={handleInviteSuccess} />}
-      {showEditModal && selectedUser && <EditPermissionsModal user={selectedUser} permissions={permissions} categories={categories} categoryLabels={CategoryLabels} onClose={() => { setShowEditModal(false); setSelectedUser(null); }} onSuccess={handleEditSuccess} />}
+      {showInviteModal && <InviteUserModal permissions={permissions as any[]} categories={categories as any[]} categoryLabels={CategoryLabels} onClose={() => setShowInviteModal(false)} onSuccess={handleInviteSuccess} />}
+      {showEditModal && selectedUser && <EditPermissionsModal user={selectedUser} permissions={permissions as any[]} categories={categories as any[]} categoryLabels={CategoryLabels} onClose={() => { setShowEditModal(false); setSelectedUser(null); }} onSuccess={handleEditSuccess} />}
       {showRemoveModal && selectedUser && <RemoveUserModal user={selectedUser} onClose={() => { setShowRemoveModal(false); setSelectedUser(null); }} onSuccess={handleRemoveSuccess} />}
     </div>
   );

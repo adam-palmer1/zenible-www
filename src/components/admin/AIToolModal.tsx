@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/adminAPI';
-import { validateJSONSchema, parseJSONSchema, getSchemaTemplates } from '../../utils/schemaValidation';
+import { getSchemaTemplates } from '../../utils/schemaValidation';
 
 interface AIToolModalProps {
   tool: any;
@@ -108,8 +108,8 @@ export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps)
 
       setArgumentSchemaError(null);
       return parsed;
-    } catch (err) {
-      setArgumentSchemaError(err.message);
+    } catch (err: unknown) {
+      setArgumentSchemaError((err as Error).message);
       return null;
     }
   };
@@ -146,8 +146,8 @@ export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps)
 
       setResponseSchemaError(null);
       return actualSchema; // Return the unwrapped schema
-    } catch (err) {
-      setResponseSchemaError(err.message);
+    } catch (err: unknown) {
+      setResponseSchemaError((err as Error).message);
       return null;
     }
   };
@@ -210,7 +210,7 @@ export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps)
       onSave();
     } catch (err) {
       console.error('Error saving tool:', err);
-      setError((err as any).message || 'Failed to save tool');
+      setError((err as Error).message || 'Failed to save tool');
     } finally {
       setLoading(false);
     }

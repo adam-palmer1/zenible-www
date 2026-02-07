@@ -16,6 +16,55 @@ interface TimezoneEntry {
   region: string;
 }
 
+interface BookingLookupData {
+  appointment_id: string;
+  call_type_name: string;
+  call_type_shortcode: string | null;
+  username: string | null;
+  start_datetime: string;
+  end_datetime: string;
+  timezone: string | null;
+  duration_minutes: number;
+  meeting_link: string | null;
+  location: string | null;
+  host_name: string;
+  host_avatar?: string | null;
+  host_timezone?: string | null;
+  can_cancel: boolean;
+  can_reschedule: boolean;
+  cancellation_deadline: string | null;
+  status?: string;
+}
+
+interface BookingRescheduleResult {
+  success: boolean;
+  message: string;
+  appointment_id: string;
+  old_start_datetime: string;
+  new_start_datetime: string;
+  new_end_datetime: string;
+  meeting_link: string | null;
+}
+
+interface AvailableSlotsData {
+  call_type_id: string;
+  call_type_name: string;
+  duration_minutes: number;
+  timezone: string;
+  days: { date: string; slots: string[] }[];
+}
+
+interface VisitorSlot {
+  hostDate: string;
+  time: string;
+  adjustedDate?: Date;
+  visitorTime?: string;
+}
+
+interface ApiErrorLike extends Error {
+  status?: number;
+}
+
 // Comprehensive timezone list with cities
 const TIMEZONES: TimezoneEntry[] = [
   // North America
@@ -91,7 +140,7 @@ import TimeSlotPicker from '../../components/booking/TimeSlotPicker';
 
 const BookingCancellation: React.FC = () => {
   const { token } = useParams<{ token: string }>();
-  const [booking, setBooking] = useState<any>(null);
+  const [booking, setBooking] = useState<BookingLookupData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<boolean>(false);
@@ -102,13 +151,13 @@ const BookingCancellation: React.FC = () => {
   const [mode, setMode] = useState<'view' | 'cancel' | 'reschedule'>('view');
   const [rescheduling, setRescheduling] = useState<boolean>(false);
   const [rescheduled, setRescheduled] = useState<boolean>(false);
-  const [rescheduleResult, setRescheduleResult] = useState<any>(null);
+  const [rescheduleResult, setRescheduleResult] = useState<BookingRescheduleResult | null>(null);
 
   // Calendar/slot state for rescheduling
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [availabilityData, setAvailabilityData] = useState<Record<string, string[]>>({});
-  const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<(string | VisitorSlot)[]>([]);
   const [slotsLoading, setSlotsLoading] = useState<boolean>(false);
 
   // Timezone state
@@ -123,7 +172,7 @@ const BookingCancellation: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await (publicBookingAPI as any).lookupBooking(token);
+        const data = await publicBookingAPI.lookupBooking<BookingLookupData>(token!);
         setBooking(data);
 
         // Set timezone from booking if available
@@ -135,12 +184,13 @@ const BookingCancellation: React.FC = () => {
         if (data.status === 'cancelled') {
           setCancelled(true);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error fetching booking:', err);
-        if (err.status === 404) {
+        const apiErr = err as ApiErrorLike;
+        if (apiErr.status === 404) {
           setError('Booking not found');
         } else {
-          setError(err.message || 'Failed to load booking details');
+          setError(apiErr.message || 'Failed to load booking details');
         }
       } finally {
         setLoading(false);
@@ -190,11 +240,11 @@ const BookingCancellation: React.FC = () => {
   const handleCancel = async () => {
     try {
       setCancelling(true);
-      await (publicBookingAPI as any).cancelBooking(token, reason.trim() || null);
+      await publicBookingAPI.cancelBooking(token!, reason.trim() || null);
       setCancelled(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error cancelling booking:', err);
-      setError(err.message || 'Failed to cancel booking');
+      setError((err as Error).message || 'Failed to cancel booking');
     } finally {
       setCancelling(false);
     }
@@ -206,15 +256,15 @@ const BookingCancellation: React.FC = () => {
 
     try {
       setSlotsLoading(true);
-      const data = await (publicBookingAPI as any).getAvailableSlots(
-        booking.username,
-        booking.call_type_shortcode,
+      const data = await publicBookingAPI.getAvailableSlots<AvailableSlotsData>(
+        booking.username!,
+        booking.call_type_shortcode!,
         startDate,
         endDate
       );
 
       const newAvailability: Record<string, string[]> = {};
-      (data.days as any[])?.forEach((day: any) => {
+      data.days?.forEach((day) => {
         if (day.slots && day.slots.length > 0) {
           newAvailability[day.date] = day.slots;
         }
@@ -239,7 +289,7 @@ const BookingCancellation: React.FC = () => {
       };
     }
 
-    const visitorSlots: Record<string, any[]> = {};
+    const visitorSlots: Record<string, VisitorSlot[]> = {};
 
     Object.entries(availabilityData).forEach(([hostDate, slots]) => {
       slots.forEach((time) => {
@@ -289,7 +339,7 @@ const BookingCancellation: React.FC = () => {
             adjustedDate,
             visitorTime: visitorTimeFormatted,
           });
-        } catch (e) {
+        } catch (_e) {
           if (!visitorSlots[hostDate]) {
             visitorSlots[hostDate] = [];
           }
@@ -299,7 +349,7 @@ const BookingCancellation: React.FC = () => {
     });
 
     Object.values(visitorSlots).forEach((slots) => {
-      slots.sort((a: any, b: any) => (a.adjustedDate || 0) - (b.adjustedDate || 0));
+      slots.sort((a, b) => (a.adjustedDate?.getTime() || 0) - (b.adjustedDate?.getTime() || 0));
     });
 
     return {
@@ -325,18 +375,18 @@ const BookingCancellation: React.FC = () => {
       setError(null);
 
       // Find the host date for this slot
-      const slot = availableSlots.find((s: any) => (typeof s === 'object' ? s.time : s) === time);
-      const hostDate = slot?.hostDate || selectedDate;
+      const slot = availableSlots.find((s) => (typeof s === 'object' ? s.time : s) === time);
+      const hostDate = (typeof slot === 'object' ? slot?.hostDate : undefined) || selectedDate;
 
       // Combine into ISO datetime
       const newStartDatetime = `${hostDate}T${time}:00`;
 
-      const result = await (publicBookingAPI as any).rescheduleBooking(token, newStartDatetime, selectedTimezone);
+      const result = await publicBookingAPI.rescheduleBooking<BookingRescheduleResult>(token!, newStartDatetime, selectedTimezone);
       setRescheduleResult(result);
       setRescheduled(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error rescheduling booking:', err);
-      setError(err.message || 'Failed to reschedule booking. The time slot may no longer be available.');
+      setError((err as Error).message || 'Failed to reschedule booking. The time slot may no longer be available.');
       setSelectedTime(null);
     } finally {
       setRescheduling(false);
@@ -407,6 +457,10 @@ const BookingCancellation: React.FC = () => {
       </div>
     );
   }
+
+  // At this point, booking is guaranteed to be non-null
+  // (loading=false, no error without booking)
+  if (!booking) return null;
 
   // Rescheduled success state
   if (rescheduled && rescheduleResult) {
@@ -621,7 +675,7 @@ const BookingCancellation: React.FC = () => {
                 </h2>
                 <BookingCalendar
                   availableDates={availableDates}
-                  selectedDate={selectedDate}
+                  selectedDate={selectedDate ?? undefined}
                   onSelect={handleDateSelect}
                   onMonthChange={fetchCalendarAvailability}
                   minDate={minDate}
@@ -643,7 +697,7 @@ const BookingCancellation: React.FC = () => {
                   ) : (
                     <TimeSlotPicker
                       slots={availableSlots}
-                      selectedTime={selectedTime}
+                      selectedTime={selectedTime ?? undefined}
                       onSelect={handleTimeSelect}
                       loading={slotsLoading}
                     />

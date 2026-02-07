@@ -8,6 +8,7 @@ import {
   SERVICE_STATUS_LABELS,
   SERVICE_STATUS_HEX_COLORS,
 } from '../../../constants/crm';
+import type { ServiceStatus } from '../../../constants/crm';
 
 interface ServiceFormProps {
   service?: any;
@@ -46,8 +47,8 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
   // Status options with color indicators
   const statusOptions = Object.values(SERVICE_STATUS).map((status: any) => ({
     value: status,
-    label: (SERVICE_STATUS_LABELS as any)[status],
-    color: (SERVICE_STATUS_HEX_COLORS as any)[status],
+    label: SERVICE_STATUS_LABELS[status as ServiceStatus],
+    color: SERVICE_STATUS_HEX_COLORS[status as ServiceStatus],
   }));
 
   return (

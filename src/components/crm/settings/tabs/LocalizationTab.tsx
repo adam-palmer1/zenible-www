@@ -15,7 +15,7 @@ const LocalizationTab: React.FC = () => {
     addCountry,
     removeCountry,
     setDefaultCountry,
-  } = useCountries() as any;
+  } = useCountries();
 
   const {
     currencies,
@@ -24,9 +24,9 @@ const LocalizationTab: React.FC = () => {
     addCurrency,
     removeCurrency,
     setDefaultCurrency,
-  } = useCompanyCurrencies() as any;
+  } = useCompanyCurrencies();
 
-  const { showSuccess, showError } = useNotification() as any;
+  const { showSuccess, showError } = useNotification();
 
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');

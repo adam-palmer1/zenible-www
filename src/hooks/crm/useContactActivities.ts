@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { contactsAPI } from '../../services/api/crm';
+import type { ContactTimelineResponse, ContactActivityResponse } from '../../types';
 
 interface Pagination {
   page: number;
@@ -13,7 +14,7 @@ interface Pagination {
  * Handles loading contact activity history
  */
 export function useContactActivities(contactId: string | undefined) {
-  const [activities, setActivities] = useState<unknown[]>([]);
+  const [activities, setActivities] = useState<ContactActivityResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<Pagination>({
@@ -24,27 +25,27 @@ export function useContactActivities(contactId: string | undefined) {
   });
 
   // Fetch activities for contact
-  const fetchActivities = useCallback(async (params: Record<string, unknown> = {}): Promise<unknown> => {
+  const fetchActivities = useCallback(async (params: Record<string, string> = {}): Promise<ContactTimelineResponse | void> => {
     if (!contactId) return;
 
     try {
       setLoading(true);
       setError(null);
 
-      const mergedParams = {
-        page: pagination.page,
-        per_page: pagination.per_page,
+      const mergedParams: Record<string, string> = {
+        page: String(pagination.page),
+        per_page: String(pagination.per_page),
         ...params,
       };
 
-      const response = await contactsAPI.getTimeline(contactId, mergedParams as any);
+      const response = await contactsAPI.getTimeline(contactId, mergedParams);
 
-      setActivities((response as any).items || []);
+      setActivities(response.items || []);
       setPagination({
-        page: (response as any).page,
-        per_page: (response as any).per_page,
-        total: (response as any).total,
-        total_pages: (response as any).total_pages,
+        page: response.page,
+        per_page: response.per_page,
+        total: response.total,
+        total_pages: response.total_pages,
       });
 
       return response;
@@ -60,7 +61,7 @@ export function useContactActivities(contactId: string | undefined) {
   // Load more activities
   const loadMore = useCallback((): void => {
     if (pagination.page < pagination.total_pages) {
-      fetchActivities({ page: pagination.page + 1 });
+      fetchActivities({ page: String(pagination.page + 1) });
     }
   }, [fetchActivities, pagination.page, pagination.total_pages]);
 

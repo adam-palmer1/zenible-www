@@ -49,9 +49,9 @@ const getDateRangeLabel = (startDate: string | null, endDate: string | null): st
 
 const ExpenseDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { expenses, stats, categories, loading, filters } = useExpenses() as any;
-  const { numberFormats } = useCRMReferenceData() as any;
-  const { getNumberFormat } = useCompanyAttributes() as any;
+  const { expenses, stats, categories, loading, filters } = useExpenses();
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
   const [showImportModal, setShowImportModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
@@ -136,7 +136,7 @@ const ExpenseDashboard: React.FC = () => {
             <KPICard
               title={dateRangeLabel}
               value={isLoading ? '...' : (convertedTotal
-                ? `${convertedTotal.currency_symbol}${applyNumberFormat(parseFloat(convertedTotal.total), numberFormat)}`
+                ? `${convertedTotal.currency_symbol}${applyNumberFormat(parseFloat(String(convertedTotal.total)), numberFormat)}`
                 : `${currencySymbol}0`)}
               subtitle={!isLoading && totalBreakdown ? totalBreakdown : undefined}
               icon={DollarSign}
@@ -145,7 +145,7 @@ const ExpenseDashboard: React.FC = () => {
             <KPICard
               title="Outstanding"
               value={isLoading ? '...' : (convertedOutstanding
-                ? `${convertedOutstanding.currency_symbol}${applyNumberFormat(parseFloat(convertedOutstanding.total), numberFormat)}`
+                ? `${convertedOutstanding.currency_symbol}${applyNumberFormat(parseFloat(String(convertedOutstanding.total)), numberFormat)}`
                 : `${currencySymbol}0`)}
               subtitle={!isLoading && outstandingBreakdown ? outstandingBreakdown : undefined}
               icon={AlertCircle}

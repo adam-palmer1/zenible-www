@@ -40,7 +40,7 @@ const formatCurrencyBreakdown = (currencyArray: any[]): string | null => {
  * Shows main total in default currency with breakdown subtitle when multiple currencies exist
  */
 const TransactionSummaryCards: React.FC = () => {
-  const { summary, summaryLoading } = useReports() as any;
+  const { summary, summaryLoading } = useReports();
 
   if (summaryLoading) {
     return (
@@ -69,9 +69,9 @@ const TransactionSummaryCards: React.FC = () => {
   const overdueCount = summary?.overdue_count || 0;
 
   // Currency breakdowns (for subtitle display)
-  const incomeBreakdown = formatCurrencyBreakdown(summary?.income_by_currency);
-  const expenseBreakdown = formatCurrencyBreakdown(summary?.expense_by_currency);
-  const outstandingBreakdown = formatCurrencyBreakdown(summary?.outstanding_by_currency);
+  const incomeBreakdown = formatCurrencyBreakdown(summary?.income_by_currency || []);
+  const expenseBreakdown = formatCurrencyBreakdown(summary?.expense_by_currency || []);
+  const outstandingBreakdown = formatCurrencyBreakdown(summary?.outstanding_by_currency || []);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -93,7 +93,7 @@ const TransactionSummaryCards: React.FC = () => {
         title="Net Amount"
         value={formatCurrency(netAmount, defaultSymbol)}
         icon={DollarSign}
-        iconColor={parseFloat(netAmount) >= 0 ? 'green' : 'red'}
+        iconColor={parseFloat(String(netAmount)) >= 0 ? 'green' : 'red'}
       />
       <KPICard
         title="Outstanding"

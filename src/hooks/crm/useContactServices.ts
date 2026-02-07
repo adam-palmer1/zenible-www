@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { contactsAPI } from '../../services/api/crm';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { contactServicesAPI } from '../../services/api/crm';
+import type { ContactServiceResponse } from '../../types';
 
 interface UseContactServicesOptions {
   searchQuery?: string;
@@ -7,54 +8,77 @@ interface UseContactServicesOptions {
   frequencyType?: string;
 }
 
+/** A contact service enriched with the owning contact's details. */
+interface ContactServiceWithContact extends ContactServiceResponse {
+  contact_id: string;
+  contact_name: string;
+  contact_email: string | null | undefined;
+  contact_business_name: string | null | undefined;
+}
+
+interface ContactServicesListResponse {
+  items: ContactServiceWithContact[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
 /**
  * Custom hook for fetching and managing contact services (services assigned to contacts)
- * Aggregates services from all clients into a single list with contact information
+ * Uses dedicated server-side endpoint with search, filtering, sorting, and pagination
  */
 export function useContactServices(options: UseContactServicesOptions = {}, refreshKey: number = 0) {
-  const [contactServices, setContactServices] = useState<unknown[]>([]);
+  const [contactServices, setContactServices] = useState<ContactServiceWithContact[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const { searchQuery = '', status = '', frequencyType = '' } = options;
 
-  // Fetch all clients with their services
-  const fetchContactServices = useCallback(async (): Promise<unknown[]> => {
+  // Debounce search to avoid excessive API calls
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(searchQuery);
+
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  // Fetch contact services from the dedicated endpoint
+  const fetchContactServices = useCallback(async (): Promise<ContactServiceWithContact[]> => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch all clients (is_client=true) with services included
-      // The contacts API returns services array for each contact
-      const response = await contactsAPI.list({
-        is_client: true,
-        per_page: 1000, // Fetch all clients
-      } as any);
+      // Build query params — only include non-empty filters
+      const params: Record<string, string> = {
+        per_page: '100',
+      };
 
-      // Extract and flatten services from all contacts
-      const allServices: unknown[] = [];
-      const contacts = (response as any)?.items || (response as unknown[]) || [];
+      if (debouncedSearch) {
+        params.search = debouncedSearch;
+      }
+      if (status) {
+        params.status = status;
+      }
+      if (frequencyType) {
+        params.frequency_type = frequencyType;
+      }
 
-      (contacts as unknown[]).forEach((contact: unknown) => {
-        if ((contact as any).services && (contact as any).services.length > 0) {
-          (contact as any).services.forEach((service: unknown) => {
-            allServices.push({
-              ...(service as any),
-              // Add contact information to each service
-              contact_id: (contact as any).id,
-              contact_name: (contact as any).display_name ||
-                (contact as any).business_name ||
-                `${(contact as any).first_name || ''} ${(contact as any).last_name || ''}`.trim() ||
-                'Unknown',
-              contact_email: (contact as any).email,
-              contact_business_name: (contact as any).business_name,
-            });
-          });
-        }
-      });
+      const response = await contactServicesAPI.list(params) as ContactServicesListResponse;
+      const items = response?.items || [];
 
-      setContactServices(allServices);
-      return allServices;
+      setContactServices(items);
+      return items;
     } catch (err: unknown) {
       console.error('[useContactServices] Failed to fetch contact services:', err);
       setError((err as Error).message);
@@ -62,59 +86,24 @@ export function useContactServices(options: UseContactServicesOptions = {}, refr
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [debouncedSearch, status, frequencyType]);
 
-  // Fetch on mount and when refreshKey changes
+  // Fetch when filters change or refreshKey changes
   useEffect(() => {
     fetchContactServices();
   }, [fetchContactServices, refreshKey]);
 
-  // Filter services based on search query and filters
-  const filteredServices = useMemo((): unknown[] => {
-    let filtered = [...contactServices];
-
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (service: unknown) =>
-          (service as any).name?.toLowerCase().includes(query) ||
-          (service as any).contact_name?.toLowerCase().includes(query) ||
-          (service as any).contact_business_name?.toLowerCase().includes(query) ||
-          (service as any).description?.toLowerCase().includes(query)
-      );
-    }
-
-    // Apply status filter
-    if (status) {
-      filtered = filtered.filter((service: unknown) => (service as any).status === status);
-    }
-
-    // Apply frequency type filter
-    if (frequencyType) {
-      filtered = filtered.filter((service: unknown) => (service as any).frequency_type === frequencyType);
-    }
-
-    return filtered;
-  }, [contactServices, searchQuery, status, frequencyType]);
-
   // Get unique statuses for filter dropdown
-  const availableStatuses = useMemo((): string[] => {
-    const statuses = new Set(contactServices.map((s: unknown) => (s as any).status as string).filter(Boolean));
-    return Array.from(statuses);
-  }, [contactServices]);
+  const availableStatuses = ['pending', 'inactive', 'confirmed', 'active', 'completed'];
 
   // Get unique frequency types for filter dropdown
-  const availableFrequencyTypes = useMemo((): string[] => {
-    const types = new Set(contactServices.map((s: unknown) => (s as any).frequency_type as string).filter(Boolean));
-    return Array.from(types);
-  }, [contactServices]);
+  const availableFrequencyTypes = ['one_off', 'recurring'];
 
   return {
-    // All services (unfiltered)
+    // All services (server-filtered)
     contactServices,
-    // Filtered services
-    filteredServices,
+    // Filtered services (same as contactServices since filtering is server-side now)
+    filteredServices: contactServices,
     // State
     loading,
     error,

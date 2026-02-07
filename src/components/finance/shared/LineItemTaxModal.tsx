@@ -63,7 +63,7 @@ const LineItemTaxModal: React.FC<LineItemTaxModalProps> = ({
     try {
       setLoading(true);
       setError(null);
-      const data = await (taxesAPI as any).list();
+      const data = await (taxesAPI as Record<string, Function>).list();
       setCompanyTaxes(data || []);
     } catch (err: any) {
       console.error('Failed to fetch taxes:', err);
@@ -140,7 +140,7 @@ const LineItemTaxModal: React.FC<LineItemTaxModalProps> = ({
 
     try {
       setSaving(true);
-      const newTax = await (taxesAPI as any).create({
+      const newTax = await (taxesAPI as Record<string, Function>).create({
         tax_name: newTaxName.trim(),
         tax_rate: rate,
       });

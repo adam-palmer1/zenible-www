@@ -13,8 +13,8 @@ const ExpenseHistory: React.FC<ExpenseHistoryProps> = ({ expenseId }) => {
   const [history, setHistory] = useState<{ changes: any[]; total: number }>({ changes: [], total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { categories } = useExpenses() as any;
-  const { contacts: vendors } = useContacts({ is_vendor: true }) as any;
+  const { categories } = useExpenses();
+  const { contacts: vendors } = useContacts({ is_vendor: true });
 
   useEffect(() => {
     loadHistory();
@@ -24,7 +24,7 @@ const ExpenseHistory: React.FC<ExpenseHistoryProps> = ({ expenseId }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await (expensesAPI as any).getHistory(expenseId);
+      const data = await expensesAPI.getHistory(expenseId);
       setHistory(data);
     } catch (error) {
       console.error('Error loading history:', error);
@@ -66,7 +66,7 @@ const ExpenseHistory: React.FC<ExpenseHistoryProps> = ({ expenseId }) => {
   }
 
   const formattedChanges = history.changes.map((change: any) =>
-    (formatExpenseChange as any)(change, { categories, vendors })
+    formatExpenseChange(change, { categories, vendors: vendors as unknown as { id: string; name: string }[] })
   );
 
   return (

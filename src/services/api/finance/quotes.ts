@@ -5,8 +5,27 @@
 
 import { API_BASE_URL } from '@/config/api';
 import { createCRUDService } from '../createCRUDService';
+import type {
+  QuoteResponse,
+  QuoteListResponse,
+  QuoteCreate,
+  QuoteUpdate,
+  QuoteSendResponse,
+  QuoteStatsResponse,
+  QuoteActionResponse,
+  QuoteHistoryResponse,
+  QuoteViewsListResponse,
+  QuoteTemplateResponse,
+  QuoteTemplateListResponse,
+  PublicQuoteResponse,
+  InvoiceResponse,
+  ProjectAllocationsResponse,
+} from '@/types';
 
-const baseCRUD = createCRUDService('/crm/quotes', 'QuotesAPI');
+const baseCRUD = createCRUDService<QuoteResponse, QuoteListResponse, QuoteCreate, QuoteUpdate>(
+  '/crm/quotes',
+  'QuotesAPI',
+);
 
 /**
  * Quotes API Client
@@ -17,7 +36,7 @@ const quotesAPI = {
   /**
    * Get next available quote number for preview
    */
-  async getNextNumber(): Promise<unknown> {
+  async getNextNumber(): Promise<{ next_number: string }> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/next-number`, {
       method: 'GET',
     });
@@ -26,7 +45,7 @@ const quotesAPI = {
   /**
    * Send quote via email (DRAFT -> SENT)
    */
-  async send(quoteId: string, emailData: unknown): Promise<unknown> {
+  async send(quoteId: string, emailData: unknown): Promise<QuoteSendResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/${quoteId}/send`, {
       method: 'POST',
       body: JSON.stringify(emailData),
@@ -36,7 +55,7 @@ const quotesAPI = {
   /**
    * Accept a quote
    */
-  async accept(quoteId: string, acceptanceData: unknown = {}): Promise<unknown> {
+  async accept(quoteId: string, acceptanceData: unknown = {}): Promise<QuoteActionResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/${quoteId}/accept`, {
       method: 'POST',
       body: JSON.stringify(acceptanceData),
@@ -46,7 +65,7 @@ const quotesAPI = {
   /**
    * Reject a quote
    */
-  async reject(quoteId: string, rejectionData: unknown = {}): Promise<unknown> {
+  async reject(quoteId: string, rejectionData: unknown = {}): Promise<QuoteActionResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/${quoteId}/reject`, {
       method: 'POST',
       body: JSON.stringify(rejectionData),
@@ -56,7 +75,7 @@ const quotesAPI = {
   /**
    * Convert accepted quote to invoice
    */
-  async convertToInvoice(quoteId: string, conversionData: unknown = {}): Promise<unknown> {
+  async convertToInvoice(quoteId: string, conversionData: unknown = {}): Promise<InvoiceResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/${quoteId}/convert-to-invoice`, {
       method: 'POST',
       body: JSON.stringify(conversionData),
@@ -66,7 +85,7 @@ const quotesAPI = {
   /**
    * Create a new revision of a quote
    */
-  async createRevision(quoteId: string, revisionData: unknown = {}): Promise<unknown> {
+  async createRevision(quoteId: string, revisionData: unknown = {}): Promise<QuoteResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/${quoteId}/create-revision`, {
       method: 'POST',
       body: JSON.stringify(revisionData),
@@ -76,7 +95,7 @@ const quotesAPI = {
   /**
    * Get quote statistics overview
    */
-  async getStats(): Promise<unknown> {
+  async getStats(): Promise<QuoteStatsResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/stats/overview`, {
       method: 'GET',
     });
@@ -85,7 +104,7 @@ const quotesAPI = {
   /**
    * Get view history for a quote
    */
-  async getViews(quoteId: string, params: Record<string, string | number> = {}): Promise<unknown> {
+  async getViews(quoteId: string, params: Record<string, string | number> = {}): Promise<QuoteViewsListResponse> {
     const queryParams = new URLSearchParams({
       skip: String(params.skip || 0),
       limit: String(params.limit || 100),
@@ -98,7 +117,7 @@ const quotesAPI = {
   /**
    * Get quote revisions history
    */
-  async getRevisions(quoteId: string): Promise<unknown> {
+  async getRevisions(quoteId: string): Promise<QuoteHistoryResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/${quoteId}/history`, {
       method: 'GET',
     });
@@ -123,21 +142,21 @@ const quotesAPI = {
   /**
    * Clone a quote
    */
-  async clone(quoteId: string): Promise<unknown> {
+  async clone(quoteId: string): Promise<QuoteResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/${quoteId}/clone`, { method: 'POST' });
   },
 
   /**
    * Get quote by public token
    */
-  async getPublic(token: string): Promise<unknown> {
+  async getPublic(token: string): Promise<PublicQuoteResponse> {
     return baseCRUD.request(`/quotes/${token}`, { method: 'GET' });
   },
 
   /**
    * Accept quote by public token
    */
-  async acceptByToken(token: string, acceptanceData: unknown = {}): Promise<unknown> {
+  async acceptByToken(token: string, acceptanceData: unknown = {}): Promise<QuoteActionResponse> {
     return baseCRUD.request(`/quotes/${token}/accept`, {
       method: 'POST',
       body: JSON.stringify(acceptanceData),
@@ -147,7 +166,7 @@ const quotesAPI = {
   /**
    * Reject quote by public token
    */
-  async rejectByToken(token: string, rejectionData: unknown = {}): Promise<unknown> {
+  async rejectByToken(token: string, rejectionData: unknown = {}): Promise<QuoteActionResponse> {
     return baseCRUD.request(`/quotes/${token}/reject`, {
       method: 'POST',
       body: JSON.stringify(rejectionData),
@@ -161,7 +180,7 @@ const quotesAPI = {
   /**
    * List quote templates
    */
-  async listTemplates(params: Record<string, string> = {}): Promise<unknown> {
+  async listTemplates(params: Record<string, string> = {}): Promise<QuoteTemplateListResponse> {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = queryString
       ? `${baseCRUD.baseEndpoint}/templates?${queryString}`
@@ -172,7 +191,7 @@ const quotesAPI = {
   /**
    * Create a new quote template
    */
-  async createTemplate(templateData: unknown): Promise<unknown> {
+  async createTemplate(templateData: unknown): Promise<QuoteTemplateResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/templates`, {
       method: 'POST',
       body: JSON.stringify(templateData),
@@ -182,7 +201,7 @@ const quotesAPI = {
   /**
    * Update a quote template
    */
-  async updateTemplate(templateId: string, templateData: unknown): Promise<unknown> {
+  async updateTemplate(templateId: string, templateData: unknown): Promise<QuoteTemplateResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/templates/${templateId}`, {
       method: 'PATCH',
       body: JSON.stringify(templateData),
@@ -192,7 +211,7 @@ const quotesAPI = {
   /**
    * Soft delete a quote template
    */
-  async deleteTemplate(templateId: string): Promise<unknown> {
+  async deleteTemplate(templateId: string): Promise<void> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/templates/${templateId}`, {
       method: 'DELETE',
     });
@@ -201,7 +220,7 @@ const quotesAPI = {
   /**
    * Create quote from template
    */
-  async createFromTemplate(templateId: string, quoteData: unknown = {}): Promise<unknown> {
+  async createFromTemplate(templateId: string, quoteData: unknown = {}): Promise<QuoteResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/templates/${templateId}/create-quote`, {
       method: 'POST',
       body: JSON.stringify(quoteData),
@@ -213,7 +232,7 @@ const quotesAPI = {
   /**
    * Get project allocations for a quote
    */
-  async getAllocations(quoteId: string): Promise<unknown> {
+  async getAllocations(quoteId: string): Promise<ProjectAllocationsResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/${quoteId}/allocations`, {
       method: 'GET',
     });
@@ -222,7 +241,7 @@ const quotesAPI = {
   /**
    * Update project allocations for a quote (replaces all existing allocations)
    */
-  async updateAllocations(quoteId: string, allocations: unknown[]): Promise<unknown> {
+  async updateAllocations(quoteId: string, allocations: unknown[]): Promise<ProjectAllocationsResponse> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/${quoteId}/allocations`, {
       method: 'PUT',
       body: JSON.stringify({ allocations }),
@@ -232,7 +251,7 @@ const quotesAPI = {
   /**
    * Delete all project allocations for a quote
    */
-  async deleteAllocations(quoteId: string): Promise<unknown> {
+  async deleteAllocations(quoteId: string): Promise<void> {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}/${quoteId}/allocations`, {
       method: 'DELETE',
     });

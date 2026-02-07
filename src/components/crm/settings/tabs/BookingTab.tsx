@@ -22,11 +22,11 @@ const BookingTab: React.FC<BookingTabProps> = ({ onUnsavedChanges }) => {
   const [activeSection, setActiveSection] = useState('general');
   const [copied, setCopied] = useState(false);
 
-  const { user } = useAuth() as any;
-  const { showError } = useNotification() as any;
+  const { user } = useAuth();
+  const { showError } = useNotification();
 
   const handleCopyUrl = async () => {
-    const url = `${window.location.origin}/book/${user.username}`;
+    const url = `${window.location.origin}/book/${user!.username}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -40,7 +40,7 @@ const BookingTab: React.FC<BookingTabProps> = ({ onUnsavedChanges }) => {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const data = await (bookingSettingsAPI as any).get();
+        const data = await bookingSettingsAPI.get();
         setSettings(data);
       } catch (error) {
         showError('Failed to load booking settings');
@@ -150,7 +150,7 @@ const BookingTab: React.FC<BookingTabProps> = ({ onUnsavedChanges }) => {
           <CalendarSourcesEditor />
         )}
         {activeSection === 'embed' && (
-          <EmbedSettings username={user?.username} />
+          <EmbedSettings username={user?.username ?? ''} />
         )}
       </div>
     </div>

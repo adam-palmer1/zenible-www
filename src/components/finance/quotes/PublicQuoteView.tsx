@@ -5,10 +5,31 @@ import { QUOTE_STATUS } from '../../../constants/finance';
 import { formatCurrency } from '../../../utils/currency';
 import { formatDate } from '../../../utils/dateUtils';
 import quotesAPI from '../../../services/api/finance/quotes';
+import type { PublicQuoteResponse as BasePublicQuoteResponse } from '../../../types/finance';
+
+/**
+ * Extended PublicQuoteResponse that includes fields the backend may return
+ * but are not yet in the generated OpenAPI schema.
+ */
+interface PublicQuoteResponse extends BasePublicQuoteResponse {
+  contact_address_line_2?: string | null;
+}
+
+/** Shape of a quote item within the public quote response. */
+interface PublicQuoteItem {
+  name?: string;
+  description?: string;
+  subtext?: string;
+  quantity?: string | number;
+  price?: string | number;
+  amount?: string | number;
+  tax_amount?: string | number;
+  taxes?: Array<{ tax_amount: number | string }>;
+}
 
 const PublicQuoteView: React.FC = () => {
   const { token } = useParams();
-  const [quote, setQuote] = useState<any>(null);
+  const [quote, setQuote] = useState<PublicQuoteResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accepting, setAccepting] = useState(false);
@@ -26,13 +47,13 @@ const PublicQuoteView: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await (quotesAPI as any).getPublic(token);
+      const data = await quotesAPI.getPublic(token!);
       setQuote(data);
-      if (data.status === (QUOTE_STATUS as any).ACCEPTED || data.status === (QUOTE_STATUS as any).REJECTED) {
+      if (data.status === QUOTE_STATUS.ACCEPTED || data.status === QUOTE_STATUS.REJECTED) {
         setActionComplete(true);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load quote');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to load quote');
     } finally {
       setLoading(false);
     }
@@ -41,11 +62,11 @@ const PublicQuoteView: React.FC = () => {
   const handleAccept = async () => {
     try {
       setAccepting(true);
-      await (quotesAPI as any).acceptByToken(token, {});
+      await quotesAPI.acceptByToken(token!, {});
       setActionComplete(true);
       loadQuote();
-    } catch (err: any) {
-      alert(err.message || 'Failed to accept quote');
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Failed to accept quote');
     } finally {
       setAccepting(false);
     }
@@ -58,11 +79,11 @@ const PublicQuoteView: React.FC = () => {
     }
     try {
       setRejecting(true);
-      await (quotesAPI as any).rejectByToken(token, { reason: rejectionReason });
+      await quotesAPI.rejectByToken(token!, { reason: rejectionReason });
       setActionComplete(true);
       loadQuote();
-    } catch (err: any) {
-      alert(err.message || 'Failed to reject quote');
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Failed to reject quote');
     } finally {
       setRejecting(false);
     }
@@ -99,16 +120,16 @@ const PublicQuoteView: React.FC = () => {
   }
 
   const currencyCode = quote.currency_code || 'USD';
-  const items = quote.items || [];
-  const canRespond = !actionComplete && (quote.status === (QUOTE_STATUS as any).SENT || quote.status === 'viewed') && !quote.is_expired;
+  const items = (quote.items || []) as PublicQuoteItem[];
+  const canRespond = !actionComplete && (quote.status === QUOTE_STATUS.SENT || quote.status === 'viewed') && !quote.is_expired;
 
   // Calculate totals
-  const subtotal = parseFloat(quote.subtotal || 0);
-  const itemLevelTax = items.reduce((sum: number, item: any) => {
-    const itemTax = item.taxes?.reduce((t: number, tax: any) => t + (tax.tax_amount || 0), 0) || parseFloat(item.tax_amount || 0);
+  const subtotal = parseFloat(quote.subtotal || '0');
+  const itemLevelTax = items.reduce((sum: number, item: PublicQuoteItem) => {
+    const itemTax = item.taxes?.reduce((t: number, tax: { tax_amount: number | string }) => t + (Number(tax.tax_amount) || 0), 0) || parseFloat(String(item.tax_amount || 0));
     return sum + itemTax;
   }, 0);
-  const hasTax = itemLevelTax > 0 || parseFloat(quote.tax_total || 0) > 0;
+  const hasTax = itemLevelTax > 0 || parseFloat(quote.tax_total || '0') > 0;
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
@@ -280,9 +301,9 @@ const PublicQuoteView: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      items.map((item: any, index: number) => {
-                        const itemAmount = parseFloat(item.amount || 0);
-                        const itemTaxAmount = item.taxes?.reduce((sum: number, t: any) => sum + (t.tax_amount || 0), 0) || parseFloat(item.tax_amount || 0);
+                      items.map((item: PublicQuoteItem, index: number) => {
+                        const itemAmount = parseFloat(String(item.amount || 0));
+                        const itemTaxAmount = item.taxes?.reduce((sum: number, t: { tax_amount: number | string }) => sum + (Number(t.tax_amount) || 0), 0) || parseFloat(String(item.tax_amount || 0));
                         const itemTotal = itemAmount + itemTaxAmount;
 
                         return (
@@ -301,10 +322,10 @@ const PublicQuoteView: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-3 py-4 text-[14px] font-normal leading-[22px] text-[#09090b]">
-                              {parseFloat(item.quantity || 0)}
+                              {parseFloat(String(item.quantity || 0))}
                             </td>
                             <td className="px-3 py-4 text-[14px] font-normal leading-[22px] text-[#09090b]">
-                              {formatCurrency(parseFloat(item.price || 0), currencyCode)}
+                              {formatCurrency(parseFloat(String(item.price || 0)), currencyCode)}
                             </td>
                             <td className="px-3 py-4 text-[14px] font-normal leading-[22px] text-[#09090b]">
                               {formatCurrency(itemAmount, currencyCode)}
@@ -339,7 +360,7 @@ const PublicQuoteView: React.FC = () => {
               </div>
 
               {/* Discount */}
-              {parseFloat(quote.discount_amount || 0) > 0 && (
+              {parseFloat(quote.discount_amount || '0') > 0 && (
                 <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] text-right">
                   <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b]">
                     Discount:
@@ -351,7 +372,7 @@ const PublicQuoteView: React.FC = () => {
               )}
 
               {/* Line Item Tax */}
-              {parseFloat(quote.tax_total || 0) > 0 && (
+              {parseFloat(quote.tax_total || '0') > 0 && (
                 <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] text-right">
                   <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b]">
                     Tax (Line Items):
@@ -363,7 +384,7 @@ const PublicQuoteView: React.FC = () => {
               )}
 
               {/* Document Tax */}
-              {parseFloat(quote.document_tax_total || 0) > 0 && (
+              {parseFloat(quote.document_tax_total || '0') > 0 && (
                 <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] text-right">
                   <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b]">
                     Tax:
@@ -385,7 +406,7 @@ const PublicQuoteView: React.FC = () => {
               </div>
 
               {/* Deposit Required */}
-              {parseFloat(quote.deposit_amount || 0) > 0 && (
+              {parseFloat(quote.deposit_amount || '0') > 0 && (
                 <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] text-right">
                   <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b]">
                     Deposit Required:
@@ -550,13 +571,13 @@ const PublicQuoteView: React.FC = () => {
           {/* Action Complete - Right Side */}
           {actionComplete && (
             <div className={`lg:w-[340px] lg:flex-shrink-0 bg-white border-2 rounded-[12px] p-6 h-fit ${
-              quote.status === (QUOTE_STATUS as any).ACCEPTED ? 'border-green-500' : 'border-red-300'
+              quote.status === QUOTE_STATUS.ACCEPTED ? 'border-green-500' : 'border-red-300'
             }`}>
               <div className="flex flex-col items-center text-center gap-4">
                 <div className={`p-3 rounded-full ${
-                  quote.status === (QUOTE_STATUS as any).ACCEPTED ? 'bg-green-100' : 'bg-red-100'
+                  quote.status === QUOTE_STATUS.ACCEPTED ? 'bg-green-100' : 'bg-red-100'
                 }`}>
-                  {quote.status === (QUOTE_STATUS as any).ACCEPTED ? (
+                  {quote.status === QUOTE_STATUS.ACCEPTED ? (
                     <CheckCircle className="h-8 w-8 text-green-600" />
                   ) : (
                     <XCircle className="h-8 w-8 text-red-600" />
@@ -564,10 +585,10 @@ const PublicQuoteView: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-[#09090b]">
-                    {quote.status === (QUOTE_STATUS as any).ACCEPTED ? 'Quote Accepted!' : 'Quote Rejected'}
+                    {quote.status === QUOTE_STATUS.ACCEPTED ? 'Quote Accepted!' : 'Quote Rejected'}
                   </h3>
                   <p className="text-sm text-[#71717a] mt-1">
-                    {quote.status === (QUOTE_STATUS as any).ACCEPTED
+                    {quote.status === QUOTE_STATUS.ACCEPTED
                       ? "Thank you for accepting this quote. We'll be in touch soon."
                       : 'Thank you for your response.'}
                   </p>

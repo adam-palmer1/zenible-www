@@ -250,8 +250,8 @@ const getCroppedImg = (imageSrc: string, pixelCrop: CroppedAreaPixels | null, ro
           reject(new Error('Canvas is empty'));
           return;
         }
-        (blob as any).name = 'cropped-image.jpg';
-        resolve(blob);
+        const file = new File([blob], 'cropped-image.jpg', { type: blob.type });
+        resolve(file);
       }, 'image/jpeg', 0.95);
     };
 

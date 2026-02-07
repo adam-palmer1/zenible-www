@@ -7,12 +7,30 @@ interface ConversionRequest {
   to_currency: string;
 }
 
+interface CurrencyConversionResponse {
+  amount: string;
+  from_currency: string;
+  to_currency: string;
+  converted_amount: string;
+  rate: string;
+}
+
+interface ExchangeRatesResponse {
+  base_currency: string;
+  rates: Record<string, string>;
+  timestamp: string;
+}
+
+interface BatchConversionResponse {
+  results: Record<string, unknown>[];
+}
+
 /**
  * Hook for currency conversion with caching
  * Provides methods to convert currencies and get exchange rates
  */
 export const useCurrencyConversion = () => {
-  const [rates, setRates] = useState<Record<string, unknown>>({});
+  const [rates, setRates] = useState<Record<string, Record<string, string>>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [cacheTimestamp, setCacheTimestamp] = useState<number | null>(null);
@@ -36,8 +54,8 @@ export const useCurrencyConversion = () => {
         amount,
         fromCurrency,
         toCurrency
-      ) as any;
-      return response.converted_amount;
+      ) as CurrencyConversionResponse;
+      return Number(response.converted_amount);
     } catch (err: unknown) {
       setError((err as Error).message);
       console.error('Currency conversion failed:', err);
@@ -54,11 +72,11 @@ export const useCurrencyConversion = () => {
     // Check cache validity
     const now = Date.now();
     if (
-      (rates as any)[baseCurrency] &&
+      rates[baseCurrency] &&
       cacheTimestamp &&
       now - cacheTimestamp < CACHE_TTL
     ) {
-      return (rates as any)[baseCurrency];
+      return rates[baseCurrency];
     }
 
     setLoading(true);
@@ -68,7 +86,7 @@ export const useCurrencyConversion = () => {
       const response = await currencyConversionAPI.getRates(
         baseCurrency,
         currencies
-      ) as any;
+      ) as ExchangeRatesResponse;
 
       // Update cache
       setRates((prev) => ({
@@ -95,7 +113,7 @@ export const useCurrencyConversion = () => {
     setError(null);
 
     try {
-      const response = await currencyConversionAPI.batchConvert(conversions) as any;
+      const response = await currencyConversionAPI.batchConvert(conversions) as BatchConversionResponse;
       return response.results;
     } catch (err: unknown) {
       setError((err as Error).message);

@@ -1,19 +1,48 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/adminAPI';
+import { LoadingSpinner } from '../shared';
 
 interface CharacterToolAssignmentProps {
   onError?: (error: string | null) => void;
   darkMode?: boolean;
 }
 
+interface CharacterRecord {
+  id: string;
+  name: string;
+  avatar_url?: string | null;
+}
+
+interface ToolRecord {
+  id: string;
+  name: string;
+  description?: string | null;
+  is_active: boolean;
+}
+
+interface ToolAssignment {
+  id: string;
+  character_id: string;
+  tool_id: string;
+  instructions?: string | null;
+  is_enabled: boolean;
+  tool?: ToolRecord | null;
+}
+
+interface CompletionQuestionRecord {
+  id: string;
+  question_text: string;
+  order_index: number;
+}
+
 export default function CharacterToolAssignment({ onError }: CharacterToolAssignmentProps) {
-  const [characters, setCharacters] = useState<any[]>([]);
-  const [tools, setTools] = useState<any[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
+  const [characters, setCharacters] = useState<CharacterRecord[]>([]);
+  const [tools, setTools] = useState<ToolRecord[]>([]);
+  const [assignments, setAssignments] = useState<ToolAssignment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedCharacter, setSelectedCharacter] = useState<string>('');
   const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
-  const [editingAssignment, setEditingAssignment] = useState<any>(null);
+  const [editingAssignment, setEditingAssignment] = useState<ToolAssignment | null>(null);
   const [originalToolId, setOriginalToolId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     character_id: '',
@@ -23,8 +52,8 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
   });
 
   // Completion Questions state
-  const [completionQuestions, setCompletionQuestions] = useState<any[]>([]);
-  const [editingQuestion, setEditingQuestion] = useState<any>(null);
+  const [completionQuestions, setCompletionQuestions] = useState<CompletionQuestionRecord[]>([]);
+  const [editingQuestion, setEditingQuestion] = useState<CompletionQuestionRecord | null>(null);
   const [showQuestionForm, setShowQuestionForm] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('assignment');
   const [questionFormData, setQuestionFormData] = useState({
@@ -44,16 +73,17 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
       // Load characters, tools, and assignments in parallel
       const [charactersRes, toolsRes, assignmentsRes] = await Promise.all([
         adminAPI.getAICharacters(),
-        adminAPI.getAITools({ active_only: false } as any),
-        adminAPI.getCharacterToolInstructions({ enabled_only: false } as any)
-      ]) as any[];
+        adminAPI.getAITools({ active_only: 'false' }),
+        adminAPI.getCharacterToolInstructions({ enabled_only: 'false' })
+      ]);
 
-      setCharacters(Array.isArray(charactersRes?.characters) ? charactersRes.characters : []);
-      setTools(Array.isArray(toolsRes) ? toolsRes : []);
-      setAssignments(Array.isArray(assignmentsRes) ? assignmentsRes : []);
-    } catch (err: any) {
+      const typedCharsRes = charactersRes as { characters?: CharacterRecord[] };
+      setCharacters(Array.isArray(typedCharsRes?.characters) ? typedCharsRes.characters : []);
+      setTools(Array.isArray(toolsRes) ? toolsRes as ToolRecord[] : []);
+      setAssignments(Array.isArray(assignmentsRes) ? assignmentsRes as ToolAssignment[] : []);
+    } catch (err) {
       console.error('Error loading data:', err);
-      onError && onError(err.message || 'Failed to load data');
+      onError && onError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -77,7 +107,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
     setShowAssignModal(true);
   };
 
-  const handleEditAssignment = async (assignment: any) => {
+  const handleEditAssignment = async (assignment: ToolAssignment) => {
     setEditingAssignment(assignment);
     setOriginalToolId(assignment.tool_id);
     setFormData({
@@ -113,7 +143,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
         assignmentId = editingAssignment.id;
       } else {
         // Create new assignment
-        const newAssignment = await adminAPI.assignToolToCharacter(formData) as any;
+        const newAssignment = await adminAPI.assignToolToCharacter(formData) as { id: string };
         assignmentId = newAssignment.id;
       }
 
@@ -134,7 +164,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
             await adminAPI.bulkCreateCompletionQuestions(assignmentId, questionsData);
           } catch (questionErr) {
             console.error('Error saving completion questions:', questionErr);
-            onError && onError('Assignment saved but failed to save completion questions: ' + (questionErr.message || 'Unknown error'));
+            onError && onError('Assignment saved but failed to save completion questions: ' + (questionErr instanceof Error ? questionErr.message : 'Unknown error'));
             return; // Don't close modal if questions failed to save
           }
         }
@@ -159,11 +189,11 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
       await loadData();
     } catch (err) {
       console.error('Error saving assignment:', err);
-      onError && onError(err.message || 'Failed to save assignment');
+      onError && onError(err instanceof Error ? err.message : 'Failed to save assignment');
     }
   };
 
-  const handleDeleteAssignment = async (assignment: any) => {
+  const handleDeleteAssignment = async (assignment: ToolAssignment) => {
     const characterName = characters.find(c => c.id === assignment.character_id)?.name || 'Unknown';
     const toolName = assignment.tool?.name || 'Unknown';
 
@@ -176,11 +206,11 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
       await loadData();
     } catch (err) {
       console.error('Error deleting assignment:', err);
-      onError && onError(err.message || 'Failed to remove assignment');
+      onError && onError(err instanceof Error ? err.message : 'Failed to remove assignment');
     }
   };
 
-  const handleToggleAssignment = async (assignment: any) => {
+  const handleToggleAssignment = async (assignment: ToolAssignment) => {
     try {
       await adminAPI.updateCharacterToolInstructions(assignment.id, {
         is_enabled: !assignment.is_enabled
@@ -188,7 +218,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
       await loadData();
     } catch (err) {
       console.error('Error toggling assignment:', err);
-      onError && onError(err.message || 'Failed to update assignment');
+      onError && onError(err instanceof Error ? err.message : 'Failed to update assignment');
     }
   };
 
@@ -231,7 +261,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
     setShowQuestionForm(true);
   };
 
-  const handleEditQuestion = (question: any) => {
+  const handleEditQuestion = (question: CompletionQuestionRecord) => {
     setEditingQuestion(question);
     setQuestionFormData({
       question_text: question.question_text,
@@ -289,11 +319,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-purple"></div>
-      </div>
-    );
+    return <LoadingSpinner height="py-12" />;
   }
 
   return (

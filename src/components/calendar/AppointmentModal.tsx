@@ -6,13 +6,52 @@ import Combobox from '../ui/combobox/Combobox';
 import contactsAPI from '../../services/api/crm/contacts';
 import appointmentsAPI from '../../services/api/crm/appointments';
 import { useCRMReferenceData } from '../../contexts/CRMReferenceDataContext';
+import type { AppointmentResponse, ContactResponse } from '../../types';
+import type { EnumItem } from '../../contexts/CRMReferenceDataContext';
+
+/** Extended appointment data that may include a nested recurrence config from the API. */
+interface AppointmentWithRecurrence extends AppointmentResponse {
+  recurrence?: {
+    recurring_type?: string | null;
+    recurring_interval?: number | null;
+    recurring_count?: number | null;
+    recurring_until?: string | null;
+    recurring_weekdays?: string[];
+    recurring_monthly_type?: string | null;
+    recurring_monthly_day?: number | null;
+    recurring_monthly_week?: number | null;
+    recurring_monthly_weekday?: string | null;
+  } | null;
+}
+
+/** Data shape for saving (creating/updating) an appointment. */
+interface AppointmentSaveData extends Record<string, unknown> {
+  title: string;
+  description: string | null;
+  start_datetime: string;
+  end_datetime: string;
+  contact_id: string | null;
+  timezone: string;
+  appointment_type: string;
+  location: string | null;
+  meeting_link: string | null;
+  all_day: boolean;
+  recurrence?: Record<string, unknown> | null;
+}
+
+/** Minimal appointment data needed to open the modal. Full data is fetched from the API. */
+type AppointmentInput = {
+  id: string;
+  start_datetime: string;
+  end_datetime: string;
+} & Partial<AppointmentWithRecurrence>;
 
 interface AppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: any) => Promise<void>;
-  onDelete?: (appointment: any) => void;
-  appointment?: any;
+  onSave: (data: AppointmentSaveData) => Promise<void>;
+  onDelete?: (appointment: AppointmentInput) => void;
+  appointment?: AppointmentInput | null;
   initialDate?: string | null;
   isReadOnly?: boolean;
 }
@@ -24,8 +63,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
   // Get enum metadata from context
   const {
     appointmentTypes,
-    recurringTypes,
-    monthlyRecurringTypes
+    recurringTypes
   } = useCRMReferenceData();
 
   const [formData, setFormData] = useState({
@@ -54,7 +92,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
   const [recurringMonthlyWeek, setRecurringMonthlyWeek] = useState(1);
   const [recurringMonthlyWeekday, setRecurringMonthlyWeekday] = useState('MO');
 
-  const [selectedContact, setSelectedContact] = useState<any>(null);
+  const [selectedContact, setSelectedContact] = useState<ContactResponse | null>(null);
   const [showContactSelector, setShowContactSelector] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -67,7 +105,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
         // Fetch full appointment details to get recurrence config
         let fullAppointment = appointment;
         try {
-          fullAppointment = await (appointmentsAPI as any).get(appointment.id);
+          fullAppointment = await appointmentsAPI.get<AppointmentWithRecurrence>(appointment.id);
         } catch (error) {
           console.error('Failed to fetch full appointment details:', error);
           // Fall back to the passed appointment data
@@ -102,7 +140,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
           }
 
           if (rec.recurring_weekdays) {
-            setRecurringWeekdays(rec.recurring_weekdays);
+            setRecurringWeekdays(rec.recurring_weekdays as string[]);
           }
 
           if (rec.recurring_monthly_type) {
@@ -129,7 +167,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
         // Fetch contact details if appointment has a contact_id
         if (fullAppointment.contact_id) {
           try {
-            const contact = await (contactsAPI as any).get(fullAppointment.contact_id);
+            const contact = await contactsAPI.get(fullAppointment.contact_id);
             setSelectedContact(contact);
           } catch (error) {
             console.error('Failed to fetch contact:', error);
@@ -199,7 +237,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
   const buildRecurrenceConfig = () => {
     if (!isRecurring) return null;
 
-    const config: Record<string, any> = {
+    const config: Record<string, unknown> = {
       recurring_type: recurringType,
       recurring_interval: recurringInterval,
     };
@@ -289,10 +327,14 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
 
     try {
       // Convert datetime-local to ISO 8601 format
-      const submitData: Record<string, any> = {
+      const submitData: AppointmentSaveData = {
         ...formData,
         start_datetime: new Date(formData.start_datetime).toISOString(),
         end_datetime: new Date(formData.end_datetime).toISOString(),
+        description: formData.description,
+        contact_id: formData.contact_id,
+        location: formData.location,
+        meeting_link: formData.meeting_link,
       };
 
       // Convert empty strings to null for optional fields
@@ -317,15 +359,15 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
 
       await onSave(submitData);
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save appointment:', error);
-      setErrors({ general: error.message });
+      setErrors({ general: (error as Error).message });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleContactSelect = (contact: any) => {
+  const handleContactSelect = (contact: ContactResponse | null) => {
     setSelectedContact(contact);
     setFormData(prev => ({ ...prev, contact_id: contact?.id || null }));
   };
@@ -351,7 +393,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
   };
 
   // Get label for a type value
-  const getTypeLabel = (value: string) => (appointmentTypes as any[]).find((t: any) => t.value === value)?.label || value;
+  const getTypeLabel = (value: string) => appointmentTypes.find((t: EnumItem) => t.value === value)?.label || value;
 
   // Read-only view component
   const ReadOnlyView = () => (
@@ -534,17 +576,17 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                       Type <span className="text-red-500">*</span>
                     </label>
                     <Combobox
-                      options={(appointmentTypes as any[]).map((type: any) => ({ id: type.value, label: type.label }))}
+                      options={appointmentTypes.map((type: EnumItem) => ({ id: type.value, label: type.label }))}
                       value={formData.appointment_type || ''}
-                      onChange={(value: any) => setFormData({ ...formData, appointment_type: value })}
+                      onChange={(value: string) => setFormData({ ...formData, appointment_type: value })}
                       placeholder="Select type..."
                       searchPlaceholder="Search types..."
                       disabled={isReadOnly}
                       allowClear={false}
                     />
-                    {(appointmentTypes as any[]).find((t: any) => t.value === formData.appointment_type)?.description && (
+                    {!!appointmentTypes.find((t: EnumItem) => t.value === formData.appointment_type)?.description && (
                       <p className="text-xs text-gray-500 mt-1">
-                        {(appointmentTypes as any[]).find((t: any) => t.value === formData.appointment_type).description}
+                        {String(appointmentTypes.find((t: EnumItem) => t.value === formData.appointment_type)?.description)}
                       </p>
                     )}
                   </div>
@@ -571,7 +613,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                       onClose={() => setShowContactSelector(false)}
                       onSelect={handleContactSelect}
                       selectedContactId={formData.contact_id}
-                      anchorRef={contactButtonRef as any}
+                      anchorRef={contactButtonRef as React.RefObject<HTMLElement>}
                     />
                   </div>
                 </div>
@@ -742,9 +784,9 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                             Repeat Pattern
                           </label>
                           <Combobox
-                            options={(recurringTypes as any[]).map((type: any) => ({ id: type.value, label: type.label }))}
+                            options={recurringTypes.map((type: EnumItem) => ({ id: type.value, label: type.label }))}
                             value={recurringType}
-                            onChange={(value: any) => setRecurringType(value)}
+                            onChange={(value: string) => setRecurringType(value)}
                             placeholder="Select pattern..."
                             searchPlaceholder="Search patterns..."
                             allowClear={false}

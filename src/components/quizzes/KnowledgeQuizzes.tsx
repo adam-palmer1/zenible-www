@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NewSidebar from '../sidebar/NewSidebar';
 import QuizCard from './QuizCard';
@@ -19,7 +19,7 @@ export default function KnowledgeQuizzes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dailyQuizLimit, setDailyQuizLimit] = useState<number | null>(null);
-  const [quizzesAttemptedToday, setQuizzesAttemptedToday] = useState<number | null>(null);
+  const [, setQuizzesAttemptedToday] = useState<number | null>(null);
   const [quizzesRemainingToday, setQuizzesRemainingToday] = useState<number | null>(null);
   const noAttemptsModal = useModalState();
 
@@ -34,7 +34,7 @@ export default function KnowledgeQuizzes() {
     setError(null);
 
     try {
-      const data = await quizAPI.getRandomQuiz(null, QUIZ_COUNT) as any;
+      const data = await quizAPI.getRandomQuiz(null, QUIZ_COUNT) as { quizzes?: any[]; daily_quiz_limit?: number; quizzes_attempted_today?: number; quizzes_remaining_today?: number; [key: string]: unknown };
       // API returns { quizzes: [...], count: N, requested: M } when quiz_count is specified
       if (data.quizzes && Array.isArray(data.quizzes)) {
         setQuizzes(data.quizzes);
@@ -69,7 +69,7 @@ export default function KnowledgeQuizzes() {
     }
   };
 
-  const handleQuizClick = (quiz: any) => {
+  const handleQuizClick = useCallback((quiz: any) => {
     // Check if user has no remaining attempts
     if (quizzesRemainingToday === 0) {
       noAttemptsModal.open();
@@ -82,16 +82,16 @@ export default function KnowledgeQuizzes() {
       return;
     }
     setPreviewQuiz(quiz);
-  };
+  }, [quizzesRemainingToday, noAttemptsModal]);
 
-  const handleStartQuiz = async () => {
+  const handleStartQuiz = useCallback(async () => {
     if (!previewQuiz) return;
 
     try {
       setLoading(true);
       const attemptData = await quizAPI.startQuizAttempt(previewQuiz.id);
       // Navigate to quiz attempt page
-      navigate(`/freelancer-academy/quizzes/${(attemptData as any).attempt_id}/take`, {
+      navigate(`/freelancer-academy/quizzes/${(attemptData as { attempt_id: string }).attempt_id}/take`, {
         state: { attemptData }
       });
     } catch (err: any) {
@@ -99,18 +99,18 @@ export default function KnowledgeQuizzes() {
       setError('Failed to start quiz. Please try again.');
       setLoading(false);
     }
-  };
+  }, [previewQuiz, navigate]);
 
-  const handleTryAnother = () => {
+  const handleTryAnother = useCallback(() => {
     // Fetch a new set of random quizzes
     fetchRandomQuizzes();
     setPreviewQuiz(null);
-  };
+  }, []);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setPreviewQuiz(null);
     setError(null);
-  };
+  }, []);
 
   return (
     <div className="flex h-screen bg-white">

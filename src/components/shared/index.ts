@@ -17,6 +17,11 @@ export { default as FilterBar, SortButton } from './FilterBar';
 // Form Modal - Standardized modal wrapper for forms
 export { default as FormModal, DeleteConfirmModal } from './FormModal';
 
+// Table Building Blocks - Composable pieces for list/table views
+export { default as SortableHeader } from './SortableHeader';
+export { default as EmptyState } from './EmptyState';
+export { default as LoadingSpinner } from './LoadingSpinner';
+
 // Existing shared components
 export { default as ConfirmationModal } from './ConfirmationModal';
 export { default as CircularScoreIndicator } from './CircularScoreIndicator';

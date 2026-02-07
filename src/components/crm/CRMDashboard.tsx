@@ -1,19 +1,9 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { Suspense, useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import CRMLayout from './layout/CRMLayout';
 import CRMTopBar from './layout/CRMTopBar';
 import CRMHeader from './layout/CRMHeader';
-import CRMFiltersBar from './filters/CRMFiltersBar';
-import ClientsFiltersBar from './filters/ClientsFiltersBar';
-import VendorsFiltersBar from './filters/VendorsFiltersBar';
-import ProjectsFiltersBar from './filters/ProjectsFiltersBar';
-import ServicesFiltersBar from './filters/ServicesFiltersBar';
 import CRMTabContent from './layout/CRMTabContent';
-import AddContactModal from './AddContactModal';
-import AddServiceModal from './AddServiceModal';
-import AddProjectModal from './AddProjectModal';
-import ContactDetailsPanel from './ContactDetailsPanel';
-import CRMSettingsModal from './CRMSettingsModal';
 import { useCRM } from '../../contexts/CRMContext';
 import { useContacts, useContactStatuses, useServices } from '../../hooks/crm';
 import contactsAPI from '../../services/api/crm/contacts';
@@ -23,6 +13,20 @@ import { useClientsFilters } from '../../hooks/crm/useClientsFilters';
 import { useVendorsFilters } from '../../hooks/crm/useVendorsFilters';
 import { useProjectsFilters } from '../../hooks/crm/useProjectsFilters';
 import { useServicesFilters } from '../../hooks/crm/useServicesFilters';
+
+// Lazy-load filter bars (conditionally rendered per active tab)
+const CRMFiltersBar = React.lazy(() => import('./filters/CRMFiltersBar'));
+const ClientsFiltersBar = React.lazy(() => import('./filters/ClientsFiltersBar'));
+const VendorsFiltersBar = React.lazy(() => import('./filters/VendorsFiltersBar'));
+const ProjectsFiltersBar = React.lazy(() => import('./filters/ProjectsFiltersBar'));
+const ServicesFiltersBar = React.lazy(() => import('./filters/ServicesFiltersBar'));
+
+// Lazy-load modals and panels (only rendered when opened)
+const AddContactModal = React.lazy(() => import('./AddContactModal'));
+const AddServiceModal = React.lazy(() => import('./AddServiceModal'));
+const AddProjectModal = React.lazy(() => import('./AddProjectModal'));
+const ContactDetailsPanel = React.lazy(() => import('./ContactDetailsPanel'));
+const CRMSettingsModal = React.lazy(() => import('./CRMSettingsModal'));
 
 const CRMDashboard: React.FC = () => {
   // URL-based tab navigation
@@ -78,14 +82,14 @@ const CRMDashboard: React.FC = () => {
     updateFilters,
     refreshKey,
     refresh,
-  } = useCRM() as any;
+  } = useCRM();
 
   // Preferences
-  const { updatePreference } = usePreferences() as any;
+  const { updatePreference } = usePreferences();
 
   // Data hooks
-  const { globalStatuses, customStatuses, fetchStatuses } = useContactStatuses() as any;
-  const { services, loading: servicesLoading, deleteService } = useServices() as any;
+  const { globalStatuses, customStatuses, fetchStatuses } = useContactStatuses();
+  const { services, loading: servicesLoading, deleteService } = useServices();
 
   // Combine statuses
   const allStatuses = [...(globalStatuses || []), ...(customStatuses || [])];
@@ -97,7 +101,7 @@ const CRMDashboard: React.FC = () => {
     sortOrder,
     columnOrder,
     contactFilters,
-    filteredContacts: statusFilteredContacts,
+    filteredContacts: _statusFilteredContacts,
     activeFilterCount,
     handleStatusToggle,
     handleClearStatuses,
@@ -105,36 +109,30 @@ const CRMDashboard: React.FC = () => {
     handleSortOrderChange,
     handleColumnReorder,
     clearAllFilters,
-  } = useCRMFilters([], filters) as any;
+  } = useCRMFilters([], filters as unknown as Record<string, unknown>);
 
   // Clients Filters Hook - Manages clients tab filter state
-  const clientsFilters = useClientsFilters() as any;
+  const clientsFilters = useClientsFilters();
 
   // Vendors Filters Hook - Manages vendors tab filter state
-  const vendorsFilters = useVendorsFilters() as any;
+  const vendorsFilters = useVendorsFilters();
 
   // Projects Filters Hook - Manages projects tab filter state
-  const projectsFilters = useProjectsFilters() as any;
+  const projectsFilters = useProjectsFilters();
 
   // Services Filters Hook - Manages services tab filter state
-  const servicesFilters = useServicesFilters() as any;
+  const servicesFilters = useServicesFilters();
 
   // Load contacts with combined filters
-  const { contacts, loading: contactsLoading, updateContact } = useContacts(contactFilters, refreshKey) as any;
+  const { contacts, loading: contactsLoading, updateContact } = useContacts(contactFilters, refreshKey);
 
-  // Apply status filters to loaded contacts
-  // Only show contacts that have a CRM status (global or custom)
+  // Apply remaining client-side status filters (hidden filtering is now server-side)
   const filteredContacts = (contacts || []).filter((contact: any) => {
     const contactStatusId =
       contact.current_global_status_id || contact.current_custom_status_id;
 
     // Filter out contacts without any status
     if (!contactStatusId) {
-      return false;
-    }
-
-    // Filter out hidden contacts unless showHidden is true
-    if (!showHidden && contact.is_hidden) {
       return false;
     }
 
@@ -178,7 +176,7 @@ const CRMDashboard: React.FC = () => {
     if (contactId && !selectedContact) {
       const loadContact = async () => {
         try {
-          const contact = await (contactsAPI as any).get(contactId);
+          const contact = await contactsAPI.get(contactId);
           if (contact) {
             selectContact(contact);
           }
@@ -219,83 +217,93 @@ const CRMDashboard: React.FC = () => {
           >
             {/* CRM tab filters */}
             {activeTab === 'crm' && (
-              <CRMFiltersBar
-                filters={filters}
-                updateFilters={updateFilters}
-                allStatuses={allStatuses}
-                selectedStatuses={selectedStatuses}
-                handleStatusToggle={handleStatusToggle}
-                handleClearStatuses={handleClearStatuses}
-                showHidden={showHidden}
-                handleShowHiddenToggle={handleShowHiddenToggle}
-                sortOrder={sortOrder}
-                handleSortOrderChange={handleSortOrderChange}
-                activeFilterCount={activeFilterCount}
-                clearAllFilters={clearAllFilters}
-                inline={true}
-              />
+              <Suspense fallback={null}>
+                <CRMFiltersBar
+                  filters={filters}
+                  updateFilters={updateFilters}
+                  allStatuses={allStatuses}
+                  selectedStatuses={selectedStatuses}
+                  handleStatusToggle={handleStatusToggle}
+                  handleClearStatuses={handleClearStatuses}
+                  showHidden={showHidden}
+                  handleShowHiddenToggle={handleShowHiddenToggle}
+                  sortOrder={sortOrder}
+                  handleSortOrderChange={handleSortOrderChange}
+                  activeFilterCount={activeFilterCount}
+                  clearAllFilters={clearAllFilters}
+                  inline={true}
+                />
+              </Suspense>
             )}
 
             {/* Clients tab filters */}
             {activeTab === 'clients' && (
-              <ClientsFiltersBar
-                searchQuery={clientsFilters.searchQuery}
-                onSearchChange={clientsFilters.setSearchQuery}
-                showHidden={clientsFilters.showHiddenClients}
-                onShowHiddenToggle={clientsFilters.handleShowHiddenToggle}
-                showPreferredCurrency={clientsFilters.showPreferredCurrency}
-                onPreferredCurrencyToggle={clientsFilters.handlePreferredCurrencyToggle}
-                visibleColumns={clientsFilters.visibleColumns}
-                availableColumns={clientsFilters.availableColumns}
-                columnsByCategory={clientsFilters.columnsByCategory}
-                onToggleColumn={clientsFilters.toggleColumnVisibility}
-                showColumnSelector={clientsFilters.showColumnSelector}
-                setShowColumnSelector={clientsFilters.setShowColumnSelector}
-                columnSelectorRef={clientsFilters.columnSelectorRef}
-                fieldsLoading={clientsFilters.fieldsLoading}
-              />
+              <Suspense fallback={null}>
+                <ClientsFiltersBar
+                  searchQuery={clientsFilters.searchQuery}
+                  onSearchChange={clientsFilters.setSearchQuery}
+                  showHidden={clientsFilters.showHiddenClients}
+                  onShowHiddenToggle={clientsFilters.handleShowHiddenToggle}
+                  showPreferredCurrency={clientsFilters.showPreferredCurrency}
+                  onPreferredCurrencyToggle={clientsFilters.handlePreferredCurrencyToggle}
+                  visibleColumns={clientsFilters.visibleColumns}
+                  availableColumns={clientsFilters.availableColumns}
+                  columnsByCategory={clientsFilters.columnsByCategory}
+                  onToggleColumn={clientsFilters.toggleColumnVisibility}
+                  showColumnSelector={clientsFilters.showColumnSelector}
+                  setShowColumnSelector={clientsFilters.setShowColumnSelector}
+                  columnSelectorRef={clientsFilters.columnSelectorRef as React.RefObject<HTMLDivElement>}
+                  fieldsLoading={clientsFilters.fieldsLoading}
+                />
+              </Suspense>
             )}
 
             {/* Vendors tab filters */}
             {activeTab === 'vendors' && (
-              <VendorsFiltersBar
-                searchQuery={vendorsFilters.searchQuery}
-                onSearchChange={vendorsFilters.setSearchQuery}
-                showHidden={vendorsFilters.showHiddenVendors}
-                onShowHiddenToggle={vendorsFilters.handleShowHiddenToggle}
-                showPreferredCurrency={vendorsFilters.showPreferredCurrency}
-                onPreferredCurrencyToggle={vendorsFilters.handlePreferredCurrencyToggle}
-                visibleColumns={vendorsFilters.visibleColumns}
-                availableColumns={vendorsFilters.availableColumns}
-                onToggleColumn={vendorsFilters.toggleColumnVisibility}
-                showColumnSelector={vendorsFilters.showColumnSelector}
-                setShowColumnSelector={vendorsFilters.setShowColumnSelector}
-                columnSelectorRef={vendorsFilters.columnSelectorRef}
-              />
+              <Suspense fallback={null}>
+                <VendorsFiltersBar
+                  searchQuery={vendorsFilters.searchQuery}
+                  onSearchChange={vendorsFilters.setSearchQuery}
+                  showHidden={vendorsFilters.showHiddenVendors}
+                  onShowHiddenToggle={vendorsFilters.handleShowHiddenToggle}
+                  showPreferredCurrency={vendorsFilters.showPreferredCurrency}
+                  onPreferredCurrencyToggle={vendorsFilters.handlePreferredCurrencyToggle}
+                  visibleColumns={vendorsFilters.visibleColumns}
+                  availableColumns={vendorsFilters.availableColumns}
+                  onToggleColumn={vendorsFilters.toggleColumnVisibility}
+                  showColumnSelector={vendorsFilters.showColumnSelector}
+                  setShowColumnSelector={vendorsFilters.setShowColumnSelector}
+                  columnSelectorRef={vendorsFilters.columnSelectorRef as React.RefObject<HTMLDivElement>}
+                />
+              </Suspense>
             )}
 
             {/* Projects tab filters */}
             {activeTab === 'projects' && (
-              <ProjectsFiltersBar
-                selectedStatuses={projectsFilters.selectedStatuses}
-                onStatusToggle={projectsFilters.handleStatusToggle}
-                onClearStatuses={projectsFilters.handleClearStatuses}
-              />
+              <Suspense fallback={null}>
+                <ProjectsFiltersBar
+                  selectedStatuses={projectsFilters.selectedStatuses}
+                  onStatusToggle={projectsFilters.handleStatusToggle}
+                  onClearStatuses={projectsFilters.handleClearStatuses}
+                />
+              </Suspense>
             )}
 
             {/* Services tab filters */}
             {activeTab === 'services' && (
-              <ServicesFiltersBar
-                activeSubtab={servicesFilters.activeSubtab}
-                onSubtabChange={servicesFilters.setActiveSubtab}
-                searchQuery={servicesFilters.searchQuery}
-                onSearchChange={servicesFilters.setSearchQuery}
-                statusFilter={servicesFilters.statusFilter}
-                onStatusFilterChange={servicesFilters.setStatusFilter}
-                frequencyTypeFilter={servicesFilters.frequencyTypeFilter}
-                onFrequencyTypeFilterChange={servicesFilters.setFrequencyTypeFilter}
-                activeFilterCount={servicesFilters.activeFilterCount}
-              />
+              <Suspense fallback={null}>
+                <ServicesFiltersBar
+                  activeSubtab={servicesFilters.activeSubtab}
+                  onSubtabChange={servicesFilters.setActiveSubtab}
+                  searchQuery={servicesFilters.searchQuery}
+                  onSearchChange={servicesFilters.setSearchQuery}
+                  statusFilter={servicesFilters.statusFilter}
+                  onStatusFilterChange={servicesFilters.setStatusFilter}
+                  frequencyTypeFilter={servicesFilters.frequencyTypeFilter}
+                  onFrequencyTypeFilterChange={servicesFilters.setFrequencyTypeFilter}
+                  activeFilterCount={servicesFilters.activeFilterCount}
+                />
+              </Suspense>
             )}
           </CRMHeader>
         </>
@@ -315,7 +323,7 @@ const CRMDashboard: React.FC = () => {
         openContactModal={openContactModal}
         updateContact={updateContact}
         refreshWithScrollPreservation={refreshWithScrollPreservation}
-        sortOrder={sortOrder}
+        sortOrder={sortOrder ?? ''}
         handleStatusUpdate={handleStatusUpdate}
         services={services}
         servicesLoading={servicesLoading}
@@ -330,36 +338,54 @@ const CRMDashboard: React.FC = () => {
         handleColumnReorder={handleColumnReorder}
       />
 
-      {/* Modals */}
-      <AddContactModal
-        isOpen={showContactModal}
-        onClose={closeContactModal}
-        contact={editingContact}
-      />
+      {/* Modals - lazy-loaded, only rendered when open */}
+      {showContactModal && (
+        <Suspense fallback={null}>
+          <AddContactModal
+            isOpen={showContactModal}
+            onClose={closeContactModal}
+            contact={editingContact}
+          />
+        </Suspense>
+      )}
 
-      <AddServiceModal
-        isOpen={showServiceModal}
-        onClose={closeServiceModal}
-        service={editingService}
-      />
+      {showServiceModal && (
+        <Suspense fallback={null}>
+          <AddServiceModal
+            isOpen={showServiceModal}
+            onClose={closeServiceModal}
+            service={editingService as any}
+          />
+        </Suspense>
+      )}
 
-      <AddProjectModal
-        isOpen={showProjectModal}
-        onClose={closeProjectModal}
-        project={editingProject}
-      />
+      {showProjectModal && (
+        <Suspense fallback={null}>
+          <AddProjectModal
+            isOpen={showProjectModal}
+            onClose={closeProjectModal}
+            project={editingProject}
+          />
+        </Suspense>
+      )}
 
       {/* Contact Details Panel */}
-      {selectedContact && (
-        <ContactDetailsPanel contact={selectedContact} onClose={clearSelectedContact} />
+      {!!selectedContact && (
+        <Suspense fallback={null}>
+          <ContactDetailsPanel contact={selectedContact as Record<string, unknown> & { id: string }} onClose={clearSelectedContact} />
+        </Suspense>
       )}
 
       {/* CRM Settings Modal */}
-      <CRMSettingsModal
-        isOpen={showCRMSettings}
-        onClose={() => setShowCRMSettings(false)}
-        onSuccess={handleCRMSettingsChange}
-      />
+      {showCRMSettings && (
+        <Suspense fallback={null}>
+          <CRMSettingsModal
+            isOpen={showCRMSettings}
+            onClose={() => setShowCRMSettings(false)}
+            onSuccess={handleCRMSettingsChange}
+          />
+        </Suspense>
+      )}
     </CRMLayout>
   );
 };

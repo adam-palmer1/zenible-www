@@ -49,10 +49,10 @@ const ExpenseAllocationSummaryBar: React.FC<ExpenseAllocationSummaryBarProps> = 
 
       try {
         setLoading(true);
-        const response = await (expensesAPI as any).getExpensesByEntity(entityType, entityId);
+        const response = await expensesAPI.getExpensesByEntity(entityType, String(entityId));
         // The API returns expenses that have allocations to this entity (allocations included)
         // We need to extract the allocation details from each expense
-        const expenses = response.items || response.data || response.expenses || response || [];
+        const expenses = response.items || [];
 
         // Transform the data - each expense has an allocations array
         // We need to find the allocation that matches this entity

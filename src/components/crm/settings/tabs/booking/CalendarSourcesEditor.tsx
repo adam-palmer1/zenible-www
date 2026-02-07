@@ -3,10 +3,17 @@ import { CalendarIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline
 import bookingSettingsAPI from '../../../../../services/api/crm/bookingSettings';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 
+interface CalendarAccount {
+  token_id: string;
+  is_enabled_for_conflicts: boolean;
+  account_name?: string;
+  google_account_email?: string;
+}
+
 const CalendarSourcesEditor = () => {
-  const [accounts, setAccounts] = useState([]);
+  const [accounts, setAccounts] = useState<CalendarAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [togglingId, setTogglingId] = useState(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const { showSuccess, showError } = useNotification();
 
@@ -18,7 +25,7 @@ const CalendarSourcesEditor = () => {
   const loadAccounts = async () => {
     try {
       setLoading(true);
-      const data = await bookingSettingsAPI.listGoogleAccounts() as any;
+      const data = await bookingSettingsAPI.listGoogleAccounts() as { accounts?: any[]; [key: string]: unknown };
       setAccounts(data.accounts || []);
     } catch (error) {
       console.error('Failed to load Google accounts:', error);
@@ -28,7 +35,7 @@ const CalendarSourcesEditor = () => {
     }
   };
 
-  const handleToggle = async (tokenId, enable) => {
+  const handleToggle = async (tokenId: string, enable: boolean) => {
     setTogglingId(tokenId);
     try {
       if (enable) {
@@ -39,9 +46,9 @@ const CalendarSourcesEditor = () => {
         showSuccess('Calendar conflict checking disabled');
       }
       // Refresh list
-      const data = await bookingSettingsAPI.listGoogleAccounts() as any;
+      const data = await bookingSettingsAPI.listGoogleAccounts() as { accounts?: any[]; [key: string]: unknown };
       setAccounts(data.accounts || []);
-    } catch (error) {
+    } catch (_error) {
       showError('Failed to update calendar settings');
     } finally {
       setTogglingId(null);

@@ -1,7 +1,7 @@
 import { createContext, useState, useCallback, useMemo, useContext, useEffect, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import quotesAPI from '../services/api/finance/quotes';
-import { useDocumentState, type Pagination } from './useDocumentState';
+import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
 
 interface QuoteFilters {
   search: string;
@@ -23,8 +23,45 @@ interface QuotePagination {
   total: number;
 }
 
+export interface Quote {
+  id: string;
+  quote_number?: string;
+  status?: string;
+  total_amount?: number | string;
+  contact_name?: string;
+  issue_date?: string;
+  valid_until?: string;
+  [key: string]: unknown;
+}
+
+export interface QuoteStats {
+  total_count?: number;
+  total_quotes?: number;
+  total_value?: number | string;
+  accepted_value?: number | string;
+  pending_value?: number | string;
+  accepted_count?: number;
+  rejected_count?: number;
+  acceptance_rate?: number | string;
+  draft_count?: number;
+  sent_count?: number;
+  viewed_count?: number;
+  expired_count?: number;
+  invoiced_count?: number;
+  average_quote_value?: number | string;
+  [key: string]: unknown;
+}
+
+export interface QuoteTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  [key: string]: unknown;
+}
+
 interface QuoteContextValue {
-  quotes: unknown[];
+  quotes: Quote[];
   loading: boolean;
   error: string | null;
   initialized: boolean;
@@ -33,11 +70,11 @@ interface QuoteContextValue {
   sortBy: string;
   sortOrder: string;
   showQuoteModal: boolean;
-  editingQuote: unknown;
-  selectedQuote: unknown;
-  stats: unknown;
+  editingQuote: Quote | null;
+  selectedQuote: Quote | null;
+  stats: QuoteStats | null;
   statsLoading: boolean;
-  templates: unknown[];
+  templates: QuoteTemplate[];
   templatesLoading: boolean;
   fetchQuotes: () => Promise<void>;
   createQuote: (quoteData: unknown) => Promise<unknown>;
@@ -59,9 +96,9 @@ interface QuoteContextValue {
   updateSort: (field: string, order: string) => void;
   setPagination: Dispatch<SetStateAction<QuotePagination>>;
   refresh: () => void;
-  openQuoteModal: (quote?: unknown) => void;
+  openQuoteModal: (quote?: Quote | null) => void;
   closeQuoteModal: () => void;
-  selectQuote: (quote: unknown) => void;
+  selectQuote: (quote: Quote) => void;
 }
 
 export const QuoteContext = createContext<QuoteContextValue | null>(null);
@@ -80,7 +117,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   // -------------------------------------------------------------------------
   const doc = useDocumentState<QuoteFilters>({
     name: 'Quote',
-    apiService: quotesAPI,
+    apiService: quotesAPI as unknown as DocumentStateConfig<QuoteFilters>['apiService'],
     paginationStyle: 'page-perpage',
     defaultSort: 'created_at',
     preferencePrefix: 'quote',
@@ -103,9 +140,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   // -------------------------------------------------------------------------
   // Quote-specific state: stats & templates
   // -------------------------------------------------------------------------
-  const [stats, setStats] = useState<unknown>(null);
+  const [stats, setStats] = useState<QuoteStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
-  const [templates, setTemplates] = useState<unknown[]>([]);
+  const [templates, setTemplates] = useState<QuoteTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
 
   // Fetch quote statistics
@@ -115,7 +152,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     try {
       setStatsLoading(true);
       const data = await quotesAPI.getStats();
-      setStats(data);
+      setStats(data as QuoteStats);
     } catch (err) {
       console.error('[QuoteContext] Error fetching stats:', err);
     } finally {
@@ -138,8 +175,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       setTemplatesLoading(true);
-      const data = await quotesAPI.listTemplates();
-      setTemplates((data as unknown[]) || []);
+      const data = await quotesAPI.listTemplates() as { items?: QuoteTemplate[] } | QuoteTemplate[];
+      setTemplates((Array.isArray(data) ? data : (data.items || [])) as QuoteTemplate[]);
     } catch (err) {
       console.error('[QuoteContext] Error fetching templates:', err);
     } finally {
@@ -154,9 +191,10 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     try {
       doc.setLoading(true);
       const result = await quotesAPI.send(quoteId, emailData);
-      doc.setItems(prev => prev.map((q: any) =>
-        q.id === quoteId ? { ...q, status: 'sent', sent_at: new Date().toISOString() } : q
-      ));
+      doc.setItems(prev => prev.map((q) => {
+        const item = q as Quote;
+        return item.id === quoteId ? { ...item, status: 'sent', sent_at: new Date().toISOString() } : q;
+      }));
       return result;
     } catch (err) {
       console.error('[QuoteContext] Error sending quote:', err);
@@ -170,9 +208,10 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     try {
       doc.setLoading(true);
       const result = await quotesAPI.accept(quoteId, acceptanceData);
-      doc.setItems(prev => prev.map((q: any) =>
-        q.id === quoteId ? { ...q, status: 'accepted', accepted_at: new Date().toISOString() } : q
-      ));
+      doc.setItems(prev => prev.map((q) => {
+        const item = q as Quote;
+        return item.id === quoteId ? { ...item, status: 'accepted', accepted_at: new Date().toISOString() } : q;
+      }));
       return result;
     } catch (err) {
       console.error('[QuoteContext] Error accepting quote:', err);
@@ -186,9 +225,10 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     try {
       doc.setLoading(true);
       const result = await quotesAPI.reject(quoteId, rejectionData);
-      doc.setItems(prev => prev.map((q: any) =>
-        q.id === quoteId ? { ...q, status: 'rejected', rejected_at: new Date().toISOString() } : q
-      ));
+      doc.setItems(prev => prev.map((q) => {
+        const item = q as Quote;
+        return item.id === quoteId ? { ...item, status: 'rejected', rejected_at: new Date().toISOString() } : q;
+      }));
       return result;
     } catch (err) {
       console.error('[QuoteContext] Error rejecting quote:', err);
@@ -201,10 +241,11 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const convertToInvoice = useCallback(async (quoteId: string, conversionData: unknown) => {
     try {
       doc.setLoading(true);
-      const invoice = await quotesAPI.convertToInvoice(quoteId, conversionData) as any;
-      doc.setItems(prev => prev.map((q: any) =>
-        q.id === quoteId ? { ...q, status: 'invoiced', converted_to_invoice_id: invoice.id } : q
-      ));
+      const invoice = await quotesAPI.convertToInvoice(quoteId, conversionData) as { id: string; [key: string]: unknown };
+      doc.setItems(prev => prev.map((q) => {
+        const item = q as Quote;
+        return item.id === quoteId ? { ...item, status: 'invoiced', converted_to_invoice_id: invoice.id } : q;
+      }));
       return invoice;
     } catch (err) {
       console.error('[QuoteContext] Error converting quote:', err);
@@ -248,7 +289,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     try {
       setTemplatesLoading(true);
       const template = await quotesAPI.createTemplate(templateData);
-      setTemplates(prev => [template, ...prev]);
+      setTemplates(prev => [template as unknown as QuoteTemplate, ...prev]);
       return template;
     } catch (err) {
       console.error('[QuoteContext] Error creating template:', err);
@@ -262,7 +303,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     try {
       setTemplatesLoading(true);
       const updated = await quotesAPI.updateTemplate(templateId, templateData);
-      setTemplates(prev => prev.map((t: any) => t.id === templateId ? updated : t));
+      setTemplates(prev => prev.map((t) => t.id === templateId ? updated as unknown as QuoteTemplate : t));
       return updated;
     } catch (err) {
       console.error('[QuoteContext] Error updating template:', err);
@@ -276,7 +317,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     try {
       setTemplatesLoading(true);
       await quotesAPI.deleteTemplate(templateId);
-      setTemplates(prev => prev.filter((t: any) => t.id !== templateId));
+      setTemplates(prev => prev.filter((t) => t.id !== templateId));
     } catch (err) {
       console.error('[QuoteContext] Error deleting template:', err);
       throw err;
@@ -304,7 +345,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   // -------------------------------------------------------------------------
   const value = useMemo(() => ({
     // State (aliased to match existing QuoteContextValue interface)
-    quotes: doc.items,
+    quotes: doc.items as Quote[],
     loading: doc.loading,
     error: doc.error,
     initialized: doc.initialized,
@@ -313,8 +354,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     sortBy: doc.sortBy,
     sortOrder: doc.sortOrder,
     showQuoteModal: doc.showModal,
-    editingQuote: doc.editingEntity,
-    selectedQuote: doc.selectedEntity,
+    editingQuote: doc.editingEntity as Quote | null,
+    selectedQuote: doc.selectedEntity as Quote | null,
     // Quote-specific state
     stats,
     statsLoading,

@@ -42,7 +42,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
   const [activeTab, setActiveTab] = useState('basic');
 
   // Get company countries for dropdown
-  const { companyCountries, defaultCountry, loading: countriesLoading } = useCountries() as any;
+  const { companyCountries, defaultCountry, loading: countriesLoading } = useCountries();
   const defaultCountryId = defaultCountry?.country?.id || null;
   const [taxRates, setTaxRates] = useState(contact?.contact_taxes || []);
   const [showTaxDropdown, setShowTaxDropdown] = useState(false);
@@ -173,7 +173,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
         sort_order: taxRates.length,
       };
 
-      const createdTax = await (contactsAPI as any).addContactTax(contact.id, taxData);
+      const createdTax = await contactsAPI.addContactTax(contact.id, taxData);
       setTaxRates([...taxRates, createdTax]);
       setShowTaxDropdown(false);
     } catch (err: any) {
@@ -191,7 +191,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
       setTaxLoading(true);
       setTaxError(null);
 
-      await (contactsAPI as any).deleteContactTax(contact.id, taxId);
+      await contactsAPI.deleteContactTax(contact.id, taxId);
       setTaxRates(taxRates.filter((tax: any) => tax.id !== taxId));
     } catch (err: any) {
       console.error('Failed to delete tax:', err);
@@ -241,7 +241,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
         sort_order: contactPersons.length,
       };
 
-      const createdPerson = await (contactPersonsAPI as any).create(contact.id, personData);
+      const createdPerson = await contactPersonsAPI.create(contact.id, personData);
       setContactPersons([...contactPersons, createdPerson]);
       setNewPerson({ first_name: '', last_name: '', email: '' });
     } catch (err: any) {
@@ -259,7 +259,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
       setPersonLoading(true);
       setPersonError(null);
 
-      await (contactPersonsAPI as any).update(contact.id, personId, updatedData);
+      await contactPersonsAPI.update(contact.id, personId, updatedData);
       setContactPersons(
         contactPersons.map((person: any) =>
           person.id === personId ? { ...person, ...updatedData } : person
@@ -281,7 +281,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
       setPersonLoading(true);
       setPersonError(null);
 
-      await (contactPersonsAPI as any).delete(contact.id, personToDelete.id);
+      await contactPersonsAPI.delete(contact.id, personToDelete.id);
       setContactPersons(contactPersons.filter((person: any) => person.id !== personToDelete.id));
       setShowDeletePersonModal(false);
       setPersonToDelete(null);
@@ -423,8 +423,8 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
                   emptyMessage="No countries found"
                   allowClear
                 />
-                {(errors as any).country_id && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{(errors as any).country_id.message}</p>
+                {errors.country_id && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{String(errors.country_id.message ?? '')}</p>
                 )}
               </div>
             </div>
@@ -515,11 +515,11 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-900 dark:text-gray-300 mb-2">Contact type</label>
-              <ChipSelector options={contactTypeOptions} value={getContactTypes()} onChange={handleContactTypeChange} multiple={true} />
+              <ChipSelector options={contactTypeOptions} value={getContactTypes()} onChange={(value: string | string[] | null) => handleContactTypeChange(Array.isArray(value) ? value : value ? [value] : [])} multiple={true} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-900 dark:text-gray-300 mb-2">Status</label>
-              <ChipSelector options={statusOptions} value={getSelectedStatusId()} onChange={handleStatusChange} multiple={false} useColors={true} />
+              <ChipSelector options={statusOptions} value={getSelectedStatusId()} onChange={(value: string | string[] | null) => handleStatusChange(typeof value === 'string' ? value : Array.isArray(value) ? value[0] ?? null : null)} multiple={false} useColors={true} />
             </div>
           </div>
         )}
@@ -558,7 +558,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
                     onSelect={(currencyId: string) => setValue('currency_id', currencyId)}
                     selectedCurrencyId={watch('currency_id')}
                     currencies={companyCurrencies}
-                    anchorRef={currencyButtonRef}
+                    anchorRef={currencyButtonRef as React.RefObject<HTMLElement>}
                   />
                 </div>
                 <div>
@@ -629,7 +629,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
                   onSelect={(currencyId: string) => setValue('preferred_currency_id', currencyId)}
                   selectedCurrencyId={watch('preferred_currency_id')}
                   currencies={companyCurrencies}
-                  anchorRef={preferredCurrencyButtonRef}
+                  anchorRef={preferredCurrencyButtonRef as React.RefObject<HTMLElement>}
                 />
               </div>
             )}

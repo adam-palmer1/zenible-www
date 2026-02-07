@@ -5,7 +5,7 @@ interface ContactImportProps {
   onClose: () => void;
 }
 
-const ContactImport: React.FC<ContactImportProps> = ({ onClose }) => {
+const ContactImport: React.FC<ContactImportProps> = ({ onClose: _onClose }) => {
   return (
     <div className="p-8 text-center">
       <CloudArrowUpIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />

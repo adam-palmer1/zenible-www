@@ -15,7 +15,7 @@ import NewSidebar from '../../sidebar/NewSidebar';
 const InvoiceDashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { getInvoice } = useInvoices() as any;
+  const { getInvoice } = useInvoices();
 
   // Modal state
   const [showFormModal, setShowFormModal] = useState(false);

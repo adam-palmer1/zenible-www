@@ -32,7 +32,7 @@ export function useContactNotes(contactId: string | undefined) {
   }, [contactId]);
 
   // Create note
-  const createNote = useCallback(async (data: Record<string, unknown>): Promise<unknown> => {
+  const createNote = useCallback(async (data: any): Promise<unknown> => {
     if (!contactId) return;
 
     try {
@@ -66,7 +66,7 @@ export function useContactNotes(contactId: string | undefined) {
 
       // Update in local state
       setNotes((prev) =>
-        prev.map((n: unknown) => ((n as any).id === noteId ? updatedNote : n))
+        prev.map((n: unknown) => ((n as Record<string, unknown>).id === noteId ? updatedNote : n))
       );
 
       return updatedNote;
@@ -90,7 +90,7 @@ export function useContactNotes(contactId: string | undefined) {
       await contactsAPI.deleteNote(contactId, noteId);
 
       // Remove from local state
-      setNotes((prev) => prev.filter((n: unknown) => (n as any).id !== noteId));
+      setNotes((prev) => prev.filter((n: unknown) => (n as Record<string, unknown>).id !== noteId));
 
       return true;
     } catch (err: unknown) {

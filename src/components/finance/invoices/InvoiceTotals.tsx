@@ -38,7 +38,7 @@ const InvoiceTotals: React.FC<InvoiceTotalsProps> = ({
     ? documentTaxes
     : (taxRate > 0 ? [{ tax_name: taxLabel, tax_rate: taxRate }] : []);
 
-  const totals = calculateInvoiceTotal(items, effectiveDocumentTaxes, discountType, discountValue) as any;
+  const totals = calculateInvoiceTotal(items, effectiveDocumentTaxes, discountType, discountValue);
   const hasItemLevelTaxes = totals.itemLevelTax > 0;
   const hasDocumentTax = totals.documentTax > 0;
 

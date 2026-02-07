@@ -13,15 +13,16 @@ import companiesAPI from '../../../services/api/crm/companies';
 import SendQuoteModal from './SendQuoteModal';
 import ConvertToInvoiceModal from './ConvertToInvoiceModal';
 import QuoteActionsMenu from './QuoteActionsMenu';
+import { LoadingSpinner } from '../../shared';
 import ConfirmationModal from '../../shared/ConfirmationModal';
 import { AllocationSummaryBar, ProjectAllocationModal } from '../allocations';
 
 const QuoteDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { deleteQuote, cloneQuote, acceptQuote, rejectQuote } = useQuotes() as any;
-  const { showSuccess, showError } = useNotification() as any;
-  const { getCountryById } = useCRMReferenceData() as any;
+  const { deleteQuote, cloneQuote, acceptQuote, rejectQuote } = useQuotes();
+  const { showSuccess, showError } = useNotification();
+  const { getCountryById } = useCRMReferenceData();
 
   const [quote, setQuote] = useState<any>(null);
   const [company, setCompany] = useState<any>(null);
@@ -42,7 +43,7 @@ const QuoteDetail: React.FC = () => {
     title: '',
     message: '',
     onConfirm: null as (() => void) | null,
-    variant: 'primary' as string,
+    variant: 'primary' as 'danger' | 'warning' | 'primary',
     confirmText: 'Confirm'
   });
 
@@ -60,10 +61,10 @@ const QuoteDetail: React.FC = () => {
 
   const loadCompany = async () => {
     try {
-      const data = await (companiesAPI as any).getCurrent();
+      const data = await companiesAPI.getCurrent();
       setCompany(data);
-    } catch (error) {
-      console.error('Error loading company:', error);
+    } catch (_error) {
+      console.error('Error loading company:', _error);
       // Non-critical, don't show error to user
     }
   };
@@ -89,10 +90,10 @@ const QuoteDetail: React.FC = () => {
   const loadQuote = async () => {
     try {
       setLoading(true);
-      const data = await (quotesAPI as any).get(id);
+      const data = await quotesAPI.get(id!);
       setQuote(data);
-    } catch (error) {
-      console.error('Error loading quote:', error);
+    } catch (_error) {
+      console.error('Error loading quote:', _error);
       showError('Failed to load quote');
       navigate('/finance/quotes');
     } finally {
@@ -103,10 +104,10 @@ const QuoteDetail: React.FC = () => {
   const loadViewHistory = async () => {
     try {
       setLoadingViewHistory(true);
-      const data = await (quotesAPI as any).getViews(id);
+      const data = await quotesAPI.getViews(id!);
       setViewHistory(data);
-    } catch (error) {
-      console.error('Error loading view history:', error);
+    } catch (_error) {
+      console.error('Error loading view history:', _error);
       // Non-critical, don't show error to user
     } finally {
       setLoadingViewHistory(false);
@@ -116,7 +117,7 @@ const QuoteDetail: React.FC = () => {
   const handleDownloadPdf = async () => {
     try {
       setDownloadingPdf(true);
-      const blob = await (quotesAPI as any).downloadPDF(id);
+      const blob = await quotesAPI.downloadPDF(id!);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -126,7 +127,7 @@ const QuoteDetail: React.FC = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       showSuccess('Quote downloaded successfully');
-    } catch (error) {
+    } catch (_error) {
       showError('Failed to download quote');
     } finally {
       setDownloadingPdf(false);
@@ -135,10 +136,10 @@ const QuoteDetail: React.FC = () => {
 
   const handleClone = async () => {
     try {
-      const cloned = await cloneQuote(id);
+      const cloned = await cloneQuote(id!) as { id: string };
       showSuccess('Quote cloned successfully');
       navigate(`/finance/quotes/${cloned.id}/edit`);
-    } catch (error) {
+    } catch (_error) {
       showError('Failed to clone quote');
     }
   };
@@ -151,10 +152,10 @@ const QuoteDetail: React.FC = () => {
       confirmText: 'Delete',
       onConfirm: async () => {
         try {
-          await deleteQuote(id);
+          await deleteQuote(id!);
           showSuccess('Quote deleted successfully');
           navigate('/finance/quotes');
-        } catch (error) {
+        } catch (_error) {
           showError('Failed to delete quote');
         }
       }
@@ -169,10 +170,10 @@ const QuoteDetail: React.FC = () => {
       confirmText: 'Accept Quote',
       onConfirm: async () => {
         try {
-          await acceptQuote(id);
+          await acceptQuote(id!, {});
           loadQuote();
           showSuccess('Quote accepted successfully');
-        } catch (error) {
+        } catch (_error) {
           showError('Failed to accept quote');
         }
       }
@@ -187,10 +188,10 @@ const QuoteDetail: React.FC = () => {
       confirmText: 'Reject Quote',
       onConfirm: async () => {
         try {
-          await rejectQuote(id);
+          await rejectQuote(id!, {});
           loadQuote();
           showSuccess('Quote rejected');
-        } catch (error) {
+        } catch (_error) {
           showError('Failed to reject quote');
         }
       }
@@ -200,12 +201,7 @@ const QuoteDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary"></div>
-          <p className="mt-2 text-sm text-[#71717a]">Loading quote...</p>
-        </div>
-      </div>
+      <LoadingSpinner size="h-8 w-8" height="h-96" message="Loading quote..." />
     );
   }
 
@@ -213,7 +209,7 @@ const QuoteDetail: React.FC = () => {
 
   const status = quote.status;
   const items = quote.quote_items || quote.items || [];
-  const totals = calculateInvoiceTotal(items, quote.tax_rate || 0, quote.discount_type, quote.discount_value || 0) as any;
+  const totals = calculateInvoiceTotal(items, quote.tax_rate || 0, quote.discount_type, quote.discount_value || 0);
 
   // Check if quote has any tax (item-level or document-level)
   const hasTax = totals.itemLevelTax > 0 || totals.documentTax > 0 || (quote.tax_rate && quote.tax_rate > 0);
@@ -232,9 +228,9 @@ const QuoteDetail: React.FC = () => {
     return statusColors[status] || 'bg-[#f4f4f5] text-[#09090b]';
   };
 
-  const canConvertToInvoice = status === (QUOTE_STATUS as any).ACCEPTED;
-  const canAccept = status === (QUOTE_STATUS as any).SENT || status === 'viewed';
-  const canReject = status === (QUOTE_STATUS as any).SENT || status === 'viewed';
+  const canConvertToInvoice = status === QUOTE_STATUS.ACCEPTED;
+  const canAccept = status === QUOTE_STATUS.SENT || status === 'viewed';
+  const canReject = status === QUOTE_STATUS.SENT || status === 'viewed';
 
   return (
     <div className="min-h-screen bg-[#fafafa] dark:bg-gray-900">
@@ -641,7 +637,7 @@ const QuoteDetail: React.FC = () => {
         </div>
 
         {/* Reminder Status Card - Only show for sent/viewed quotes */}
-        {(status === (QUOTE_STATUS as any).SENT || status === 'viewed') && (
+        {(status === QUOTE_STATUS.SENT || status === 'viewed') && (
           <div className="w-full max-w-[840px] bg-white dark:bg-gray-800 border-2 border-[#e5e5e5] dark:border-gray-700 rounded-[12px] p-6">
             <h3 className="text-[16px] font-semibold leading-[24px] text-[#09090b] dark:text-white mb-4 flex items-center gap-2">
               <Bell className="h-5 w-5 text-[#71717a]" />
@@ -794,10 +790,10 @@ const QuoteDetail: React.FC = () => {
       <ConfirmationModal
         isOpen={confirmModal.isOpen}
         onClose={closeConfirmModal}
-        onConfirm={confirmModal.onConfirm}
+        onConfirm={confirmModal.onConfirm ?? (() => {})}
         title={confirmModal.title}
         message={confirmModal.message}
-        variant={confirmModal.variant as any}
+        variant={confirmModal.variant as 'danger' | 'warning' | 'primary'}
         confirmText={confirmModal.confirmText}
       />
 

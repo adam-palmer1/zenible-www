@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -15,13 +15,13 @@ import {
   X,
   TrendingUp
 } from 'lucide-react';
-import { useQuotes } from '../../../contexts/QuoteContext';
+import { useQuotes, type Quote } from '../../../contexts/QuoteContext';
 import { useNotification } from '../../../contexts/NotificationContext';
-import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
+import { useCRMReferenceData, type NumberFormat } from '../../../contexts/CRMReferenceDataContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
-import { QUOTE_STATUS, QUOTE_STATUS_LABELS, QUOTE_STATUS_COLORS } from '../../../constants/finance';
-import { formatCurrency, getCurrencySymbol } from '../../../utils/currency';
+import { QUOTE_STATUS, QUOTE_STATUS_LABELS, QUOTE_STATUS_COLORS, type QuoteStatus } from '../../../constants/finance';
+import { getCurrencySymbol } from '../../../utils/currency';
 import { formatDate } from '../../../utils/dateUtils';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
 import KPICard from '../shared/KPICard';
@@ -31,23 +31,42 @@ import ConfirmationModal from '../../shared/ConfirmationModal';
 import ActionMenu from '../../shared/ActionMenu';
 import quotesAPI from '../../../services/api/finance/quotes';
 
+/** Contact fields used in QuoteList for display and filtering */
+interface ContactListItem {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  business_name?: string | null;
+  email?: string | null;
+  [key: string]: unknown;
+}
+
+/** Quote shape as used in the list view, extending the base Quote with fields accessed in this component */
+interface QuoteListItem extends Quote {
+  total?: number | string;
+  contact?: ContactListItem | null;
+  quote_date?: string;
+  currency?: { id?: string; code?: string; symbol?: string } | null;
+}
+
 interface StatusBadgeProps {
   status: string;
 }
 
 const QuoteList: React.FC = () => {
   const navigate = useNavigate();
-  const { quotes, loading, deleteQuote, updateFilters, cloneQuote, stats, statsLoading } = useQuotes() as any;
-  const { showSuccess, showError } = useNotification() as any;
-  const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true }) as any;
-  const { numberFormats } = useCRMReferenceData() as any;
-  const { getNumberFormat } = useCompanyAttributes() as any;
+  const { quotes: rawQuotes, loading, deleteQuote, updateFilters, cloneQuote, stats, statsLoading } = useQuotes();
+  const quotes = rawQuotes as QuoteListItem[];
+  const { showSuccess, showError } = useNotification();
+  const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true });
+  const { numberFormats } = useCRMReferenceData();
+  const { getNumberFormat } = useCompanyAttributes();
 
   // Number format from company settings
   const numberFormat = useMemo(() => {
     const formatId = getNumberFormat();
     if (formatId && numberFormats.length > 0) {
-      return numberFormats.find((f: any) => f.id === formatId);
+      return numberFormats.find((f: NumberFormat) => f.id === formatId);
     }
     return null;
   }, [getNumberFormat, numberFormats]);
@@ -60,11 +79,11 @@ const QuoteList: React.FC = () => {
   // Calculate stats from quotes if API stats not available
   const calculatedStats = useMemo(() => {
     const total = stats?.total_count ?? quotes.length;
-    const totalValue = stats?.total_value ?? quotes.reduce((sum: number, q: any) => sum + (q.total || 0), 0);
-    const acceptedValue = stats?.accepted_value ?? quotes.filter((q: any) => q.status === (QUOTE_STATUS as any).ACCEPTED).reduce((sum: number, q: any) => sum + (q.total || 0), 0);
-    const pendingValue = stats?.pending_value ?? quotes.filter((q: any) => q.status === (QUOTE_STATUS as any).SENT).reduce((sum: number, q: any) => sum + (q.total || 0), 0);
-    const acceptedCount = stats?.accepted_count ?? quotes.filter((q: any) => q.status === (QUOTE_STATUS as any).ACCEPTED).length;
-    const rejectedCount = stats?.rejected_count ?? quotes.filter((q: any) => q.status === (QUOTE_STATUS as any).REJECTED).length;
+    const totalValue = stats?.total_value ?? quotes.reduce((sum: number, q) => sum + (Number(q.total) || 0), 0);
+    const acceptedValue = stats?.accepted_value ?? quotes.filter(q => q.status === QUOTE_STATUS.ACCEPTED).reduce((sum: number, q) => sum + (Number(q.total) || 0), 0);
+    const pendingValue = stats?.pending_value ?? quotes.filter(q => q.status === QUOTE_STATUS.SENT).reduce((sum: number, q) => sum + (Number(q.total) || 0), 0);
+    const acceptedCount = stats?.accepted_count ?? quotes.filter(q => q.status === QUOTE_STATUS.ACCEPTED).length;
+    const rejectedCount = stats?.rejected_count ?? quotes.filter(q => q.status === QUOTE_STATUS.REJECTED).length;
     const acceptanceRate = stats?.acceptance_rate ?? (
       (acceptedCount + rejectedCount) > 0
         ? Math.round((acceptedCount / (acceptedCount + rejectedCount)) * 100)
@@ -95,16 +114,16 @@ const QuoteList: React.FC = () => {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [datePreset, setDatePreset] = useState('all');
-  const [dateType, setDateType] = useState('issue'); // 'issue' or 'valid'
+  const [dateType] = useState('issue'); // 'issue' or 'valid'
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
-  const [quoteToSend, setQuoteToSend] = useState<any>(null);
+  const [quoteToSend, setQuoteToSend] = useState<Quote | null>(null);
   const [showConvertModal, setShowConvertModal] = useState(false);
-  const [quoteToConvert, setQuoteToConvert] = useState<any>(null);
+  const [quoteToConvert, setQuoteToConvert] = useState<Quote | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Quote | 'bulk' | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -280,7 +299,7 @@ const QuoteList: React.FC = () => {
   const filteredClients = useMemo(() => {
     if (!clientSearchQuery) return allClients;
     const query = clientSearchQuery.toLowerCase();
-    return allClients.filter((client: any) =>
+    return allClients.filter((client: ContactListItem) =>
       client.first_name?.toLowerCase().includes(query) ||
       client.last_name?.toLowerCase().includes(query) ||
       client.business_name?.toLowerCase().includes(query) ||
@@ -292,7 +311,7 @@ const QuoteList: React.FC = () => {
   const getSelectedClientsLabel = () => {
     if (selectedClientIds.length === 0) return null;
     if (selectedClientIds.length === 1) {
-      const client = allClients.find((c: any) => c.id === selectedClientIds[0]);
+      const client = allClients.find((c: ContactListItem) => c.id === selectedClientIds[0]);
       if (!client) return '1 client';
       return client.business_name || `${client.first_name} ${client.last_name}`;
     }
@@ -316,7 +335,7 @@ const QuoteList: React.FC = () => {
     // Apply search (client-side since backend doesn't have full-text search)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter((q: any) =>
+      result = result.filter(q =>
         q.quote_number?.toLowerCase().includes(query) ||
         q.contact?.business_name?.toLowerCase().includes(query) ||
         q.contact?.first_name?.toLowerCase().includes(query) ||
@@ -352,7 +371,7 @@ const QuoteList: React.FC = () => {
   // Selection handlers
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(paginatedQuotes.map((q: any) => q.id));
+      setSelectedIds(paginatedQuotes.map(q => q.id));
     } else {
       setSelectedIds([]);
     }
@@ -377,7 +396,7 @@ const QuoteList: React.FC = () => {
       await Promise.all(selectedIds.map(id => deleteQuote(id)));
       showSuccess(`${selectedIds.length} quote(s) deleted successfully`);
       setSelectedIds([]);
-    } catch (error) {
+    } catch (_error) {
       showError('Failed to delete quotes');
     }
   };
@@ -392,8 +411,8 @@ const QuoteList: React.FC = () => {
     try {
       for (const quoteId of selectedIds) {
         try {
-          const quote = quotes.find((q: any) => q.id === quoteId);
-          const blob = await (quotesAPI as any).downloadPDF(quoteId);
+          const quote = quotes.find(q => q.id === quoteId);
+          const blob = await quotesAPI.downloadPDF(quoteId);
 
           const url = window.URL.createObjectURL(blob);
           const link = document.createElement('a');
@@ -419,7 +438,7 @@ const QuoteList: React.FC = () => {
       }
 
       setSelectedIds([]);
-    } catch (error) {
+    } catch (_error) {
       showError('Failed to download quotes');
     } finally {
       setIsDownloading(false);
@@ -427,17 +446,17 @@ const QuoteList: React.FC = () => {
   };
 
   // Individual actions
-  const handleEdit = (quote: any) => {
+  const handleEdit = (quote: QuoteListItem) => {
     navigate(`/finance/quotes/${quote.id}/edit`);
     setOpenActionMenuId(null);
   };
 
-  const handleView = (quote: any) => {
+  const handleView = (quote: QuoteListItem) => {
     navigate(`/finance/quotes/${quote.id}`);
     setOpenActionMenuId(null);
   };
 
-  const handleDeleteClick = (quote: any) => {
+  const handleDeleteClick = (quote: QuoteListItem) => {
     setDeleteTarget(quote);
     setShowDeleteConfirm(true);
     setOpenActionMenuId(null);
@@ -450,14 +469,14 @@ const QuoteList: React.FC = () => {
       try {
         await deleteQuote(deleteTarget.id);
         showSuccess('Quote deleted successfully');
-      } catch (error) {
+      } catch (_error) {
         showError('Failed to delete quote');
       }
     }
     setDeleteTarget(null);
   };
 
-  const handleSend = (quote: any) => {
+  const handleSend = (quote: QuoteListItem) => {
     setQuoteToSend(quote);
     setShowSendModal(true);
     setOpenActionMenuId(null);
@@ -468,17 +487,17 @@ const QuoteList: React.FC = () => {
     setQuoteToSend(null);
   };
 
-  const handleConvert = (quote: any) => {
+  const handleConvert = (quote: QuoteListItem) => {
     setQuoteToConvert(quote);
     setShowConvertModal(true);
     setOpenActionMenuId(null);
   };
 
-  const handleDownloadPDF = async (quote: any) => {
+  const handleDownloadPDF = async (quote: QuoteListItem) => {
     setOpenActionMenuId(null);
 
     try {
-      const blob = await (quotesAPI as any).downloadPDF(quote.id);
+      const blob = await quotesAPI.downloadPDF(quote.id);
 
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -490,29 +509,29 @@ const QuoteList: React.FC = () => {
       window.URL.revokeObjectURL(url);
 
       showSuccess(`Downloaded quote ${quote.quote_number}`);
-    } catch (error) {
+    } catch (_error) {
       showError('Failed to download PDF');
     }
   };
 
-  const handleClone = async (quote: any) => {
+  const handleClone = async (quote: QuoteListItem) => {
     setOpenActionMenuId(null);
 
     try {
-      const clonedQuote = await cloneQuote(quote.id);
+      const clonedQuote = await cloneQuote(quote.id) as QuoteListItem;
       showSuccess(`Quote cloned successfully. New quote: ${clonedQuote.quote_number}`);
       navigate(`/finance/quotes/${clonedQuote.id}/edit`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to clone quote:', error);
-      showError(error.message || 'Failed to clone quote');
+      showError((error instanceof Error ? error.message : null) || 'Failed to clone quote');
     }
   };
 
   // Status badge component
   const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${(QUOTE_STATUS_COLORS as any)[status] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}>
-        {(QUOTE_STATUS_LABELS as any)[status] || status}
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${QUOTE_STATUS_COLORS[status as QuoteStatus] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}>
+        {QUOTE_STATUS_LABELS[status as QuoteStatus] || status}
       </span>
     );
   };
@@ -530,13 +549,13 @@ const QuoteList: React.FC = () => {
         />
         <KPICard
           title="Total Value"
-          value={statsLoading ? '...' : `${getCurrencySymbol('USD')}${formatNumber(calculatedStats.totalValue)}`}
+          value={statsLoading ? '...' : `${getCurrencySymbol('USD')}${formatNumber(Number(calculatedStats.totalValue))}`}
           icon={DollarSign}
           iconColor="purple"
         />
         <KPICard
           title="Pending Value"
-          value={statsLoading ? '...' : `${getCurrencySymbol('USD')}${formatNumber(calculatedStats.pendingValue)}`}
+          value={statsLoading ? '...' : `${getCurrencySymbol('USD')}${formatNumber(Number(calculatedStats.pendingValue))}`}
           icon={Clock}
           iconColor="yellow"
         />
@@ -679,7 +698,7 @@ const QuoteList: React.FC = () => {
             {filterStatus !== 'all' && (
               <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm">
                 <span>Status:</span>
-                <span className="font-medium">{(QUOTE_STATUS_LABELS as any)[filterStatus] || filterStatus}</span>
+                <span className="font-medium">{QUOTE_STATUS_LABELS[filterStatus as QuoteStatus] || filterStatus}</span>
                 <button
                   onClick={() => handleStatusFilterChange('all')}
                   className="ml-1 p-0.5 hover:bg-purple-200 rounded-full"
@@ -725,44 +744,44 @@ const QuoteList: React.FC = () => {
                           All Quotes
                         </button>
                         <button
-                          onClick={() => handleStatusFilterChange((QUOTE_STATUS as any).DRAFT)}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (QUOTE_STATUS as any).DRAFT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.DRAFT)}
+                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.DRAFT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Draft
                         </button>
                         <button
-                          onClick={() => handleStatusFilterChange((QUOTE_STATUS as any).SENT)}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (QUOTE_STATUS as any).SENT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.SENT)}
+                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.SENT ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Sent
                         </button>
                         <button
-                          onClick={() => handleStatusFilterChange((QUOTE_STATUS as any).ACCEPTED)}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (QUOTE_STATUS as any).ACCEPTED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.ACCEPTED)}
+                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.ACCEPTED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Accepted
                         </button>
                         <button
-                          onClick={() => handleStatusFilterChange((QUOTE_STATUS as any).REJECTED)}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (QUOTE_STATUS as any).REJECTED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.REJECTED)}
+                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.REJECTED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Rejected
                         </button>
                         <button
-                          onClick={() => handleStatusFilterChange((QUOTE_STATUS as any).EXPIRED)}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (QUOTE_STATUS as any).EXPIRED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.EXPIRED)}
+                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.EXPIRED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Expired
                         </button>
                         <button
-                          onClick={() => handleStatusFilterChange((QUOTE_STATUS as any).VIEWED)}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (QUOTE_STATUS as any).VIEWED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.VIEWED)}
+                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.VIEWED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Viewed
                         </button>
                         <button
-                          onClick={() => handleStatusFilterChange((QUOTE_STATUS as any).INVOICED)}
-                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === (QUOTE_STATUS as any).INVOICED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
+                          onClick={() => handleStatusFilterChange(QUOTE_STATUS.INVOICED)}
+                          className={`block w-full text-left px-3 py-2 text-sm rounded-md ${filterStatus === QUOTE_STATUS.INVOICED ? 'bg-purple-100 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}
                         >
                           Invoiced
                         </button>
@@ -792,7 +811,7 @@ const QuoteList: React.FC = () => {
                         ) : filteredClients.length === 0 ? (
                           <div className="text-center py-4 text-sm text-gray-500">No clients found</div>
                         ) : (
-                          filteredClients.map((client: any) => (
+                          filteredClients.map((client: ContactListItem) => (
                             <label
                               key={client.id}
                               className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer"
@@ -937,7 +956,7 @@ const QuoteList: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  paginatedQuotes.map((quote: any) => (
+                  paginatedQuotes.map((quote) => (
                     <tr
                       key={quote.id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -967,10 +986,10 @@ const QuoteList: React.FC = () => {
                         {formatDate(quote.valid_until)}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        {quote.currency?.symbol || getCurrencySymbol(quote.currency?.code)}{formatNumber(typeof quote.total === 'number' ? quote.total : parseFloat(quote.total || 0))}
+                        {quote.currency?.symbol || getCurrencySymbol(quote.currency?.code)}{formatNumber(typeof quote.total === 'number' ? quote.total : parseFloat(String(quote.total || 0)))}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <StatusBadge status={quote.status} />
+                        <StatusBadge status={quote.status ?? ''} />
                       </td>
                       <td className="px-4 py-3 text-sm" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                         <div className="relative inline-block">
@@ -991,7 +1010,7 @@ const QuoteList: React.FC = () => {
                                 { label: 'Send', onClick: () => handleSend(quote) },
                                 { label: 'Download PDF', onClick: () => handleDownloadPDF(quote) },
                                 { label: 'Clone', onClick: () => handleClone(quote) },
-                                { label: 'Convert to Invoice', onClick: () => handleConvert(quote), condition: quote.status === (QUOTE_STATUS as any).ACCEPTED },
+                                { label: 'Convert to Invoice', onClick: () => handleConvert(quote), condition: quote.status === QUOTE_STATUS.ACCEPTED },
                                 { label: 'Delete', onClick: () => handleDeleteClick(quote), variant: 'danger' },
                               ]}
                             />
@@ -1136,7 +1155,7 @@ const QuoteList: React.FC = () => {
         }
         message={deleteTarget === 'bulk'
           ? `Are you sure you want to delete ${selectedIds.length} selected quote${selectedIds.length !== 1 ? 's' : ''}? This action cannot be undone.`
-          : `Are you sure you want to delete quote ${deleteTarget?.quote_number || ''}? This action cannot be undone.`
+          : `Are you sure you want to delete quote ${(deleteTarget as Quote | null)?.quote_number || ''}? This action cannot be undone.`
         }
         confirmText="Delete"
         cancelText="Cancel"

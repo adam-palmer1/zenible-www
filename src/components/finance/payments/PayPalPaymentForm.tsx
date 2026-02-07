@@ -25,7 +25,7 @@ const PayPalPaymentForm: React.FC<PayPalPaymentFormProps> = ({
   isPublic = false,
   publicToken = null,
 }) => {
-  const { paypalIntegration } = usePaymentIntegrations() as any;
+  const { paypalIntegration } = usePaymentIntegrations();
   const [error, setError] = useState<string | null>(null);
 
   // PayPal SDK options
@@ -38,12 +38,12 @@ const PayPalPaymentForm: React.FC<PayPalPaymentFormProps> = ({
   /**
    * Create PayPal order
    */
-  const createOrder = async (data: any, actions: any) => {
+  const createOrder = async (_data: any, _actions: any) => {
     try {
       setError(null);
 
       // Create order on backend
-      const { order_id } = await (invoicesAPI as any).createPayPalOrder({
+      const { order_id } = await (invoicesAPI as unknown as Record<string, Function>).createPayPalOrder({
         invoiceId,
         amount,
         currency,
@@ -61,12 +61,12 @@ const PayPalPaymentForm: React.FC<PayPalPaymentFormProps> = ({
   /**
    * Capture PayPal order (after approval)
    */
-  const onApprove = async (data: any, actions: any) => {
+  const onApprove = async (data: any, _actions: any) => {
     try {
       setError(null);
 
       // Confirm payment on backend
-      const result = await (invoicesAPI as any).confirmPayment({
+      const result = await (invoicesAPI as unknown as Record<string, Function>).confirmPayment({
         invoiceId,
         paymentMethod: 'paypal',
         paypalOrderId: data.orderID,

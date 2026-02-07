@@ -4,8 +4,6 @@ import { useInvoices } from '../../../contexts/InvoiceContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import invoicesAPI from '../../../services/api/finance/invoices';
 
-const invoicesAPIAny = invoicesAPI as any;
-
 interface SendInvoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -13,8 +11,8 @@ interface SendInvoiceModalProps {
 }
 
 const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, invoice }) => {
-  const { refresh } = useInvoices() as any;
-  const { showSuccess, showError } = useNotification() as any;
+  const { refresh } = useInvoices();
+  const { showSuccess, showError } = useNotification();
 
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
@@ -22,7 +20,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, in
   const [message, setMessage] = useState('');
   const [attachPdf, setAttachPdf] = useState(true);
   const [sending, setSending] = useState(false);
-  const [preview, setPreview] = useState<any>(null);
+  const [, setPreview] = useState<any>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
   useEffect(() => {
@@ -42,9 +40,9 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, in
 
     try {
       setLoadingPreview(true);
-      const data = await invoicesAPIAny.previewEmail(invoice.id);
+      const data = await invoicesAPI.previewEmail(invoice.id, {});
       setSubject(data.subject || `Invoice ${invoice.invoice_number}`);
-      setMessage(data.message || getDefaultMessage());
+      setMessage(data.body || getDefaultMessage());
       setPreview(data);
     } catch (error: any) {
       console.error('Error loading email preview:', error);
@@ -76,7 +74,7 @@ Thank you for your business!`;
 
     try {
       setSending(true);
-      await invoicesAPIAny.send(invoice.id, {
+      await invoicesAPI.send(invoice.id, {
         to,
         cc: cc || undefined,
         subject,
