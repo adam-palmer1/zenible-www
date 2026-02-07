@@ -1,0 +1,20 @@
+// CRM hooks index
+export { useContacts } from './useContacts';
+export { useContactFields } from './useContactFields';
+export { useContactStatuses } from './useContactStatuses';
+export { useServices } from './useServices';
+export { useCurrencies } from './useCurrencies';
+export { useCompanyCurrencies } from './useCompanyCurrencies';
+export { useContactNotes } from './useContactNotes';
+export { useContactActivities } from './useContactActivities';
+export { useContactFinancials } from './useContactFinancials';
+export { useProjects } from './useProjects';
+export { useProjectsFilters } from './useProjectsFilters';
+export { useEntityFilters } from './useEntityFilters';
+export { useVendorsFilters } from './useVendorsFilters';
+export { useClientsFilters } from './useClientsFilters';
+export { useCRMFilters } from './useCRMFilters';
+export { useContactServices } from './useContactServices';
+export { useServicesFilters } from './useServicesFilters';
+export { useBillableHours } from './useBillableHours';
+export { useServiceEnums } from './useServiceEnums';

@@ -27,7 +27,11 @@
       "Bash(jq:*)",
       "WebFetch(domain:localhost)",
       "Bash(npx eslint:*)",
-      "WebFetch(domain:api.zenible.com)"
+      "WebFetch(domain:api.zenible.com)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx vite build:*)"
     ],
     "deny": [],
     "ask": []
