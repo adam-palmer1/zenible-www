@@ -23,30 +23,26 @@ interface ChartPoint {
  * Currency Exchange Widget for Dashboard
  * Shows live exchange rate with optional historical graph
  */
-const CurrencyExchangeWidget = ({ settings = {}, widgetId: _widgetId = 'currency-exchange' }: CurrencyExchangeWidgetProps) => {
+const CurrencyExchangeWidget = ({ settings = {}, widgetId = 'currency-exchange' }: CurrencyExchangeWidgetProps) => {
   const { convert } = useCurrencyConversion();
   const { defaultCurrency: companyDefaultCurrency, loading: currencyLoading } = useCompanyCurrencies();
-  usePreferences();
+  const { updatePreference } = usePreferences();
   const [rate, setRate] = useState<number | null>(null);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hoveredPoint, setHoveredPoint] = useState<ChartPoint | null>(null);
-  const [isSwapped, setIsSwapped] = useState(false);
   const chartRef = useRef<SVGSVGElement>(null);
 
   // Determine currencies - wait for company currency to load
   const companyCode = companyDefaultCurrency?.currency?.code;
-  const baseFromCurrency = settings.fromCurrency || companyCode || 'GBP';
-  const baseToCurrency = settings.toCurrency || (baseFromCurrency === 'EUR' ? 'USD' : 'EUR');
+  const fromCurrency = settings.fromCurrency || companyCode || 'GBP';
+  const toCurrency = settings.toCurrency || (fromCurrency === 'EUR' ? 'USD' : 'EUR');
 
-  // Apply swap if active
-  const fromCurrency = isSwapped ? baseToCurrency : baseFromCurrency;
-  const toCurrency = isSwapped ? baseFromCurrency : baseToCurrency;
-
-  // Handle swap click
+  // Handle swap click - save swapped currencies to preferences
   const handleSwap = () => {
-    setIsSwapped(!isSwapped);
+    const newSettings = { ...settings, fromCurrency: toCurrency, toCurrency: fromCurrency };
+    updatePreference(`dashboard_widget_settings_${widgetId}`, newSettings, 'dashboard');
   };
   const showGraph = settings.showGraph !== false;
   const graphDays = settings.graphDays || 7;

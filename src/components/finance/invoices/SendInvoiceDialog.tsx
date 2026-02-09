@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import SendDocumentModal from '../shared/SendDocumentModal';
 import type { SendDocumentFormData } from '../shared/SendDocumentModal';
 import { useInvoices } from '../../../contexts/InvoiceContext';
+import { useInvoiceEmailPreview } from '../../../hooks/queries/useInvoiceEmailPreview';
 
 interface SendInvoiceDialogProps {
   isOpen: boolean;
@@ -19,6 +20,12 @@ const SendInvoiceDialog: React.FC<SendInvoiceDialogProps> = ({
   onSuccess
 }) => {
   const { sendInvoice } = useInvoices();
+
+  // ---- Fetch rendered email preview ----
+  const { data: emailPreview, isLoading: previewLoading } = useInvoiceEmailPreview(
+    invoice?.id,
+    { enabled: isOpen }
+  );
 
   // ---- Send handler (maps shared form data to the invoice API shape) ----
   const handleSend = useCallback(
@@ -81,6 +88,9 @@ const SendInvoiceDialog: React.FC<SendInvoiceDialogProps> = ({
       showSubjectField={true}
       bodyRequired={true}
       htmlPreview={true}
+      renderedContent={emailPreview ?? null}
+      renderedContentLoading={previewLoading}
+      useWysiwyg={true}
     />
   );
 };

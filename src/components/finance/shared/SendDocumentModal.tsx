@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, ReactNode, lazy, Suspense } from 'react';
 import DOMPurify from 'dompurify';
 import { X, Mail, Eye, Plus, Users } from 'lucide-react';
 import { useEffectiveTemplateQuery } from '../../../hooks/queries/useEmailTemplatesQuery';
 import { useNotification } from '../../../contexts/NotificationContext';
 import contactsAPI from '../../../services/api/crm/contacts';
+
+const RichTextEditor = lazy(() => import('../../shared/RichTextEditor'));
 
 const contactsAPIAny = contactsAPI as unknown as Record<string, Function>;
 
@@ -107,6 +109,24 @@ export interface SendDocumentModalProps {
   defaultFormValues?: Partial<Pick<SendDocumentFormData, 'email_subject' | 'email_body'>>;
 
   /**
+   * Pre-rendered email content with variables resolved.
+   * When provided, takes priority over effectiveTemplate for pre-filling subject/body.
+   */
+  renderedContent?: { subject: string; body: string } | null;
+
+  /**
+   * Whether the rendered content is still loading.
+   * Combined with loadingTemplate to show spinner.
+   */
+  renderedContentLoading?: boolean;
+
+  /**
+   * Use a WYSIWYG rich text editor for the email body instead of a plain textarea.
+   * Defaults to `false` for backward compatibility.
+   */
+  useWysiwyg?: boolean;
+
+  /**
    * Callback invoked when the user clicks Send.  Receives the current form
    * data.  Should return a promise – if the promise rejects the error message
    * is shown.  On resolve the modal closes automatically.
@@ -155,6 +175,9 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
   bodyRows = 8,
   renderPreviewExtra,
   defaultFormValues,
+  renderedContent,
+  renderedContentLoading = false,
+  useWysiwyg = false,
   onSend,
   onSendSuccess,
 }) => {
@@ -255,14 +278,14 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
         to_email: contact?.email || '',
         cc_emails: [],
         email_subject:
-          effectiveTemplate?.subject || defaultFormValues?.email_subject || '',
+          renderedContent?.subject || effectiveTemplate?.subject || defaultFormValues?.email_subject || '',
         email_body:
-          effectiveTemplate?.body || defaultFormValues?.email_body || '',
+          renderedContent?.body || effectiveTemplate?.body || defaultFormValues?.email_body || '',
         attach_pdf: true,
         template_id: effectiveTemplate?.id || null,
       });
     }
-  }, [isOpen, effectiveTemplate, contact, defaultFormValues]);
+  }, [isOpen, effectiveTemplate, contact, defaultFormValues, renderedContent]);
 
   // ---- Handlers ----
   const handleChange = useCallback(
@@ -434,7 +457,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
 
           {/* Body */}
           <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)] space-y-4">
-            {loadingTemplate ? (
+            {(loadingTemplate || renderedContentLoading) ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary"></div>
               </div>
@@ -564,16 +587,29 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     {bodyLabel}
                   </label>
-                  <textarea
-                    name="email_body"
-                    value={formData.email_body}
-                    onChange={handleChange}
-                    rows={bodyRows}
-                    placeholder={bodyPlaceholder}
-                    disabled={isSending}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-transparent dark:bg-gray-700 dark:text-white font-mono text-sm resize-none disabled:opacity-50"
-                    required={bodyRequired}
-                  />
+                  {useWysiwyg ? (
+                    <Suspense fallback={<div className="h-[250px] border border-gray-300 dark:border-gray-600 rounded-lg animate-pulse bg-gray-100 dark:bg-gray-700" />}>
+                      <RichTextEditor
+                        value={formData.email_body}
+                        onChange={(html) =>
+                          setFormData((prev) => ({ ...prev, email_body: html }))
+                        }
+                        disabled={isSending}
+                        placeholder={bodyPlaceholder}
+                      />
+                    </Suspense>
+                  ) : (
+                    <textarea
+                      name="email_body"
+                      value={formData.email_body}
+                      onChange={handleChange}
+                      rows={bodyRows}
+                      placeholder={bodyPlaceholder}
+                      disabled={isSending}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-transparent dark:bg-gray-700 dark:text-white font-mono text-sm resize-none disabled:opacity-50"
+                      required={bodyRequired}
+                    />
+                  )}
                 </div>
 
                 {/* Extra fields (render prop) */}
@@ -692,6 +728,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
                 <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                   {htmlPreview ? (
                     <div
+                      className="[&_p]:mb-3 [&_p:last-child]:mb-0 [&_h1]:mb-2 [&_h2]:mb-2 [&_h3]:mb-2 [&_ul]:mb-3 [&_ol]:mb-3"
                       dangerouslySetInnerHTML={{
                         __html: DOMPurify.sanitize(formData.email_body),
                       }}

@@ -4,6 +4,7 @@ import type { SendDocumentFormData } from '../shared/SendDocumentModal';
 import { useQuotes } from '../../../contexts/QuoteContext';
 import quotesAPI from '../../../services/api/finance/quotes';
 import { formatCurrency } from '../../../utils/currency';
+import { useQuoteEmailPreview } from '../../../hooks/queries/useQuoteEmailPreview';
 
 interface SendQuoteModalProps {
   isOpen: boolean;
@@ -20,6 +21,12 @@ interface SendQuoteModalProps {
  */
 const SendQuoteModal: React.FC<SendQuoteModalProps> = ({ isOpen, onClose, quote }) => {
   const { refresh } = useQuotes();
+
+  // ---- Fetch rendered email preview ----
+  const { data: emailPreview, isLoading: previewLoading } = useQuoteEmailPreview(
+    quote?.id,
+    { enabled: isOpen }
+  );
 
   // ---- Send handler (maps shared form data to the quote API shape) ----
   const handleSend = useCallback(
@@ -95,6 +102,9 @@ const SendQuoteModal: React.FC<SendQuoteModalProps> = ({ isOpen, onClose, quote 
       showSubjectField={true}
       bodyRequired={true}
       htmlPreview={true}
+      renderedContent={emailPreview ?? null}
+      renderedContentLoading={previewLoading}
+      useWysiwyg={true}
     />
   );
 };

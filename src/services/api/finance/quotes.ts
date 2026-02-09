@@ -43,6 +43,16 @@ const quotesAPI = {
   },
 
   /**
+   * Preview email before sending
+   */
+  async previewEmail(quoteId: string): Promise<{ subject: string; body: string }> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}/${quoteId}/preview-email`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
+
+  /**
    * Send quote via email (DRAFT -> SENT)
    */
   async send(quoteId: string, emailData: unknown): Promise<QuoteSendResponse> {
