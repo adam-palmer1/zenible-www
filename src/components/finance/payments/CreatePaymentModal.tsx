@@ -3,6 +3,7 @@ import { X, CreditCard, Loader2, User, DollarSign, Calendar, FileText, ChevronDo
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { PAYMENT_METHOD, PAYMENT_METHOD_LABELS } from '../../../constants/finance';
+import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import ContactSelectorModal from '../../calendar/ContactSelectorModal';
 import paymentsAPI from '../../../services/api/finance/payments';
@@ -415,13 +416,9 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
                 <Calendar className="h-4 w-4" />
                 Payment Date
               </label>
-              <input
-                type="date"
-                name="payment_date"
+              <DatePickerCalendar
                 value={formData.payment_date}
-                onChange={handleChange}
-                autoComplete="off"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                onChange={(date) => handleChange({ target: { name: 'payment_date', value: date } } as React.ChangeEvent<HTMLInputElement>)}
               />
             </div>
             <div className="relative space-y-2">

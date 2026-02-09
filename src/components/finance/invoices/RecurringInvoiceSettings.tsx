@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, XCircle, ChevronDown, Check, Calendar, Mail, Paperclip } from 'lucide-react';
 import { RECURRING_TYPE, RECURRING_TYPE_LABELS } from '../../../constants/finance';
+import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { getRecurringFrequencyLabel, calculateNextBillingDate } from '../../../utils/recurringBilling';
 
 const RECURRING_STATUS = {
@@ -266,11 +267,10 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
                     className="text-zenible-primary focus:ring-zenible-primary"
                   />
                   <span className="design-text-primary">On</span>
-                  <input
-                    type="date"
+                  <DatePickerCalendar
                     value={recurringEndDate || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      handleChange('recurringEndDate', e.target.value);
+                    onChange={(date) => {
+                      handleChange('recurringEndDate', date);
                       handleChange('recurringOccurrences', null);
                     }}
                     className="px-3 py-1.5 design-input rounded-md flex-1"

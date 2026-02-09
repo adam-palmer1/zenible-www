@@ -99,10 +99,11 @@ const ContactBasicFields: React.FC<ContactBasicFieldsProps> = ({ formData, onCha
             Country Code
           </label>
           <input
-            type="text"
+            type="tel"
             name="country_code"
             value={formData.country_code || '+44'}
             onChange={handleChange}
+            onInput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9+\s]/g, ''); }}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary"
             placeholder="+44"
           />
@@ -117,6 +118,7 @@ const ContactBasicFields: React.FC<ContactBasicFieldsProps> = ({ formData, onCha
             name="phone"
             value={formData.phone || ''}
             onChange={handleChange}
+            onInput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9\s\-()+.]/g, ''); }}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary"
             placeholder="7700 900000"
           />

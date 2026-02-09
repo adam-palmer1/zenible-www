@@ -191,6 +191,13 @@ export const authAPI = {
 
     if (!response.ok) {
       const error = await response.json();
+      if (response.status === 429) {
+        const detail = error.detail;
+        const retryAfter = typeof detail === 'object' ? detail.retry_after : 60;
+        const err = new Error(typeof detail === 'object' ? detail.message : 'Please wait before requesting another password reset');
+        (err as Error & { retryAfter?: number }).retryAfter = retryAfter;
+        throw err;
+      }
       throw new Error(extractErrorMessage(error, 'Request failed'));
     }
 
@@ -210,7 +217,7 @@ export const authAPI = {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || error.message || 'Failed to set password');
+      throw new Error(extractErrorMessage(error, 'Failed to set password'));
     }
 
     return response.json();

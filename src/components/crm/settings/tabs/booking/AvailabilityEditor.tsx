@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import TimePickerInput from '../../../../shared/TimePickerInput';
 import bookingSettingsAPI from '../../../../../services/api/crm/bookingSettings';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 
@@ -181,18 +182,14 @@ const AvailabilityEditor = ({ callTypeId = null }: { callTypeId?: string | null 
                 <div className="space-y-2">
                   {dayWindows.map((window) => (
                     <div key={window.id} className="flex items-center gap-2">
-                      <input
-                        type="time"
+                      <TimePickerInput
                         value={formatTime(window.start_time)}
-                        onChange={(e) => updateWindow(window.id, 'start_time', e.target.value)}
-                        className="px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                        onChange={(time) => updateWindow(window.id, 'start_time', time)}
                       />
                       <span className="text-gray-500 dark:text-gray-400">to</span>
-                      <input
-                        type="time"
+                      <TimePickerInput
                         value={formatTime(window.end_time)}
-                        onChange={(e) => updateWindow(window.id, 'end_time', e.target.value)}
-                        className="px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                        onChange={(time) => updateWindow(window.id, 'end_time', time)}
                       />
                       <button
                         onClick={() => removeWindow(window.id)}

@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { adminPaymentsAPI } from '../../services/adminAPI';
 import { useModalState } from '../../hooks/useModalState';
 import { LoadingSpinner } from '../shared';
+import DatePickerCalendar from '../shared/DatePickerCalendar';
 import type { PaymentStats, PaymentList } from '../../types/auth';
 import type { PaymentResponse } from '../../types/finance';
 
@@ -294,26 +295,14 @@ export default function PaymentTracking() {
 
               {statsDateRange === 'custom' && (
                 <>
-                  <input
-                    type="date"
+                  <DatePickerCalendar
                     value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    className={`px-3 py-2 rounded-lg border text-sm ${
-                      darkMode
-                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                    onChange={(date) => setCustomStartDate(date)}
                   />
                   <span className={darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}>to</span>
-                  <input
-                    type="date"
+                  <DatePickerCalendar
                     value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    className={`px-3 py-2 rounded-lg border text-sm ${
-                      darkMode
-                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                    onChange={(date) => setCustomEndDate(date)}
                   />
                 </>
               )}
@@ -527,18 +516,12 @@ export default function PaymentTracking() {
                   <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                     Start Date
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerCalendar
                     value={startDate}
-                    onChange={(e) => {
-                      setStartDate(e.target.value);
+                    onChange={(date) => {
+                      setStartDate(date);
                       setPage(1);
                     }}
-                    className={`w-full px-3 py-2 rounded-lg border ${
-                      darkMode
-                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
                   />
                 </div>
 
@@ -547,18 +530,12 @@ export default function PaymentTracking() {
                   <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                     End Date
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerCalendar
                     value={endDate}
-                    onChange={(e) => {
-                      setEndDate(e.target.value);
+                    onChange={(date) => {
+                      setEndDate(date);
                       setPage(1);
                     }}
-                    className={`w-full px-3 py-2 rounded-lg border ${
-                      darkMode
-                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
                   />
                 </div>
               </div>

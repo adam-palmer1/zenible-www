@@ -8,6 +8,7 @@ import { formatCurrency } from '../../utils/currencyUtils';
 import BillableHourEntry from './BillableHourEntry';
 import BillableHourModal from './BillableHourModal';
 import ConfirmationModal from '../common/ConfirmationModal';
+import DatePickerCalendar from '../shared/DatePickerCalendar';
 import { LoadingSpinner } from '../shared';
 
 interface BillableHoursTabProps {
@@ -172,20 +173,14 @@ const BillableHoursTab: React.FC<BillableHoursTabProps> = ({
         </label>
 
         <div className="flex items-center gap-2">
-          <input
-            type="date"
+          <DatePickerCalendar
             value={startDate}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStartDate(e.target.value)}
-            placeholder="Start Date"
-            className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            onChange={(date) => setStartDate(date)}
           />
           <span className="text-gray-500">-</span>
-          <input
-            type="date"
+          <DatePickerCalendar
             value={endDate}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEndDate(e.target.value)}
-            placeholder="End Date"
-            className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            onChange={(date) => setEndDate(date)}
           />
         </div>
 

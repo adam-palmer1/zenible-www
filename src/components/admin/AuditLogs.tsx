@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
 import { LoadingSpinner } from '../shared';
+import DatePickerCalendar from '../shared/DatePickerCalendar';
 
 interface AdminOutletContext {
   darkMode: boolean;
@@ -129,19 +130,13 @@ export default function AuditLogs() {
               onChange={(e) => setFilters({ ...filters, action: e.target.value })}
               className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
             />
-            <input
-              type="date"
-              placeholder="Start Date"
+            <DatePickerCalendar
               value={filters.start_date}
-              onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
+              onChange={(date) => setFilters({ ...filters, start_date: date })}
             />
-            <input
-              type="date"
-              placeholder="End Date"
+            <DatePickerCalendar
               value={filters.end_date}
-              onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
+              onChange={(date) => setFilters({ ...filters, end_date: date })}
             />
             <button type="submit" className="px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90">
               Search

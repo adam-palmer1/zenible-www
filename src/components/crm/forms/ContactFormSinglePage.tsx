@@ -250,15 +250,17 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
           </label>
           <div className="flex gap-3">
             <input
-              type="text"
+              type="tel"
               placeholder="+44"
               {...register('country_code')}
+              onInput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9+\s]/g, ''); }}
               className="w-24 px-3 py-2.5 border-[1.5px] border-[#e5e5e5] rounded-[10px] text-sm focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white text-gray-900"
             />
             <input
               type="tel"
               placeholder="7700 900000"
               {...register('phone')}
+              onInput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9\s\-()+.]/g, ''); }}
               className="flex-1 px-3 py-2.5 border-[1.5px] border-[#e5e5e5] rounded-[10px] text-sm focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white text-gray-900"
             />
           </div>

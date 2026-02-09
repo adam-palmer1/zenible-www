@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Calendar, ChevronDown, X } from 'lucide-react';
+import DatePickerCalendar from '../../shared/DatePickerCalendar';
 
 /**
  * Helper to get last 30 days date range
@@ -279,22 +280,17 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">From</label>
-                  <input
-                    type="date"
+                  <DatePickerCalendar
                     value={customStart}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomStart(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-[#e5e5e5] dark:border-gray-600 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    onChange={(date) => setCustomStart(date)}
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">To</label>
-                  <input
-                    type="date"
+                  <DatePickerCalendar
                     value={customEnd}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomEnd(e.target.value)}
-                    min={customStart || undefined}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-[#e5e5e5] dark:border-gray-600 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    onChange={(date) => setCustomEnd(date)}
                   />
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { XMarkIcon, CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 
 type NotificationType = 'success' | 'error' | 'info' | 'warning';
@@ -122,46 +123,36 @@ const Toast = ({ notification, onClose, onAction }: ToastProps) => {
 };
 
 /**
- * Confirmation dialog component
+ * Confirmation dialog component - uses Radix UI Dialog so it properly
+ * stacks above other Radix Dialogs (each gets its own focus trap)
  */
 const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }: ConfirmDialogProps) => {
-  if (!isOpen) return null;
-
-  // Stop propagation to prevent parent modals from receiving click events
-  const stopPropagation = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
   return (
-    <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center"
-      onClick={stopPropagation}
-      onMouseDown={stopPropagation}
-      onPointerDown={stopPropagation}
-    >
-      <div className="fixed inset-0 bg-black/50" onClick={onCancel} />
-      <div
-        className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
-        onClick={stopPropagation}
-      >
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{title}</h3>
-        <p className="text-gray-600 dark:text-gray-300 mb-6">{message}</p>
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-          >
-            Confirm
-          </button>
-        </div>
-      </div>
-    </div>
+    <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-[10000]" />
+        <Dialog.Content
+          className="fixed left-[50%] top-[50%] z-[10000] translate-x-[-50%] translate-y-[-50%] bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6 focus:outline-none"
+        >
+          <Dialog.Title className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{title}</Dialog.Title>
+          <Dialog.Description className="text-gray-600 dark:text-gray-300 mb-6">{message}</Dialog.Description>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+            >
+              Confirm
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 };
 

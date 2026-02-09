@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import ContactSelectorModal from './ContactSelectorModal';
+import DatePickerCalendar from '../shared/DatePickerCalendar';
 import TimePickerInput from '../shared/TimePickerInput';
 import Combobox from '../ui/combobox/Combobox';
 import contactsAPI from '../../services/api/crm/contacts';
@@ -274,6 +275,8 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
 
     if (!formData.title.trim()) {
       newErrors.title = 'Title is required';
+    } else if (formData.title.length > 255) {
+      newErrors.title = 'Title must be 255 characters or less';
     }
 
     if (!formData.start_datetime) {
@@ -543,6 +546,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     disabled={isReadOnly}
+                    maxLength={255}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
                       errors.title ? 'border-red-300' : 'border-gray-300'
                     }`}
@@ -626,28 +630,23 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                       Start <span className="text-red-500">*</span>
                     </label>
                     {formData.all_day ? (
-                      <input
-                        type="date"
+                      <DatePickerCalendar
                         value={formData.start_datetime ? formData.start_datetime.split('T')[0] : ''}
-                        onChange={(e) => {
-                          setFormData({ ...formData, start_datetime: `${e.target.value}T00:00` });
+                        onChange={(date) => {
+                          setFormData({ ...formData, start_datetime: `${date}T00:00` });
                         }}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                          errors.start_datetime ? 'border-red-300' : 'border-gray-300'
-                        }`}
+                        error={!!errors.start_datetime}
                       />
                     ) : (
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="date"
+                      <div className="flex items-center gap-2">
+                        <DatePickerCalendar
                           value={formData.start_datetime ? formData.start_datetime.split('T')[0] : ''}
-                          onChange={(e) => {
+                          onChange={(date) => {
                             const time = formData.start_datetime ? formData.start_datetime.split('T')[1] : '09:00';
-                            setFormData({ ...formData, start_datetime: `${e.target.value}T${time}` });
+                            setFormData({ ...formData, start_datetime: `${date}T${time}` });
                           }}
-                          className={`px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                            errors.start_datetime ? 'border-red-300' : 'border-gray-300'
-                          }`}
+                          error={!!errors.start_datetime}
+                          className="flex-1"
                         />
                         <TimePickerInput
                           value={formData.start_datetime ? formData.start_datetime.split('T')[1] : ''}
@@ -670,28 +669,23 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                       End <span className="text-red-500">*</span>
                     </label>
                     {formData.all_day ? (
-                      <input
-                        type="date"
+                      <DatePickerCalendar
                         value={formData.end_datetime ? formData.end_datetime.split('T')[0] : ''}
-                        onChange={(e) => {
-                          setFormData({ ...formData, end_datetime: `${e.target.value}T23:59` });
+                        onChange={(date) => {
+                          setFormData({ ...formData, end_datetime: `${date}T23:59` });
                         }}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                          errors.end_datetime ? 'border-red-300' : 'border-gray-300'
-                        }`}
+                        error={!!errors.end_datetime}
                       />
                     ) : (
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="date"
+                      <div className="flex items-center gap-2">
+                        <DatePickerCalendar
                           value={formData.end_datetime ? formData.end_datetime.split('T')[0] : ''}
-                          onChange={(e) => {
+                          onChange={(date) => {
                             const time = formData.end_datetime ? formData.end_datetime.split('T')[1] : '10:00';
-                            setFormData({ ...formData, end_datetime: `${e.target.value}T${time}` });
+                            setFormData({ ...formData, end_datetime: `${date}T${time}` });
                           }}
-                          className={`px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                            errors.end_datetime ? 'border-red-300' : 'border-gray-300'
-                          }`}
+                          error={!!errors.end_datetime}
+                          className="flex-1"
                         />
                         <TimePickerInput
                           value={formData.end_datetime ? formData.end_datetime.split('T')[1] : ''}
@@ -969,11 +963,9 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                           </label>
                           {recurringEndType === 'until' && (
                             <div className="ml-6">
-                              <input
-                                type="date"
+                              <DatePickerCalendar
                                 value={recurringUntil}
-                                onChange={(e) => setRecurringUntil(e.target.value)}
-                                className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                                onChange={(date) => setRecurringUntil(date)}
                               />
                             </div>
                           )}

@@ -8,6 +8,8 @@ import { useContactActions } from '../../contexts/ContactActionsContext';
 import appointmentsAPI from '../../services/api/crm/appointments';
 import { useNotification } from '../../contexts/NotificationContext';
 import ConfirmationModal from '../common/ConfirmationModal';
+import DatePickerCalendar from '../shared/DatePickerCalendar';
+import TimePickerInput from '../shared/TimePickerInput';
 
 interface AppointmentItem {
   id: string;
@@ -283,23 +285,18 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Date
               </label>
-              <input
-                type="date"
+              <DatePickerCalendar
                 value={appointmentDate}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAppointmentDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary dark:bg-gray-700 dark:text-white"
+                onChange={(date) => setAppointmentDate(date)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Time
               </label>
-              <input
-                type="time"
+              <TimePickerInput
                 value={appointmentTime}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAppointmentTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary dark:bg-gray-700 dark:text-white"
+                onChange={(time) => setAppointmentTime(time)}
               />
             </div>
             <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 dark:border-gray-700">

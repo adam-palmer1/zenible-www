@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Calendar, Loader2, ArrowLeft, ChevronDown, Settings } from 'lucide-react';
 import { useQuotes } from '../../../contexts/QuoteContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
+import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
@@ -540,13 +541,9 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
             Quote Date<span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <input
-              type="date"
+            <DatePickerCalendar
               value={quoteDate}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuoteDate(e.target.value)}
-              autoComplete="off"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              required
+              onChange={(date) => setQuoteDate(date)}
             />
             <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
@@ -558,13 +555,9 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
             Valid Until
           </label>
           <div className="relative">
-            <input
-              type="date"
+            <DatePickerCalendar
               value={validUntil}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValidUntil(e.target.value)}
-              min={quoteDate}
-              autoComplete="off"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              onChange={(date) => setValidUntil(date)}
             />
             <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           </div>

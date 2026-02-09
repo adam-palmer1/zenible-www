@@ -157,11 +157,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const forgotPassword = async (email: string): Promise<AuthResult> => {
     setError(null);
     try {
-      await authAPI.forgotPassword(email);
-      return { success: true };
+      const response = await authAPI.forgotPassword(email);
+      return { success: true, data: response };
     } catch (err) {
-      setError((err as Error).message);
-      return { success: false, error: (err as Error).message };
+      const error = err as Error & { retryAfter?: number };
+      setError(error.message);
+      return { success: false, error: error.message, data: { retryAfter: error.retryAfter } };
     }
   };
 

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Calendar, ChevronDown, X, Filter } from 'lucide-react';
 import { useReports } from '../../../contexts/ReportsContext';
+import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import {
   TRANSACTION_TYPES,
   UNIFIED_STATUSES,
@@ -197,20 +198,16 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ startDate, endDate, o
             <div className="border-t border-gray-200 p-3 space-y-2">
               <div>
                 <label className="block text-xs text-[#71717a] mb-1">Start Date</label>
-                <input
-                  type="date"
+                <DatePickerCalendar
                   value={startDate || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => onCustomChange({ start_date: e.target.value })}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                  onChange={(date) => onCustomChange({ start_date: date })}
                 />
               </div>
               <div>
                 <label className="block text-xs text-[#71717a] mb-1">End Date</label>
-                <input
-                  type="date"
+                <DatePickerCalendar
                   value={endDate || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => onCustomChange({ end_date: e.target.value })}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                  onChange={(date) => onCustomChange({ end_date: date })}
                 />
               </div>
               <button

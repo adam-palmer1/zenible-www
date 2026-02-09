@@ -19,8 +19,10 @@ export const contactSchema = z.object({
     .refine(val => val === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), 'Invalid email format'),
 
   // Phone
-  country_code: z.string().optional(),
-  phone: z.string().optional(),
+  country_code: z.string().optional()
+    .refine(val => !val || /^[+\d\s]*$/.test(val), 'Country code must contain only digits and +'),
+  phone: z.string().optional()
+    .refine(val => !val || /^[\d\s\-()+.]*$/.test(val), 'Phone number must contain only digits, spaces, and punctuation'),
 
   // Address
   address_line_1: z.string().optional(),

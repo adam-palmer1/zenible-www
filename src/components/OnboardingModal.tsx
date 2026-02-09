@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePreferences } from '../contexts/PreferencesContext';
 import customizationAPI from '../services/customizationAPI';
+import DatePickerCalendar from './shared/DatePickerCalendar';
 
 // Figma SVG assets - converted from localhost to data URIs
 const sparkleIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28' fill='none'%3E%3Cpath d='M14 2L16.29 9.71L24 12L16.29 14.29L14 22L11.71 14.29L4 12L11.71 9.71L14 2Z' fill='%238e51ff'/%3E%3C/svg%3E";
@@ -435,17 +436,10 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
       case 'date':
         return (
-          <input
-            type="date"
+          <DatePickerCalendar
             value={value as string}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            className={`w-full px-4 py-3 rounded-lg border ${
-              error
-                ? 'border-red-500 focus:ring-red-500'
-                : darkMode
-                ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                : 'bg-white border-gray-300 text-gray-900'
-            } focus:outline-none focus:ring-2 focus:ring-zenible-primary`}
+            onChange={(date) => handleAnswerChange(question.id, date)}
+            error={!!error}
           />
         );
 

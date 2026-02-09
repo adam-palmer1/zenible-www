@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import DatePickerCalendar from '../shared/DatePickerCalendar';
 
 interface DateTab {
   id: string;
@@ -18,6 +19,7 @@ interface PageHeaderProps {
 }
 
 export default function PageHeader({ darkMode }: PageHeaderProps) {
+  const [selectedDate, setSelectedDate] = useState('2024-11-06');
   return (
     <>
       {/* Page Title Section */}
@@ -30,14 +32,9 @@ export default function PageHeader({ darkMode }: PageHeaderProps) {
           darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'
         }`}>Dashboard</h1>
         <div className="flex items-center gap-2">
-          <input
-            type="date"
-            className={`h-12 px-4 rounded-xl border font-inter text-sm outline-none focus:border-zenible-primary ${
-              darkMode
-                ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                : 'bg-white border-neutral-200 text-zinc-950'
-            }`}
-            defaultValue="2024-11-06"
+          <DatePickerCalendar
+            value={selectedDate}
+            onChange={(date) => setSelectedDate(date)}
           />
           <button className="h-12 px-6 bg-zenible-primary text-white rounded-xl font-inter font-semibold text-sm hover:bg-purple-600 transition-colors">
             Download

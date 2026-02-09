@@ -3,6 +3,7 @@ import { X, DollarSign, Loader2, ChevronDown, Building2, Banknote, FileText, Cre
 import { useNotification } from '../../../contexts/NotificationContext';
 import { formatCurrency } from '../../../utils/currency';
 import paymentsAPI from '../../../services/api/finance/payments';
+import DatePickerCalendar from '../../shared/DatePickerCalendar';
 
 interface PaymentMethod {
   value: string;
@@ -233,13 +234,9 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
                     <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
                       Payment Date <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="date"
+                    <DatePickerCalendar
                       value={formData.payment_date}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, payment_date: e.target.value })}
-                      max={maxDate}
-                      disabled={submitting}
-                      className="w-full px-3 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 rounded-md"
+                      onChange={(date) => setFormData({ ...formData, payment_date: date })}
                       required
                     />
                   </div>

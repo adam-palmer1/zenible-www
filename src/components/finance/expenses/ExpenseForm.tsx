@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Save, X, Loader2, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { useExpenses } from '../../../contexts/ExpenseContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
+import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { useProjects } from '../../../hooks/crm/useProjects';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
@@ -566,13 +567,9 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
               <label className="block text-sm font-medium design-text-primary mb-2">
                 Date <span className="text-red-500">*</span>
               </label>
-              <input
-                type="date"
+              <DatePickerCalendar
                 value={expenseDate}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExpenseDate(e.target.value)}
-                autoComplete="off"
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                required
+                onChange={(date) => setExpenseDate(date)}
               />
             </div>
 

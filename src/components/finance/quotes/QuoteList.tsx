@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import {
   Search,
   Filter,
@@ -630,18 +631,16 @@ const QuoteList: React.FC = () => {
                     <div className="p-3 border-b border-gray-200">
                       <div className="text-sm font-medium text-gray-700 mb-2">Custom Range</div>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="date"
+                        <DatePickerCalendar
                           value={customDateFrom}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleCustomDateChange(e.target.value, customDateTo)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          onChange={(date) => handleCustomDateChange(date, customDateTo)}
+                          className="flex-1"
                         />
                         <span className="text-gray-400">to</span>
-                        <input
-                          type="date"
+                        <DatePickerCalendar
                           value={customDateTo}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleCustomDateChange(customDateFrom, e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          onChange={(date) => handleCustomDateChange(customDateFrom, date)}
+                          className="flex-1"
                         />
                       </div>
                     </div>

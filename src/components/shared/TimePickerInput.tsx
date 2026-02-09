@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 interface TimePickerInputProps {
@@ -16,6 +17,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
   const [selectedHour, setSelectedHour] = useState('09');
   const [selectedMinute, setSelectedMinute] = useState('00');
   const [selectedPeriod, setSelectedPeriod] = useState('AM');
+  const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLDivElement>(null);
 
@@ -32,6 +34,28 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
       setSelectedPeriod(isPM ? 'PM' : 'AM');
     }
   }, [value]);
+
+  const updatePosition = useCallback(() => {
+    if (inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      const dropdownHeight = 280;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openAbove = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
+
+      if (openAbove) {
+        setDropdownPos({ bottom: window.innerHeight - rect.top + 8, left: rect.left });
+      } else {
+        setDropdownPos({ top: rect.bottom + 8, left: rect.left });
+      }
+    }
+  }, []);
+
+  const handleOpen = () => {
+    if (!isOpen) {
+      updatePosition();
+    }
+    setIsOpen(!isOpen);
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -75,7 +99,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
       {/* Input Display */}
       <div
         ref={inputRef}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleOpen}
         className={`flex items-center justify-between px-3 py-2 border rounded-lg cursor-pointer focus-within:ring-2 focus-within:ring-purple-500 focus-within:border-transparent ${
           error ? 'border-red-300' : 'border-gray-300'
         } ${className}`}
@@ -86,19 +110,27 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
         <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} />
       </div>
 
-      {/* Dropdown Picker */}
-      {isOpen && (
+      {/* Dropdown Picker - rendered via portal to escape modal overflow */}
+      {isOpen && createPortal(
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setIsOpen(false)} />
           <div
             ref={dropdownRef}
-            className="absolute z-50 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4 w-64"
+            style={{
+              position: 'fixed',
+              left: dropdownPos.left,
+              ...(dropdownPos.top != null ? { top: dropdownPos.top } : {}),
+              ...(dropdownPos.bottom != null ? { bottom: dropdownPos.bottom } : {}),
+              width: 256,
+              zIndex: 9999,
+            }}
+            className="bg-white border border-gray-300 rounded-lg shadow-lg p-4"
           >
             <div className="flex gap-2 mb-4">
               {/* Hour Selector */}
               <div className="flex-1">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Hour</label>
-                <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto">
+                <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto scrollbar-hide">
                   {hours.map((hour) => (
                     <button
                       key={hour}
@@ -117,7 +149,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
               {/* Minute Selector */}
               <div className="flex-1">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Minute</label>
-                <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto">
+                <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto scrollbar-hide">
                   {minutes.map((minute) => (
                     <button
                       key={minute}
@@ -168,7 +200,8 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
               Apply
             </button>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );

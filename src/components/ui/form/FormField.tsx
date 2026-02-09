@@ -41,6 +41,7 @@ const FormField: React.FC<FormFieldProps> = ({
         }`}
         {...register(name, registerOptions)}
         {...inputProps}
+        {...(type === 'tel' ? { onInput: (e: React.FormEvent<HTMLInputElement>) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9\s\-()+.]/g, ''); } } : {})}
       />
       {error && (
         <p className="mt-1 text-sm text-red-600">{error.message as string}</p>

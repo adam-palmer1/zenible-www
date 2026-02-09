@@ -339,7 +339,10 @@ export default function Calendar() {
         queryParams.occurrence_date = selectedAppointment.start_datetime;
       }
 
-      await updateAppointment(selectedAppointment.id, updateData, queryParams);
+      const result = await updateAppointment(selectedAppointment.id, updateData, queryParams);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update appointment');
+      }
 
       if (selectedEditScope || appointmentData.recurrence) {
         const { startDate, endDate } = getDateRange();
@@ -349,7 +352,11 @@ export default function Calendar() {
       const createData = { ...appointmentData };
       delete createData.status;
 
-      await createAppointment(createData);
+      const result = await createAppointment(createData);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create appointment');
+      }
+
       if (appointmentData.recurrence) {
         const { startDate, endDate } = getDateRange();
         await fetchAppointmentsForDateRange(startDate, endDate);

@@ -42,7 +42,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
   const [activeTab, setActiveTab] = useState('basic');
 
   // Get company countries for dropdown
-  const { companyCountries, defaultCountry, loading: countriesLoading } = useCountries();
+  const { countries, companyCountries, defaultCountry, loading: countriesLoading } = useCountries();
   const defaultCountryId = defaultCountry?.country?.id || null;
   const [taxRates, setTaxRates] = useState(contact?.contact_taxes || []);
   const [showTaxDropdown, setShowTaxDropdown] = useState(false);
@@ -393,7 +393,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <FormField name="email" label="Email" type="email" placeholder="john@example.com" />
               <div className="grid grid-cols-3 gap-2">
-                <FormField name="country_code" label="Country Code" type="text" placeholder="+44" />
+                <FormField name="country_code" label="Country Code" type="tel" placeholder="+44" />
                 <FormField name="phone" label="Phone Number" type="tel" placeholder="7700 900000" className="col-span-2" />
               </div>
             </div>
@@ -414,7 +414,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Country</label>
                 <Combobox
-                  options={companyCountries.map((cc: any) => ({ id: cc.country.id, label: cc.country.name }))}
+                  options={countries.map((c: any) => ({ id: c.id, label: c.name }))}
                   value={watch('country_id') || ''}
                   onChange={(value: any) => setValue('country_id', value || null)}
                   placeholder="Select country..."

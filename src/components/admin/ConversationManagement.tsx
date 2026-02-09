@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
 import { LoadingSpinner } from '../shared';
+import DatePickerCalendar from '../shared/DatePickerCalendar';
 
 interface AdminOutletContext {
   darkMode: boolean;
@@ -205,20 +206,14 @@ export default function ConversationManagement() {
 
           {/* Second Row */}
           <div className="flex items-center gap-3">
-            <input
-              type="date"
-              placeholder="Start Date"
+            <DatePickerCalendar
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
+              onChange={(date) => setStartDate(date)}
             />
 
-            <input
-              type="date"
-              placeholder="End Date"
+            <DatePickerCalendar
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
+              onChange={(date) => setEndDate(date)}
             />
 
             <input

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
+import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import ClientSelectModal from './ClientSelectModal';
 import CurrencySelectModal from './CurrencySelectModal';
 
@@ -120,12 +121,9 @@ const InvoiceFormHeader: React.FC<InvoiceFormHeaderProps> = ({
           Invoice Date<span className="text-red-500">*</span>
         </label>
         <div className="relative">
-          <input
-            type="date"
+          <DatePickerCalendar
             value={invoiceDate}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onInvoiceDateChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            required
+            onChange={(date) => onInvoiceDateChange(date)}
           />
           <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
         </div>
@@ -137,12 +135,9 @@ const InvoiceFormHeader: React.FC<InvoiceFormHeaderProps> = ({
           Due Date<span className="text-red-500">*</span>
         </label>
         <div className="relative">
-          <input
-            type="date"
+          <DatePickerCalendar
             value={dueDate}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onDueDateChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            required
+            onChange={(date) => onDueDateChange(date)}
           />
           <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
         </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import customizationAPI from '../services/customizationAPI';
 import { usePreferences } from '../contexts/PreferencesContext';
+import DatePickerCalendar from './shared/DatePickerCalendar';
 
 interface QuestionsApiResponse {
   questions: CustomizationQuestion[];
@@ -429,13 +430,10 @@ const CustomizationQuestions: React.FC<CustomizationQuestionsProps> = ({
 
       case 'date':
         return (
-          <input
-            type="date"
+          <DatePickerCalendar
             value={value}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-              fieldError ? 'border-red-300' : 'border-gray-300'
-            }`}
+            onChange={(date) => handleAnswerChange(question.id, date)}
+            error={!!fieldError}
           />
         );
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usePreferences } from '../contexts/PreferencesContext';
 import planAPI from '../services/planAPI';
 import { LoadingSpinner } from './shared';
+import DatePickerCalendar from './shared/DatePickerCalendar';
 
 export default function PaymentHistory() {
   const { darkMode } = usePreferences();
@@ -356,18 +357,12 @@ export default function PaymentHistory() {
                 <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                   Start Date
                 </label>
-                <input
-                  type="date"
+                <DatePickerCalendar
                   value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
+                  onChange={(date) => {
+                    setStartDate(date);
                     setCurrentPage(1);
                   }}
-                  className={`w-full px-3 py-2 rounded-lg border ${
-                    darkMode
-                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
                 />
               </div>
 
@@ -375,18 +370,12 @@ export default function PaymentHistory() {
                 <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                   End Date
                 </label>
-                <input
-                  type="date"
+                <DatePickerCalendar
                   value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
+                  onChange={(date) => {
+                    setEndDate(date);
                     setCurrentPage(1);
                   }}
-                  className={`w-full px-3 py-2 rounded-lg border ${
-                    darkMode
-                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
                 />
               </div>
             </div>

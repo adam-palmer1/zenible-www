@@ -16,8 +16,8 @@ export const ROLE_OPTIONS: FilterOption[] = [
 
 export const ROLE_FILTER_OPTIONS: FilterOption[] = [
   { id: '', label: 'All Roles' },
-  { id: 'ADMIN', label: 'Admin' },
-  { id: 'USER', label: 'User' },
+  { id: 'admin', label: 'Admin' },
+  { id: 'user', label: 'User' },
 ];
 
 export const ACTIVE_FILTER_OPTIONS: FilterOption[] = [

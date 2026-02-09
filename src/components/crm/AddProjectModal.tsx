@@ -4,6 +4,7 @@ import Modal from '../ui/modal/Modal';
 import { useCRM } from '../../contexts/CRMContext';
 import { useProjects, useCompanyCurrencies } from '../../hooks/crm';
 import { useNotification } from '../../contexts/NotificationContext';
+import DatePickerCalendar from '../shared/DatePickerCalendar';
 import {
   PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
@@ -387,12 +388,9 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Start Date
                 </label>
-                <input
-                  type="date"
-                  name="start_date"
+                <DatePickerCalendar
                   value={formData.start_date}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  onChange={(date) => handleChange({ target: { name: 'start_date', value: date } } as React.ChangeEvent<HTMLInputElement>)}
                 />
               </div>
 
@@ -400,12 +398,9 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   End Date
                 </label>
-                <input
-                  type="date"
-                  name="end_date"
+                <DatePickerCalendar
                   value={formData.end_date}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  onChange={(date) => handleChange({ target: { name: 'end_date', value: date } } as React.ChangeEvent<HTMLInputElement>)}
                 />
                 {errors.end_date && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.end_date}</p>}
               </div>

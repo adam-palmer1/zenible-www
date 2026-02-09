@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -62,8 +62,28 @@ export default function ForgotPassword() {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<boolean>(false);
   const [, setIsDarkMode] = useState<boolean>(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { forgotPassword } = useAuth();
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (cooldownSeconds > 0) {
+      cooldownRef.current = setInterval(() => {
+        setCooldownSeconds((prev) => {
+          if (prev <= 1) {
+            if (cooldownRef.current) clearInterval(cooldownRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
+    };
+  }, [cooldownSeconds > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dark mode detection
   useEffect(() => {
@@ -95,6 +115,11 @@ export default function ForgotPassword() {
     return true;
   };
 
+  const startCooldown = (seconds: number) => {
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    setCooldownSeconds(seconds);
+  };
+
   const handleSubmit = async (e: React.FormEvent | React.KeyboardEvent) => {
     e.preventDefault();
     setError('');
@@ -110,7 +135,13 @@ export default function ForgotPassword() {
 
       if (result.success) {
         setSuccess(true);
+        const cooldown = (result.data as { cooldown?: number })?.cooldown || 60;
+        startCooldown(cooldown);
       } else {
+        const data = result.data as { retryAfter?: number } | undefined;
+        if (data?.retryAfter) {
+          startCooldown(data.retryAfter);
+        }
         setError(result.error || 'Failed to send reset email. Please try again.');
       }
     } catch (err) {
@@ -129,9 +160,14 @@ export default function ForgotPassword() {
       const result = await forgotPassword(email);
 
       if (result.success) {
-        // Show brief confirmation
         setSuccess(true);
+        const cooldown = (result.data as { cooldown?: number })?.cooldown || 60;
+        startCooldown(cooldown);
       } else {
+        const data = result.data as { retryAfter?: number } | undefined;
+        if (data?.retryAfter) {
+          startCooldown(data.retryAfter);
+        }
         setError(result.error || 'Failed to resend email. Please try again.');
       }
     } catch (err) {
@@ -147,6 +183,8 @@ export default function ForgotPassword() {
       handleSubmit(e);
     }
   };
+
+  const isCooldownActive = cooldownSeconds > 0;
 
   return (
     <div
@@ -217,9 +255,9 @@ export default function ForgotPassword() {
                 {/* Submit Button */}
                 <button
                   onClick={handleSubmit}
-                  disabled={isLoading || !email.trim()}
+                  disabled={isLoading || !email.trim() || isCooldownActive}
                   className={`bg-[#8e51ff] dark:bg-[#a684ff] flex items-center justify-center p-[12px] rounded-[12px] w-full transition-colors ${
-                    isLoading || !email.trim()
+                    isLoading || !email.trim() || isCooldownActive
                       ? 'opacity-50 cursor-not-allowed'
                       : 'cursor-pointer hover:bg-[#7a3fe6] dark:hover:bg-[#9370ff]'
                   }`}
@@ -231,7 +269,7 @@ export default function ForgotPassword() {
                     </div>
                   ) : (
                     <span className="font-inter font-medium text-[16px] leading-[24px] text-white">
-                      Check email
+                      {isCooldownActive ? `Resend in ${cooldownSeconds}s` : 'Check email'}
                     </span>
                   )}
                 </button>
@@ -244,12 +282,12 @@ export default function ForgotPassword() {
                 </span>
                 <button
                   onClick={handleResend}
-                  disabled={isResending || !email.trim()}
+                  disabled={isResending || !email.trim() || isCooldownActive}
                   className={`font-inter font-semibold text-[14px] leading-[22px] text-[#8e51ff] dark:text-[#a684ff] hover:underline ${
-                    isResending || !email.trim() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                    isResending || !email.trim() || isCooldownActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                   }`}
                 >
-                  {isResending ? 'Sending...' : 'Resend'}
+                  {isResending ? 'Sending...' : isCooldownActive ? `Resend in ${cooldownSeconds}s` : 'Resend'}
                 </button>
               </div>
             </div>
