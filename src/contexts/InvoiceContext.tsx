@@ -14,6 +14,8 @@ interface InvoiceFilters {
   due_date_from: string | null;
   due_date_to: string | null;
   parent_invoice_id: string | null;
+  pricing_type: string | null;
+  is_parent_only: boolean | null;
 }
 
 export interface Invoice {
@@ -85,7 +87,8 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
   const doc = useDocumentState<InvoiceFilters>({
     name: 'Invoice',
     apiService: invoicesAPI as unknown as DocumentStateConfig<InvoiceFilters>['apiService'],
-    paginationStyle: 'skip-limit',
+    paginationStyle: 'page-perpage',
+    sortParamName: 'sort_order',
     defaultSort: 'created_at',
     preferencePrefix: 'invoice',
     defaultFilters: {
@@ -99,6 +102,8 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
       due_date_from: null,
       due_date_to: null,
       parent_invoice_id: null,
+      pricing_type: null,
+      is_parent_only: null,
     },
     onFetchSuccess: (response) => {
       if (response.stats) {

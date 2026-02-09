@@ -22,7 +22,7 @@ import InvoiceListTable from './InvoiceListTable';
 const InvoiceList: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { invoices, loading, deleteInvoice, updateFilters, cloneInvoice, filters } = useInvoices();
+  const { invoices, loading, deleteInvoice, updateFilters, cloneInvoice, filters, pagination, setPagination } = useInvoices();
 
   // Derive filterStatus from context filters for UI display
   const filterStatus = filters.overdue_only ? 'overdue'
@@ -68,7 +68,8 @@ const InvoiceList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClientIds, setSelectedClientIds] = useState<any[]>([]);
   const [clientSearchQuery, setClientSearchQuery] = useState('');
-  const [showRecurringOnly, setShowRecurringOnly] = useState(false);
+  // Derive recurring filter state from server-side filters
+  const showRecurringOnly = filters.pricing_type === 'recurring';
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [selectedIds, setSelectedIds] = useState<any[]>([]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -85,8 +86,6 @@ const InvoiceList: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null); // 'bulk' or invoice object
   const [isDownloading, setIsDownloading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
   const [parentTemplateInfo, setParentTemplateInfo] = useState<any>(null);
 
   // Track previous parentInvoiceId to detect changes from value -> null
@@ -356,43 +355,33 @@ const InvoiceList: React.FC = () => {
     return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
   }, [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Apply recurring filter (client-side — no server-side equivalent)
-  const filteredInvoices = useMemo(() => {
-    if (!showRecurringOnly) return invoices;
-    return invoices.filter((inv: any) => inv.pricing_type === 'recurring' || inv.is_recurring);
-  }, [invoices, showRecurringOnly]);
-
-  // Reset page when filters change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filters.status, filters.outstanding_only, filters.overdue_only, datePreset, customDateFrom, customDateTo, selectedClientIds, showRecurringOnly]);
-
-  // Use server-side pagination, fallback to client-side for recurring filter
-  const totalPages = showRecurringOnly
-    ? Math.ceil(filteredInvoices.length / itemsPerPage)
-    : Math.ceil((invoices.length > 0 ? invoices.length : 1) / itemsPerPage);
-  const paginatedInvoices = useMemo(() => {
-    if (showRecurringOnly) {
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      return filteredInvoices.slice(startIndex, startIndex + itemsPerPage);
+  // Toggle recurring filter (server-side)
+  const handleSetShowRecurringOnly = useCallback((value: boolean) => {
+    if (value) {
+      updateFilters({ pricing_type: 'recurring', is_parent_only: true });
+    } else {
+      updateFilters({ pricing_type: null, is_parent_only: null });
     }
-    // Server handles pagination; invoices already represents the current page
-    return filteredInvoices;
-  }, [filteredInvoices, currentPage, itemsPerPage, showRecurringOnly]);
+  }, [updateFilters]);
+
+  // Reset page when filters change (server-side pagination is reset by updateFilters in context)
+
+  // Pagination is always server-driven
+  const totalPages = Math.ceil((pagination.total || 1) / pagination.limit);
 
   const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
+    setPagination(prev => ({ ...prev, page }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  }, [setPagination]);
 
   // Selection handlers
   const handleSelectAll = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(paginatedInvoices.map((inv: any) => inv.id));
+      setSelectedIds(invoices.map((inv: any) => inv.id));
     } else {
       setSelectedIds([]);
     }
-  }, [paginatedInvoices]);
+  }, [invoices]);
 
   const handleSelectOne = useCallback((invoiceId: any) => {
     setSelectedIds(prev =>
@@ -644,7 +633,7 @@ const InvoiceList: React.FC = () => {
           onCloseFilterDropdown={() => setShowFilterDropdown(false)}
           updateFilters={updateFilters}
           showRecurringOnly={showRecurringOnly}
-          onSetShowRecurringOnly={setShowRecurringOnly}
+          onSetShowRecurringOnly={handleSetShowRecurringOnly}
           parentInvoiceId={parentInvoiceId}
           parentTemplateInfo={parentTemplateInfo}
           onClearParentFilter={clearParentFilter}
@@ -658,7 +647,7 @@ const InvoiceList: React.FC = () => {
         {/* Table */}
         <InvoiceListTable
           loading={loading}
-          paginatedInvoices={paginatedInvoices}
+          paginatedInvoices={invoices}
           selectedIds={selectedIds}
           onSelectAll={handleSelectAll}
           onSelectOne={handleSelectOne}
@@ -673,10 +662,10 @@ const InvoiceList: React.FC = () => {
           openActionMenuId={openActionMenuId}
           onSetOpenActionMenuId={setOpenActionMenuId}
           formatNumber={formatNumber}
-          currentPage={currentPage}
+          currentPage={pagination.page}
           totalPages={totalPages}
-          itemsPerPage={itemsPerPage}
-          filteredInvoicesLength={filteredInvoices.length}
+          itemsPerPage={pagination.limit}
+          filteredInvoicesLength={pagination.total}
           onPageChange={handlePageChange}
         />
       </div>

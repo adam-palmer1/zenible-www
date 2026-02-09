@@ -113,8 +113,8 @@ export default function UsageLimitBadge({
     const data = getEntityLimit(entityType);
     if (!data) return null;
     current = data.current ?? 0;
+    isUnlimited = data.limit === null || data.limit === undefined || data.limit === -1;
     limit = data.limit ?? 0;
-    isUnlimited = limit === null || limit === -1;
     label = formatEntityLabel(entityType);
   } else if (characterId) {
     // For AI features - compare character limit vs total AI limit, show the greater limit
@@ -149,8 +149,8 @@ export default function UsageLimitBadge({
   } else if (aiUsage) {
     if (!aiData?.total) return null;
     current = aiData.total.current ?? 0;
+    isUnlimited = aiData.total.limit === null || aiData.total.limit === undefined;
     limit = aiData.total.limit ?? 0;
-    isUnlimited = limit === null;
     label = 'AI messages';
   } else {
     return null;

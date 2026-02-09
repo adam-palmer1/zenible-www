@@ -77,6 +77,12 @@ export interface DocumentStateConfig<TFilters extends object> {
    */
   paginationStyle?: PaginationStyle;
 
+  /**
+   * Override the sort-direction param name for page-perpage style.
+   * @default 'sort_direction'
+   */
+  sortParamName?: string;
+
   /** Default value for sortBy, e.g. 'created_at', 'expense_date' */
   defaultSort: string;
 
@@ -180,6 +186,7 @@ export function useDocumentState<TFilters extends object>(
     name,
     apiService,
     paginationStyle = 'page-perpage',
+    sortParamName,
     defaultSort,
     defaultSortOrder = 'desc',
     preferencePrefix,
@@ -275,7 +282,7 @@ export function useDocumentState<TFilters extends object>(
         params.page = pagination.page;
         params.per_page = pagination.limit;
         params.sort_by = sortBy;
-        params.sort_direction = sortOrder;
+        params[sortParamName ?? 'sort_direction'] = sortOrder;
       }
 
       // Add filter params
