@@ -54,7 +54,7 @@ export default function PlanPickerStep({
           No plans available at the moment. You can select a plan later in settings.
         </p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[350px] overflow-y-auto pr-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {availablePlans.map((plan) => {
             const isSelecting = subscribing && selectedPlanId === plan.id;
             const isFree = parseFloat(plan.monthly_price) === 0;

@@ -144,7 +144,13 @@ class PlanAPI {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: response.statusText }));
-        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+        const detail = error.detail;
+        const message = typeof detail === 'string'
+          ? detail
+          : typeof detail === 'object' && detail !== null
+            ? Object.entries(detail).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('; ')
+            : error.message || `HTTP error! status: ${response.status}`;
+        throw new Error(message);
       }
 
       return await response.json();
