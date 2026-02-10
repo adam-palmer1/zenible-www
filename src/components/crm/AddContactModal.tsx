@@ -4,6 +4,7 @@ import ContactFormTabbed from './forms/ContactFormTabbed';
 import { useCRM } from '../../contexts/CRMContext';
 import { useContacts, useContactStatuses, useCompanyCurrencies } from '../../hooks/crm';
 import taxesAPI from '../../services/api/crm/taxes';
+import contactsAPI from '../../services/api/crm/contacts';
 
 interface AddContactModalProps {
   isOpen: boolean;
@@ -71,7 +72,22 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, cont
       if (fullContact) {
         await updateContact(fullContact.id, formData);
       } else {
-        await createContact(formData);
+        // Extract notes before creating contact
+        const { notes, ...contactData } = formData;
+        const newContact = await createContact(contactData) as any;
+
+        // If notes were provided, create a Note record
+        if (notes?.trim() && newContact?.id) {
+          try {
+            await contactsAPI.createNote(newContact.id, {
+              title: 'Contact Creation Note',
+              content: notes.trim(),
+            });
+          } catch (noteError) {
+            console.error('Failed to create initial note:', noteError);
+            // Don't fail the whole operation if note creation fails
+          }
+        }
       }
 
       // Refresh CRM list to reflect changes

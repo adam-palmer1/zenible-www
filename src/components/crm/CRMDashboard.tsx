@@ -109,7 +109,7 @@ const CRMDashboard: React.FC = () => {
     handleSortOrderChange,
     handleColumnReorder,
     clearAllFilters,
-  } = useCRMFilters([], filters as unknown as Record<string, unknown>);
+  } = useCRMFilters([], filters as unknown as Record<string, unknown>, allStatuses.map(s => s.id));
 
   // Clients Filters Hook - Manages clients tab filter state
   const clientsFilters = useClientsFilters();

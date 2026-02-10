@@ -4,7 +4,6 @@ import Modal from '../ui/modal/Modal';
 import statusesAPI from '../../services/api/crm/statuses';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useModalState } from '../../hooks/useModalState';
-import ConfirmationModal from '../common/ConfirmationModal';
 import type { SimpleStatusResponse, AvailableStatuses } from '../../types/crm';
 
 interface StatusData extends SimpleStatusResponse {
@@ -405,10 +404,10 @@ const StatusFormModal: React.FC<StatusFormModalProps> = ({ status, onClose, onSu
   );
 };
 
-// Delete Status Modal
+// Delete Status Modal - uses Radix Modal for proper focus management when stacked
 const DeleteStatusModal: React.FC<DeleteStatusModalProps> = ({ status, onClose, onSuccess }) => {
   const { showSuccess, showError } = useNotification();
-  const [, setDeleting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [contactCount, setContactCount] = useState<number | null>(null);
 
   const handleDelete = async () => {
@@ -431,34 +430,53 @@ const DeleteStatusModal: React.FC<DeleteStatusModalProps> = ({ status, onClose, 
   };
 
   return (
-    <ConfirmationModal
-      isOpen={true}
-      onClose={onClose}
-      onConfirm={handleDelete}
+    <Modal
+      open={true}
+      onOpenChange={(open: boolean) => !open && onClose()}
       title="Delete Custom Status?"
-      message={
-        contactCount !== null ? (
-          <div>
-            <p className="mb-2">Cannot delete this status.</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {contactCount} contact(s) are currently using this status. Please reassign these contacts to a different status before deleting.
-            </p>
-          </div>
-        ) : (
-          <div>
-            <p className="mb-2">Are you sure you want to delete "{status.friendly_name}"?</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              This action cannot be undone. If contacts are using this status, you'll need to reassign them first.
-            </p>
-          </div>
-        )
-      }
-      confirmText={contactCount !== null ? 'OK' : 'Delete Status'}
-      cancelText="Cancel"
-      confirmColor="red"
-      icon={TrashIcon}
-      iconColor="text-red-600"
-    />
+      size="md"
+    >
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0">
+          <TrashIcon className="h-6 w-6 text-red-600" />
+        </div>
+        <div className="flex-1">
+          {contactCount !== null ? (
+            <div>
+              <p className="mb-2 text-sm text-gray-900 dark:text-white">Cannot delete this status.</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {contactCount} contact(s) are currently using this status. Please reassign these contacts to a different status before deleting.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p className="mb-2 text-sm text-gray-900 dark:text-white">Are you sure you want to delete &quot;{status.friendly_name}&quot;?</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                This action cannot be undone. If contacts are using this status, you&apos;ll need to reassign them first.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3 mt-6">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+        >
+          {contactCount !== null ? 'OK' : deleting ? 'Deleting...' : 'Delete Status'}
+        </button>
+      </div>
+    </Modal>
   );
 };
 

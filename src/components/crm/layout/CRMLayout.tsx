@@ -41,7 +41,7 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ header, children, refreshKey, sav
 
       {/* Main Content */}
       <div
-        className="flex-1 flex flex-col transition-all duration-300"
+        className="flex-1 min-w-0 flex flex-col transition-all duration-300"
         style={{ marginLeft: 'var(--sidebar-width, 280px)' }}
       >
         {/* Header Section */}

@@ -40,10 +40,13 @@ const ServiceValueDisplay: React.FC<ServiceValueDisplayProps> = ({ oneOffTotal, 
     : 'text-gray-700 dark:text-gray-300';
 
   return (
-    <div className="flex items-center gap-1">
-      <span className={`text-sm font-medium ${textColorClass}`}>
-        {parts.join(' + ')}
-      </span>
+    <div className={`flex flex-wrap items-center gap-x-1 text-sm font-medium ${textColorClass}`}>
+      {parts.map((part, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <span>+</span>}
+          <span className="whitespace-nowrap">{part}</span>
+        </React.Fragment>
+      ))}
     </div>
   );
 };

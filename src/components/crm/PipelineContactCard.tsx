@@ -144,7 +144,7 @@ const PipelineContactCardContentInner: React.FC<PipelineContactCardContentProps>
         <div className="px-4 pt-3 pb-3 border-t border-[#e5e5e5] dark:border-gray-700 space-y-2">
           {/* Pending Services */}
           {contact.pending_services_count > 0 && (
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-x-2">
               <span className="text-xs text-amber-600 dark:text-amber-400">
                 {contact.pending_services_count} pending{' '}
                 {contact.pending_services_count === 1 ? 'service' : 'services'}
@@ -160,7 +160,7 @@ const PipelineContactCardContentInner: React.FC<PipelineContactCardContentProps>
           {/* Confirmed Services - ready to start */}
           {contact.confirmed_services_count > 0 &&
             (contact.confirmed_one_off_total || contact.confirmed_recurring_total) && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-x-2">
                 <span className="text-xs text-zenible-primary">
                   {contact.confirmed_services_count} confirmed{' '}
                   {contact.confirmed_services_count === 1 ? 'service' : 'services'}
@@ -176,7 +176,7 @@ const PipelineContactCardContentInner: React.FC<PipelineContactCardContentProps>
           {/* Active Services - being worked on */}
           {contact.active_services_count > 0 &&
             (contact.active_one_off_total || contact.active_recurring_total) && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-x-2">
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {contact.active_services_count} active{' '}
                   {contact.active_services_count === 1 ? 'service' : 'services'}

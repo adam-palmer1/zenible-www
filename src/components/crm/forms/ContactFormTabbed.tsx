@@ -397,7 +397,9 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
                 <FormField name="phone" label="Phone Number" type="tel" placeholder="7700 900000" className="col-span-2" />
               </div>
             </div>
-            <FormTextarea name="notes" label="Notes" rows={3} placeholder="Additional notes about this contact..." />
+            {!contact && (
+              <FormTextarea name="notes" label="Notes" rows={3} placeholder="Additional notes about this contact..." />
+            )}
           </div>
         )}
 

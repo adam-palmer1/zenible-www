@@ -209,20 +209,6 @@ const ContactBasicFields: React.FC<ContactBasicFieldsProps> = ({ formData, onCha
         </label>
       </div>
 
-      {/* Notes */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Notes
-        </label>
-        <textarea
-          name="notes"
-          value={formData.notes || ''}
-          onChange={handleChange}
-          rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary"
-          placeholder="Additional notes about this contact..."
-        />
-      </div>
     </div>
   );
 };

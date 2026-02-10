@@ -14,7 +14,7 @@ import { useDebouncedPreference } from '../useDebouncedPreference';
  *
  * Replaces ~200 lines of filter management code in CRMDashboard
  */
-export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, unknown> = {}) {
+export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, unknown> = {}, availableStatusIds: string[] = []) {
   const { getPreference, initialized: preferencesInitialized } = usePreferences();
   const { updatePreference: updateDebouncedPreference } = useDebouncedPreference(500);
 
@@ -52,6 +52,19 @@ export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preferencesInitialized, filtersLoaded]);
+
+  // Clean up stale status IDs that no longer exist
+  useEffect(() => {
+    if (filtersLoaded && availableStatusIds.length > 0 && selectedStatuses.length > 0) {
+      const validStatuses = selectedStatuses.filter(id => availableStatusIds.includes(id));
+      if (validStatuses.length !== selectedStatuses.length) {
+        setSelectedStatuses(validStatuses);
+        updateDebouncedPreference('crm_status', validStatuses, 'crm').catch(err =>
+          console.error('[useCRMFilters] Failed to clean up stale status IDs:', err)
+        );
+      }
+    }
+  }, [filtersLoaded, availableStatusIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Build contact filters for CRM tab
   // - has_crm_status=true: Only fetch contacts that have been assigned to the CRM pipeline

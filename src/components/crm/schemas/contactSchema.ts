@@ -134,7 +134,6 @@ export const getContactDefaultValues = (
       postcode: contact.postcode || '',
       country: contact.country || '',
       country_id: contact.country_id || null,
-      notes: contact.notes || '',
       // Company/Tax information
       registration_number: contact.registration_number || '',
       tax_number: contact.tax_number || '',

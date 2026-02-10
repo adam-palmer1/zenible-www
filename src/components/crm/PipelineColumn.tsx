@@ -106,6 +106,7 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
   // Get currency from first contact (all should be in default currency)
   const totalCurrency = contacts[0]?.total_value_currency || 'GBP';
 
+
   // Get status color
   const statusColor = getStatusColor(status);
 

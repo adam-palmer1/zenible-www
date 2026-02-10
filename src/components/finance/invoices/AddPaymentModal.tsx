@@ -237,7 +237,6 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
                     <DatePickerCalendar
                       value={formData.payment_date}
                       onChange={(date) => setFormData({ ...formData, payment_date: date })}
-                      required
                     />
                   </div>
                 </div>
