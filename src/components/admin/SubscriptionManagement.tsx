@@ -23,9 +23,10 @@ interface FilterDropdownProps {
 const STATUS_FILTER_OPTIONS: FilterOption[] = [
   { id: '', label: 'All Statuses' },
   { id: 'ACTIVE', label: 'Active' },
-  { id: 'cancelled', label: 'Cancelled' },
-  { id: 'past_due', label: 'Past Due' },
-  { id: 'trialing', label: 'Trialing' },
+  { id: 'CANCELED', label: 'Cancelled' },
+  { id: 'PAST_DUE', label: 'Past Due' },
+  { id: 'TRIALING', label: 'Trialing' },
+  { id: 'PENDING_CANCELLATION', label: 'Pending Cancel' },
 ];
 
 const SORT_BY_OPTIONS: FilterOption[] = [
@@ -150,9 +151,9 @@ export default function SubscriptionManagement() {
         sort_by: sortBy,
         sort_dir: sortDir,
       };
-      const response = await adminSubscriptionsAPI.getSubscriptions(params) as SubscriptionList;
-      setSubscriptions(response.subscriptions || []);
-      setTotalPages(response.pages || 1);
+      const response = await adminSubscriptionsAPI.getSubscriptions(params) as SubscriptionList & { items?: any[]; total_pages?: number };
+      setSubscriptions(response.subscriptions || response.items || []);
+      setTotalPages(response.pages || response.total_pages || 1);
       setTotalSubscriptions(response.total || 0);
     } catch (err: any) {
       setError(err.message);
@@ -368,6 +369,16 @@ export default function SubscriptionManagement() {
             </div>
           ) : error ? (
             <div className="text-red-500 text-center py-12">Error: {error}</div>
+          ) : subscriptions.length === 0 ? (
+            <div className={`text-center py-12 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+              <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-40" />
+              <p className="text-lg font-medium">No subscriptions found</p>
+              <p className="text-sm mt-1">
+                {statusFilter || planFilter || search
+                  ? 'Try adjusting your filters or search terms.'
+                  : 'No subscriptions have been created yet.'}
+              </p>
+            </div>
           ) : (
             <table className="w-full">
               <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
@@ -395,14 +406,21 @@ export default function SubscriptionManagement() {
                       {sub.plan?.name || 'N/A'}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        sub.cancel_at_period_end ? 'bg-yellow-100 text-yellow-800' :
-                        sub.status === 'active' ? 'bg-green-100 text-green-800' :
-                        sub.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {sub.cancel_at_period_end ? 'Pending Cancel' : sub.status}
-                      </span>
+                      {(() => {
+                        const status = (sub.status || '').toLowerCase();
+                        return (
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            sub.cancel_at_period_end ? 'bg-yellow-100 text-yellow-800' :
+                            status === 'active' ? 'bg-green-100 text-green-800' :
+                            status === 'canceled' || status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                            status === 'past_due' ? 'bg-orange-100 text-orange-800' :
+                            status === 'trialing' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {sub.cancel_at_period_end ? 'Pending Cancel' : sub.status}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                       {sub.billing_cycle}
@@ -414,7 +432,7 @@ export default function SubscriptionManagement() {
                       {formatDate(sub.current_period_end)}
                     </td>
                     <td className="px-6 py-4">
-                      {sub.status === 'active' && !sub.cancel_at_period_end && (
+                      {(sub.status || '').toLowerCase() === 'active' && !sub.cancel_at_period_end && (
                         <button onClick={() => openCancelModal(sub)} className="text-red-600 hover:text-red-900 text-sm">
                           Cancel
                         </button>

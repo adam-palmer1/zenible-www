@@ -20,6 +20,7 @@ import AddCurrencyModal from './first-sign-in/AddCurrencyModal';
 import TimezoneModal from './first-sign-in/TimezoneModal';
 import CompanyCountryModal from './first-sign-in/CompanyCountryModal';
 import NumberFormatModal from './first-sign-in/NumberFormatModal';
+import StripePaymentModal from './StripePaymentModal';
 
 interface FirstSignInModalProps {
   isOpen: boolean;
@@ -105,6 +106,14 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
   const [subscribing, setSubscribing] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
 
+  // Payment modal state
+  const [paymentModal, setPaymentModal] = useState<{
+    isOpen: boolean;
+    planId: string | null;
+    planName: string;
+    price: string;
+  }>({ isOpen: false, planId: null, planName: '', price: '' });
+
   // Load existing data on mount
   useEffect(() => {
     if (isOpen) {
@@ -183,21 +192,45 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
   const handleSelectPlan = async (planId: string) => {
     if (subscribing) return;
 
+    const selectedPlan = availablePlans.find(p => p.id === planId);
+    const isFree = selectedPlan && parseFloat(selectedPlan.monthly_price) === 0;
+
+    if (isFree) {
+      // Free plans don't need payment
+      try {
+        setSubscribing(true);
+        setSelectedPlanId(planId);
+        setPlanError(null);
+        await planAPI.createSubscription(planId, 'monthly');
+        setCurrentStep('complete');
+      } catch (_err) {
+        setPlanError((_err as Error).message || 'Failed to select plan. Please try again.');
+      } finally {
+        setSubscribing(false);
+        setSelectedPlanId(null);
+      }
+    } else {
+      // Paid plans: open Stripe payment modal
+      setPlanError(null);
+      setPaymentModal({
+        isOpen: true,
+        planId,
+        planName: selectedPlan?.name || 'Selected Plan',
+        price: (parseFloat(selectedPlan?.monthly_price) || 0).toFixed(2),
+      });
+    }
+  };
+
+  const handlePaymentSuccess = async (paymentMethodId: string) => {
     try {
       setSubscribing(true);
-      setSelectedPlanId(planId);
       setPlanError(null);
-
-      // Create new subscription
-      await planAPI.createSubscription(planId, 'monthly');
-
-      // Move to complete step
+      await planAPI.createSubscription(paymentModal.planId!, 'monthly', paymentMethodId);
       setCurrentStep('complete');
     } catch (_err) {
-      setPlanError((_err as Error).message || 'Failed to select plan. Please try again.');
+      setPlanError((_err as Error).message || 'Failed to create subscription. Please try again.');
     } finally {
       setSubscribing(false);
-      setSelectedPlanId(null);
     }
   };
 
@@ -710,6 +743,18 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
           onClose={() => setShowNumberFormatModal(false)}
         />
       )}
+
+      {/* Stripe Payment Modal */}
+      <StripePaymentModal
+        isOpen={paymentModal.isOpen}
+        onClose={() => setPaymentModal({ isOpen: false, planId: null, planName: '', price: '' })}
+        planName={paymentModal.planName}
+        planId={paymentModal.planId || ''}
+        price={paymentModal.price}
+        billingCycle="monthly"
+        onSuccess={handlePaymentSuccess}
+        onError={(error) => setPlanError(typeof error === 'string' ? error : error?.message || 'Payment failed. Please try again.')}
+      />
     </div>
   );
 }
