@@ -232,13 +232,14 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
       doc.setLoading(true);
       await expensesAPI.bulkDelete(expenseIds);
       doc.setItems(prev => prev.filter((e) => !expenseIds.includes((e as Expense).id)));
+      doc.refresh();
     } catch (err) {
       console.error('[ExpenseContext] Error bulk deleting expenses:', err);
       throw err;
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.setItems]);
+  }, [doc.setLoading, doc.setItems, doc.refresh]);
 
   const createCategory = useCallback(async (categoryData: unknown) => {
     try {
@@ -290,6 +291,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
       doc.setLoading(true);
       const newExpense = await expensesAPI.generateNext(expenseId);
       doc.setItems(prev => [newExpense, ...prev]);
+      doc.refresh();
       return newExpense;
     } catch (err) {
       console.error('[ExpenseContext] Error generating next expense:', err);
@@ -297,7 +299,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.setItems]);
+  }, [doc.setLoading, doc.setItems, doc.refresh]);
 
   const getRecurringChildren = useCallback(async (expenseId: string, params: unknown = {}) => {
     try {

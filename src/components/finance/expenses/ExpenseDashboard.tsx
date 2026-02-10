@@ -4,6 +4,8 @@ import { Plus, Upload, Receipt, DollarSign, Tag, AlertCircle } from 'lucide-reac
 import { useExpenses } from '../../../contexts/ExpenseContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
+import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
+import { getCurrencySymbol } from '../../../utils/currency';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
 import ExpenseList from './ExpenseList';
 import NewSidebar from '../../sidebar/NewSidebar';
@@ -52,6 +54,7 @@ const ExpenseDashboard: React.FC = () => {
   const { expenses, stats, categories, loading, filters } = useExpenses();
   const { numberFormats } = useCRMReferenceData();
   const { getNumberFormat } = useCompanyAttributes();
+  const { defaultCurrency } = useCompanyCurrencies();
   const [showImportModal, setShowImportModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
@@ -85,7 +88,7 @@ const ExpenseDashboard: React.FC = () => {
   const dateRangeLabel = getDateRangeLabel(filters.start_date, filters.end_date);
 
   const totalExpenses = stats?.total_count || expenses.length;
-  const currencySymbol = convertedTotal?.currency_symbol || '$';
+  const currencySymbol = convertedTotal?.currency_symbol || getCurrencySymbol(defaultCurrency?.currency?.code);
   const isLoading = loading;
 
   return (

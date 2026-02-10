@@ -63,27 +63,15 @@ const AddServiceModal: React.FC<AddServiceModalProps> = ({ isOpen, onClose, serv
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary"></div>
         </div>
       ) : (
-        <>
-          <ServiceForm
-            service={service}
-            defaultCurrency={defaultCurrency}
-            companyCurrencies={companyCurrencies}
-            onSubmit={handleSubmit}
-            loading={loading}
-            submitError={submitError}
-          />
-
-          {/* Cancel Button */}
-          <div className="flex items-center justify-start gap-3 -mt-2 pt-0">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </>
+        <ServiceForm
+          service={service}
+          defaultCurrency={defaultCurrency}
+          companyCurrencies={companyCurrencies}
+          onSubmit={handleSubmit}
+          onCancel={onClose}
+          loading={loading}
+          submitError={submitError}
+        />
       )}
     </Modal>
   );

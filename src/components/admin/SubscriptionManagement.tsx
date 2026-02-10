@@ -102,7 +102,7 @@ export default function SubscriptionManagement() {
 
   // Search and filter state
   const [search, setSearch] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
   const [planFilter, setPlanFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('created_at');
   const [sortDir, setSortDir] = useState<string>('desc');
@@ -119,6 +119,15 @@ export default function SubscriptionManagement() {
   useEffect(() => {
     fetchSubscriptions();
   }, [page, statusFilter, planFilter, sortBy, sortDir]);
+
+  // Debounced search - triggers fetch 400ms after user stops typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      fetchSubscriptions();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     fetchPlans();
@@ -169,12 +178,6 @@ export default function SubscriptionManagement() {
     } catch (err: any) {
       console.error('Error fetching plans:', err);
     }
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    fetchSubscriptions();
   };
 
   const getPlanFilterOptions = (): FilterOption[] => {
@@ -229,7 +232,7 @@ export default function SubscriptionManagement() {
       {/* Filters */}
       <div className="p-6">
         <div className={`p-4 rounded-xl border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
-          <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {/* Search Input */}
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
@@ -351,12 +354,7 @@ export default function SubscriptionManagement() {
               />
             </div>
 
-            {/* Search Button */}
-            <button type="submit" className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-              <Search className="h-4 w-4" />
-              Search
-            </button>
-          </form>
+          </div>
         </div>
       </div>
 

@@ -73,8 +73,21 @@ interface InvoiceContextValue {
 
 export const InvoiceContext = createContext<InvoiceContextValue | null>(null);
 
+// Default to last 30 days
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(today.getDate() - 29);
+  return {
+    start_date: thirtyDaysAgo.toISOString().split('T')[0],
+    end_date: today.toISOString().split('T')[0],
+  };
+};
+
 export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
   useAuth();
+
+  const defaultRange = getDefaultDateRange();
 
   // -------------------------------------------------------------------------
   // Invoice-specific state: stats (returned inline from list endpoint)
@@ -97,8 +110,8 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
       outstanding_only: null,
       overdue_only: null,
       contact_ids: null,
-      issue_date_from: null,
-      issue_date_to: null,
+      issue_date_from: defaultRange.start_date,
+      issue_date_to: defaultRange.end_date,
       due_date_from: null,
       due_date_to: null,
       parent_invoice_id: null,
@@ -111,6 +124,24 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
       }
     },
   });
+
+  // -------------------------------------------------------------------------
+  // Invoice-specific: createInvoice triggers refresh to update stats
+  // -------------------------------------------------------------------------
+  const createInvoice = useCallback(async (invoiceData: unknown) => {
+    try {
+      doc.setLoading(true);
+      const created = await invoicesAPI.create(invoiceData as import('@/types').InvoiceCreate);
+      doc.setItems(prev => [created, ...prev]);
+      doc.refresh();
+      return created;
+    } catch (err) {
+      console.error('[InvoiceContext] Error creating invoice:', err);
+      throw err;
+    } finally {
+      doc.setLoading(false);
+    }
+  }, [doc.setLoading, doc.setItems, doc.refresh]);
 
   // -------------------------------------------------------------------------
   // Invoice-specific: deleteInvoice triggers refresh to update stats
@@ -145,6 +176,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
       doc.setLoading(true);
       const updated = await invoicesAPI.update(invoiceId, invoiceData as import('@/types').InvoiceUpdate, changeReason);
       doc.setItems(prev => prev.map((inv) => (inv as Invoice).id === invoiceId ? updated : inv));
+      doc.refresh();
       return updated;
     } catch (err) {
       console.error('[InvoiceContext] Error updating invoice:', err);
@@ -152,7 +184,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.setItems]);
+  }, [doc.setLoading, doc.setItems, doc.refresh]);
 
   // -------------------------------------------------------------------------
   // Invoice-specific actions (using doc.setItems and doc.setLoading)
@@ -165,6 +197,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
         const item = inv as Invoice;
         return item.id === invoiceId ? { ...item, status: 'sent', sent_at: new Date().toISOString() } : inv;
       }));
+      doc.refresh();
       return result;
     } catch (err) {
       console.error('[InvoiceContext] Error sending invoice:', err);
@@ -172,7 +205,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.setItems]);
+  }, [doc.setLoading, doc.setItems, doc.refresh]);
 
   const sendReminder = useCallback(async (invoiceId: string, emailData: unknown) => {
     try {
@@ -203,6 +236,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
         const item = inv as Invoice;
         return item.id === invoiceId ? { ...item, status: 'paid', paid_at: new Date().toISOString() } : inv;
       }));
+      doc.refresh();
       return result;
     } catch (err) {
       console.error('[InvoiceContext] Error marking invoice as paid:', err);
@@ -210,13 +244,14 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.setItems]);
+  }, [doc.setLoading, doc.setItems, doc.refresh]);
 
   const cloneInvoice = useCallback(async (invoiceId: string) => {
     try {
       doc.setLoading(true);
       const cloned = await invoicesAPI.clone(invoiceId);
       doc.setItems(prev => [cloned, ...prev]);
+      doc.refresh();
       return cloned;
     } catch (err) {
       console.error('[InvoiceContext] Error cloning invoice:', err);
@@ -224,7 +259,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.setItems]);
+  }, [doc.setLoading, doc.setItems, doc.refresh]);
 
   // -------------------------------------------------------------------------
   // Context value - map shared doc state to InvoiceContext's existing API
@@ -246,7 +281,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
     // Shared CRUD (aliased)
     fetchInvoices: doc.fetchItems,
     getInvoice,
-    createInvoice: doc.createItem,
+    createInvoice,
     updateInvoice,
     deleteInvoice,
     // Invoice-specific actions

@@ -10,15 +10,28 @@ interface DatePickerCalendarProps {
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+const formatDisplay = (dateStr: string) => {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+};
+
 const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange, error = false, className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => {
     if (value) return new Date(value + 'T00:00:00');
     return new Date();
   });
+  const [inputText, setInputText] = useState(() => formatDisplay(value));
+  const isFocusedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  // Sync inputText and viewDate from value prop — but only when not actively typing
   useEffect(() => {
+    if (!isFocusedRef.current) {
+      setInputText(formatDisplay(value));
+    }
     if (value) {
       setViewDate(new Date(value + 'T00:00:00'));
     }
@@ -28,13 +41,14 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setInputText(formatDisplay(value));
       }
     };
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [isOpen]);
+  }, [isOpen, value]);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -52,14 +66,69 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
     const yyyy = selected.getFullYear();
     const mm = String(selected.getMonth() + 1).padStart(2, '0');
     const dd = String(selected.getDate()).padStart(2, '0');
-    onChange(`${yyyy}-${mm}-${dd}`);
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    onChange(dateStr);
+    setInputText(formatDisplay(dateStr));
     setIsOpen(false);
+    inputRef.current?.blur();
   };
 
-  const formatDisplay = (dateStr: string) => {
-    if (!dateStr) return '';
-    const [y, m, d] = dateStr.split('-');
-    return `${d}/${m}/${y}`;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const text = e.target.value;
+    setInputText(text);
+
+    // Progressive parsing of DD/MM/YYYY
+    const parts = text.split('/');
+
+    // Once we have month and year (at least partial), navigate the calendar view
+    if (parts.length >= 2) {
+      const mon = parseInt(parts[1], 10);
+      if (parts.length >= 3 && parts[2].length === 4) {
+        const yr = parseInt(parts[2], 10);
+        if (mon >= 1 && mon <= 12 && yr >= 1900 && yr <= 2100) {
+          setViewDate(new Date(yr, mon - 1, 1));
+
+          // If day is also complete, commit the full date
+          const day = parseInt(parts[0], 10);
+          if (parts[0].length >= 1 && day >= 1 && day <= 31) {
+            const parsed = new Date(yr, mon - 1, day);
+            if (parsed.getFullYear() === yr && parsed.getMonth() === mon - 1 && parsed.getDate() === day) {
+              const yyyy = String(yr);
+              const mm = String(mon).padStart(2, '0');
+              const dd = String(day).padStart(2, '0');
+              onChange(`${yyyy}-${mm}-${dd}`);
+            }
+          }
+        }
+      } else if (mon >= 1 && mon <= 12) {
+        // Navigate to the month in the current viewDate year
+        setViewDate(prev => new Date(prev.getFullYear(), mon - 1, 1));
+      }
+    }
+  };
+
+  const handleInputFocus = () => {
+    isFocusedRef.current = true;
+    if (!isOpen) setIsOpen(true);
+  };
+
+  const handleInputBlur = () => {
+    isFocusedRef.current = false;
+    // Restore display to the committed value
+    setInputText(formatDisplay(value));
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setIsOpen(false);
+      setInputText(formatDisplay(value));
+      inputRef.current?.blur();
+    } else if (e.key === 'Enter') {
+      // If the current text produced a valid date, close the picker
+      e.preventDefault();
+      setIsOpen(false);
+      inputRef.current?.blur();
+    }
   };
 
   const selectedDay = value ? new Date(value + 'T00:00:00') : null;
@@ -92,18 +161,26 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
   }
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div ref={containerRef} className={`relative min-w-[130px] ${className}`}>
       {/* Input */}
       <div
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { if (!isOpen) setIsOpen(true); }}
         className={`flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer hover:border-gray-400 transition-colors ${
           error ? 'border-red-300' : 'border-gray-300'
         } ${isOpen ? 'ring-2 ring-purple-500 border-transparent' : ''}`}
       >
         <CalendarIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
-        <span className={value ? 'text-gray-900 text-sm' : 'text-gray-400 text-sm'}>
-          {value ? formatDisplay(value) : 'Select date'}
-        </span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputText}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+          onKeyDown={handleInputKeyDown}
+          placeholder="DD/MM/YYYY"
+          className="bg-transparent border-none outline-none text-sm text-gray-900 placeholder-gray-400 w-full min-w-0 cursor-pointer focus:cursor-text"
+        />
       </div>
 
       {/* Calendar Dropdown */}

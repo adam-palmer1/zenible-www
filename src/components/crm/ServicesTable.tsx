@@ -1,9 +1,8 @@
 import React from 'react';
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { EllipsisVerticalIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../utils/currencyUtils';
-import { SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS } from '../../constants/crm';
-import type { ServiceStatus } from '../../constants/crm';
 import { LoadingSpinner } from '../shared';
+import Dropdown from '../ui/dropdown/Dropdown';
 
 interface ServicesTableProps {
   services?: any[];
@@ -47,11 +46,8 @@ const ServicesTable: React.FC<ServicesTableProps> = ({ services = [], onEdit, on
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                 Frequency
               </th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                Status
-              </th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                Actions
+              <th className="w-12 px-4 py-3">
+                <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
@@ -88,36 +84,46 @@ const ServicesTable: React.FC<ServicesTableProps> = ({ services = [], onEdit, on
                     : 'One-off'}
                 </span>
               </td>
-              <td className="px-4 py-4 whitespace-nowrap">
-                {service.status && (
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${SERVICE_STATUS_COLORS[service.status as ServiceStatus] || 'bg-gray-100 text-gray-800'}`}
+              <td className="px-4 py-4 whitespace-nowrap text-right">
+                {(onEdit || onDelete) && (
+                  <Dropdown
+                    trigger={
+                      <button
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                        className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                        aria-label="Service actions"
+                      >
+                        <EllipsisVerticalIcon className="h-5 w-5" />
+                      </button>
+                    }
+                    align="end"
+                    side="bottom"
                   >
-                    {SERVICE_STATUS_LABELS[service.status as ServiceStatus] || service.status}
-                  </span>
+                    {onEdit && (
+                      <Dropdown.Item
+                        onSelect={(e: Event) => {
+                          e.stopPropagation();
+                          onEdit(service);
+                        }}
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                        Edit Service
+                      </Dropdown.Item>
+                    )}
+                    {onDelete && (
+                      <Dropdown.Item
+                        onSelect={(e: Event) => {
+                          e.stopPropagation();
+                          onDelete(service);
+                        }}
+                        destructive
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                        Delete Service
+                      </Dropdown.Item>
+                    )}
+                  </Dropdown>
                 )}
-              </td>
-              <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <div className="flex items-center justify-end gap-2">
-                  {onEdit && (
-                    <button
-                      onClick={() => onEdit(service)}
-                      className="text-zenible-primary hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                      title="Edit service"
-                    >
-                      <PencilIcon className="h-5 w-5" />
-                    </button>
-                  )}
-                  {onDelete && (
-                    <button
-                      onClick={() => onDelete(service)}
-                      className="text-red-600 hover:text-red-900 dark:hover:text-red-400 transition-colors"
-                      title="Delete service"
-                    >
-                      <TrashIcon className="h-5 w-5" />
-                    </button>
-                  )}
-                </div>
               </td>
             </tr>
           ))}

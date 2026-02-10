@@ -53,7 +53,6 @@ const KnowledgeQuizzes = React.lazy(() => import('./components/quizzes/Knowledge
 const QuizAttemptPage = React.lazy(() => import('./components/quizzes/QuizAttemptPage'));
 const QuizResultsPage = React.lazy(() => import('./components/quizzes/QuizResultsPage'));
 const QuizHistoryPage = React.lazy(() => import('./components/quizzes/QuizHistoryPage'));
-const Plans = React.lazy(() => import('./components/Plans'));
 const Pricing = React.lazy(() => import('./components/pricing/PricingNew'));
 
 // Finance routes (heavy, many sub-components)
@@ -262,10 +261,6 @@ const router = createBrowserRouter([
             <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><QuizHistoryPage /></Suspense></ErrorBoundary>
           </ProtectedRoute>
         )
-      },
-      {
-        path: 'plans',
-        element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><Plans /></Suspense></ErrorBoundary>
       },
       {
         path: 'pricing',

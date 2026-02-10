@@ -10,16 +10,26 @@ interface TimePickerInputProps {
 }
 
 /**
- * Custom time picker component with dropdown selector
+ * Custom time picker component with dropdown selector and typeable input.
+ * Typing updates the picker selections live and commits on valid input.
  */
 const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, error = false, className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedHour, setSelectedHour] = useState('09');
   const [selectedMinute, setSelectedMinute] = useState('00');
   const [selectedPeriod, setSelectedPeriod] = useState('AM');
+  const [inputText, setInputText] = useState('');
+  const isFocusedRef = useRef(false);
   const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
+
+  // Format display value from picker state
+  const getDisplayValue = useCallback(() => {
+    if (!value) return '';
+    return `${selectedHour}:${selectedMinute} ${selectedPeriod}`;
+  }, [value, selectedHour, selectedMinute, selectedPeriod]);
 
   // Parse incoming value (HH:MM format in 24-hour)
   useEffect(() => {
@@ -34,6 +44,13 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
       setSelectedPeriod(isPM ? 'PM' : 'AM');
     }
   }, [value]);
+
+  // Sync input text when picker state changes — but only when not actively typing
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setInputText(getDisplayValue());
+    }
+  }, [getDisplayValue]);
 
   const updatePosition = useCallback(() => {
     if (inputRef.current) {
@@ -63,6 +80,8 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
           inputRef.current && !inputRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        // Reset input text on close
+        setInputText(getDisplayValue());
       }
     };
 
@@ -70,44 +89,129 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [isOpen]);
+  }, [isOpen, getDisplayValue]);
 
-  // Convert 12-hour to 24-hour format
-  const handleApply = () => {
-    let hour24 = parseInt(selectedHour, 10);
-    if (selectedPeriod === 'AM' && hour24 === 12) {
+  // Convert 12h to 24h and call onChange
+  const commitTime = useCallback((hour12: string, minute: string, period: string) => {
+    let hour24 = parseInt(hour12, 10);
+    if (period === 'AM' && hour24 === 12) {
       hour24 = 0;
-    } else if (selectedPeriod === 'PM' && hour24 !== 12) {
+    } else if (period === 'PM' && hour24 !== 12) {
       hour24 += 12;
     }
+    onChange(`${hour24.toString().padStart(2, '0')}:${minute}`);
+  }, [onChange]);
 
-    const timeValue = `${hour24.toString().padStart(2, '0')}:${selectedMinute}`;
-    onChange(timeValue);
-    setIsOpen(false);
+  // Picker button handlers — update state and commit immediately
+  const handleHourSelect = (hour: string) => {
+    setSelectedHour(hour);
+    commitTime(hour, selectedMinute, selectedPeriod);
   };
 
-  const getDisplayValue = () => {
-    if (!value) return '';
-    return `${selectedHour}:${selectedMinute} ${selectedPeriod}`;
+  const handleMinuteSelect = (minute: string) => {
+    setSelectedMinute(minute);
+    commitTime(selectedHour, minute, selectedPeriod);
+  };
+
+  const handlePeriodSelect = (period: string) => {
+    setSelectedPeriod(period);
+    commitTime(selectedHour, selectedMinute, period);
+  };
+
+  // Parse typed input: "2:30 PM", "02:30 pm", "2:30pm", "22:30" (24h), etc.
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const text = e.target.value;
+    setInputText(text);
+
+    const trimmed = text.trim();
+
+    // Try 12-hour format first: "2:30 PM", "02:30pm", etc.
+    const match12 = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/);
+    if (match12) {
+      const hr = parseInt(match12[1], 10);
+      const min = parseInt(match12[2], 10);
+      const period = match12[3].toUpperCase();
+
+      if (hr >= 1 && hr <= 12 && min >= 0 && min <= 59) {
+        const hourStr = hr.toString().padStart(2, '0');
+        const minStr = min.toString().padStart(2, '0');
+        setSelectedHour(hourStr);
+        setSelectedMinute(minStr);
+        setSelectedPeriod(period);
+        commitTime(hourStr, minStr, period);
+      }
+      return;
+    }
+
+    // Try 24-hour format: "22:30", "09:15", "0:00", etc.
+    const match24 = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+    if (match24) {
+      const hour24 = parseInt(match24[1], 10);
+      const min = parseInt(match24[2], 10);
+
+      if (hour24 >= 0 && hour24 <= 23 && min >= 0 && min <= 59) {
+        const period = hour24 >= 12 ? 'PM' : 'AM';
+        const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+        const hourStr = hour12.toString().padStart(2, '0');
+        const minStr = min.toString().padStart(2, '0');
+        setSelectedHour(hourStr);
+        setSelectedMinute(minStr);
+        setSelectedPeriod(period);
+        commitTime(hourStr, minStr, period);
+      }
+    }
+  };
+
+  const handleInputFocus = () => {
+    isFocusedRef.current = true;
+    if (!isOpen) {
+      updatePosition();
+      setIsOpen(true);
+    }
+  };
+
+  const handleInputBlur = () => {
+    isFocusedRef.current = false;
+    setInputText(getDisplayValue());
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setIsOpen(false);
+      setInputText(getDisplayValue());
+      textInputRef.current?.blur();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      setIsOpen(false);
+      textInputRef.current?.blur();
+    }
   };
 
   const hours = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
   const minutes = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, '0'));
 
   return (
-    <div className="relative">
+    <div className={`relative ${className}`}>
       {/* Input Display */}
       <div
         ref={inputRef}
         onClick={handleOpen}
         className={`flex items-center justify-between px-3 py-2 border rounded-lg cursor-pointer focus-within:ring-2 focus-within:ring-purple-500 focus-within:border-transparent ${
           error ? 'border-red-300' : 'border-gray-300'
-        } ${className}`}
+        }`}
       >
-        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
-          {getDisplayValue() || 'Select time'}
-        </span>
-        <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} />
+        <input
+          ref={textInputRef}
+          type="text"
+          value={inputText}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+          onKeyDown={handleInputKeyDown}
+          placeholder="HH:MM AM/PM"
+          className="bg-transparent border-none outline-none text-sm text-gray-900 placeholder-gray-400 w-full cursor-pointer focus:cursor-text"
+        />
+        <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${isOpen ? 'transform rotate-180' : ''}`} />
       </div>
 
       {/* Dropdown Picker - rendered via portal to escape modal overflow */}
@@ -126,7 +230,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
             }}
             className="bg-white border border-gray-300 rounded-lg shadow-lg p-4"
           >
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2">
               {/* Hour Selector */}
               <div className="flex-1">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Hour</label>
@@ -135,7 +239,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
                     <button
                       key={hour}
                       type="button"
-                      onClick={() => setSelectedHour(hour)}
+                      onClick={() => handleHourSelect(hour)}
                       className={`w-full px-3 py-1.5 text-sm text-left hover:bg-gray-50 ${
                         selectedHour === hour ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-900'
                       }`}
@@ -154,7 +258,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
                     <button
                       key={minute}
                       type="button"
-                      onClick={() => setSelectedMinute(minute)}
+                      onClick={() => handleMinuteSelect(minute)}
                       className={`w-full px-3 py-1.5 text-sm text-left hover:bg-gray-50 ${
                         selectedMinute === minute ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-900'
                       }`}
@@ -171,7 +275,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
                 <div className="border border-gray-300 rounded-md">
                   <button
                     type="button"
-                    onClick={() => setSelectedPeriod('AM')}
+                    onClick={() => handlePeriodSelect('AM')}
                     className={`w-full px-2 py-1.5 text-sm hover:bg-gray-50 ${
                       selectedPeriod === 'AM' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-900'
                     }`}
@@ -180,7 +284,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedPeriod('PM')}
+                    onClick={() => handlePeriodSelect('PM')}
                     className={`w-full px-2 py-1.5 text-sm hover:bg-gray-50 border-t border-gray-300 ${
                       selectedPeriod === 'PM' ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-900'
                     }`}
@@ -190,15 +294,6 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
                 </div>
               </div>
             </div>
-
-            {/* Apply Button */}
-            <button
-              type="button"
-              onClick={handleApply}
-              className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium"
-            >
-              Apply
-            </button>
           </div>
         </>,
         document.body

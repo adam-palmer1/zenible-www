@@ -171,6 +171,7 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
   }, [displayName]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    e.stopPropagation(); // Prevent dnd-kit from capturing keys (especially Space)
     if (e.key === 'Enter') {
       handleSaveEdit();
     } else if (e.key === 'Escape') {
@@ -205,7 +206,7 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
           isColumnDragging ? 'border-zenible-primary shadow-md' : 'border-[#f4f4f5]'
         } cursor-grab active:cursor-grabbing`}
       >
-        <div className="flex items-center gap-0.5 w-full">
+        <div className="flex items-center gap-0.5 w-full group">
           {isEditingTitle ? (
             <div className="flex items-center gap-1 flex-1 min-w-0">
               <input
@@ -215,7 +216,7 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedTitle(e.target.value)}
                 onKeyDown={handleKeyDown}
                 className="flex-1 min-w-0 px-2 py-1 text-sm font-semibold border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-zenible-primary"
-                maxLength={50}
+                maxLength={16}
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
                 onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
               />
@@ -240,28 +241,29 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
             <>
               {/* Title Chip with nested count chip - Figma design with dynamic color */}
               <div
-                className="rounded-[10px] pl-2 pr-[5px] py-1 flex items-center gap-2 shrink-0 group relative border-2"
+                className="rounded-[10px] pl-2 pr-[5px] py-1 flex items-center gap-2 min-w-0 border-2"
                 style={{
                   backgroundColor: statusColor,
                   borderColor: statusColor,
                 }}
               >
-                <p className="font-medium text-sm leading-[22px] text-gray-900 dark:text-white whitespace-nowrap">
+                <p className="font-medium text-sm leading-[22px] text-gray-900 dark:text-white truncate">
                   {displayName}
                 </p>
-                <div className="bg-white dark:bg-gray-800 rounded-md px-1.5 py-[3px] flex items-center justify-center min-w-[20px] h-5">
+                {/* Count badge — hidden on hover, replaced by pencil */}
+                <div className="bg-white dark:bg-gray-800 rounded-md px-1.5 py-[3px] flex items-center justify-center min-w-[20px] h-5 shrink-0 group-hover:hidden">
                   <p className="font-medium text-[10px] leading-[14px] text-gray-900 dark:text-white text-center">
                     {contacts.length}
                   </p>
                 </div>
-                {/* Edit button - shows on hover */}
+                {/* Edit pencil — replaces count badge on hover */}
                 <button
                   onClick={handleStartEdit}
                   onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
-                  className="absolute -right-6 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-zenible-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all"
+                  className="hidden group-hover:flex items-center justify-center min-w-[20px] h-5 shrink-0 text-gray-600 hover:text-zenible-primary transition-colors"
                   title="Rename column"
                 >
-                  <PencilIcon className="h-4 w-4" />
+                  <PencilIcon className="h-3.5 w-3.5" />
                 </button>
               </div>
 

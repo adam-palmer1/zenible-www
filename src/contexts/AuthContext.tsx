@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI, tokenStorage } from '../utils/auth';
+import { useSessionGuard } from '../hooks/useSessionGuard';
 import logger from '../utils/logger';
 
 export interface User {
@@ -129,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = async (): Promise<void> => {
+  const logout = useCallback(async (): Promise<void> => {
     try {
       await authAPI.logout();
     } catch (err) {
@@ -138,7 +139,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       tokenStorage.clearTokens();
       setUser(null);
     }
-  };
+  }, []);
+
+  // Auto-logout on idle + periodic session validation
+  useSessionGuard(!!user, logout);
 
   const verifyEmail = async (code: string): Promise<AuthResult> => {
     setError(null);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import {
@@ -11,20 +11,24 @@ import {
   Filter,
   Calendar,
   ChevronDown,
-  X
+  X,
+  MoreVertical,
+  Trash2,
+  Download
 } from 'lucide-react';
 import { CREDIT_NOTE_STATUS, CREDIT_NOTE_STATUS_COLORS, CREDIT_NOTE_STATUS_LABELS } from '../../../constants/finance';
-import { formatCurrency, getCurrencySymbol } from '../../../utils/currency';
+import { getCurrencySymbol } from '../../../utils/currency';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
+import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
 import NewSidebar from '../../sidebar/NewSidebar';
 import KPICard from '../shared/KPICard';
-import CreditNoteDetailModal from './CreditNoteDetailModal';
-import { useModalState } from '../../../hooks/useModalState';
+import ActionMenu from '../../shared/ActionMenu';
+import ConfirmationModal from '../../shared/ConfirmationModal';
 import type { NumberFormat } from '../../../contexts/CRMReferenceDataContext';
 import type { CreditNoteStatus } from '../../../constants/finance';
 
@@ -50,16 +54,25 @@ interface CreditNoteItem {
   currency?: CreditNoteCurrency;
 }
 
-interface CreditNoteStats {
-  total_credits?: number;
-  applied_credits?: number;
-  remaining_credits?: number;
-  draft_count?: number;
+interface CurrencyTotal {
+  currency_code: string;
+  currency_symbol: string;
+  total: number | string;
+}
+
+interface CreditNoteListStats {
+  total_count: number;
+  draft_count: number;
+  total_by_currency: CurrencyTotal[];
+  converted_total?: CurrencyTotal | null;
+  converted_applied?: CurrencyTotal | null;
+  converted_remaining?: CurrencyTotal | null;
 }
 
 // Date filter presets
 const DATE_PRESETS = [
   { key: 'all', label: 'All Time' },
+  { key: 'last_30_days', label: 'Last 30 Days' },
   { key: 'today', label: 'Today' },
   { key: 'this_week', label: 'This Week' },
   { key: 'this_month', label: 'This Month' },
@@ -75,10 +88,13 @@ interface StatusBadgeProps {
 
 const CreditNotesDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { showError } = useNotification();
+  const { showSuccess, showError } = useNotification();
   const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true });
   const { numberFormats } = useCRMReferenceData();
   const { getNumberFormat } = useCompanyAttributes();
+  const { defaultCurrency } = useCompanyCurrencies();
+  const defaultCurrencyCode = defaultCurrency?.currency?.code || 'USD';
+  const defaultCurrencySymbol = getCurrencySymbol(defaultCurrencyCode);
 
   // Number format from company settings
   const numberFormat = useMemo(() => {
@@ -97,9 +113,13 @@ const CreditNotesDashboard: React.FC = () => {
   // State
   const [creditNotes, setCreditNotes] = useState<CreditNoteItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<CreditNoteStats | null>(null);
-  const [selectedCreditNote, setSelectedCreditNote] = useState<CreditNoteItem | null>(null);
-  const detailModal = useModalState();
+  const [stats, setStats] = useState<CreditNoteListStats | null>(null);
+
+  // Selection & action state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,7 +128,7 @@ const CreditNotesDashboard: React.FC = () => {
   const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
-  const [datePreset, setDatePreset] = useState('all');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
 
@@ -127,6 +147,11 @@ const CreditNotesDashboard: React.FC = () => {
     };
 
     switch (preset) {
+      case 'last_30_days': {
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 29);
+        return { from: formatDateStr(thirtyDaysAgo), to: formatDateStr(today) };
+      }
       case 'today': {
         return { from: formatDateStr(today), to: formatDateStr(today) };
       }
@@ -212,14 +237,21 @@ const CreditNotesDashboard: React.FC = () => {
     return filters;
   };
 
-  // Load credit notes
+  // Load credit notes (stats come from the list response with currency conversion)
   const loadCreditNotes = async () => {
     try {
       setLoading(true);
       const filters = buildFilters();
-      const response = await creditNotesAPI.list(filters) as { items?: CreditNoteItem[]; total?: number };
+      const response = await creditNotesAPI.list(filters) as {
+        items?: CreditNoteItem[];
+        total?: number;
+        stats?: CreditNoteListStats;
+      };
       setCreditNotes(response.items || []);
       setTotalItems(response.total || response.items?.length || 0);
+      if (response.stats) {
+        setStats(response.stats);
+      }
     } catch (error) {
       console.error('Error loading credit notes:', error);
       showError('Failed to load credit notes');
@@ -227,21 +259,6 @@ const CreditNotesDashboard: React.FC = () => {
       setLoading(false);
     }
   };
-
-  // Load stats
-  const loadStats = async () => {
-    try {
-      const data = await creditNotesAPI.getStats() as CreditNoteStats;
-      setStats(data);
-    } catch (error) {
-      console.error('Error loading credit note stats:', error);
-    }
-  };
-
-  // Initial load
-  useEffect(() => {
-    loadStats();
-  }, []);
 
   // Load credit notes when filters change
   useEffect(() => {
@@ -340,20 +357,106 @@ const CreditNotesDashboard: React.FC = () => {
   };
 
   const handleViewCreditNote = (creditNote: any) => {
-    setSelectedCreditNote(creditNote);
-    detailModal.open();
+    navigate(`/finance/credit-notes/${creditNote.id}/edit`);
   };
 
-  const handleCloseDetailModal = () => {
-    detailModal.close();
-    setSelectedCreditNote(null);
-  };
+  // Selection handlers
+  const handleSelectAll = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(creditNotes.map((cn) => cn.id));
+    } else {
+      setSelectedIds([]);
+    }
+  }, [creditNotes]);
+
+  const handleSelectOne = useCallback((creditNoteId: string) => {
+    setSelectedIds(prev =>
+      prev.includes(creditNoteId)
+        ? prev.filter(id => id !== creditNoteId)
+        : [...prev, creditNoteId]
+    );
+  }, []);
+
+  // Action handlers
+  const handleEdit = useCallback((creditNote: any) => {
+    navigate(`/finance/credit-notes/${creditNote.id}/edit`);
+    setOpenActionMenuId(null);
+  }, [navigate]);
+
+  const handleDownloadPDF = useCallback(async (creditNote: any) => {
+    setOpenActionMenuId(null);
+    try {
+      await creditNotesAPI.downloadPdf(creditNote.id, creditNote.credit_note_number);
+      showSuccess('PDF downloaded');
+    } catch (error) {
+      showError('Failed to download PDF');
+    }
+  }, [showSuccess, showError]);
+
+  const handleDeleteClick = useCallback((creditNote: any) => {
+    setDeleteTarget(creditNote);
+    setShowDeleteConfirm(true);
+    setOpenActionMenuId(null);
+  }, []);
+
+  const handleBulkDeleteClick = useCallback(() => {
+    setDeleteTarget('bulk');
+    setShowDeleteConfirm(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    try {
+      if (deleteTarget === 'bulk') {
+        await Promise.all(selectedIds.map(id => creditNotesAPI.delete(id)));
+        showSuccess(`${selectedIds.length} credit note(s) deleted successfully`);
+        setSelectedIds([]);
+      } else if (deleteTarget?.id) {
+        await creditNotesAPI.delete(deleteTarget.id);
+        showSuccess('Credit note deleted successfully');
+      }
+      loadCreditNotes();
+    } catch (error) {
+      showError('Failed to delete credit note(s)');
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeleteTarget(null);
+    }
+  }, [deleteTarget, selectedIds, showSuccess, showError]);
+
+  const handleBulkDownload = useCallback(async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      for (const id of selectedIds) {
+        const cn = creditNotes.find(c => c.id === id);
+        await creditNotesAPI.downloadPdf(id, cn?.credit_note_number || '');
+      }
+      showSuccess(`Downloaded ${selectedIds.length} credit note(s)`);
+      setSelectedIds([]);
+    } catch (error) {
+      showError('Failed to download credit notes');
+    }
+  }, [selectedIds, creditNotes, showSuccess, showError]);
 
   // Format date
   const formatDate = (dateString: string): string => {
     if (!dateString) return '-';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  // Format a converted currency total for KPI display
+  const formatConvertedValue = (converted: CurrencyTotal | null | undefined): string => {
+    if (!converted) return `${defaultCurrencySymbol}${formatNumber(0)}`;
+    const symbol = converted.currency_symbol || getCurrencySymbol(converted.currency_code || defaultCurrencyCode);
+    return `${symbol}${formatNumber(parseFloat(String(converted.total || 0)))}`;
+  };
+
+  // Format multi-currency breakdown as subtitle (e.g. "£100.00 + €200.00")
+  const formatCurrencyBreakdown = (byCurrency: CurrencyTotal[] | undefined, converted: CurrencyTotal | null | undefined): string | undefined => {
+    if (!byCurrency || byCurrency.length === 0) return undefined;
+    const hasConvertedDifference = converted && byCurrency.some(item => item.currency_code !== converted.currency_code);
+    if (byCurrency.length <= 1 && !hasConvertedDifference) return undefined;
+    return byCurrency.map(item => `${item.currency_symbol}${formatNumber(parseFloat(String(item.total || 0)))}`).join(' + ');
   };
 
   // Status badge component
@@ -398,19 +501,20 @@ const CreditNotesDashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
                 title="Total Credits"
-                value={stats ? formatCurrency(stats.total_credits || 0, 'USD') : '$0.00'}
+                value={formatConvertedValue(stats?.converted_total)}
+                subtitle={formatCurrencyBreakdown(stats?.total_by_currency, stats?.converted_total)}
                 icon={FileText}
                 iconColor="blue"
               />
               <KPICard
                 title="Applied"
-                value={stats ? formatCurrency(stats.applied_credits || 0, 'USD') : '$0.00'}
+                value={formatConvertedValue(stats?.converted_applied)}
                 icon={CheckCircle}
                 iconColor="green"
               />
               <KPICard
                 title="Remaining"
-                value={stats ? formatCurrency(stats.remaining_credits || 0, 'USD') : '$0.00'}
+                value={formatConvertedValue(stats?.converted_remaining)}
                 icon={Clock}
                 iconColor="yellow"
               />
@@ -701,12 +805,51 @@ const CreditNotesDashboard: React.FC = () => {
                 </div>
               </div>
 
+              {/* Bulk Action Bar */}
+              {selectedIds.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-2 bg-purple-50 border border-purple-200 rounded-lg">
+                  <span className="text-sm text-purple-700 font-medium">
+                    {selectedIds.length} selected
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleBulkDownload}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download
+                    </button>
+                    <button
+                      onClick={handleBulkDeleteClick}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setSelectedIds([])}
+                      className="text-sm text-purple-600 hover:text-purple-700 ml-2"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Table */}
               <div className="bg-white border border-gray-200 rounded-lg">
                 <div className="overflow-x-auto rounded-lg">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
+                        <th scope="col" className="w-12 px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.length === creditNotes.length && creditNotes.length > 0}
+                            onChange={handleSelectAll}
+                            className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                          />
+                        </th>
                         <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Credit Note
                         </th>
@@ -725,18 +868,19 @@ const CreditNotesDashboard: React.FC = () => {
                         <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
+                        <th scope="col" className="w-12 px-4 py-3"></th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {loading ? (
                         <tr>
-                          <td colSpan={6} className="px-4 py-12 text-center text-sm text-gray-500">
+                          <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-500">
                             Loading credit notes...
                           </td>
                         </tr>
                       ) : creditNotes.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-4 py-12 text-center text-sm text-gray-500">
+                          <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-500">
                             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                             <p className="text-lg font-medium text-gray-900">No credit notes found</p>
                             <p className="text-sm text-gray-500 mt-1">Create your first credit note to get started</p>
@@ -756,6 +900,14 @@ const CreditNotesDashboard: React.FC = () => {
                             className="hover:bg-gray-50 transition-colors cursor-pointer"
                             onClick={() => handleViewCreditNote(creditNote)}
                           >
+                            <td className="px-4 py-3" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.includes(creditNote.id)}
+                                onChange={() => handleSelectOne(creditNote.id)}
+                                className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                              />
+                            </td>
                             <td className="px-4 py-3 text-sm font-medium text-gray-900">
                               #{creditNote.credit_note_number || '-'}
                             </td>
@@ -782,6 +934,28 @@ const CreditNotesDashboard: React.FC = () => {
                             </td>
                             <td className="px-4 py-3 text-sm">
                               <StatusBadge status={creditNote.status} />
+                            </td>
+                            <td className="px-4 py-3 text-sm" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                              <div className="relative inline-block">
+                                <button
+                                  id={`action-btn-${creditNote.id}`}
+                                  onClick={() => setOpenActionMenuId(openActionMenuId === creditNote.id ? null : creditNote.id)}
+                                  className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+                                >
+                                  <MoreVertical className="h-4 w-4 text-gray-400" />
+                                </button>
+                                {openActionMenuId === creditNote.id && (
+                                  <ActionMenu
+                                    itemId={creditNote.id}
+                                    onClose={() => setOpenActionMenuId(null)}
+                                    actions={[
+                                      { label: 'Edit', onClick: () => handleEdit(creditNote) },
+                                      { label: 'Download PDF', onClick: () => handleDownloadPDF(creditNote) },
+                                      { label: 'Delete', onClick: () => handleDeleteClick(creditNote), variant: 'danger' },
+                                    ]}
+                                  />
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -894,15 +1068,23 @@ const CreditNotesDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Credit Note Detail Modal */}
-      <CreditNoteDetailModal
-        isOpen={detailModal.isOpen}
-        onClose={handleCloseDetailModal}
-        creditNote={selectedCreditNote}
-        onUpdate={() => {
-          loadCreditNotes();
-          loadStats();
-        }}
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => { setShowDeleteConfirm(false); setDeleteTarget(null); }}
+        onConfirm={handleDeleteConfirm}
+        title={
+          deleteTarget === 'bulk'
+            ? `Delete ${selectedIds.length} Credit Note${selectedIds.length !== 1 ? 's' : ''}?`
+            : 'Delete Credit Note?'
+        }
+        message={
+          deleteTarget === 'bulk'
+            ? `Are you sure you want to delete ${selectedIds.length} selected credit note${selectedIds.length !== 1 ? 's' : ''}? This action cannot be undone.`
+            : `Are you sure you want to delete credit note ${deleteTarget?.credit_note_number || ''}? This action cannot be undone.`
+        }
+        confirmText="Delete"
+        variant="danger"
       />
     </div>
   );

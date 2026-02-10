@@ -186,14 +186,9 @@ const ServicesList: React.FC<ServicesListProps> = ({ services = [], onEdit, onDe
       onConfirm={handleConfirmDelete}
       title="Remove Service?"
       message={
-        <div>
-          <p className="mb-2">
-            Are you sure you want to remove "{deleteConfirmation.item?.name}" from this contact?
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            This will unassign the service but won't delete it from your service catalog.
-          </p>
-        </div>
+        <p>
+          Are you sure you want to remove "{deleteConfirmation.item?.name}" from this contact?
+        </p>
       }
       confirmText="Remove"
       cancelText="Cancel"

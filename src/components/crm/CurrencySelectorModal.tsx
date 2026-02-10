@@ -1,5 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckIcon } from '@heroicons/react/24/outline';
+import { useModalPortal } from '../../contexts/ModalPortalContext';
 
 interface CurrencySelectorModalProps {
   isOpen: boolean;
@@ -19,6 +21,22 @@ const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
   anchorRef = null,
 }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+
+  const modalPortal = useModalPortal();
+  const portalTarget = modalPortal || document.body;
+
+  // Calculate dropdown position when opening
+  useEffect(() => {
+    if (isOpen && anchorRef?.current) {
+      const rect = anchorRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
+  }, [isOpen, anchorRef]);
 
   // Handle click outside to close
   useEffect(() => {
@@ -37,15 +55,24 @@ const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
-    <>
+  return createPortal(
+    <div
+      style={{ pointerEvents: 'auto' }}
+      onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+    >
       {/* Backdrop */}
-      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="fixed inset-0" onClick={onClose} />
 
       {/* Dropdown */}
       <div
         ref={dropdownRef}
-        className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+        className="fixed bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+        style={{
+          top: dropdownPosition.top,
+          left: dropdownPosition.left,
+          width: dropdownPosition.width,
+        }}
       >
         {currencies.length === 0 ? (
           <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
@@ -96,7 +123,8 @@ const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
           </div>
         )}
       </div>
-    </>
+    </div>,
+    portalTarget
   );
 };
 

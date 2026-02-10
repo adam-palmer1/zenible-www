@@ -111,14 +111,25 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<unknown>(null);
 
+  // Default to last 30 days
+  const defaultRange = (() => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 29);
+    return {
+      start_date: thirtyDaysAgo.toISOString().split('T')[0],
+      end_date: today.toISOString().split('T')[0],
+    };
+  })();
+
   // Filters - these are sent to the server for server-side filtering
   const [filters, setFilters] = useState<PaymentFilters>({
     status: null,
     contact_id: null,
     project_id: null,
     unallocated_only: false,
-    start_date: null,
-    end_date: null,
+    start_date: defaultRange.start_date,
+    end_date: defaultRange.end_date,
     sort_by: 'payment_date',
     sort_direction: 'desc',
   });
@@ -239,6 +250,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       await paymentsAPI.delete(paymentId);
       setPayments(prev => prev.filter((p: any) => p.id !== paymentId));
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       console.error('[PaymentsContext] Error deleting payment:', err);
       throw err;
@@ -269,6 +281,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
         }
         return p;
       }));
+      setRefreshKey(prev => prev + 1);
 
       return result;
     } catch (err) {

@@ -2,6 +2,7 @@ import React from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Clock } from 'lucide-react';
 import KPICard from '../shared/KPICard';
 import { useReports } from '../../../contexts/ReportsContext';
+import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 
 /**
  * Format currency value with symbol
@@ -41,6 +42,7 @@ const formatCurrencyBreakdown = (currencyArray: any[]): string | null => {
  */
 const TransactionSummaryCards: React.FC = () => {
   const { summary, summaryLoading } = useReports();
+  const { defaultCurrency } = useCompanyCurrencies();
 
   if (summaryLoading) {
     return (
@@ -58,8 +60,8 @@ const TransactionSummaryCards: React.FC = () => {
     );
   }
 
-  // Get default currency symbol (fallback to $)
-  const defaultSymbol = summary?.default_currency?.symbol || '$';
+  // Get default currency symbol from backend summary or company settings
+  const defaultSymbol = summary?.default_currency?.symbol || defaultCurrency?.currency?.symbol || '$';
 
   // Main totals (in default currency)
   const incomeTotal = summary?.income_total || '0';

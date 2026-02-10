@@ -655,6 +655,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                             setFormData({ ...formData, start_datetime: `${date}T${time}` });
                           }}
                           error={!!errors.start_datetime}
+                          className="flex-1"
                         />
                       </div>
                     )}
@@ -694,6 +695,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                             setFormData({ ...formData, end_datetime: `${date}T${time}` });
                           }}
                           error={!!errors.end_datetime}
+                          className="flex-1"
                         />
                       </div>
                     )}

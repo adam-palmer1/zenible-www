@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Calendar, Loader2, ArrowLeft, ChevronDown, FileText, Link as LinkIcon } from 'lucide-react';
+import { Calendar, Loader2, ArrowLeft, ChevronDown, FileText } from 'lucide-react';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { useNotification } from '../../../contexts/NotificationContext';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
@@ -11,10 +11,10 @@ import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
 import invoicesAPI from '../../../services/api/finance/invoices';
-import DiscountModal from '../invoices/DiscountModal';
 import { DocumentLineItems, DocumentTotals, LineItemTaxModal } from '../shared';
 import ClientSelectModal from '../invoices/ClientSelectModal';
 import CurrencySelectModal from '../invoices/CurrencySelectModal';
+import InvoiceSelectModal from '../invoices/InvoiceSelectModal';
 import SendCreditNoteModal from './SendCreditNoteModal';
 import FinanceLayout from '../layout/FinanceLayout';
 import TaxModal from '../invoices/TaxModal';
@@ -59,6 +59,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
 
   const clientButtonRef = React.useRef<HTMLButtonElement>(null);
   const currencyButtonRef = React.useRef<HTMLButtonElement>(null);
+  const invoiceButtonRef = React.useRef<HTMLButtonElement>(null);
 
   const [creditNote, setCreditNote] = useState<any>(creditNoteProp);
   const [loading, setLoading] = useState(!!id && !creditNoteProp);
@@ -76,19 +77,16 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
   const [linkedInvoiceId, setLinkedInvoiceId] = useState('');
   const [items, setItems] = useState<any[]>([]);
   const [documentTaxes, setDocumentTaxes] = useState<any[]>([]);
-  const [discountType, setDiscountType] = useState('percentage');
-  const [discountValue, setDiscountValue] = useState(0);
   const [notes, setNotes] = useState('');
   const [showTaxModal, setShowTaxModal] = useState(false);
-  const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showLineItemTaxModal, setShowLineItemTaxModal] = useState(false);
   const [editingLineItemIndex, setEditingLineItemIndex] = useState<number | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
   const [savedCreditNote, setSavedCreditNote] = useState<any>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
-  const [invoiceLookup, setInvoiceLookup] = useState<Record<string, any>>({});
-  const [loadingInvoice, setLoadingInvoice] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [linkedInvoice, setLinkedInvoice] = useState<any>(null);
   const [saving, setSaving] = useState(false);
 
   const getSaveButtonText = (): string => {
@@ -121,7 +119,10 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
     if (!creditNote && (location.state as { prefill?: CreditNotePrefill })?.prefill) {
       const prefill = (location.state as { prefill: CreditNotePrefill }).prefill;
       if (prefill.contact_id) setContactId(prefill.contact_id);
-      if (prefill.invoice_id) setLinkedInvoiceId(prefill.invoice_id);
+      if (prefill.invoice_id) {
+        setLinkedInvoiceId(prefill.invoice_id);
+        invoicesAPI.get(prefill.invoice_id).then((inv) => setLinkedInvoice(inv)).catch(() => {});
+      }
       if (prefill.currency_id) setCurrency(prefill.currency_id);
       if (prefill.reason) setReason(prefill.reason);
       if (prefill.reference) setReference(prefill.reference);
@@ -167,9 +168,6 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
         tax_amount: item.taxes?.reduce((sum: number, t: any) => sum + (parseFloat(t.tax_amount) || 0), 0) || 0,
       }));
       setItems(normalizedItems);
-
-      setDiscountType(creditNote.discount_percentage > 0 ? 'percentage' : 'fixed');
-      setDiscountValue(parseFloat(creditNote.discount_percentage || creditNote.discount_amount || 0));
     }
   }, [creditNote]);
 
@@ -219,23 +217,20 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
   }, [creditNote, id]);
 
   useEffect(() => {
-    const loadInvoice = async () => {
-      if (linkedInvoiceId && !invoiceLookup[linkedInvoiceId]) {
+    const loadLinkedInvoice = async () => {
+      if (creditNote?.invoice_id && !linkedInvoice) {
         try {
-          setLoadingInvoice(true);
-          const invoice = await invoicesAPI.get(linkedInvoiceId);
-          setInvoiceLookup((prev) => ({ ...prev, [linkedInvoiceId]: invoice }));
+          const invoice = await invoicesAPI.get(creditNote.invoice_id);
+          setLinkedInvoice(invoice);
         } catch (error: any) {
           console.error('Failed to load linked invoice:', error);
-        } finally {
-          setLoadingInvoice(false);
         }
       }
     };
-    loadInvoice();
-  }, [linkedInvoiceId]);
+    loadLinkedInvoice();
+  }, [creditNote]);
 
-  const totals = calculateInvoiceTotal(items, documentTaxes, discountType, discountValue);
+  const totals = calculateInvoiceTotal(items, documentTaxes);
 
   const getCurrencyCode = (): string => {
     if (!currency || !currencies.length) return 'USD';
@@ -337,8 +332,6 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
         reason: reason || undefined,
         invoice_id: linkedInvoiceId || undefined,
         notes: notes || undefined,
-        discount_percentage: discountType === 'percentage' && discountValue > 0 ? parseFloat(String(discountValue)) : undefined,
-        discount_amount: discountType === 'fixed' && discountValue > 0 ? parseFloat(String(discountValue)) : undefined,
         items: items.map((item: any) => {
           const itemData: any = {
             ...(item.id && { id: item.id }),
@@ -399,8 +392,6 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
       </div>
     );
   }
-
-  const linkedInvoice = linkedInvoiceId ? invoiceLookup[linkedInvoiceId] : null;
 
   const formContent = (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -489,16 +480,31 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
                   <FileText className="h-4 w-4 text-gray-400" />
                   <span className="text-sm text-gray-900">{linkedInvoice.invoice_number}</span>
                 </div>
-                <button type="button" onClick={() => setLinkedInvoiceId('')} className="text-xs text-red-600 hover:text-red-700">Remove</button>
-              </div>
-            ) : linkedInvoiceId && loadingInvoice ? (
-              <div className="flex items-center px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
-                <Loader2 className="h-4 w-4 animate-spin text-gray-400 mr-2" />
-                <span className="text-sm text-gray-500">Loading invoice...</span>
+                <button type="button" onClick={() => { setLinkedInvoiceId(''); setLinkedInvoice(null); }} className="text-xs text-red-600 hover:text-red-700">Remove</button>
               </div>
             ) : (
-              <input type="text" value={linkedInvoiceId} onChange={(e) => setLinkedInvoiceId(e.target.value)} placeholder="Invoice ID (optional)" autoComplete="off" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+              <button
+                ref={invoiceButtonRef}
+                type="button"
+                onClick={() => setShowInvoiceModal(true)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-left focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent hover:bg-gray-50 flex items-center justify-between"
+              >
+                <span className="text-gray-500">Select an Invoice (Optional)</span>
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </button>
             )}
+            <InvoiceSelectModal
+              isOpen={showInvoiceModal}
+              onClose={() => setShowInvoiceModal(false)}
+              selectedInvoiceId={linkedInvoiceId}
+              onSelect={(invoiceId, invoice) => {
+                setLinkedInvoiceId(invoiceId);
+                setLinkedInvoice(invoice);
+                setShowInvoiceModal(false);
+              }}
+              contactId={contactId || undefined}
+              triggerRef={invoiceButtonRef as React.RefObject<HTMLElement>}
+            />
           </div>
         </div>
 
@@ -510,7 +516,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
 
       <DocumentLineItems items={items} currencyCode={currencyCode} numberFormat={numberFormat} onAddItem={addLineItem} onUpdateItem={updateLineItem} onRemoveItem={removeLineItem} onOpenTaxModal={openLineItemTaxModal} calculateItemTotal={calculateItemTotal} />
 
-      <DocumentTotals totals={totals} currencyCode={currencyCode} numberFormat={numberFormat} documentTaxes={documentTaxes} onEditTax={() => setShowTaxModal(true)} onRemoveTax={() => setDocumentTaxes([])} discountType={discountType} discountValue={discountValue} onEditDiscount={() => setShowDiscountModal(true)} onRemoveDiscount={() => setDiscountValue(0)} depositType={null} depositValue={0} onEditDeposit={() => {}} onRemoveDeposit={() => {}} />
+      <DocumentTotals totals={totals} currencyCode={currencyCode} numberFormat={numberFormat} documentTaxes={documentTaxes} onEditTax={() => setShowTaxModal(true)} onRemoveTax={() => setDocumentTaxes([])} />
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
@@ -531,7 +537,6 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
       )}
 
       <TaxModal isOpen={showTaxModal} onClose={() => setShowTaxModal(false)} onSave={(taxes: any) => setDocumentTaxes(taxes)} initialDocumentTaxes={documentTaxes} />
-      <DiscountModal isOpen={showDiscountModal} onClose={() => setShowDiscountModal(false)} onSave={(type: any, value: any) => { setDiscountType(type); setDiscountValue(value); }} initialDiscountType={discountType} initialDiscountValue={discountValue} subtotal={totals.subtotal} currency={currencyCode} />
       <LineItemTaxModal isOpen={showLineItemTaxModal} onClose={() => { setShowLineItemTaxModal(false); setEditingLineItemIndex(null); }} onSave={handleLineItemTaxSave} itemAmount={editingLineItemIndex !== null ? parseFloat(items[editingLineItemIndex]?.amount || 0) : 0} initialTaxes={editingLineItemIndex !== null ? (items[editingLineItemIndex]?.taxes || []) : []} currency={currencyCode} />
 
       {showSendModal && savedCreditNote && (

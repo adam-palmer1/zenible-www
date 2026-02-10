@@ -14,7 +14,8 @@ import {
   Calendar,
   ChevronDown,
   X,
-  TrendingUp
+  TrendingUp,
+  Plus
 } from 'lucide-react';
 import { useQuotes, type Quote } from '../../../contexts/QuoteContext';
 import { useNotification } from '../../../contexts/NotificationContext';
@@ -25,6 +26,7 @@ import { QUOTE_STATUS, QUOTE_STATUS_LABELS, QUOTE_STATUS_COLORS, type QuoteStatu
 import { getCurrencySymbol } from '../../../utils/currency';
 import { formatDate } from '../../../utils/dateUtils';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
+import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import KPICard from '../shared/KPICard';
 import SendQuoteModal from './SendQuoteModal';
 import ConvertToInvoiceModal from './ConvertToInvoiceModal';
@@ -62,6 +64,8 @@ const QuoteList: React.FC = () => {
   const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true });
   const { numberFormats } = useCRMReferenceData();
   const { getNumberFormat } = useCompanyAttributes();
+  const { defaultCurrency } = useCompanyCurrencies();
+  const defaultCurrencySymbol = getCurrencySymbol(defaultCurrency?.currency?.code);
 
   // Number format from company settings
   const numberFormat = useMemo(() => {
@@ -550,13 +554,13 @@ const QuoteList: React.FC = () => {
         />
         <KPICard
           title="Total Value"
-          value={statsLoading ? '...' : `${getCurrencySymbol('USD')}${formatNumber(Number(calculatedStats.totalValue))}`}
+          value={statsLoading ? '...' : `${defaultCurrencySymbol}${formatNumber(Number(calculatedStats.totalValue))}`}
           icon={DollarSign}
           iconColor="purple"
         />
         <KPICard
           title="Pending Value"
-          value={statsLoading ? '...' : `${getCurrencySymbol('USD')}${formatNumber(Number(calculatedStats.pendingValue))}`}
+          value={statsLoading ? '...' : `${defaultCurrencySymbol}${formatNumber(Number(calculatedStats.pendingValue))}`}
           icon={Clock}
           iconColor="yellow"
         />
@@ -951,7 +955,16 @@ const QuoteList: React.FC = () => {
                 ) : paginatedQuotes.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-500">
-                      No quotes found
+                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-lg font-medium text-gray-900">No quotes found</p>
+                      <p className="text-sm text-gray-500 mt-1">Create your first quote to get started</p>
+                      <button
+                        onClick={() => navigate('/finance/quotes/new')}
+                        className="mt-4 px-4 py-2 text-sm font-medium text-white bg-[#8e51ff] rounded-md hover:bg-[#7c3aed]"
+                      >
+                        <Plus className="h-4 w-4 inline mr-2" />
+                        New Quote
+                      </button>
                     </td>
                   </tr>
                 ) : (

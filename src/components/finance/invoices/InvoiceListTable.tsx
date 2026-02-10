@@ -4,6 +4,7 @@ import {
   Clock,
   AlertCircle,
   Repeat,
+  FileText,
 } from 'lucide-react';
 import { INVOICE_STATUS_COLORS, INVOICE_STATUS_LABELS } from '../../../constants/finance';
 import type { InvoiceStatus } from '../../../constants/finance';
@@ -117,7 +118,9 @@ const InvoiceListTable: React.FC<InvoiceListTableProps> = ({
             ) : paginatedInvoices.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-500">
-                  No invoices found
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-lg font-medium text-gray-900">No invoices found</p>
+                  <p className="text-sm text-gray-500 mt-1">Create your first invoice to get started</p>
                 </td>
               </tr>
             ) : (

@@ -8,6 +8,7 @@ import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { getCurrencySymbol } from '../../../utils/currency';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
 import { useInvoiceStats } from '../../../hooks/finance/useInvoiceStats';
+import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import SendInvoiceDialog from './SendInvoiceDialog';
 import SendReminderDialog from './SendReminderDialog';
 
@@ -37,6 +38,8 @@ const InvoiceList: React.FC = () => {
   const { numberFormats } = useCRMReferenceData();
   const { getNumberFormat } = useCompanyAttributes();
   const stats = useInvoiceStats();
+  const { defaultCurrency } = useCompanyCurrencies();
+  const defaultCurrencyCode = defaultCurrency?.currency?.code || 'USD';
 
   // Number format from company settings
   const numberFormat = useMemo(() => {
@@ -544,8 +547,8 @@ const InvoiceList: React.FC = () => {
 
   // Format converted total value for display
   const formatConvertedValue = (converted: any) => {
-    if (!converted) return `${getCurrencySymbol('USD')}${formatNumber(0)}`;
-    const symbol = converted.currency_symbol || getCurrencySymbol(converted.currency_code || 'USD');
+    if (!converted) return `${getCurrencySymbol(defaultCurrencyCode)}${formatNumber(0)}`;
+    const symbol = converted.currency_symbol || getCurrencySymbol(converted.currency_code || defaultCurrencyCode);
     return `${symbol}${formatNumber(parseFloat(converted.total || 0))}`;
   };
 
@@ -570,7 +573,7 @@ const InvoiceList: React.FC = () => {
   // Fallback to single currency display if no converted value
   const getSingleCurrencyDisplay = (byCurrencyArray: any[]) => {
     if (!byCurrencyArray || byCurrencyArray.length === 0) {
-      return `${getCurrencySymbol('USD')}${formatNumber(0)}`;
+      return `${getCurrencySymbol(defaultCurrencyCode)}${formatNumber(0)}`;
     }
     const item = byCurrencyArray[0];
     return `${item.currency_symbol}${formatNumber(parseFloat(item.total || 0))}`;

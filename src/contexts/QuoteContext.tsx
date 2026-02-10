@@ -109,8 +109,21 @@ const transformFilterParam = (key: string, value: unknown, _filters: QuoteFilter
   return { key, value };
 };
 
+// Default to last 30 days
+const getDefaultDateRange = () => {
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(today.getDate() - 29);
+  return {
+    start_date: thirtyDaysAgo.toISOString().split('T')[0],
+    end_date: today.toISOString().split('T')[0],
+  };
+};
+
 export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
+
+  const defaultRange = getDefaultDateRange();
 
   // -------------------------------------------------------------------------
   // Shared document state (filters, pagination, sort, CRUD, modal, fetch)
@@ -129,13 +142,31 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       project_id: null,
       pricing_type: null,
       expired_only: null,
-      issue_date_from: null,
-      issue_date_to: null,
+      issue_date_from: defaultRange.start_date,
+      issue_date_to: defaultRange.end_date,
       valid_until_from: null,
       valid_until_to: null,
     },
     transformFilterParam,
   });
+
+  // -------------------------------------------------------------------------
+  // Quote-specific: createQuote triggers refresh to update stats
+  // -------------------------------------------------------------------------
+  const createQuote = useCallback(async (quoteData: unknown) => {
+    try {
+      doc.setLoading(true);
+      const created = await quotesAPI.create(quoteData);
+      doc.setItems(prev => [created, ...prev]);
+      doc.refresh();
+      return created;
+    } catch (err) {
+      console.error('[QuoteContext] Error creating quote:', err);
+      throw err;
+    } finally {
+      doc.setLoading(false);
+    }
+  }, [doc.setLoading, doc.setItems, doc.refresh]);
 
   // -------------------------------------------------------------------------
   // Quote-specific state: stats & templates
@@ -195,6 +226,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         const item = q as Quote;
         return item.id === quoteId ? { ...item, status: 'sent', sent_at: new Date().toISOString() } : q;
       }));
+      fetchStats();
       return result;
     } catch (err) {
       console.error('[QuoteContext] Error sending quote:', err);
@@ -202,7 +234,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.setItems]);
+  }, [doc.setLoading, doc.setItems, fetchStats]);
 
   const acceptQuote = useCallback(async (quoteId: string, acceptanceData: unknown) => {
     try {
@@ -212,6 +244,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         const item = q as Quote;
         return item.id === quoteId ? { ...item, status: 'accepted', accepted_at: new Date().toISOString() } : q;
       }));
+      fetchStats();
       return result;
     } catch (err) {
       console.error('[QuoteContext] Error accepting quote:', err);
@@ -219,7 +252,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.setItems]);
+  }, [doc.setLoading, doc.setItems, fetchStats]);
 
   const rejectQuote = useCallback(async (quoteId: string, rejectionData: unknown) => {
     try {
@@ -229,6 +262,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         const item = q as Quote;
         return item.id === quoteId ? { ...item, status: 'rejected', rejected_at: new Date().toISOString() } : q;
       }));
+      fetchStats();
       return result;
     } catch (err) {
       console.error('[QuoteContext] Error rejecting quote:', err);
@@ -236,7 +270,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.setItems]);
+  }, [doc.setLoading, doc.setItems, fetchStats]);
 
   const convertToInvoice = useCallback(async (quoteId: string, conversionData: unknown) => {
     try {
@@ -246,6 +280,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         const item = q as Quote;
         return item.id === quoteId ? { ...item, status: 'invoiced', converted_to_invoice_id: invoice.id } : q;
       }));
+      fetchStats();
       return invoice;
     } catch (err) {
       console.error('[QuoteContext] Error converting quote:', err);
@@ -253,13 +288,14 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.setItems]);
+  }, [doc.setLoading, doc.setItems, fetchStats]);
 
   const cloneQuote = useCallback(async (quoteId: string) => {
     try {
       doc.setLoading(true);
       const cloned = await quotesAPI.clone(quoteId);
       doc.setItems(prev => [cloned, ...prev]);
+      fetchStats();
       return cloned;
     } catch (err) {
       console.error('[QuoteContext] Error cloning quote:', err);
@@ -267,7 +303,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.setItems]);
+  }, [doc.setLoading, doc.setItems, fetchStats]);
 
   const createRevision = useCallback(async (quoteId: string, revisionData: unknown = {}) => {
     try {
@@ -275,6 +311,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       const revision = await quotesAPI.createRevision(quoteId, revisionData);
       // Refresh the quotes list to get the new revision
       await doc.fetchItems();
+      fetchStats();
       return revision;
     } catch (err) {
       console.error('[QuoteContext] Error creating revision:', err);
@@ -282,7 +319,25 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       doc.setLoading(false);
     }
-  }, [doc.setLoading, doc.fetchItems]);
+  }, [doc.setLoading, doc.fetchItems, fetchStats]);
+
+  // -------------------------------------------------------------------------
+  // Quote-specific: deleteQuote triggers refresh to update stats
+  // -------------------------------------------------------------------------
+  const deleteQuote = useCallback(async (quoteId: string) => {
+    try {
+      doc.setLoading(true);
+      await quotesAPI.delete(quoteId);
+      doc.setItems(prev => prev.filter((q) => (q as Quote).id !== quoteId));
+      doc.refresh();
+      fetchStats();
+    } catch (err) {
+      console.error('[QuoteContext] Error deleting quote:', err);
+      throw err;
+    } finally {
+      doc.setLoading(false);
+    }
+  }, [doc.setLoading, doc.setItems, doc.refresh, fetchStats]);
 
   // Template management functions
   const createTemplate = useCallback(async (templateData: unknown) => {
@@ -363,9 +418,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     templatesLoading,
     // Shared CRUD (aliased)
     fetchQuotes: doc.fetchItems,
-    createQuote: doc.createItem,
+    createQuote,
     updateQuote: doc.updateItem,
-    deleteQuote: doc.deleteItem,
+    deleteQuote,
     // Quote-specific actions
     sendQuote,
     acceptQuote,
@@ -408,7 +463,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     doc.fetchItems,
     doc.createItem,
     doc.updateItem,
-    doc.deleteItem,
+    deleteQuote,
     sendQuote,
     acceptQuote,
     rejectQuote,

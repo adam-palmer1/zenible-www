@@ -16,7 +16,7 @@ import quotesAPI from '../../../services/api/finance/quotes';
 const QuoteDashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { refresh } = useQuotes();
+  const { refresh, fetchStats } = useQuotes();
 
   // Modal state
   const [showFormModal, setShowFormModal] = useState(false);
@@ -63,6 +63,7 @@ const QuoteDashboard: React.FC = () => {
     setSelectedQuote(null);
     navigate('/finance/quotes', { replace: true });
     refresh();
+    fetchStats();
   };
 
   // Open modal for new quote

@@ -11,7 +11,7 @@ interface RefundModalProps {
 }
 
 const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment }) => {
-  const { refundPayment, loading } = usePayments();
+  const { refundPayment, refresh, loading } = usePayments();
   const { showSuccess, showError } = useNotification();
 
   const [refundType, setRefundType] = useState('full');
@@ -61,6 +61,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment }) =
       }
 
       await refundPayment(payment.id, refundData);
+      refresh();
 
       showSuccess(
         refundType === 'full'

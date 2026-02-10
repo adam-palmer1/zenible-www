@@ -89,7 +89,7 @@ const CRMDashboard: React.FC = () => {
 
   // Data hooks
   const { globalStatuses, customStatuses, fetchStatuses } = useContactStatuses();
-  const { services, loading: servicesLoading, deleteService } = useServices();
+  const { services, loading: servicesLoading, deleteService } = useServices({}, refreshKey);
 
   // Combine statuses
   const allStatuses = [...(globalStatuses || []), ...(customStatuses || [])];

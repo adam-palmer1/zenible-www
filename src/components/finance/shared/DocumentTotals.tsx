@@ -166,7 +166,7 @@ const DocumentTotals: React.FC<DocumentTotalsProps> = ({
             Add Tax
           </button>
         )}
-        {discountValue === 0 && (
+        {discountValue === 0 && onEditDiscount && (
           <button
             onClick={onEditDiscount}
             className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
@@ -175,7 +175,7 @@ const DocumentTotals: React.FC<DocumentTotalsProps> = ({
             Add Discount
           </button>
         )}
-        {(!depositValue || depositValue === 0) && (
+        {(!depositValue || depositValue === 0) && onEditDeposit && (
           <button
             onClick={onEditDeposit}
             className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"

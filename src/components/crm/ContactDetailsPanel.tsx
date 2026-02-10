@@ -116,18 +116,18 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
   // Handle service assignment (creates contact-specific service or assigns global service)
   const handleAssignService = async (service: Record<string, unknown>) => {
     try {
-      let updatedContact: unknown;
-
       if (service.id) {
         // Existing service from catalog - assign it
-        updatedContact = await assignService(contact.id, service.id as string);
+        await assignService(contact.id, service.id as string);
       } else {
         // New service - create it directly for this contact (not global)
-        updatedContact = await createContactService(contact.id, service as unknown as Parameters<typeof createContactService>[1]);
+        await createContactService(contact.id, service as unknown as Parameters<typeof createContactService>[1]);
       }
 
-      // Update local contact state with new services
-      setContact(updatedContact as ContactWithExtras);
+      // Fetch full contact to get properly serialized services
+      // (The POST endpoint returns a raw ORM object without the computed services property)
+      const fullContact = await getContact(contact.id) as ContactWithExtras;
+      setContact(fullContact);
 
       // Refresh CRM list to show updated service count/value on contact cards
       refresh();

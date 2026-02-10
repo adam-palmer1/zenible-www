@@ -1,7 +1,9 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 import SendDocumentModal from '../shared/SendDocumentModal';
 import type { SendDocumentFormData } from '../shared/SendDocumentModal';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
+import { formatCurrency } from '../../../utils/currency';
+import { useCreditNoteEmailPreview } from '../../../hooks/queries/useCreditNoteEmailPreview';
 
 interface SendCreditNoteModalProps {
   isOpen: boolean;
@@ -18,25 +20,26 @@ const SendCreditNoteModal: React.FC<SendCreditNoteModalProps> = ({
   contact,
   onSuccess
 }) => {
+  // ---- Fetch rendered email preview ----
+  const { data: emailPreview, isLoading: previewLoading } = useCreditNoteEmailPreview(
+    creditNote?.id,
+    { enabled: isOpen }
+  );
+
   // ---- Send handler (maps shared form data to the credit note API shape) ----
   const handleSend = useCallback(
     async (formData: SendDocumentFormData) => {
-      const sendData: Record<string, any> = {
+      const sendData = {
         email: formData.to_email,
-        message: formData.email_body || undefined,
+        cc_emails: formData.cc_emails.length > 0 ? formData.cc_emails : undefined,
+        email_subject: formData.email_subject,
+        email_body: formData.email_body,
+        attach_pdf: formData.attach_pdf,
+        template_id: formData.template_id,
       };
       await creditNotesAPI.send(creditNote.id, sendData);
     },
     [creditNote?.id]
-  );
-
-  // ---- Default form values (used when no email template exists) ----
-  const defaultFormValues = useMemo(
-    () => ({
-      email_subject: `Credit Note ${creditNote?.credit_note_number || ''}`,
-      email_body: `Dear ${contact?.first_name || 'Customer'},\n\nPlease find attached your credit note ${creditNote?.credit_note_number || ''}.\n\nBest regards`,
-    }),
-    [creditNote?.credit_note_number, contact?.first_name]
   );
 
   // ---- Document info section ----
@@ -47,39 +50,36 @@ const SendCreditNoteModal: React.FC<SendCreditNoteModalProps> = ({
           <span className="font-medium text-gray-900 dark:text-white">Credit Note:</span>{' '}
           {creditNote?.credit_note_number}
         </p>
-        {contact && (
+        {(contact || creditNote?.contact) && (
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             <span className="font-medium text-gray-900 dark:text-white">Client:</span>{' '}
-            {contact.first_name} {contact.last_name}
-            {contact.business_name && ` (${contact.business_name})`}
+            {(contact || creditNote.contact).first_name} {(contact || creditNote.contact).last_name}
+            {(contact || creditNote.contact).business_name && ` (${(contact || creditNote.contact).business_name})`}
+          </p>
+        )}
+        {creditNote?.total && (
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <span className="font-medium text-gray-900 dark:text-white">Total:</span>{' '}
+            {formatCurrency(creditNote.total, creditNote.currency?.code)}
           </p>
         )}
       </div>
     ),
-    [creditNote?.credit_note_number, contact]
-  );
-
-  // ---- Extra fields: info box about automatic PDF attachment ----
-  const renderExtraFields = useCallback(
-    () => (
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <p className="text-sm text-blue-700 dark:text-blue-400">
-          The credit note PDF will be attached to the email automatically.
-        </p>
-      </div>
-    ),
-    []
+    [creditNote?.credit_note_number, contact, creditNote?.contact, creditNote?.total, creditNote?.currency?.code]
   );
 
   // ---- Preview extra: PDF attachment note ----
   const renderPreviewExtra = useCallback(
-    () => (
-      <div className="text-sm text-gray-600 dark:text-gray-400">
-        PDF attachment: Credit Note {creditNote?.credit_note_number}.pdf
-      </div>
-    ),
-    [creditNote?.credit_note_number]
+    (formData: SendDocumentFormData) =>
+      formData.attach_pdf ? (
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          Credit note PDF will be attached
+        </div>
+      ) : null,
+    []
   );
+
+  if (!creditNote) return null;
 
   return (
     <SendDocumentModal
@@ -87,19 +87,17 @@ const SendCreditNoteModal: React.FC<SendCreditNoteModalProps> = ({
       onClose={onClose}
       documentType="credit_note"
       documentLabel="Credit Note"
-      contact={contact}
+      contact={contact || creditNote.contact}
       onSend={handleSend}
       onSendSuccess={onSuccess}
-      defaultFormValues={defaultFormValues}
       renderDocumentInfo={renderDocumentInfo}
-      renderExtraFields={renderExtraFields}
       renderPreviewExtra={renderPreviewExtra}
-      showSubjectField={false}
-      bodyRequired={false}
-      htmlPreview={false}
-      bodyLabel="Message (Optional)"
-      bodyPlaceholder="Add a personal message to include in the email..."
-      bodyRows={6}
+      showSubjectField={true}
+      bodyRequired={true}
+      htmlPreview={true}
+      renderedContent={emailPreview ?? null}
+      renderedContentLoading={previewLoading}
+      useWysiwyg={true}
     />
   );
 };

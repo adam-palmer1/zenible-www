@@ -53,6 +53,16 @@ const creditNotesAPI = {
   },
 
   /**
+   * Preview rendered credit note email with variables resolved
+   */
+  async previewEmail(creditNoteId: string): Promise<{ subject: string; body: string }> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${creditNoteId}/preview-email`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
+
+  /**
    * Send a credit note via email
    */
   async send(creditNoteId: string, sendData: unknown = {}): Promise<unknown> {

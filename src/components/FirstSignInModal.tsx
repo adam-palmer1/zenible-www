@@ -1,26 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useCRMReferenceData } from '../contexts/CRMReferenceDataContext';
 import { useCountries } from '../hooks/crm/useCountries';
 import { useCompanyCurrencies } from '../hooks/crm/useCompanyCurrencies';
 import { useCompanyAttributes } from '../hooks/crm/useCompanyAttributes';
 import companiesAPI from '../services/api/crm/companies';
-import planAPI from '../services/planAPI';
 import { XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { STEPS } from './first-sign-in/constants';
-import { PlansApiResponse, CompanyData, CompanyProfile } from './first-sign-in/types';
-import WelcomeStep from './first-sign-in/WelcomeStep';
+import { CompanyData, CompanyProfile } from './first-sign-in/types';
 import CompanyProfileStep from './first-sign-in/CompanyProfileStep';
 import LocalizationStep from './first-sign-in/LocalizationStep';
 import RegionalStep from './first-sign-in/RegionalStep';
-import PlanPickerStep from './first-sign-in/PlanPickerStep';
-import CompleteStep from './first-sign-in/CompleteStep';
 import AddCountryModal from './first-sign-in/AddCountryModal';
 import AddCurrencyModal from './first-sign-in/AddCurrencyModal';
 import TimezoneModal from './first-sign-in/TimezoneModal';
 import CompanyCountryModal from './first-sign-in/CompanyCountryModal';
 import NumberFormatModal from './first-sign-in/NumberFormatModal';
-import StripePaymentModal from './StripePaymentModal';
 
 interface FirstSignInModalProps {
   isOpen: boolean;
@@ -30,6 +26,7 @@ interface FirstSignInModalProps {
 export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalProps) {
   const { darkMode, updatePreference, reloadPreferences } = usePreferences();
   const { numberFormats } = useCRMReferenceData();
+  const navigate = useNavigate();
 
   // Countries and currencies hooks
   const {
@@ -58,7 +55,7 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
     loading: attributesLoading,
   } = useCompanyAttributes();
 
-  const [currentStep, setCurrentStep] = useState('welcome');
+  const [currentStep, setCurrentStep] = useState('company');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,21 +95,6 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
   // Company country modal
   const [showCompanyCountryModal, setShowCompanyCountryModal] = useState(false);
   const [companyCountrySearch, setCompanyCountrySearch] = useState('');
-
-  // Plan selection state
-  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
-  const [loadingPlans, setLoadingPlans] = useState(false);
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [subscribing, setSubscribing] = useState(false);
-  const [planError, setPlanError] = useState<string | null>(null);
-
-  // Payment modal state
-  const [paymentModal, setPaymentModal] = useState<{
-    isOpen: boolean;
-    planId: string | null;
-    planName: string;
-    price: string;
-  }>({ isOpen: false, planId: null, planName: '', price: '' });
 
   // Load existing data on mount
   useEffect(() => {
@@ -163,76 +145,6 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
       }
     }
   }, [attributesLoading, getTimezone, getNumberFormat, numberFormats]);
-
-  // Fetch plans when reaching the plan step
-  useEffect(() => {
-    if (currentStep === 'plan' && availablePlans.length === 0) {
-      fetchAvailablePlans();
-    }
-  }, [currentStep]);
-
-  const fetchAvailablePlans = async () => {
-    try {
-      setLoadingPlans(true);
-      const response = await planAPI.getPublicPlans() as PlansApiResponse;
-      const plansArray = response.plans || response.items || [];
-      // Sort plans by price (lowest first) and filter active ones
-      const sortedPlans = plansArray
-        .filter(plan => plan.is_active !== false)
-        .sort((a, b) => (parseFloat(a.monthly_price) || 0) - (parseFloat(b.monthly_price) || 0));
-      setAvailablePlans(sortedPlans);
-    } catch (_err) {
-      console.error('Failed to fetch plans:', _err);
-      setPlanError('Failed to load plans. You can skip this step and select a plan later in settings.');
-    } finally {
-      setLoadingPlans(false);
-    }
-  };
-
-  const handleSelectPlan = async (planId: string) => {
-    if (subscribing) return;
-
-    const selectedPlan = availablePlans.find(p => p.id === planId);
-    const isFree = selectedPlan && parseFloat(selectedPlan.monthly_price) === 0;
-
-    if (isFree) {
-      // Free plans don't need payment
-      try {
-        setSubscribing(true);
-        setSelectedPlanId(planId);
-        setPlanError(null);
-        await planAPI.createSubscription(planId, 'monthly');
-        setCurrentStep('complete');
-      } catch (_err) {
-        setPlanError((_err as Error).message || 'Failed to select plan. Please try again.');
-      } finally {
-        setSubscribing(false);
-        setSelectedPlanId(null);
-      }
-    } else {
-      // Paid plans: open Stripe payment modal
-      setPlanError(null);
-      setPaymentModal({
-        isOpen: true,
-        planId,
-        planName: selectedPlan?.name || 'Selected Plan',
-        price: (parseFloat(selectedPlan?.monthly_price) || 0).toFixed(2),
-      });
-    }
-  };
-
-  const handlePaymentSuccess = async (paymentMethodId: string) => {
-    try {
-      setSubscribing(true);
-      setPlanError(null);
-      await planAPI.createSubscription(paymentModal.planId!, 'monthly', paymentMethodId);
-      setCurrentStep('complete');
-    } catch (_err) {
-      setPlanError((_err as Error).message || 'Failed to create subscription. Please try again.');
-    } finally {
-      setSubscribing(false);
-    }
-  };
 
   const loadExistingData = async () => {
     setLoading(true);
@@ -345,11 +257,6 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
   };
 
   const handleNext = async () => {
-    if (currentStep === 'welcome') {
-      setCurrentStep('company');
-      return;
-    }
-
     if (currentStep === 'company') {
       setSaving(true);
       try {
@@ -379,33 +286,17 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
         if (selectedNumberFormat) {
           await setNumberFormat(selectedNumberFormat);
         }
-        setCurrentStep('plan');
+        await updatePreference('onboarding_status', 'complete', 'user');
+        await updatePreference('onboarding_reminder_date', null, 'user');
+        await reloadPreferences();
+        onClose();
+        navigate('/pricing');
       } catch (_err) {
         setError('Failed to save regional settings. Please try again.');
       } finally {
         setSaving(false);
       }
       return;
-    }
-
-    if (currentStep === 'plan') {
-      // Skip to complete (user chose to skip plan selection)
-      setCurrentStep('complete');
-      return;
-    }
-
-    if (currentStep === 'complete') {
-      setSaving(true);
-      try {
-        await updatePreference('onboarding_status', 'complete', 'user');
-        await updatePreference('onboarding_reminder_date', null, 'user');
-        await reloadPreferences();
-        onClose();
-      } catch (_err) {
-        setError('Failed to complete setup. Please try again.');
-      } finally {
-        setSaving(false);
-      }
     }
   };
 
@@ -459,8 +350,6 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
     }
 
     switch (currentStep) {
-      case 'welcome':
-        return <WelcomeStep darkMode={darkMode} onRemindLater={handleRemindLater} />;
       case 'company':
         return (
           <CompanyProfileStep
@@ -498,39 +387,28 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
             onOpenNumberFormatModal={() => setShowNumberFormatModal(true)}
           />
         );
-      case 'plan':
+      default:
         return (
-          <PlanPickerStep
+          <CompanyProfileStep
             darkMode={darkMode}
-            loadingPlans={loadingPlans}
-            availablePlans={availablePlans}
-            subscribing={subscribing}
-            selectedPlanId={selectedPlanId}
-            planError={planError}
-            onSelectPlan={handleSelectPlan}
+            companyProfile={companyProfile}
+            setCompanyProfile={setCompanyProfile}
+            countries={countries}
+            getSelectedCountryName={getSelectedCountryName}
+            onOpenCountryModal={() => setShowCompanyCountryModal(true)}
           />
         );
-      case 'complete':
-        return <CompleteStep darkMode={darkMode} />;
-      default:
-        return <WelcomeStep darkMode={darkMode} onRemindLater={handleRemindLater} />;
     }
   };
 
   const getStepTitle = () => {
     switch (currentStep) {
-      case 'welcome':
-        return 'Welcome';
       case 'company':
         return 'Company Profile';
       case 'localization':
         return 'Localization';
       case 'regional':
         return 'Regional Settings';
-      case 'plan':
-        return 'Choose Plan';
-      case 'complete':
-        return 'Complete';
       default:
         return 'Setup';
     }
@@ -564,43 +442,41 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
         </div>
 
         {/* Progress Stepper */}
-        {currentStep !== 'welcome' && currentStep !== 'complete' && (
-          <div className={`px-6 py-3 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`}>
-            <div className="flex items-center justify-center space-x-2">
-              {['company', 'localization', 'regional', 'plan'].map((step, index, arr) => {
-                const isActive = currentStep === step;
-                const isPast = STEPS.indexOf(currentStep) > STEPS.indexOf(step);
+        <div className={`px-6 py-3 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`}>
+          <div className="flex items-center justify-center space-x-2">
+            {['company', 'localization', 'regional'].map((step, index, arr) => {
+              const isActive = currentStep === step;
+              const isPast = STEPS.indexOf(currentStep) > STEPS.indexOf(step);
 
-                return (
-                  <React.Fragment key={step}>
-                    <div
-                      className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium transition-colors ${
-                        isPast
-                          ? 'bg-zenible-tab-bg border-[1.5px] border-zenible-primary'
-                          : isActive
-                          ? 'bg-white border-[1.5px] border-zenible-primary text-zenible-primary'
-                          : darkMode
-                          ? 'bg-zenible-dark-bg border border-zenible-dark-border text-zenible-dark-text-secondary'
-                          : 'bg-white border-[1.5px] border-gray-300 text-gray-500'
-                      }`}
-                    >
-                      {isPast ? (
-                        <CheckIcon className="w-3.5 h-3.5 text-zenible-primary" />
-                      ) : (
-                        String(index + 1).padStart(2, '0')
-                      )}
-                    </div>
-                    {index < arr.length - 1 && (
-                      <div className={`w-8 h-[1.5px] ${
-                        isPast ? 'bg-zenible-primary' : darkMode ? 'bg-zenible-dark-border' : 'bg-gray-300'
-                      }`} />
+              return (
+                <React.Fragment key={step}>
+                  <div
+                    className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium transition-colors ${
+                      isPast
+                        ? 'bg-zenible-tab-bg border-[1.5px] border-zenible-primary'
+                        : isActive
+                        ? 'bg-white border-[1.5px] border-zenible-primary text-zenible-primary'
+                        : darkMode
+                        ? 'bg-zenible-dark-bg border border-zenible-dark-border text-zenible-dark-text-secondary'
+                        : 'bg-white border-[1.5px] border-gray-300 text-gray-500'
+                    }`}
+                  >
+                    {isPast ? (
+                      <CheckIcon className="w-3.5 h-3.5 text-zenible-primary" />
+                    ) : (
+                      String(index + 1).padStart(2, '0')
                     )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
+                  </div>
+                  {index < arr.length - 1 && (
+                    <div className={`w-8 h-[1.5px] ${
+                      isPast ? 'bg-zenible-primary' : darkMode ? 'bg-zenible-dark-border' : 'bg-gray-300'
+                    }`} />
+                  )}
+                </React.Fragment>
+              );
+            })}
           </div>
-        )}
+        </div>
 
         {/* Content */}
         <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
@@ -618,67 +494,23 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
         {!isLoading && (
           <div className={`p-4 border-t ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`}>
             <div className="flex gap-4">
-              {currentStep === 'welcome' ? (
-                <>
-                  <button
-                    onClick={handleSkip}
-                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-zenible-dark-border text-gray-700 dark:text-zenible-dark-text rounded-lg hover:bg-gray-50 dark:hover:bg-zenible-dark-bg transition-colors"
-                  >
-                    Skip for now
-                  </button>
-                  <button
-                    onClick={handleNext}
-                    className="flex-1 px-4 py-3 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 transition-colors"
-                  >
-                    Get Started
-                  </button>
-                </>
-              ) : currentStep === 'complete' ? (
+              {currentStep !== 'company' && (
                 <button
-                  onClick={handleNext}
-                  disabled={saving}
-                  className={`w-full px-4 py-3 bg-zenible-primary text-white rounded-lg transition-colors ${
-                    saving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-90'
-                  }`}
+                  onClick={handlePrevious}
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-zenible-dark-border text-gray-700 dark:text-zenible-dark-text rounded-lg hover:bg-gray-50 dark:hover:bg-zenible-dark-bg transition-colors"
                 >
-                  {saving ? 'Finishing...' : 'Get Started'}
+                  Back
                 </button>
-              ) : currentStep === 'plan' ? (
-                <>
-                  <button
-                    onClick={handlePrevious}
-                    disabled={subscribing}
-                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-zenible-dark-border text-gray-700 dark:text-zenible-dark-text rounded-lg hover:bg-gray-50 dark:hover:bg-zenible-dark-bg transition-colors disabled:opacity-50"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handleNext}
-                    disabled={subscribing}
-                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-zenible-dark-border text-gray-700 dark:text-zenible-dark-text rounded-lg hover:bg-gray-50 dark:hover:bg-zenible-dark-bg transition-colors disabled:opacity-50"
-                  >
-                    Skip for now
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={handlePrevious}
-                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-zenible-dark-border text-gray-700 dark:text-zenible-dark-text rounded-lg hover:bg-gray-50 dark:hover:bg-zenible-dark-bg transition-colors"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handleNext}
-                    disabled={saving || !canProceed()}
-                    className={`flex-1 px-4 py-3 bg-zenible-primary text-white rounded-lg transition-colors ${
-                      saving || !canProceed() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-90'
-                    }`}
-                  >
-                    {saving ? 'Saving...' : 'Continue'}
-                  </button>
-                </>
               )}
+              <button
+                onClick={handleNext}
+                disabled={saving || !canProceed()}
+                className={`flex-1 px-4 py-3 bg-zenible-primary text-white rounded-lg transition-colors ${
+                  saving || !canProceed() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-90'
+                }`}
+              >
+                {saving ? 'Saving...' : currentStep === 'regional' ? 'Select Plan' : 'Continue'}
+              </button>
             </div>
           </div>
         )}
@@ -743,18 +575,6 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
           onClose={() => setShowNumberFormatModal(false)}
         />
       )}
-
-      {/* Stripe Payment Modal */}
-      <StripePaymentModal
-        isOpen={paymentModal.isOpen}
-        onClose={() => setPaymentModal({ isOpen: false, planId: null, planName: '', price: '' })}
-        planName={paymentModal.planName}
-        planId={paymentModal.planId || ''}
-        price={paymentModal.price}
-        billingCycle="monthly"
-        onSuccess={handlePaymentSuccess}
-        onError={(error) => setPlanError(typeof error === 'string' ? error : error?.message || 'Payment failed. Please try again.')}
-      />
     </div>
   );
 }

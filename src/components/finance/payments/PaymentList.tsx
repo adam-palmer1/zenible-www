@@ -29,8 +29,9 @@ import {
   type PaymentType,
   type PaymentMethod,
 } from '../../../constants/finance';
-import { formatCurrency } from '../../../utils/currency';
+import { formatCurrency, getCurrencySymbol } from '../../../utils/currency';
 import { formatDate } from '../../../utils/dateUtils';
+import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import KPICard from '../shared/KPICard';
 import DateRangeFilter from '../expenses/DateRangeFilter';
 import type { PaymentCurrencyTotal } from '../../../types/finance';
@@ -96,6 +97,8 @@ const PaymentList: React.FC = () => {
     refresh
   } = usePayments();
   const { showSuccess, showError } = useNotification();
+  const { defaultCurrency } = useCompanyCurrencies();
+  const defaultCurrencyCode = defaultCurrency?.currency?.code || 'USD';
 
   // Local state - search is client-side only (backend doesn't support search param)
   const [searchQuery, setSearchQuery] = useState('');
@@ -150,7 +153,7 @@ const PaymentList: React.FC = () => {
 
   // Format converted total for main display
   const getConvertedDisplay = (convertedObj: ConvertedTotal | null | undefined) => {
-    if (!convertedObj || !convertedObj.total) return '0.00';
+    if (!convertedObj || !convertedObj.total) return `${getCurrencySymbol(defaultCurrencyCode)}0.00`;
     return formatCurrency(convertedObj.total, convertedObj.currency_code);
   };
 
@@ -279,6 +282,7 @@ const PaymentList: React.FC = () => {
       setDeletingPaymentId(payment.id);
       try {
         await deletePayment(payment.id);
+        refresh();
         showSuccess('Payment deleted successfully');
       } catch (err: unknown) {
         showError((err as Error).message || 'Failed to delete payment');
@@ -486,26 +490,16 @@ const PaymentList: React.FC = () => {
                 ) : filteredPayments.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
-                      <div className="flex flex-col items-center gap-2">
-                        <CreditCard className="h-8 w-8 text-gray-400" />
-                        <p>No payments found</p>
-                        {(searchQuery || filterStatus !== 'all' || filters.start_date || filters.end_date) && (
-                          <button
-                            onClick={() => {
-                              setSearchQuery('');
-                              setFilterStatus('all');
-                              updateFilters({
-                                status: null,
-                                start_date: null,
-                                end_date: null
-                              });
-                            }}
-                            className="text-purple-600 hover:text-purple-700 text-sm font-medium"
-                          >
-                            Clear filters
-                          </button>
-                        )}
-                      </div>
+                      <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-lg font-medium text-gray-900 dark:text-white">No payments found</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Create your first payment to get started</p>
+                      <button
+                        onClick={openCreateModal}
+                        className="mt-4 px-4 py-2 text-sm font-medium text-white bg-[#8e51ff] rounded-md hover:bg-[#7c3aed]"
+                      >
+                        <Plus className="h-4 w-4 inline mr-2" />
+                        New Payment
+                      </button>
                     </td>
                   </tr>
                 ) : (

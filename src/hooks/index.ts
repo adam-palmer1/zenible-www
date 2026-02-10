@@ -25,3 +25,6 @@ export { useDeleteConfirmation } from './useDeleteConfirmation';
 export { useSSEStreaming } from './useSSEStreaming';
 export { useWebSocketConnection } from './useWebSocketConnection';
 export { useDebouncedPreference } from './useDebouncedPreference';
+
+// Session management
+export { useSessionGuard } from './useSessionGuard';

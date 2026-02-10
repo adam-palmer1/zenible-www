@@ -12,7 +12,7 @@ let pendingFetch: Promise<unknown> | null = null; // Prevent duplicate concurren
  * Custom hook for managing services
  * Handles loading, creating, updating, and deleting services with caching
  */
-export function useServices(options: Record<string, unknown> = {}) {
+export function useServices(options: Record<string, unknown> = {}, refreshKey: number = 0) {
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,11 +162,11 @@ export function useServices(options: Record<string, unknown> = {}) {
     }
   }, []);
 
-  // Load services on mount
+  // Load services on mount and when refreshKey changes
   useEffect(() => {
-    fetchServices();
+    fetchServices({}, refreshKey > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshKey]);
 
   return {
     services,

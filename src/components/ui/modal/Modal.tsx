@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { ModalPortalContext } from '../../../contexts/ModalPortalContext';
@@ -43,8 +43,13 @@ const Modal: React.FC<ModalProps> = ({
   showCloseButton = true,
   className = '',
 }) => {
-  // Ref for the portal container where nested floating elements (dropdowns) will render
-  const portalContainerRef = useRef<HTMLDivElement>(null);
+  // Callback ref for the portal container — using state instead of useRef so that
+  // setting the ref triggers a re-render, ensuring the ModalPortalContext.Provider
+  // delivers the actual DOM element to children (not null from the initial render).
+  const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(null);
+  const portalContainerRef = useCallback((node: HTMLDivElement | null) => {
+    setPortalContainer(node);
+  }, []);
 
   // Size mappings
   const sizeClasses: Record<ModalSize, string> = {
@@ -87,7 +92,7 @@ const Modal: React.FC<ModalProps> = ({
           `}
         >
           {/* Provide portal context to all children */}
-          <ModalPortalContext.Provider value={portalContainerRef.current}>
+          <ModalPortalContext.Provider value={portalContainer}>
             {/* Header */}
             {(title || showCloseButton) && (
               <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">

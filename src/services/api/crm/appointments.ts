@@ -26,7 +26,13 @@ class AppointmentsAPI {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        throw new Error(error.detail || `Request failed with status ${response.status}`);
+        let message: string;
+        if (Array.isArray(error.detail)) {
+          message = error.detail.map((e: { msg?: string }) => e.msg || '').filter(Boolean).join('. ') || `Request failed with status ${response.status}`;
+        } else {
+          message = (typeof error.detail === 'string' ? error.detail : error.message) || `Request failed with status ${response.status}`;
+        }
+        throw new Error(message);
       }
 
       // Handle 204 No Content

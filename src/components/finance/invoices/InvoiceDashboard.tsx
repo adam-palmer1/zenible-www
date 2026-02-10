@@ -15,7 +15,7 @@ import NewSidebar from '../../sidebar/NewSidebar';
 const InvoiceDashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { getInvoice } = useInvoices();
+  const { getInvoice, refresh } = useInvoices();
 
   // Modal state
   const [showFormModal, setShowFormModal] = useState(false);
@@ -61,7 +61,7 @@ const InvoiceDashboard: React.FC = () => {
     setShowFormModal(false);
     setSelectedInvoice(null);
     navigate('/finance/invoices', { replace: true });
-    // InvoiceContext will automatically refresh the list
+    refresh();
   };
 
   // Open modal for new invoice

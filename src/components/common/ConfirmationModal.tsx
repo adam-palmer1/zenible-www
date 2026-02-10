@@ -42,9 +42,10 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/50" style={{ zIndex: 10000 }} />
         <Dialog.Content
-          className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6 focus:outline-none"
+          className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6 focus:outline-none"
+          style={{ zIndex: 10001 }}
         >
           <Dialog.Title className="sr-only">{typeof title === 'string' ? title : 'Confirmation'}</Dialog.Title>
           <Dialog.Description className="sr-only">Confirmation dialog</Dialog.Description>

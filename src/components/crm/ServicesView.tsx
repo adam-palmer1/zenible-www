@@ -5,6 +5,7 @@ import ContactServicesTable from './ContactServicesTable';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { useContactServices } from '../../hooks/crm/useContactServices';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
+import contactsAPI from '../../services/api/crm/contacts';
 
 interface ServicesViewProps {
   // Default Services data and handlers
@@ -46,13 +47,17 @@ const ServicesView: React.FC<ServicesViewProps> = ({
   // Refresh key
   refreshKey = 0,
 }) => {
-  // Delete confirmation modal state
+  // Delete confirmation modal state (for default services)
   const deleteConfirm = useDeleteConfirmation<any>();
+
+  // Delete confirmation modal state (for contact services)
+  const contactServiceDeleteConfirm = useDeleteConfirmation<any>();
 
   // Fetch contact services for Client Services subtab
   const {
     filteredServices: filteredContactServices,
     loading: contactServicesLoading,
+    refresh: refreshContactServices,
   } = useContactServices(
     {
       searchQuery: activeSubtab === 'client' ? searchQuery : '',
@@ -87,6 +92,32 @@ const ServicesView: React.FC<ServicesViewProps> = ({
     deleteConfirm.cancelDelete();
   };
 
+  // Handle contact service edit (open contact details panel)
+  const handleEditContactService = (service: any) => {
+    if (onClientClick && service.contact_id) {
+      onClientClick({ id: service.contact_id });
+    }
+  };
+
+  // Handle contact service delete request (show confirmation modal)
+  const handleDeleteContactServiceRequest = (service: any) => {
+    contactServiceDeleteConfirm.requestDelete(service);
+  };
+
+  // Handle confirmed contact service delete
+  const handleConfirmContactServiceDelete = async () => {
+    const service = contactServiceDeleteConfirm.item;
+    if (service) {
+      try {
+        await contactsAPI.unassignService(service.contact_id, service.id);
+        refreshContactServices();
+      } catch (error) {
+        console.error('Failed to remove contact service:', error);
+      }
+    }
+    contactServiceDeleteConfirm.cancelDelete();
+  };
+
   return (
     <>
       {activeSubtab === 'default' ? (
@@ -103,12 +134,14 @@ const ServicesView: React.FC<ServicesViewProps> = ({
           <ContactServicesTable
             services={filteredContactServices}
             onClientClick={onClientClick}
+            onEdit={handleEditContactService}
+            onDelete={handleDeleteContactServiceRequest}
             loading={contactServicesLoading}
           />
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal (Default Services) */}
       <ConfirmationModal
         isOpen={deleteConfirm.isOpen}
         onClose={deleteConfirm.cancelDelete}
@@ -125,6 +158,24 @@ const ServicesView: React.FC<ServicesViewProps> = ({
           </div>
         }
         confirmText="Delete"
+        cancelText="Cancel"
+        confirmColor="red"
+        icon={TrashIcon}
+        iconColor="text-red-600"
+      />
+
+      {/* Delete Confirmation Modal (Contact Services) */}
+      <ConfirmationModal
+        isOpen={contactServiceDeleteConfirm.isOpen}
+        onClose={contactServiceDeleteConfirm.cancelDelete}
+        onConfirm={handleConfirmContactServiceDelete}
+        title="Remove Service?"
+        message={
+          <p>
+            Are you sure you want to remove "{contactServiceDeleteConfirm.item?.name}" from {contactServiceDeleteConfirm.item?.contact_name}?
+          </p>
+        }
+        confirmText="Remove"
         cancelText="Cancel"
         confirmColor="red"
         icon={TrashIcon}

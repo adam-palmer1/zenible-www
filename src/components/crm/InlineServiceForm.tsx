@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { PlusIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import ServiceAutocomplete from './ServiceAutocomplete';
 import GenericDropdown from './GenericDropdown';
 import ServiceStatusDropdown from './ServiceStatusDropdown';
@@ -50,7 +50,7 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
                   service.time_period === 'custom' ? 'Custom' : 'Weekly',
     recurringNumber: service.recurring_number !== undefined ? service.recurring_number : -1,
     customEvery: service.custom_every?.toString() || '1',
-    customPeriod: service.custom_period ? `${service.custom_period}s` : 'Weeks',
+    customPeriod: service.custom_period ? service.custom_period.charAt(0).toUpperCase() + service.custom_period.slice(1) : 'Weeks',
     notes: service.notes || '',
     status: service.status || 'active',
     // Track if service is linked to an invoice (locks pricing fields)
@@ -195,7 +195,7 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
 
       if (recurringType === 'Custom') {
         handleServiceChange(serviceId, 'customEvery', service.custom_every?.toString() || '1');
-        handleServiceChange(serviceId, 'customPeriod', service.custom_period ? `${service.custom_period}s` : 'Weeks');
+        handleServiceChange(serviceId, 'customPeriod', service.custom_period ? service.custom_period.charAt(0).toUpperCase() + service.custom_period.slice(1) : 'Weeks');
       }
     }
 
@@ -237,7 +237,7 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
         } else if (service.recurringType === 'Custom') {
           baseService.time_period = 'custom';
           baseService.custom_every = parseInt(service.customEvery);
-          baseService.custom_period = service.customPeriod.slice(0, -1); // Remove 's' from end
+          baseService.custom_period = service.customPeriod.toLowerCase();
         }
       }
 
@@ -309,17 +309,6 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
                   </span>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={(e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  handleRemoveService(serviceItem.id);
-                }}
-                className="text-gray-400 hover:text-red-600 transition-colors p-1"
-                title="Remove service"
-              >
-                <TrashIcon className="h-4 w-4" />
-              </button>
             </div>
 
             {/* Expanded Content */}

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Filter, MoreVertical, Repeat, ArrowUpDown, ArrowUp, ArrowDown, PieChart, Users, X, Check } from 'lucide-react';
+import { Search, Filter, MoreVertical, Repeat, ArrowUpDown, ArrowUp, ArrowDown, PieChart, Users, X, Check, Receipt, Plus } from 'lucide-react';
 import { useExpenses } from '../../../contexts/ExpenseContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { useNotification } from '../../../contexts/NotificationContext';
@@ -354,10 +354,10 @@ const ExpenseList: React.FC = () => {
   }, []);
 
   const handleEditSuccess = useCallback(() => {
-    // Expenses will be refreshed by the context after update
     setShowEditModal(false);
     setEditExpenseId(null);
-  }, []);
+    refresh();
+  }, [refresh]);
 
   const handleOpenAllocation = useCallback((expense: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -376,13 +376,14 @@ const ExpenseList: React.FC = () => {
     if (confirmed) {
       try {
         await deleteExpense(expense.id);
+        refresh();
         showSuccess('Expense deleted successfully');
       } catch (error: any) {
         showError(error.message || 'Failed to delete expense');
       }
     }
     setOpenActionMenuId(null);
-  }, [showConfirm, deleteExpense, showSuccess, showError]);
+  }, [showConfirm, deleteExpense, refresh, showSuccess, showError]);
 
   const handleSelectAll = useCallback(() => {
     if (selectedExpenseIds.length === filteredExpenses.length) {
@@ -764,7 +765,16 @@ const ExpenseList: React.FC = () => {
               ) : filteredExpenses.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No expenses found
+                    <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-lg font-medium text-gray-900 dark:text-white">No expenses found</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Create your first expense to get started</p>
+                    <button
+                      onClick={() => { setEditExpenseId(null); setShowEditModal(true); }}
+                      className="mt-4 px-4 py-2 text-sm font-medium text-white bg-[#8e51ff] rounded-md hover:bg-[#7c3aed]"
+                    >
+                      <Plus className="h-4 w-4 inline mr-2" />
+                      New Expense
+                    </button>
                   </td>
                 </tr>
               ) : (
