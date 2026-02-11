@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import adminAPI from '../../services/adminAPI';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import { LoadingSpinner } from '../shared';
+import Combobox from '../ui/combobox/Combobox';
 
 interface SystemFeaturesManagerProps {
   darkMode: boolean;
@@ -247,19 +248,17 @@ export default function SystemFeaturesManager({ darkMode }: SystemFeaturesManage
                     <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-700'}`}>
                       Feature Type <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <Combobox
+                      options={[
+                        { id: 'boolean', label: 'BOOLEAN - On/Off switch' },
+                        { id: 'limit', label: 'LIMIT - Numeric value' },
+                        { id: 'list', label: 'LIST - Array of values' },
+                      ]}
                       value={formData.feature_type || 'boolean'}
-                      onChange={(e) => setFormData({ ...formData, feature_type: e.target.value })}
-                      className={`w-full px-3 py-2 rounded-lg border ${
-                        darkMode
-                          ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                          : 'bg-white border-neutral-300 text-zinc-950'
-                      } focus:outline-none focus:ring-2 focus:ring-zenible-primary`}
-                    >
-                      <option value="boolean">BOOLEAN - On/Off switch</option>
-                      <option value="limit">LIMIT - Numeric value</option>
-                      <option value="list">LIST - Array of values</option>
-                    </select>
+                      onChange={(value) => setFormData({ ...formData, feature_type: value || 'boolean' })}
+                      placeholder="Select feature type..."
+                      allowClear={false}
+                    />
                     <p className={`text-xs mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
                       Determines how this feature is configured (cannot be changed later)
                     </p>

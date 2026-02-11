@@ -2,6 +2,7 @@ import React from 'react';
 import { LoadingSpinner } from '../../shared';
 import { EventAnalytics } from './types';
 import eventsAPI from '../../../services/eventsAPI';
+import Combobox from '../../ui/combobox/Combobox';
 
 interface EventAnalyticsTabProps {
   darkMode: boolean;
@@ -26,16 +27,18 @@ export default function EventAnalyticsTab({
   return (
     <div className="p-6">
       <div className={`p-4 rounded-xl border mb-6 ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
-        <select
-          value={analyticsDays}
-          onChange={(e) => setAnalyticsDays(parseInt(e.target.value))}
-          className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-        >
-          <option value="7">Last 7 days</option>
-          <option value="30">Last 30 days</option>
-          <option value="90">Last 90 days</option>
-          <option value="365">Last 365 days</option>
-        </select>
+        <Combobox
+          options={[
+            { id: '7', label: 'Last 7 days' },
+            { id: '30', label: 'Last 30 days' },
+            { id: '90', label: 'Last 90 days' },
+            { id: '365', label: 'Last 365 days' },
+          ]}
+          value={String(analyticsDays)}
+          onChange={(value) => setAnalyticsDays(parseInt(value || '7'))}
+          placeholder="Select period"
+          allowClear={false}
+        />
       </div>
 
       {analyticsLoading ? (

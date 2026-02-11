@@ -111,7 +111,7 @@ export const useClientsFilters = () => {
 
     // Filter to only include fields that make sense for the clients list
     // Exclude some internal/technical fields and fields that are redundant with display_name
-    const excludedFields = ['id', 'first_name', 'last_name', 'current_global_status_id', 'current_custom_status_id', 'current_global_status', 'current_custom_status', 'appointments', 'is_hidden', 'is_client', 'is_vendor'];
+    const excludedFields = ['id', 'first_name', 'last_name', 'current_global_status_id', 'current_custom_status_id', 'is_hidden_crm', 'is_hidden_client', 'is_hidden_vendor', 'is_client', 'is_vendor'];
 
     const apiColumns: ColumnDefinition[] = fields
       .filter((field: any) => !excludedFields.includes(field.name))

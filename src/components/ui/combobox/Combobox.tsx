@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDownIcon, XMarkIcon, MagnifyingGlassIcon, CheckIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 interface ComboboxOption {
@@ -63,7 +64,10 @@ const Combobox: React.FC<ComboboxProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   // Find selected option
   const selectedOption = options.find(opt => opt.id === value);
@@ -73,10 +77,48 @@ const Combobox: React.FC<ComboboxProps> = ({
     opt.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Calculate dropdown position based on trigger button
+  const updateDropdownPosition = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const dropdownHeight = 300; // approximate max height
+    const openAbove = spaceBelow < dropdownHeight && rect.top > spaceBelow;
+
+    setDropdownStyle({
+      position: 'fixed',
+      left: rect.left,
+      width: rect.width,
+      ...(openAbove
+        ? { bottom: window.innerHeight - rect.top + 4 }
+        : { top: rect.bottom + 4 }),
+      zIndex: 9999,
+    });
+  }, []);
+
+  // Update position when open and on scroll/resize
+  useEffect(() => {
+    if (!isOpen) return;
+    updateDropdownPosition();
+
+    const handleScrollOrResize = () => updateDropdownPosition();
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen, updateDropdownPosition]);
+
   // Handle click outside
   useEffect(() => {
+    if (!isOpen) return;
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setIsOpen(false);
         setSearchTerm('');
       }
@@ -84,7 +126,7 @@ const Combobox: React.FC<ComboboxProps> = ({
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isOpen]);
 
   // Focus input when opened
   useEffect(() => {
@@ -161,10 +203,132 @@ const Combobox: React.FC<ComboboxProps> = ({
     }
   }, [handleCreate]);
 
+  const dropdownContent = (
+    <div
+      ref={dropdownRef}
+      style={dropdownStyle}
+      className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden"
+    >
+      {/* Create Form */}
+      {showCreateForm ? (
+        <div className="p-3">
+          <label className="block text-sm font-medium design-text-primary mb-2">
+            {createLabel}
+          </label>
+          <div className="flex gap-2">
+            <input
+              ref={createInputRef}
+              type="text"
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              onKeyDown={handleCreateKeyDown}
+              placeholder="Enter name..."
+              autoComplete="off"
+              className="flex-1 px-3 py-2 text-sm design-input rounded-md"
+              disabled={creating}
+            />
+            <button
+              type="button"
+              onClick={handleCreate}
+              disabled={!newItemName.trim() || creating}
+              className="px-3 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {creating ? '...' : 'Add'}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowCreateForm(false);
+              setNewItemName('');
+            }}
+            className="mt-2 text-sm design-text-secondary hover:design-text-primary"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Search Input */}
+          <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 design-text-secondary" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={searchPlaceholder}
+                autoComplete="off"
+                className="w-full pl-9 pr-3 py-2 text-sm design-input rounded-md"
+              />
+            </div>
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-60 overflow-y-auto p-1">
+            {loading ? (
+              <div className="px-3 py-4 text-center design-text-secondary text-sm">
+                Loading...
+              </div>
+            ) : filteredOptions.length === 0 ? (
+              <div className="px-3 py-4 text-center design-text-secondary text-sm">
+                {emptyMessage}
+              </div>
+            ) : (
+              filteredOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => handleSelect(option.id)}
+                  className={`
+                    w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded-md
+                    transition-colors
+                    ${option.id === value
+                      ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400'
+                      : 'design-text-primary hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }
+                  `}
+                >
+                  {renderOption ? (
+                    renderOption(option)
+                  ) : (
+                    <>
+                      <span className="flex-1">{option.label}</span>
+                      {option.id === value && (
+                        <CheckIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      )}
+                    </>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Create New Button */}
+          {onCreate && (
+            <div className="p-1 border-t border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={() => setShowCreateForm(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded-md text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+              >
+                <PlusIcon className="h-4 w-4" />
+                <span>{createLabel}</span>
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {/* Trigger Button */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
@@ -202,123 +366,8 @@ const Combobox: React.FC<ComboboxProps> = ({
         </div>
       </button>
 
-      {/* Dropdown */}
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
-          {/* Create Form */}
-          {showCreateForm ? (
-            <div className="p-3">
-              <label className="block text-sm font-medium design-text-primary mb-2">
-                {createLabel}
-              </label>
-              <div className="flex gap-2">
-                <input
-                  ref={createInputRef}
-                  type="text"
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  onKeyDown={handleCreateKeyDown}
-                  placeholder="Enter name..."
-                  autoComplete="off"
-                  className="flex-1 px-3 py-2 text-sm design-input rounded-md"
-                  disabled={creating}
-                />
-                <button
-                  type="button"
-                  onClick={handleCreate}
-                  disabled={!newItemName.trim() || creating}
-                  className="px-3 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {creating ? '...' : 'Add'}
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setNewItemName('');
-                }}
-                className="mt-2 text-sm design-text-secondary hover:design-text-primary"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* Search Input */}
-              <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-                <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 design-text-secondary" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={searchPlaceholder}
-                    autoComplete="off"
-                    className="w-full pl-9 pr-3 py-2 text-sm design-input rounded-md"
-                  />
-                </div>
-              </div>
-
-              {/* Options List */}
-              <div className="max-h-60 overflow-y-auto p-1">
-                {loading ? (
-                  <div className="px-3 py-4 text-center design-text-secondary text-sm">
-                    Loading...
-                  </div>
-                ) : filteredOptions.length === 0 ? (
-                  <div className="px-3 py-4 text-center design-text-secondary text-sm">
-                    {emptyMessage}
-                  </div>
-                ) : (
-                  filteredOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => handleSelect(option.id)}
-                      className={`
-                        w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded-md
-                        transition-colors
-                        ${option.id === value
-                          ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400'
-                          : 'design-text-primary hover:bg-gray-50 dark:hover:bg-gray-700'
-                        }
-                      `}
-                    >
-                      {renderOption ? (
-                        renderOption(option)
-                      ) : (
-                        <>
-                          <span className="flex-1">{option.label}</span>
-                          {option.id === value && (
-                            <CheckIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                          )}
-                        </>
-                      )}
-                    </button>
-                  ))
-                )}
-              </div>
-
-              {/* Create New Button */}
-              {onCreate && (
-                <div className="p-1 border-t border-gray-200 dark:border-gray-700">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateForm(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded-md text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                    <span>{createLabel}</span>
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+      {/* Dropdown rendered via portal to escape overflow:hidden containers */}
+      {isOpen && createPortal(dropdownContent, document.body)}
     </div>
   );
 };

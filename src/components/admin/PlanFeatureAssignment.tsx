@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import adminAPI from '../../services/adminAPI';
 import planAPI from '../../services/planAPI';
 import { LoadingSpinner } from '../shared';
+import Combobox from '../ui/combobox/Combobox';
 
 interface Plan {
   id: string;
@@ -351,22 +352,14 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
         <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-700'}`}>
           Select Plan
         </label>
-        <select
+        <Combobox
+          options={plans.map((plan: Plan) => ({ id: plan.id, label: `${plan.name} - $${plan.monthly_price}/mo` }))}
           value={selectedPlanId || ''}
-          onChange={(e) => setSelectedPlanId(e.target.value)}
-          className={`w-full max-w-md px-4 py-2 rounded-lg border ${
-            darkMode
-              ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-              : 'bg-white border-neutral-300 text-zinc-950'
-          } focus:outline-none focus:ring-2 focus:ring-zenible-primary`}
-        >
-          <option value="">Select a plan...</option>
-          {plans.map((plan: Plan) => (
-            <option key={plan.id} value={plan.id}>
-              {plan.name} - ${plan.monthly_price}/mo
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setSelectedPlanId(value)}
+          placeholder="Select a plan..."
+          allowClear={false}
+          className="w-full max-w-md"
+        />
       </div>
 
       {selectedPlanId && (

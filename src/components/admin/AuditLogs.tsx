@@ -103,8 +103,8 @@ export default function AuditLogs() {
 
   return (
     <div className={`flex-1 overflow-auto ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
-      <div className={`border-b px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-        <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+      <div className={`border-b px-4 sm:px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+        <h1 className={`text-xl sm:text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
           Audit Logs
         </h1>
         <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
@@ -113,9 +113,9 @@ export default function AuditLogs() {
       </div>
 
       {/* Filters */}
-      <div className="p-6">
+      <div className="px-4 sm:px-6 py-6">
         <div className={`p-4 rounded-xl border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
-          <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
             <input
               type="text"
               placeholder="User ID"
@@ -146,7 +146,7 @@ export default function AuditLogs() {
       </div>
 
       {/* Logs Table */}
-      <div className="px-6 pb-6">
+      <div className="px-4 sm:px-6 pb-6">
         <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
           {loading ? (
             <LoadingSpinner height="py-12" />
@@ -157,54 +157,56 @@ export default function AuditLogs() {
               No audit logs found
             </div>
           ) : (
-            <table className="w-full">
-              <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-                <tr>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Timestamp</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>User</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Action</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Resource</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>IP Address</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Details</th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
-                {logs.map((log, index) => (
-                  <tr key={log.id || index}>
-                    <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      {formatDate(log.timestamp || log.created_at || null)}
-                    </td>
-                    <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      {log.user_email || log.user_id || 'System'}
-                    </td>
-                    <td className={`px-6 py-4 text-sm font-medium ${getActionColor(log.action)}`}>
-                      {log.action}
-                    </td>
-                    <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      {log.resource || '-'}
-                    </td>
-                    <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      {log.ip_address || '-'}
-                    </td>
-                    <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                      {log.changes || log.details ? (
-                        <details className="cursor-pointer">
-                          <summary>View</summary>
-                          <pre className="text-xs mt-1 max-w-md overflow-auto">
-                            {JSON.stringify(log.changes || log.details, null, 2)}
-                          </pre>
-                        </details>
-                      ) : '-'}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+                  <tr>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Timestamp</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>User</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Action</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Resource</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>IP Address</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Details</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
+                  {logs.map((log, index) => (
+                    <tr key={log.id || index}>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {formatDate(log.timestamp || log.created_at || null)}
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {log.user_email || log.user_id || 'System'}
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-sm font-medium whitespace-nowrap ${getActionColor(log.action)}`}>
+                        {log.action}
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {log.resource || '-'}
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {log.ip_address || '-'}
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                        {log.changes || log.details ? (
+                          <details className="cursor-pointer">
+                            <summary>View</summary>
+                            <pre className="text-xs mt-1 max-w-md overflow-auto">
+                              {JSON.stringify(log.changes || log.details, null, 2)}
+                            </pre>
+                          </details>
+                        ) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           {/* Pagination */}
           {!loading && !error && logs.length > 0 && pagination.total_pages > 1 && (
-            <div className={`px-6 py-4 border-t flex items-center justify-between ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+            <div className={`px-4 sm:px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
               <div className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                 Showing {((pagination.page - 1) * filters.per_page) + 1} to{' '}
                 {Math.min(pagination.page * filters.per_page, pagination.total)} of {pagination.total} results

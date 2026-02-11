@@ -160,6 +160,7 @@ class PlanAPI {
     }
   }
 
+  // Deprecated: use changeSubscription instead
   async upgradeSubscription(newPlanId: string, changeImmediately: boolean = false): Promise<unknown> {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) {
@@ -191,6 +192,7 @@ class PlanAPI {
     }
   }
 
+  // Deprecated: use changeSubscription instead
   async downgradeSubscription(newPlanId: string, changeAtPeriodEnd: boolean = true): Promise<unknown> {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) {
@@ -218,6 +220,76 @@ class PlanAPI {
       return await response.json();
     } catch (error) {
       logger.error('Failed to downgrade subscription:', error);
+      throw error;
+    }
+  }
+
+  async previewPlanChange(newPlanId: string, options?: {
+    billingCycle?: string;
+  }): Promise<unknown> {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/subscriptions/preview-change`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          new_plan_id: newPlanId,
+          billing_cycle: options?.billingCycle,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      logger.error('Failed to preview plan change:', error);
+      throw error;
+    }
+  }
+
+  async changeSubscription(newPlanId: string, options?: {
+    billingCycle?: string;
+    applyImmediately?: boolean;
+    reason?: string;
+  }): Promise<unknown> {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/subscriptions/change`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          new_plan_id: newPlanId,
+          billing_cycle: options?.billingCycle,
+          apply_immediately: options?.applyImmediately,
+          reason: options?.reason,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      logger.error('Failed to change subscription:', error);
       throw error;
     }
   }

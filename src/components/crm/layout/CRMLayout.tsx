@@ -48,7 +48,7 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ header, children, refreshKey, sav
         {header}
 
         {/* Content Section with Scroll */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-auto p-6">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden p-6">
           {children}
         </div>
       </div>

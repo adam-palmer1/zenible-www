@@ -1,4 +1,5 @@
 import React from 'react';
+import Combobox from '../../ui/combobox/Combobox';
 
 interface BulkActionsModalProps {
   darkMode: boolean;
@@ -30,16 +31,17 @@ export default function BulkActionsModal({
             <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
               Action
             </label>
-            <select
+            <Combobox
+              options={[
+                { id: 'activate', label: 'Activate' },
+                { id: 'deactivate', label: 'Deactivate' },
+                { id: 'delete', label: 'Delete' },
+              ]}
               value={bulkAction}
-              onChange={(e) => setBulkAction(e.target.value)}
-              className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-            >
-              <option value="">Select action...</option>
-              <option value="activate">Activate</option>
-              <option value="deactivate">Deactivate</option>
-              <option value="delete">Delete</option>
-            </select>
+              onChange={(value) => setBulkAction(value)}
+              placeholder="Select action..."
+              allowClear={false}
+            />
           </div>
 
           <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>

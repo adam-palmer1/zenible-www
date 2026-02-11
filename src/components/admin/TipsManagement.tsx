@@ -4,6 +4,7 @@ import adminAPI from '../../services/adminAPI';
 import { useModalState } from '../../hooks/useModalState';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
 import { LoadingSpinner } from '../shared';
+import Combobox from '../ui/combobox/Combobox';
 
 interface Tip {
   id: string;
@@ -356,8 +357,8 @@ export default function TipsManagement() {
   return (
     <div className={`flex-1 overflow-auto ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
       {/* Header */}
-      <div className={`border-b px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-        <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+      <div className={`border-b px-4 sm:px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+        <h1 className={`text-xl sm:text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
           Tips Management
         </h1>
         <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
@@ -419,32 +420,30 @@ export default function TipsManagement() {
                   className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
                 />
 
-                <select
+                <Combobox
                   value={characterFilter}
-                  onChange={(e) => {
-                    setCharacterFilter(e.target.value);
+                  onChange={(value) => {
+                    setCharacterFilter(value);
                     setPage(1);
                   }}
-                  className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                >
-                  <option value="">All Characters</option>
-                  {characters.map((char: AICharacter) => (
-                    <option key={char.id} value={char.id}>{char.name}</option>
-                  ))}
-                </select>
+                  options={characters.map((char: AICharacter) => ({ id: char.id, label: char.name }))}
+                  placeholder="All Characters"
+                  allowClear
+                />
 
-                <select
+                <Combobox
                   value={activeFilter}
-                  onChange={(e) => {
-                    setActiveFilter(e.target.value);
+                  onChange={(value) => {
+                    setActiveFilter(value);
                     setPage(1);
                   }}
-                  className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                >
-                  <option value="">All Status</option>
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
-                </select>
+                  options={[
+                    { id: 'true', label: 'Active' },
+                    { id: 'false', label: 'Inactive' },
+                  ]}
+                  placeholder="All Status"
+                  allowClear
+                />
               </div>
 
               <div className="flex gap-2">
@@ -589,19 +588,20 @@ export default function TipsManagement() {
                         <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                           Page {page} of {totalPages} ({total} total)
                         </span>
-                        <select
-                          value={perPage}
-                          onChange={(e) => {
-                            setPerPage(parseInt(e.target.value));
+                        <Combobox
+                          value={String(perPage)}
+                          onChange={(value) => {
+                            setPerPage(parseInt(value || '20'));
                             setPage(1);
                           }}
-                          className={`px-2 py-1 text-sm rounded border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                        >
-                          <option value="10">10 per page</option>
-                          <option value="20">20 per page</option>
-                          <option value="50">50 per page</option>
-                          <option value="100">100 per page</option>
-                        </select>
+                          options={[
+                            { id: '10', label: '10 per page' },
+                            { id: '20', label: '20 per page' },
+                            { id: '50', label: '50 per page' },
+                            { id: '100', label: '100 per page' },
+                          ]}
+                          allowClear={false}
+                        />
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -641,27 +641,25 @@ export default function TipsManagement() {
         <div className="p-6">
           <div className={`p-4 rounded-xl border mb-6 ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <select
-                value={analyticsDays}
-                onChange={(e) => setAnalyticsDays(parseInt(e.target.value))}
-                className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-              >
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
-                <option value="365">Last 365 days</option>
-              </select>
+              <Combobox
+                value={String(analyticsDays)}
+                onChange={(value) => setAnalyticsDays(parseInt(value || '30'))}
+                options={[
+                  { id: '7', label: 'Last 7 days' },
+                  { id: '30', label: 'Last 30 days' },
+                  { id: '90', label: 'Last 90 days' },
+                  { id: '365', label: 'Last 365 days' },
+                ]}
+                allowClear={false}
+              />
 
-              <select
+              <Combobox
                 value={analyticsCharacter}
-                onChange={(e) => setAnalyticsCharacter(e.target.value)}
-                className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-              >
-                <option value="">All Characters</option>
-                {characters.map((char: AICharacter) => (
-                  <option key={char.id} value={char.id}>{char.name}</option>
-                ))}
-              </select>
+                onChange={(value) => setAnalyticsCharacter(value)}
+                options={characters.map((char: AICharacter) => ({ id: char.id, label: char.name }))}
+                placeholder="All Characters"
+                allowClear
+              />
             </div>
           </div>
 
@@ -765,16 +763,18 @@ export default function TipsManagement() {
       {activeTab === 'engagement' && (
         <div className="p-6">
           <div className={`p-4 rounded-xl border mb-6 ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
-            <select
-              value={engagementDays}
-              onChange={(e) => setEngagementDays(parseInt(e.target.value))}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-            >
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-              <option value="365">Last 365 days</option>
-            </select>
+            <Combobox
+              options={[
+                { id: '7', label: 'Last 7 days' },
+                { id: '30', label: 'Last 30 days' },
+                { id: '90', label: 'Last 90 days' },
+                { id: '365', label: 'Last 365 days' },
+              ]}
+              value={String(engagementDays)}
+              onChange={(value) => setEngagementDays(parseInt(value || '7'))}
+              placeholder="Select period"
+              allowClear={false}
+            />
           </div>
 
           {engagementLoading ? (
@@ -851,16 +851,13 @@ export default function TipsManagement() {
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                   AI Character
                 </label>
-                <select
+                <Combobox
+                  options={characters.map((char: AICharacter) => ({ id: char.id, label: char.name }))}
                   value={tipForm.ai_character_id}
-                  onChange={(e) => setTipForm({ ...tipForm, ai_character_id: e.target.value })}
-                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                >
-                  <option value="">Unassigned</option>
-                  {characters.map((char: AICharacter) => (
-                    <option key={char.id} value={char.id}>{char.name}</option>
-                  ))}
-                </select>
+                  onChange={(value) => setTipForm({ ...tipForm, ai_character_id: value })}
+                  placeholder="Unassigned"
+                  allowClear
+                />
               </div>
 
               <div>
@@ -962,17 +959,18 @@ export default function TipsManagement() {
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                   Action
                 </label>
-                <select
+                <Combobox
+                  options={[
+                    { id: 'activate', label: 'Activate' },
+                    { id: 'deactivate', label: 'Deactivate' },
+                    { id: 'assign', label: 'Assign to Character' },
+                    { id: 'delete', label: 'Delete' },
+                  ]}
                   value={bulkAction}
-                  onChange={(e) => setBulkAction(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                >
-                  <option value="">Select action...</option>
-                  <option value="activate">Activate</option>
-                  <option value="deactivate">Deactivate</option>
-                  <option value="assign">Assign to Character</option>
-                  <option value="delete">Delete</option>
-                </select>
+                  onChange={(value) => setBulkAction(value)}
+                  placeholder="Select action..."
+                  allowClear={false}
+                />
               </div>
 
               {bulkAction === 'assign' && (
@@ -980,16 +978,13 @@ export default function TipsManagement() {
                   <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                     Character
                   </label>
-                  <select
+                  <Combobox
+                    options={characters.map((char: AICharacter) => ({ id: char.id, label: char.name }))}
                     value={bulkCharacterId}
-                    onChange={(e) => setBulkCharacterId(e.target.value)}
-                    className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                  >
-                    <option value="">Select character...</option>
-                    {characters.map((char: AICharacter) => (
-                      <option key={char.id} value={char.id}>{char.name}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setBulkCharacterId(value)}
+                    placeholder="Select character..."
+                    allowClear={false}
+                  />
                 </div>
               )}
 
@@ -1056,16 +1051,13 @@ export default function TipsManagement() {
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                   AI Character (optional)
                 </label>
-                <select
+                <Combobox
+                  options={characters.map((char: AICharacter) => ({ id: char.id, label: char.name }))}
                   value={bulkImportCharacter}
-                  onChange={(e) => setBulkImportCharacter(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                >
-                  <option value="">Unassigned</option>
-                  {characters.map((char: AICharacter) => (
-                    <option key={char.id} value={char.id}>{char.name}</option>
-                  ))}
-                </select>
+                  onChange={(value) => setBulkImportCharacter(value)}
+                  placeholder="Unassigned"
+                  allowClear
+                />
               </div>
 
               <div>

@@ -200,52 +200,47 @@ export default function UserManagement() {
 
       // If plan changed, handle plan assignment
       const currentPlanId = selectedUser.current_plan_id || '';
-      if (actionPlanId !== currentPlanId) {
-        if (actionPlanId) {
-          // Assign new plan using the assign-plan endpoint
-          const options: { startDate?: string; endDate?: string } = {};
+      if (actionPlanId && actionPlanId !== currentPlanId) {
+        // Assign new plan using the assign-plan endpoint
+        const options: { startDate?: string; endDate?: string } = {};
 
-          if (durationPreset === 'custom') {
-            if (customStartDate) {
-              options.startDate = new Date(customStartDate).toISOString();
-            }
-            if (customEndDate) {
-              options.endDate = new Date(customEndDate).toISOString();
-            }
-          } else if (durationPreset !== '30days') {
-            const now = new Date();
-            let endDate: Date | undefined;
+        if (durationPreset === 'custom') {
+          if (customStartDate) {
+            options.startDate = new Date(customStartDate).toISOString();
+          }
+          if (customEndDate) {
+            options.endDate = new Date(customEndDate).toISOString();
+          }
+        } else if (durationPreset !== '30days') {
+          const now = new Date();
+          let endDate: Date | undefined;
 
-            switch (durationPreset) {
-              case '1year':
-                endDate = new Date(now);
-                endDate.setFullYear(endDate.getFullYear() + 1);
-                break;
-              case '6months':
-                endDate = new Date(now);
-                endDate.setMonth(endDate.getMonth() + 6);
-                break;
-              case '3months':
-                endDate = new Date(now);
-                endDate.setMonth(endDate.getMonth() + 3);
-                break;
-              case 'lifetime':
-                endDate = new Date('2099-12-31T23:59:59Z');
-                break;
-              default:
-                break;
-            }
-
-            if (endDate) {
-              options.endDate = endDate.toISOString();
-            }
+          switch (durationPreset) {
+            case '1year':
+              endDate = new Date(now);
+              endDate.setFullYear(endDate.getFullYear() + 1);
+              break;
+            case '6months':
+              endDate = new Date(now);
+              endDate.setMonth(endDate.getMonth() + 6);
+              break;
+            case '3months':
+              endDate = new Date(now);
+              endDate.setMonth(endDate.getMonth() + 3);
+              break;
+            case 'lifetime':
+              endDate = new Date('2099-12-31T23:59:59Z');
+              break;
+            default:
+              break;
           }
 
-          await adminAPI.assignPlanToUser(selectedUser.id, actionPlanId, options);
-        } else {
-          // Remove plan by setting current_plan_id to null
-          updateData.current_plan_id = null;
+          if (endDate) {
+            options.endDate = endDate.toISOString();
+          }
         }
+
+        await adminAPI.assignPlanToUser(selectedUser.id, actionPlanId, options);
       }
 
       // Update user profile/role/verification if any fields changed
@@ -354,8 +349,8 @@ export default function UserManagement() {
   return (
     <div className={`flex-1 overflow-auto ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
       {/* Header */}
-      <div className={`border-b px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-        <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+      <div className={`border-b px-4 sm:px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+        <h1 className={`text-xl sm:text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
           User Management
         </h1>
         <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
@@ -369,15 +364,15 @@ export default function UserManagement() {
         search={search}
         setSearch={setSearch}
         roleFilter={roleFilter}
-        setRoleFilter={setRoleFilter}
+        setRoleFilter={(val) => { setRoleFilter(val); setPage(1); }}
         activeFilter={activeFilter}
-        setActiveFilter={setActiveFilter}
+        setActiveFilter={(val) => { setActiveFilter(val); setPage(1); }}
         verifiedFilter={verifiedFilter}
-        setVerifiedFilter={setVerifiedFilter}
+        setVerifiedFilter={(val) => { setVerifiedFilter(val); setPage(1); }}
         orderBy={orderBy}
-        setOrderBy={setOrderBy}
+        setOrderBy={(val) => { setOrderBy(val); setPage(1); }}
         orderDir={orderDir}
-        setOrderDir={setOrderDir}
+        setOrderDir={(val) => { setOrderDir(val); setPage(1); }}
         onSearch={handleSearch}
       />
 

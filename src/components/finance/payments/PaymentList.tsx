@@ -319,7 +319,7 @@ const PaymentList: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Total Payments"
           value={loading ? '...' : (stats?.total_count || payments.length).toString()}
@@ -334,11 +334,17 @@ const PaymentList: React.FC = () => {
           iconColor="green"
         />
         <KPICard
+          title="Pending"
+          value={loading ? '...' : getConvertedDisplay(stats?.converted_pending as ConvertedTotal | undefined)}
+          icon={CreditCard}
+          iconColor="yellow"
+        />
+        <KPICard
           title="Refunded"
           value={loading ? '...' : getConvertedDisplay(stats?.converted_refunded as ConvertedTotal | undefined)}
           subtitle={!loading && (stats?.refunded_by_currency as PaymentCurrencyTotal[] | undefined)?.length ? getCurrencySubtitle(stats!.refunded_by_currency as PaymentCurrencyTotal[]) : undefined}
           icon={RotateCcw}
-          iconColor="orange"
+          iconColor="red"
         />
       </div>
 
@@ -346,17 +352,8 @@ const PaymentList: React.FC = () => {
       <div>
         {/* Header with Search and Filter */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[#09090b] dark:text-white">Payment History</h2>
+          <h2 className="text-lg font-semibold text-[#09090b]">Payments</h2>
           <div className="flex items-center gap-2">
-            {/* Refresh Button */}
-            <button
-              onClick={refresh}
-              className="p-2 border border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-              title="Refresh"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-
             {/* Search Input */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -439,14 +436,6 @@ const PaymentList: React.FC = () => {
               )}
             </div>
 
-            {/* Record Payment Button */}
-            <button
-              onClick={openCreateModal}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Record Payment
-            </button>
           </div>
         </div>
 

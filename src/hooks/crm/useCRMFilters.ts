@@ -73,7 +73,7 @@ export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, 
     ...baseFilters,
     has_crm_status: true,  // Only get contacts in the CRM pipeline
     per_page: 100,         // Use server-side pagination
-    ...(showHidden ? {} : { is_hidden: false }),  // Exclude hidden unless toggled
+    ...(showHidden ? {} : { is_hidden_crm: false }),  // Exclude hidden unless toggled
   }), [baseFilters, showHidden]);
 
   // Filter contacts by selected statuses

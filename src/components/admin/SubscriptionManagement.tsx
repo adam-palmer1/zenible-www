@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Search, ChevronDown, Check, SortAsc, Filter, CreditCard, Loader2 } from 'lucide-react';
+import { Search, ChevronDown, Check, SortAsc, Filter, CreditCard, Loader2, MoreVertical } from 'lucide-react';
 import { adminSubscriptionsAPI, adminPlansAPI } from '../../services/adminAPI';
 import { useModalState } from '../../hooks/useModalState';
+import SubscriptionActionsDropdown from './subscription-management/SubscriptionActionsDropdown';
+import SubscriptionHistoryModal from './subscription-management/SubscriptionHistoryModal';
+import ChangePlanModal from './subscription-management/ChangePlanModal';
+import ConfirmModal from './user-management/ConfirmModal';
+import type { ConfirmModalState } from './user-management/types';
 import type { SubscriptionResponse, SubscriptionList } from '../../types/auth';
 import type { PlanResponse, PlanList } from '../../types/auth';
 
@@ -97,12 +102,10 @@ export default function SubscriptionManagement() {
   const [perPage] = useState<number>(10);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalSubscriptions, setTotalSubscriptions] = useState<number>(0);
-  const cancelModal = useModalState<SubscriptionResponse>();
-  const [cancelling, setCancelling] = useState<boolean>(false);
 
   // Search and filter state
   const [search, setSearch] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
+  const [statusFilter, setStatusFilter] = useState<string>('');
   const [planFilter, setPlanFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('created_at');
   const [sortDir, setSortDir] = useState<string>('desc');
@@ -113,8 +116,28 @@ export default function SubscriptionManagement() {
   const [showSortByDropdown, setShowSortByDropdown] = useState<boolean>(false);
   const [showSortDirDropdown, setShowSortDirDropdown] = useState<boolean>(false);
 
-  // Plans for filter
+  // Plans for filter + change plan modal
   const [plans, setPlans] = useState<any[]>([]);
+
+  // Actions dropdown state
+  const [showDropdownForSub, setShowDropdownForSub] = useState<string | null>(null);
+  const [dropdownSub, setDropdownSub] = useState<any | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+
+  // Modals
+  const changePlanModal = useModalState<any>();
+  const historyModal = useModalState<{ userId: string; userName: string }>();
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalState>({
+    open: false,
+    title: '',
+    message: '',
+    action: null,
+    variant: 'primary',
+  });
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
+  // Ref for click-outside on actions dropdown
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -133,19 +156,18 @@ export default function SubscriptionManagement() {
     fetchPlans();
   }, []);
 
-  // Handle escape key press to close modal
+  // Click-outside handler for actions dropdown
   useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && cancelModal.isOpen) {
-        cancelModal.close();
+    if (!showDropdownForSub) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdownForSub(null);
+        setDropdownSub(null);
       }
     };
-
-    if (cancelModal.isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
-    }
-  }, [cancelModal.isOpen]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdownForSub]);
 
   const fetchSubscriptions = async () => {
     setLoading(true);
@@ -180,6 +202,12 @@ export default function SubscriptionManagement() {
     }
   };
 
+  // Wrap filter setters to reset page on filter change
+  const handleStatusFilterChange = (val: string) => { setStatusFilter(val); setPage(1); };
+  const handlePlanFilterChange = (val: string) => { setPlanFilter(val); setPage(1); };
+  const handleSortByChange = (val: string) => { setSortBy(val); setPage(1); };
+  const handleSortDirChange = (val: string) => { setSortDir(val); setPage(1); };
+
   const getPlanFilterOptions = (): FilterOption[] => {
     const options: FilterOption[] = [{ id: '', label: 'All Plans' }];
     plans.forEach((plan: any) => {
@@ -188,40 +216,89 @@ export default function SubscriptionManagement() {
     return options;
   };
 
-  const openCancelModal = (subscription: any) => {
-    cancelModal.open(subscription);
-  };
-
-  const closeCancelModal = () => {
-    cancelModal.close();
-  };
-
-  const handleCancelSubscription = async () => {
-    if (!cancelModal.data) return;
-
-    setCancelling(true);
-    try {
-      // Cancel at period end by default for better user experience
-      await adminSubscriptionsAPI.cancelSubscription(cancelModal.data.id, {
-        cancelAtPeriodEnd: true,
-        reason: 'Cancelled by admin',
-        feedback: ''
-      });
-      await fetchSubscriptions();
-      closeCancelModal();
-    } catch (err: any) {
-      setError(`Failed to cancel subscription: ${err.message}`);
-    } finally {
-      setCancelling(false);
+  // Actions dropdown handlers
+  const handleOpenDropdown = useCallback((e: React.MouseEvent, sub: any) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const dropdownWidth = 208; // w-52 = 13rem = 208px
+    const dropdownHeight = 200; // approximate max height
+    let top = rect.bottom + 4;
+    let right = window.innerWidth - rect.right;
+    // Clamp so dropdown stays within viewport
+    if (right + dropdownWidth > window.innerWidth) {
+      right = Math.max(8, window.innerWidth - dropdownWidth - 8);
     }
-  };
+    if (top + dropdownHeight > window.innerHeight) {
+      top = Math.max(8, rect.top - dropdownHeight - 4);
+    }
+    setDropdownPosition({ top, right });
+    setDropdownSub(sub);
+    setShowDropdownForSub(sub.id);
+  }, []);
+
+  const closeDropdown = useCallback(() => {
+    setShowDropdownForSub(null);
+    setDropdownSub(null);
+  }, []);
+
+  const handleViewHistory = useCallback(() => {
+    if (!dropdownSub) return;
+    closeDropdown();
+    historyModal.open({
+      userId: dropdownSub.user_id,
+      userName: dropdownSub.user_name || dropdownSub.user_email || 'Unknown User',
+    });
+  }, [dropdownSub, closeDropdown, historyModal]);
+
+  const handleCancelSubscription = useCallback(() => {
+    if (!dropdownSub) return;
+    const sub = dropdownSub;
+    closeDropdown();
+    setConfirmModal({
+      open: true,
+      title: 'Cancel Subscription',
+      message: `Are you sure you want to cancel the subscription for ${sub.user_name || sub.user_email || 'this user'}? The subscription will remain active until the end of the current billing period.`,
+      action: async () => {
+        await adminSubscriptionsAPI.cancelSubscription(sub.id, {
+          cancelAtPeriodEnd: true,
+          reason: 'Cancelled by admin',
+          feedback: '',
+        });
+        await fetchSubscriptions();
+      },
+      variant: 'danger',
+    });
+  }, [dropdownSub, closeDropdown]);
+
+  const handleReactivateSubscription = useCallback(() => {
+    if (!dropdownSub) return;
+    const sub = dropdownSub;
+    closeDropdown();
+    setConfirmModal({
+      open: true,
+      title: 'Reactivate Subscription',
+      message: `Are you sure you want to reactivate the subscription for ${sub.user_name || sub.user_email || 'this user'}?`,
+      action: async () => {
+        await adminSubscriptionsAPI.reactivateSubscription(sub.id);
+        await fetchSubscriptions();
+      },
+      variant: 'primary',
+    });
+  }, [dropdownSub, closeDropdown]);
+
+  const handleChangePlan = useCallback(() => {
+    if (!dropdownSub) return;
+    const sub = dropdownSub;
+    closeDropdown();
+    changePlanModal.open(sub);
+  }, [dropdownSub, closeDropdown, changePlanModal]);
 
   const formatDate = (date: string) => date ? new Date(date).toLocaleDateString() : '-';
 
   return (
     <div className={`flex-1 overflow-auto ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
-      <div className={`border-b px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-        <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+      <div className={`border-b px-4 sm:px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+        <h1 className={`text-xl sm:text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
           Subscription Management
         </h1>
         <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
@@ -230,11 +307,11 @@ export default function SubscriptionManagement() {
       </div>
 
       {/* Filters */}
-      <div className="p-6">
-        <div className={`p-4 rounded-xl border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
-          <div className="flex flex-wrap items-center gap-3">
+      <div className="p-4 sm:p-6">
+        <div className={`p-3 sm:p-4 rounded-xl border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {/* Search Input */}
-            <div className="flex-1 min-w-[200px]">
+            <div className="w-full sm:flex-1 sm:min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -269,7 +346,7 @@ export default function SubscriptionManagement() {
                 onClose={() => setShowStatusFilterDropdown(false)}
                 options={STATUS_FILTER_OPTIONS}
                 selectedValue={statusFilter}
-                onSelect={setStatusFilter}
+                onSelect={handleStatusFilterChange}
                 title="Status"
               />
             </div>
@@ -296,7 +373,7 @@ export default function SubscriptionManagement() {
                 onClose={() => setShowPlanFilterDropdown(false)}
                 options={getPlanFilterOptions()}
                 selectedValue={planFilter}
-                onSelect={setPlanFilter}
+                onSelect={handlePlanFilterChange}
                 title="Plan"
               />
             </div>
@@ -323,7 +400,7 @@ export default function SubscriptionManagement() {
                 onClose={() => setShowSortByDropdown(false)}
                 options={SORT_BY_OPTIONS}
                 selectedValue={sortBy}
-                onSelect={setSortBy}
+                onSelect={handleSortByChange}
                 title="Sort By"
               />
             </div>
@@ -349,7 +426,7 @@ export default function SubscriptionManagement() {
                 onClose={() => setShowSortDirDropdown(false)}
                 options={SORT_DIR_OPTIONS}
                 selectedValue={sortDir}
-                onSelect={setSortDir}
+                onSelect={handleSortDirChange}
                 title="Direction"
               />
             </div>
@@ -359,7 +436,7 @@ export default function SubscriptionManagement() {
       </div>
 
       {/* Subscriptions Table */}
-      <div className="px-6 pb-6">
+      <div className="px-4 sm:px-6 pb-6">
         <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
           {loading ? (
             <div className="flex items-center justify-center py-12">
@@ -378,82 +455,89 @@ export default function SubscriptionManagement() {
               </p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-                <tr>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>User</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Email</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Plan</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Status</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Billing</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Price</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Period End</th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Actions</th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
-                {subscriptions.map((sub: any) => (
-                  <tr key={sub.id}>
-                    <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      {sub.user_name || 'Unknown'}
-                    </td>
-                    <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      {sub.user_email || 'N/A'}
-                    </td>
-                    <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      {sub.plan?.name || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4">
-                      {(() => {
-                        const status = (sub.status || '').toLowerCase();
-                        return (
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            sub.cancel_at_period_end ? 'bg-yellow-100 text-yellow-800' :
-                            status === 'active' ? 'bg-green-100 text-green-800' :
-                            status === 'canceled' || status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                            status === 'past_due' ? 'bg-orange-100 text-orange-800' :
-                            status === 'trialing' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {sub.cancel_at_period_end ? 'Pending Cancel' : sub.status}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                    <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      {sub.billing_cycle}
-                    </td>
-                    <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      ${sub.plan?.monthly_price || 'N/A'}/mo
-                    </td>
-                    <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                      {formatDate(sub.current_period_end)}
-                    </td>
-                    <td className="px-6 py-4">
-                      {(sub.status || '').toLowerCase() === 'active' && !sub.cancel_at_period_end && (
-                        <button onClick={() => openCancelModal(sub)} className="text-red-600 hover:text-red-900 text-sm">
-                          Cancel
-                        </button>
-                      )}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+                  <tr>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>User</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Email</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Plan</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Status</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Billing</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Price</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Period End</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
+                  {subscriptions.map((sub: any) => (
+                    <tr key={sub.id}>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {sub.user_name || 'Unknown'}
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {sub.user_email || 'N/A'}
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {sub.plan?.name || 'N/A'}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                        {(() => {
+                          const status = (sub.status || '').toLowerCase();
+                          return (
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              sub.cancel_at_period_end ? 'bg-yellow-100 text-yellow-800' :
+                              status === 'active' ? 'bg-green-100 text-green-800' :
+                              status === 'canceled' || status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                              status === 'past_due' ? 'bg-orange-100 text-orange-800' :
+                              status === 'trialing' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {sub.cancel_at_period_end ? 'Pending Cancel' : sub.status}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {sub.billing_cycle}
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        ${sub.plan?.monthly_price || 'N/A'}/mo
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {formatDate(sub.current_period_end)}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={(e) => handleOpenDropdown(e, sub)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            darkMode
+                              ? 'hover:bg-zenible-dark-bg text-zenible-dark-text-secondary hover:text-zenible-dark-text'
+                              : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600'
+                          }`}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
         {/* Pagination */}
         {!loading && !error && totalPages > 1 && (
-          <div className={`px-6 py-4 border-t flex items-center justify-between ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+          <div className={`px-4 sm:px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
             <div className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-              Showing {((page - 1) * perPage) + 1} to {Math.min(page * perPage, totalSubscriptions)} of {totalSubscriptions} subscriptions
+              Showing {((page - 1) * perPage) + 1} to {Math.min(page * perPage, totalSubscriptions)} of {totalSubscriptions}
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className={`px-3 py-1 rounded-lg border ${
+                className={`px-3 py-1 rounded-lg border text-sm ${
                   page === 1
                     ? 'opacity-50 cursor-not-allowed'
                     : 'hover:bg-opacity-10 hover:bg-zenible-primary'
@@ -461,13 +545,13 @@ export default function SubscriptionManagement() {
               >
                 Previous
               </button>
-              <span className={`px-3 py-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                Page {page} of {totalPages}
+              <span className={`px-2 py-1 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                {page} / {totalPages}
               </span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className={`px-3 py-1 rounded-lg border ${
+                className={`px-3 py-1 rounded-lg border text-sm ${
                   page === totalPages
                     ? 'opacity-50 cursor-not-allowed'
                     : 'hover:bg-opacity-10 hover:bg-zenible-primary'
@@ -480,91 +564,47 @@ export default function SubscriptionManagement() {
         )}
       </div>
 
-      {/* Cancel Subscription Modal */}
-      {cancelModal.isOpen && cancelModal.data && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`w-full max-w-md rounded-xl shadow-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
-            {/* Modal Header */}
-            <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-              <h3 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-                Cancel Subscription
-              </h3>
-              <button
-                onClick={closeCancelModal}
-                className={`p-1 rounded-lg transition-colors ${
-                  darkMode
-                    ? 'text-zenible-dark-text-secondary hover:bg-zenible-dark-bg hover:text-zenible-dark-text'
-                    : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
-                }`}
-                aria-label="Close modal"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6">
-              <div className={`p-4 rounded-lg mb-4 ${darkMode ? 'bg-yellow-900/20 border border-yellow-800' : 'bg-yellow-50 border border-yellow-200'}`}>
-                <p className={`text-sm ${darkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
-                  <strong>Note:</strong> The subscription will be cancelled at the end of the current billing period. The user will retain access until then.
-                </p>
-              </div>
-
-              <div className={`space-y-3 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                <div>
-                  <span className="font-medium">User:</span>
-                  <span className="ml-2">{cancelModal.data.user_name || 'Unknown'}</span>
-                </div>
-                <div>
-                  <span className="font-medium">Email:</span>
-                  <span className="ml-2">{cancelModal.data.user_email || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="font-medium">Plan:</span>
-                  <span className="ml-2">{cancelModal.data.plan?.name || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="font-medium">Billing:</span>
-                  <span className="ml-2">${cancelModal.data.plan?.monthly_price || 'N/A'}/mo ({cancelModal.data.billing_cycle})</span>
-                </div>
-                <div>
-                  <span className="font-medium">Current Period Ends:</span>
-                  <span className="ml-2">{formatDate(cancelModal.data.current_period_end ?? '')}</span>
-                </div>
-              </div>
-
-              <p className={`mt-4 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                Are you sure you want to cancel this subscription? The user will continue to have access until the period ends.
-              </p>
-            </div>
-
-            {/* Modal Footer */}
-            <div className={`px-6 py-4 border-t flex justify-end gap-3 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-              <button
-                onClick={closeCancelModal}
-                disabled={cancelling}
-                className={`px-4 py-2 border rounded-lg font-medium ${
-                  darkMode
-                    ? 'border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-bg'
-                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                Keep Subscription
-              </button>
-              <button
-                onClick={handleCancelSubscription}
-                disabled={cancelling}
-                className={`px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  cancelling ? 'cursor-wait' : ''
-                }`}
-              >
-                {cancelling ? 'Cancelling...' : 'Cancel Subscription'}
-              </button>
-            </div>
-          </div>
+      {/* Actions Dropdown */}
+      {showDropdownForSub && dropdownSub && (
+        <div ref={dropdownRef}>
+          <SubscriptionActionsDropdown
+            subscription={dropdownSub}
+            position={dropdownPosition}
+            onViewHistory={handleViewHistory}
+            onChangePlan={handleChangePlan}
+            onReactivate={handleReactivateSubscription}
+            onCancel={handleCancelSubscription}
+          />
         </div>
+      )}
+
+      {/* Subscription History Modal */}
+      {historyModal.isOpen && historyModal.data && (
+        <SubscriptionHistoryModal
+          userId={historyModal.data.userId}
+          userName={historyModal.data.userName}
+          onClose={historyModal.close}
+        />
+      )}
+
+      {/* Change Plan Modal */}
+      {changePlanModal.isOpen && changePlanModal.data && (
+        <ChangePlanModal
+          subscription={changePlanModal.data}
+          plans={plans}
+          onClose={changePlanModal.close}
+          onSuccess={fetchSubscriptions}
+        />
+      )}
+
+      {/* Confirm Modal (for cancel/reactivate) */}
+      {confirmModal.open && (
+        <ConfirmModal
+          confirmModal={confirmModal}
+          confirmLoading={confirmLoading}
+          setConfirmModal={setConfirmModal}
+          setConfirmLoading={setConfirmLoading}
+        />
       )}
     </div>
   );

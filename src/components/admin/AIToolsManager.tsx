@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { adminAPI } from '../../services/adminAPI';
 import AIToolModal from './AIToolModal';
+import Combobox from '../ui/combobox/Combobox';
 import CharacterToolAssignment from './CharacterToolAssignment';
 import { useModalState } from '../../hooks/useModalState';
 import { LoadingSpinner } from '../shared';
@@ -137,18 +138,18 @@ export default function AIToolsManager() {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       {/* Header */}
-      <div className={`h-16 border-b flex items-center justify-between px-6 ${
+      <div className={`h-16 border-b flex items-center justify-between px-4 sm:px-6 ${
         darkMode
           ? 'bg-zenible-dark-card border-zenible-dark-border'
           : 'bg-white border-neutral-200'
       }`}>
-        <h1 className={`text-2xl font-semibold ${
+        <h1 className={`text-xl sm:text-2xl font-semibold ${
           darkMode ? 'text-zenible-dark-text' : 'text-zinc-900'
         }`}>
           AI Tools Management
         </h1>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Sub-tab Navigation */}
           <div className="flex rounded-lg border border-gray-300 overflow-hidden">
             <button
@@ -217,7 +218,7 @@ export default function AIToolsManager() {
               placeholder="Search tools by name or description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`flex-1 min-w-[200px] px-3 py-2 rounded-lg border ${
+              className={`w-full sm:flex-1 sm:min-w-[200px] px-3 py-2 rounded-lg border ${
                 darkMode
                   ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text placeholder-zenible-dark-text-secondary'
                   : 'bg-white border-neutral-300 text-gray-900 placeholder-gray-500'
@@ -225,26 +226,24 @@ export default function AIToolsManager() {
             />
 
             {/* Status Filter */}
-            <select
+            <Combobox
+              options={[
+                { id: 'all', label: 'All Tools' },
+                { id: 'active', label: 'Active Only' },
+                { id: 'inactive', label: 'Inactive Only' },
+              ]}
               value={filterActive}
-              onChange={(e) => setFilterActive(e.target.value)}
-              className={`px-3 py-2 rounded-lg border ${
-                darkMode
-                  ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                  : 'bg-white border-neutral-300 text-gray-900'
-              }`}
-            >
-              <option value="all">All Tools</option>
-              <option value="active">Active Only</option>
-              <option value="inactive">Inactive Only</option>
-            </select>
+              onChange={(value) => setFilterActive(value || 'all')}
+              allowClear={false}
+              className="w-40"
+            />
           </div>
         </div>
       )}
 
       {/* Tools Management Tab */}
       {activeSubTab === 'tools' && (
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto px-4 sm:px-6 py-6">
 
           {loading ? (
             <LoadingSpinner height="h-full" />
@@ -252,6 +251,7 @@ export default function AIToolsManager() {
             <div className={`rounded-lg overflow-hidden ${
               darkMode ? 'bg-zenible-dark-card' : 'bg-white'
             }`}>
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className={`${
                   darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'
@@ -259,27 +259,27 @@ export default function AIToolsManager() {
                   darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'
                 }`}>
                   <tr>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                       darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                     }`}>
                       Tool
                     </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                       darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                     }`}>
                       Description
                     </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                       darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                     }`}>
                       Status
                     </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                       darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                     }`}>
                       Created
                     </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                       darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                     }`}>
                       Actions
@@ -293,7 +293,7 @@ export default function AIToolsManager() {
                     <tr key={tool.id} className={`${
                       darkMode ? 'hover:bg-zenible-dark-bg/50' : 'hover:bg-gray-50'
                     }`}>
-                      <td className="px-6 py-4 whitespace-nowrap w-64">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap w-64">
                         <div>
                           <div className={`font-medium truncate ${
                             darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
@@ -309,14 +309,14 @@ export default function AIToolsManager() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <div className={`text-sm w-80 truncate ${
                           darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
                         }`} title={tool.description ?? undefined}>
                           {tool.description}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <button
                           onClick={() => handleToggleToolStatus(tool)}
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
@@ -332,14 +332,14 @@ export default function AIToolsManager() {
                           {tool.is_active ? 'Active' : 'Inactive'}
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <span className={`text-sm ${
                           darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
                         }`}>
                           {new Date(tool.created_at).toLocaleDateString()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => handleEditTool(tool)}
@@ -377,6 +377,7 @@ export default function AIToolsManager() {
                   ))}
                 </tbody>
               </table>
+              </div>
 
               {paginatedTools.length === 0 && (
                 <div className={`text-center py-8 ${
@@ -433,7 +434,7 @@ export default function AIToolsManager() {
 
       {/* Character Assignments Tab */}
       {activeSubTab === 'assignments' && (
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto px-4 sm:px-6 py-6">
           <CharacterToolAssignment onError={setError} darkMode={darkMode} />
         </div>
       )}

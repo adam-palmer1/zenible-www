@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import adminAPI from '../../services/adminAPI';
+import Combobox from '../ui/combobox/Combobox';
 import {
   DndContext,
   closestCenter,
@@ -656,17 +657,13 @@ export default function OnboardingQuestions() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Question Type
                 </label>
-                <select
+                <Combobox
+                  options={QUESTION_TYPES.map(type => ({ id: type.value, label: `${type.icon} ${type.label}` }))}
                   value={formData.question_type}
-                  onChange={(e) => setFormData({ ...formData, question_type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  {QUESTION_TYPES.map(type => (
-                    <option key={type.value} value={type.value}>
-                      {type.icon} {type.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setFormData({ ...formData, question_type: value || 'short_text' })}
+                  placeholder="Select type..."
+                  allowClear={false}
+                />
               </div>
 
               <div>
@@ -1068,7 +1065,7 @@ export default function OnboardingQuestions() {
     <div className="flex-1 overflow-y-auto">
       <div className="p-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Onboarding Questions</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Onboarding Questions</h1>
           <p className="mt-1 text-sm text-gray-500">
             Manage customization questions for user onboarding
           </p>

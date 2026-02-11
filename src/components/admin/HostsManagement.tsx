@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import eventsAPI from '../../services/eventsAPI';
 import ImageCropperModal from '../shared/ImageCropperModal';
 import { useModalState } from '../../hooks/useModalState';
+import Combobox from '../ui/combobox/Combobox';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
 import { LoadingSpinner } from '../shared';
 
@@ -309,8 +310,8 @@ export default function HostsManagement() {
   return (
     <div className={`flex-1 overflow-auto ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
       {/* Header */}
-      <div className={`border-b px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-        <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+      <div className={`border-b px-4 sm:px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+        <h1 className={`text-xl sm:text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
           Hosts Management
         </h1>
         <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
@@ -362,18 +363,20 @@ export default function HostsManagement() {
                   className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
                 />
 
-                <select
+                <Combobox
+                  options={[
+                    { id: 'true', label: 'Active' },
+                    { id: 'false', label: 'Inactive' },
+                  ]}
                   value={activeFilter}
-                  onChange={(e) => {
-                    setActiveFilter(e.target.value);
+                  onChange={(value) => {
+                    setActiveFilter(value);
                     setPage(1);
                   }}
-                  className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                >
-                  <option value="">All Status</option>
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
-                </select>
+                  placeholder="All Status"
+                  allowClear
+                  className="w-36"
+                />
               </div>
 
               <div className="flex gap-2">
@@ -513,19 +516,21 @@ export default function HostsManagement() {
                         <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                           Page {page} of {totalPages} ({total} total)
                         </span>
-                        <select
-                          value={perPage}
-                          onChange={(e) => {
-                            setPerPage(parseInt(e.target.value));
+                        <Combobox
+                          options={[
+                            { id: '10', label: '10 per page' },
+                            { id: '20', label: '20 per page' },
+                            { id: '50', label: '50 per page' },
+                            { id: '100', label: '100 per page' },
+                          ]}
+                          value={String(perPage)}
+                          onChange={(value) => {
+                            setPerPage(parseInt(value || '20'));
                             setPage(1);
                           }}
-                          className={`px-2 py-1 text-sm rounded border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                        >
-                          <option value="10">10 per page</option>
-                          <option value="20">20 per page</option>
-                          <option value="50">50 per page</option>
-                          <option value="100">100 per page</option>
-                        </select>
+                          allowClear={false}
+                          className="w-40"
+                        />
                       </div>
                       <div className="flex gap-2">
                         <button

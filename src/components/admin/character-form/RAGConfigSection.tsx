@@ -1,5 +1,6 @@
 import React from 'react';
 import { CharacterFormState, SelectOption } from './types';
+import Combobox from '../../ui/combobox/Combobox';
 
 interface RAGConfigSectionProps {
   characterForm: CharacterFormState;
@@ -35,28 +36,17 @@ export default function RAGConfigSection({
           }`}>
             Embedding Model
           </label>
-          <select
+          <Combobox
+            options={embeddingModels.map(model => ({ id: model.value, label: model.label }))}
             value={characterForm.metadata.embedding_model}
-            onChange={(e) => setCharacterForm({
+            onChange={(value) => setCharacterForm({
               ...characterForm,
-              metadata: {...characterForm.metadata, embedding_model: e.target.value}
+              metadata: {...characterForm.metadata, embedding_model: value}
             })}
-            className={`w-full px-3 py-2 border rounded-lg ${
-              darkMode
-                ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                : 'bg-white border-gray-300 text-gray-900'
-            }`}
-          >
-            {modelsLoading ? (
-              <option value="">Loading models...</option>
-            ) : embeddingModels.length > 0 ? (
-              embeddingModels.map(model => (
-                <option key={model.value} value={model.value}>{model.label}</option>
-              ))
-            ) : (
-              <option value="">No embedding models available</option>
-            )}
-          </select>
+            placeholder={modelsLoading ? "Loading models..." : "No embedding models available"}
+            loading={modelsLoading}
+            allowClear={false}
+          />
         </div>
 
         <div>

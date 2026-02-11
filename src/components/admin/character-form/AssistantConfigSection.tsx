@@ -1,5 +1,6 @@
 import React from 'react';
 import { CharacterFormState, CustomFunction, SelectOption, ToolDefinition } from './types';
+import Combobox from '../../ui/combobox/Combobox';
 
 interface AssistantConfigSectionProps {
   characterForm: CharacterFormState;
@@ -101,12 +102,14 @@ export default function AssistantConfigSection({
             <div className="flex gap-2">
               {/* Add available tool dropdown */}
               {availableTools.length > 0 && availableTools.some(tool => !customFunctions.some(f => f.name === tool.value)) && (
-                <select
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      const toolName = e.target.value;
-                      const toolDef = toolDefinitions[toolName];
-
+                <Combobox
+                  options={availableTools
+                    .filter(tool => !customFunctions.some(f => f.name === tool.value))
+                    .map(tool => ({ id: tool.value, label: tool.label }))}
+                  value=""
+                  onChange={(value) => {
+                    if (value) {
+                      const toolDef = toolDefinitions[value];
                       if (toolDef) {
                         const newFunction = {
                           name: toolDef.function.name,
@@ -115,24 +118,12 @@ export default function AssistantConfigSection({
                         };
                         setCustomFunctions([...customFunctions, newFunction]);
                       }
-                      e.target.value = '';
                     }
                   }}
-                  className={`px-3 py-1 text-sm rounded ${
-                    darkMode
-                      ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                      : 'bg-white border-gray-300 text-gray-700'
-                  }`}
-                >
-                  <option value="">Add Available Tool...</option>
-                  {availableTools
-                    .filter(tool => !customFunctions.some(f => f.name === tool.value))
-                    .map(tool => (
-                      <option key={tool.value} value={tool.value}>
-                        {tool.label}
-                      </option>
-                    ))}
-                </select>
+                  placeholder="Add Available Tool..."
+                  allowClear={false}
+                  className="w-48"
+                />
               )}
               <button
                 type="button"

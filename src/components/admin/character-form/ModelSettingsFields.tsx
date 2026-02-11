@@ -1,5 +1,6 @@
 import React from 'react';
 import { CharacterFormState, SelectOption, responseFormats, schemaTemplates } from './types';
+import Combobox from '../../ui/combobox/Combobox';
 
 interface ModelSettingsFieldsProps {
   characterForm: CharacterFormState;
@@ -26,28 +27,17 @@ export default function ModelSettingsFields({
         }`}>
           Model
         </label>
-        <select
+        <Combobox
+          options={availableModels.map(model => ({ id: model.value, label: model.label }))}
           value={characterForm.metadata.model}
-          onChange={(e) => setCharacterForm({
+          onChange={(value) => setCharacterForm({
             ...characterForm,
-            metadata: {...characterForm.metadata, model: e.target.value}
+            metadata: {...characterForm.metadata, model: value}
           })}
-          className={`w-full px-3 py-2 border rounded-lg ${
-            darkMode
-              ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-              : 'bg-white border-gray-300 text-gray-900'
-          }`}
-        >
-          {modelsLoading ? (
-            <option value="">Loading models...</option>
-          ) : availableModels.length > 0 ? (
-            availableModels.map(model => (
-              <option key={model.value} value={model.value}>{model.label}</option>
-            ))
-          ) : (
-            <option value="">No models available</option>
-          )}
-        </select>
+          placeholder={modelsLoading ? "Loading models..." : "No models available"}
+          loading={modelsLoading}
+          allowClear={false}
+        />
       </div>
 
       <div>
@@ -96,12 +86,13 @@ export default function ModelSettingsFields({
         }`}>
           Response Format
         </label>
-        <select
+        <Combobox
+          options={responseFormats.map(format => ({ id: format.value, label: format.label }))}
           value={characterForm.metadata.response_format}
-          onChange={(e) => {
-            const newMetadata = {...characterForm.metadata, response_format: e.target.value};
+          onChange={(value) => {
+            const newMetadata = {...characterForm.metadata, response_format: value};
             // Clear json_schema if not using json_schema format
-            if (e.target.value !== 'json_schema') {
+            if (value !== 'json_schema') {
               newMetadata.json_schema = null;
             }
             setCharacterForm({
@@ -109,16 +100,9 @@ export default function ModelSettingsFields({
               metadata: newMetadata
             });
           }}
-          className={`w-full px-3 py-2 border rounded-lg ${
-            darkMode
-              ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-              : 'bg-white border-gray-300 text-gray-900'
-          }`}
-        >
-          {responseFormats.map(format => (
-            <option key={format.value} value={format.value}>{format.label}</option>
-          ))}
-        </select>
+          placeholder="Select format..."
+          allowClear={false}
+        />
       </div>
 
       {/* JSON Schema Editor - Conditional */}

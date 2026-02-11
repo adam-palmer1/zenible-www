@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface DatePickerCalendarProps {
@@ -26,6 +27,23 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
   const isFocusedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number; width: number }>({ left: 0, width: 280 });
+
+  const updatePosition = useCallback(() => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const dropdownHeight = 320;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openAbove = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
+
+      if (openAbove) {
+        setDropdownPos({ bottom: window.innerHeight - rect.top + 4, left: rect.left, width: 280 });
+      } else {
+        setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: 280 });
+      }
+    }
+  }, []);
 
   // Sync inputText and viewDate from value prop — but only when not actively typing
   useEffect(() => {
@@ -39,7 +57,10 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current && !containerRef.current.contains(event.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
         setInputText(formatDisplay(value));
       }
@@ -109,7 +130,10 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
 
   const handleInputFocus = () => {
     isFocusedRef.current = true;
-    if (!isOpen) setIsOpen(true);
+    if (!isOpen) {
+      updatePosition();
+      setIsOpen(true);
+    }
   };
 
   const handleInputBlur = () => {
@@ -164,7 +188,7 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
     <div ref={containerRef} className={`relative min-w-[130px] ${className}`}>
       {/* Input */}
       <div
-        onClick={() => { if (!isOpen) setIsOpen(true); }}
+        onClick={() => { if (!isOpen) { updatePosition(); setIsOpen(true); } }}
         className={`flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer hover:border-gray-400 transition-colors ${
           error ? 'border-red-300' : 'border-gray-300'
         } ${isOpen ? 'ring-2 ring-purple-500 border-transparent' : ''}`}
@@ -183,68 +207,83 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
         />
       </div>
 
-      {/* Calendar Dropdown */}
-      {isOpen && (
-        <div className="absolute z-50 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 p-4 w-[280px]">
-          {/* Month Header */}
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-semibold text-sm text-gray-900">{monthLabel}</span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={prevMonth}
-                className="p-1 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors"
-              >
-                <ChevronLeftIcon className="w-3.5 h-3.5 text-purple-600" />
-              </button>
-              <button
-                type="button"
-                onClick={nextMonth}
-                className="p-1 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors"
-              >
-                <ChevronRightIcon className="w-3.5 h-3.5 text-purple-600" />
-              </button>
+      {/* Calendar Dropdown - rendered via portal to escape overflow:hidden containers */}
+      {isOpen && createPortal(
+        <>
+          <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => { setIsOpen(false); setInputText(formatDisplay(value)); }} />
+          <div
+            ref={dropdownRef}
+            style={{
+              position: 'fixed',
+              left: dropdownPos.left,
+              ...(dropdownPos.top != null ? { top: dropdownPos.top } : {}),
+              ...(dropdownPos.bottom != null ? { bottom: dropdownPos.bottom } : {}),
+              width: dropdownPos.width,
+              zIndex: 9999,
+            }}
+            className="bg-white rounded-lg shadow-lg border border-gray-200 p-4"
+          >
+            {/* Month Header */}
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-semibold text-sm text-gray-900">{monthLabel}</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={prevMonth}
+                  className="p-1 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors"
+                >
+                  <ChevronLeftIcon className="w-3.5 h-3.5 text-purple-600" />
+                </button>
+                <button
+                  type="button"
+                  onClick={nextMonth}
+                  className="p-1 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors"
+                >
+                  <ChevronRightIcon className="w-3.5 h-3.5 text-purple-600" />
+                </button>
+              </div>
+            </div>
+
+            {/* Day Headers */}
+            <div className="grid grid-cols-7 mb-1">
+              {DAYS_OF_WEEK.map((day) => (
+                <div key={day} className="text-center text-xs font-medium text-gray-500 py-1">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Day Grid */}
+            <div className="space-y-1">
+              {rows.map((row, rowIndex) => (
+                <div key={rowIndex} className="grid grid-cols-7">
+                  {row.map((day, colIndex) => (
+                    <div key={colIndex} className="flex items-center justify-center">
+                      {day !== null ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDayClick(day)}
+                          className={`w-8 h-8 rounded-md text-sm font-medium flex items-center justify-center transition-colors ${
+                            isSelected(day)
+                              ? 'bg-purple-600 text-white'
+                              : isToday(day)
+                              ? 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                              : 'text-gray-900 hover:bg-gray-100'
+                          }`}
+                        >
+                          {day}
+                        </button>
+                      ) : (
+                        <div className="w-8 h-8" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
-
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 mb-1">
-            {DAYS_OF_WEEK.map((day) => (
-              <div key={day} className="text-center text-xs font-medium text-gray-500 py-1">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Day Grid */}
-          <div className="space-y-1">
-            {rows.map((row, rowIndex) => (
-              <div key={rowIndex} className="grid grid-cols-7">
-                {row.map((day, colIndex) => (
-                  <div key={colIndex} className="flex items-center justify-center">
-                    {day !== null ? (
-                      <button
-                        type="button"
-                        onClick={() => handleDayClick(day)}
-                        className={`w-8 h-8 rounded-md text-sm font-medium flex items-center justify-center transition-colors ${
-                          isSelected(day)
-                            ? 'bg-purple-600 text-white'
-                            : isToday(day)
-                            ? 'bg-purple-50 text-purple-600 hover:bg-purple-100'
-                            : 'text-gray-900 hover:bg-gray-100'
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    ) : (
-                      <div className="w-8 h-8" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
+        </>,
+        document.body
       )}
     </div>
   );

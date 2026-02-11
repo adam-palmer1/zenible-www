@@ -3,6 +3,8 @@ import { usePreferences } from '../../contexts/PreferencesContext';
 import planAPI from '../../services/planAPI';
 import UsageDashboard from '../UsageDashboard';
 import PaymentHistory from '../PaymentHistory';
+import PlanChangeConfirmModal from './PlanChangeConfirmModal';
+import type { ChangePlanPreview } from './PlanChangeConfirmModal';
 
 interface SubscriptionSettingsTabProps {
   currentSubscription: any;
@@ -37,6 +39,23 @@ export default function SubscriptionSettingsTab({
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [subscribing, setSubscribing] = useState(false);
 
+  // Plan change confirmation modal state
+  const [planChangeModal, setPlanChangeModal] = useState<{
+    isOpen: boolean;
+    planId: string | null;
+    preview: ChangePlanPreview | null;
+    loading: boolean;
+    confirming: boolean;
+    error: string | null;
+  }>({
+    isOpen: false,
+    planId: null,
+    preview: null,
+    loading: false,
+    confirming: false,
+    error: null,
+  });
+
   // Fetch available plans when component mounts
   useEffect(() => {
     if (availablePlans.length === 0) {
@@ -65,40 +84,61 @@ export default function SubscriptionSettingsTab({
   const handleSelectPlan = async (planId: string) => {
     if (subscribing) return;
 
-    try {
-      setSubscribing(true);
-      setSelectedPlanId(planId);
-      setError(null);
+    if (currentSubscription && Object.keys(currentSubscription).length > 0) {
+      // Existing subscription — open confirmation modal with preview
+      setPlanChangeModal({
+        isOpen: true,
+        planId,
+        preview: null,
+        loading: true,
+        confirming: false,
+        error: null,
+      });
 
-      // Check if user has an existing subscription
-      if (currentSubscription && Object.keys(currentSubscription).length > 0) {
-        // Find the selected plan to determine if it's an upgrade or downgrade
-        const selectedPlan = availablePlans.find(p => p.id === planId);
-        const currentPrice = parseFloat(currentSubscription.plan?.monthly_price) || 0;
-        const newPrice = parseFloat(selectedPlan?.monthly_price) || 0;
-
-        if (newPrice > currentPrice) {
-          // Upgrade - change immediately
-          await planAPI.upgradeSubscription(planId, true);
-          setSuccessMessage('Subscription upgraded successfully!');
-        } else {
-          // Downgrade - change at period end
-          await planAPI.downgradeSubscription(planId, true);
-          setSuccessMessage('Subscription will be changed at the end of your billing period.');
-        }
-      } else {
-        // New subscription
+      try {
+        const preview = await planAPI.previewPlanChange(planId) as ChangePlanPreview;
+        setPlanChangeModal(prev => ({ ...prev, preview, loading: false }));
+      } catch (err: unknown) {
+        setPlanChangeModal(prev => ({
+          ...prev,
+          loading: false,
+          error: (err as Error).message || 'Failed to load preview',
+        }));
+      }
+    } else {
+      // New subscription — keep existing create flow
+      try {
+        setSubscribing(true);
+        setSelectedPlanId(planId);
+        setError(null);
         await planAPI.createSubscription(planId, 'monthly');
         setSuccessMessage('Subscription created successfully!');
+        await fetchUserProfile();
+      } catch (err: unknown) {
+        setError((err as Error).message || 'Failed to create subscription');
+      } finally {
+        setSubscribing(false);
+        setSelectedPlanId(null);
       }
+    }
+  };
 
-      // Refresh subscription data
+  const handleConfirmPlanChange = async () => {
+    if (!planChangeModal.planId) return;
+
+    setPlanChangeModal(prev => ({ ...prev, confirming: true, error: null }));
+
+    try {
+      await planAPI.changeSubscription(planChangeModal.planId);
+      setPlanChangeModal({ isOpen: false, planId: null, preview: null, loading: false, confirming: false, error: null });
+      setSuccessMessage('Subscription updated successfully!');
       await fetchUserProfile();
     } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to update subscription');
-    } finally {
-      setSubscribing(false);
-      setSelectedPlanId(null);
+      setPlanChangeModal(prev => ({
+        ...prev,
+        confirming: false,
+        error: (err as Error).message || 'Failed to change plan',
+      }));
     }
   };
 
@@ -364,6 +404,17 @@ export default function SubscriptionSettingsTab({
 
       {/* Payment History */}
       <PaymentHistory />
+
+      {/* Plan Change Confirmation Modal */}
+      <PlanChangeConfirmModal
+        isOpen={planChangeModal.isOpen}
+        onClose={() => setPlanChangeModal({ isOpen: false, planId: null, preview: null, loading: false, confirming: false, error: null })}
+        onConfirm={handleConfirmPlanChange}
+        loading={planChangeModal.loading}
+        confirming={planChangeModal.confirming}
+        preview={planChangeModal.preview}
+        error={planChangeModal.error}
+      />
     </div>
   );
 }

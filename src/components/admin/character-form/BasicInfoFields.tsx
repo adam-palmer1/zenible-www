@@ -1,5 +1,6 @@
 import React from 'react';
 import { CharacterFormState, BackendProvider } from './types';
+import Combobox from '../../ui/combobox/Combobox';
 
 interface BasicInfoFieldsProps {
   characterForm: CharacterFormState;
@@ -84,21 +85,13 @@ export default function BasicInfoFields({
         }`}>
           Backend Provider *
         </label>
-        <select
+        <Combobox
+          options={backendProviders.map(provider => ({ id: provider.value, label: `${provider.label} - ${provider.description}` }))}
           value={characterForm.backend_provider}
-          onChange={(e) => onProviderChange(e.target.value)}
-          className={`w-full px-3 py-2 border rounded-lg ${
-            darkMode
-              ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-              : 'bg-white border-gray-300 text-gray-900'
-          }`}
-        >
-          {backendProviders.map(provider => (
-            <option key={provider.value} value={provider.value}>
-              {provider.label} - {provider.description}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => onProviderChange(value)}
+          placeholder="Select provider..."
+          allowClear={false}
+        />
       </div>
 
       <div>
@@ -107,22 +100,13 @@ export default function BasicInfoFields({
         }`}>
           Category
         </label>
-        <select
+        <Combobox
+          options={Array.isArray(categories) ? categories.map(category => ({ id: category.id, label: category.name })) : []}
           value={characterForm.category_id}
-          onChange={(e) => setCharacterForm({...characterForm, category_id: e.target.value})}
-          className={`w-full px-3 py-2 border rounded-lg ${
-            darkMode
-              ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-              : 'bg-white border-gray-300 text-gray-900'
-          }`}
-        >
-          <option value="">No Category</option>
-          {Array.isArray(categories) && categories.map(category => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setCharacterForm({...characterForm, category_id: value})}
+          placeholder="No Category"
+          allowClear
+        />
       </div>
     </>
   );

@@ -82,7 +82,7 @@ const PipelineContactCardContentInner: React.FC<PipelineContactCardContentProps>
           {/* Name below badges */}
           <div className="px-4 pb-0 w-full">
             <p
-              className={`font-medium text-base leading-6 text-[#09090b] dark:text-white truncate w-full ${contact.is_hidden ? 'line-through opacity-60' : ''}`}
+              className={`font-medium text-base leading-6 text-[#09090b] dark:text-white truncate w-full ${contact.is_hidden_crm ? 'line-through opacity-60' : ''}`}
             >
               {displayName}
             </p>
@@ -95,7 +95,7 @@ const PipelineContactCardContentInner: React.FC<PipelineContactCardContentProps>
             {/* Name - Top Left */}
             <div className="flex flex-col items-start flex-1 min-w-0">
               <p
-                className={`font-medium text-base leading-6 text-[#09090b] dark:text-white truncate w-full ${contact.is_hidden ? 'line-through opacity-60' : ''}`}
+                className={`font-medium text-base leading-6 text-[#09090b] dark:text-white truncate w-full ${contact.is_hidden_crm ? 'line-through opacity-60' : ''}`}
               >
                 {displayName}
               </p>

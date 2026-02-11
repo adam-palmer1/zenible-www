@@ -8,7 +8,7 @@ import { PlanSelectorModalProps, AdminPlan } from './types';
 const PlanSelectorModal: React.FC<PlanSelectorModalProps> = ({ isOpen, onClose, plans, selectedPlanId, onSelect }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredPlans = [{ id: '', name: 'No Plan', monthly_price: 0 }, ...plans].filter((plan: AdminPlan) => {
+  const filteredPlans = plans.filter((plan: AdminPlan) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return plan.name.toLowerCase().includes(query);
@@ -74,7 +74,7 @@ const PlanSelectorModal: React.FC<PlanSelectorModalProps> = ({ isOpen, onClose, 
             <div className="py-2">
               {filteredPlans.map((plan: AdminPlan) => (
                 <button
-                  key={plan.id || 'none'}
+                  key={plan.id}
                   onClick={() => { onSelect(plan.id); onClose(); }}
                   className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between transition-colors ${
                     plan.id === selectedPlanId ? 'bg-purple-50 dark:bg-purple-900/20' : ''
@@ -83,7 +83,7 @@ const PlanSelectorModal: React.FC<PlanSelectorModalProps> = ({ isOpen, onClose, 
                   <div>
                     <div className="text-sm font-medium text-gray-900 dark:text-white">{plan.name}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                      {plan.id ? `$${plan.monthly_price}/month` : 'Remove current plan'}
+                      {`$${plan.monthly_price}/month`}
                     </div>
                   </div>
                   {plan.id === selectedPlanId && <Check className="h-5 w-5 text-purple-600" />}

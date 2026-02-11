@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import Modal from '../ui/modal/Modal';
+import Dropdown from '../ui/dropdown/Dropdown';
 import statusesAPI from '../../services/api/crm/statuses';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useModalState } from '../../hooks/useModalState';
-import type { SimpleStatusResponse, AvailableStatuses } from '../../types/crm';
+import type { SimpleStatusResponse, AvailableStatuses, StatusRolesResponse } from '../../types/crm';
 
 interface StatusData extends SimpleStatusResponse {
   isGlobal?: boolean;
@@ -21,6 +22,8 @@ interface StatusRowProps {
   isSystem: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
+  role?: string | null;
+  onRoleChange?: (role: string | null) => void;
 }
 
 interface StatusFormModalProps {
@@ -35,9 +38,34 @@ interface DeleteStatusModalProps {
   onSuccess: () => void;
 }
 
+const ROLE_OPTIONS = [
+  { value: null, label: 'None' },
+  { value: 'lead', label: 'Lead' },
+  { value: 'call_booked', label: 'Call Booked' },
+  { value: 'lost', label: 'Lost' },
+  { value: 'won', label: 'Won' },
+] as const;
+
+const ROLE_FIELD_MAP: Record<string, keyof StatusRolesResponse> = {
+  lead: 'lead_status_id',
+  call_booked: 'call_booked_status_id',
+  lost: 'lost_status_id',
+  won: 'won_status_id',
+};
+
+/** Given a status ID and the current roles, return the role name assigned to it (or null) */
+function getRoleForStatus(statusId: string, roles: StatusRolesResponse): string | null {
+  if (roles.lead_status_id === statusId) return 'lead';
+  if (roles.call_booked_status_id === statusId) return 'call_booked';
+  if (roles.lost_status_id === statusId) return 'lost';
+  if (roles.won_status_id === statusId) return 'won';
+  return null;
+}
+
 const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [globalStatuses, setGlobalStatuses] = useState<SimpleStatusResponse[]>([]);
   const [customStatuses, setCustomStatuses] = useState<SimpleStatusResponse[]>([]);
+  const [roles, setRoles] = useState<StatusRolesResponse>({});
   const [loading, setLoading] = useState(true);
   const createModal = useModalState();
   const [editingStatus, setEditingStatus] = useState<StatusData | null>(null);
@@ -51,11 +79,38 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
       const data = await statusesAPI.getAvailable() as AvailableStatuses;
       setGlobalStatuses(data.global_statuses || []);
       setCustomStatuses(data.custom_statuses || []);
+      setRoles(data.roles || {});
     } catch (error) {
       showError('Failed to load statuses');
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRoleChange = async (statusId: string, newRole: string | null) => {
+    try {
+      // Build update payload: clear old assignment, set new one
+      const update: Record<string, string | null> = {};
+
+      // If this status currently has a role, clear it
+      const currentRole = getRoleForStatus(statusId, roles);
+      if (currentRole) {
+        update[ROLE_FIELD_MAP[currentRole]] = null;
+      }
+
+      // If a new role is being assigned, clear it from any other status first, then assign
+      if (newRole) {
+        update[ROLE_FIELD_MAP[newRole]] = statusId;
+      }
+
+      await statusesAPI.updateRoles(update);
+      // Refetch to get the updated roles
+      const data = await statusesAPI.getAvailable() as AvailableStatuses;
+      setRoles(data.roles || {});
+      if (onSuccess) onSuccess();
+    } catch (error: any) {
+      showError(error.message || 'Failed to update role');
     }
   };
 
@@ -98,6 +153,8 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
                           status={status}
                           isSystem={true}
                           onEdit={() => setEditingStatus({ ...status, isGlobal: true })}
+                          role={getRoleForStatus(status.id, roles)}
+                          onRoleChange={(role) => handleRoleChange(status.id, role)}
                         />
                       ))}
                     </div>
@@ -138,6 +195,8 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
                             isSystem={false}
                             onEdit={() => setEditingStatus({ ...status, isGlobal: false })}
                             onDelete={() => setDeletingStatus(status)}
+                            role={getRoleForStatus(status.id, roles)}
+                            onRoleChange={(role) => handleRoleChange(status.id, role)}
                           />
                         ))}
                       </div>
@@ -187,27 +246,59 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
   );
 };
 
+/** Label for the currently-selected role (shown on the trigger button) */
+function roleTriggerLabel(role: string | null | undefined): string {
+  const match = ROLE_OPTIONS.find((o) => o.value === role);
+  return match && match.value ? match.label : 'No role';
+}
+
 // Status Row Component - Figma Design
-const StatusRow: React.FC<StatusRowProps> = ({ status, isSystem, onEdit, onDelete }) => {
+const StatusRow: React.FC<StatusRowProps> = ({ status, isSystem, onEdit, onDelete, role, onRoleChange }) => {
   return (
     <div className="flex items-center justify-between py-3.5 px-4 bg-white dark:bg-gray-800">
-      <div className="flex items-center gap-3 flex-1">
-        {/* Colored Circle Indicator */}
+      {/* Left: color dot + name */}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
         <div
           className="w-5 h-5 rounded-full flex-shrink-0"
-          style={{
-            backgroundColor: status.color,
-          }}
+          style={{ backgroundColor: status.color }}
         />
-
-        {/* Status Name */}
-        <div className="text-sm font-normal text-gray-900 dark:text-white flex-1">
+        <div className="text-sm font-normal text-gray-900 dark:text-white truncate">
           {status.friendly_name || status.name}
         </div>
       </div>
 
-      {/* Color Code and Edit Icon */}
-      <div className="flex items-center gap-3">
+      {/* Right: role dropdown, color code, edit/delete icons */}
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Role Dropdown (styled Radix) */}
+        {onRoleChange && (
+          <Dropdown
+            align="end"
+            side="bottom"
+            sideOffset={4}
+            className="min-w-[160px]"
+            trigger={
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors cursor-pointer"
+              >
+                {roleTriggerLabel(role)}
+                <ChevronDownIcon className="w-3 h-3 opacity-50" />
+              </button>
+            }
+          >
+            <Dropdown.Label>Use as</Dropdown.Label>
+            {ROLE_OPTIONS.map((opt) => (
+              <Dropdown.Item
+                key={opt.value ?? 'none'}
+                highlighted={role === opt.value}
+                onSelect={() => onRoleChange(opt.value)}
+              >
+                {opt.value ? opt.label : 'No role'}
+              </Dropdown.Item>
+            ))}
+          </Dropdown>
+        )}
+
         <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
           {status.color?.toUpperCase()}
         </span>

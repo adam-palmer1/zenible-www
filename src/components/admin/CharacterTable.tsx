@@ -68,6 +68,7 @@ export default function CharacterTable({
     <div className={`rounded-lg overflow-visible ${
       darkMode ? 'bg-zenible-dark-card' : 'bg-white'
     }`}>
+      <div className="overflow-x-auto">
       <table className="w-full">
         <thead className={`${
           darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'
@@ -76,35 +77,35 @@ export default function CharacterTable({
         }`}>
           <tr>
             {visibleColumns.name && (
-              <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+              <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                 darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
               }`}>
                 Name
               </th>
             )}
             {visibleColumns.category && (
-              <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+              <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                 darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
               }`}>
                 Category
               </th>
             )}
             {visibleColumns.model && (
-              <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+              <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                 darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
               }`}>
                 Model
               </th>
             )}
             {visibleColumns.status && (
-              <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+              <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                 darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
               }`}>
                 Status
               </th>
             )}
             {visibleColumns.actions && (
-              <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+              <th className={`px-4 sm:px-6 py-3 text-center text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                 darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
               }`}>
 
@@ -120,7 +121,7 @@ export default function CharacterTable({
               darkMode ? 'hover:bg-zenible-dark-bg' : 'hover:bg-gray-50'
             } transition-colors`}>
               {visibleColumns.name && (
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-3">
                     {/* Avatar */}
                     <div className="flex-shrink-0">
@@ -158,7 +159,7 @@ export default function CharacterTable({
                 </td>
               )}
               {visibleColumns.category && (
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                   <div>
                     <div className={`text-sm font-medium ${
                       darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
@@ -174,7 +175,7 @@ export default function CharacterTable({
                 </td>
               )}
               {visibleColumns.model && (
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                   <div>
                     <span className={`text-sm font-mono ${
                       darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
@@ -198,7 +199,7 @@ export default function CharacterTable({
                 </td>
               )}
               {visibleColumns.status && (
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                     character.is_active
                       ? darkMode
@@ -213,7 +214,7 @@ export default function CharacterTable({
                 </td>
               )}
               {visibleColumns.actions && (
-                <td className="px-6 py-4 whitespace-nowrap text-sm relative">
+                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm relative">
                   <div className="relative inline-block text-left action-dropdown-container">
                     <button
                       onClick={() => setActionDropdown(actionDropdown === character.id ? null : character.id)}
@@ -310,6 +311,7 @@ export default function CharacterTable({
           ))}
         </tbody>
       </table>
+      </div>
 
       {(!Array.isArray(characters) || characters.length === 0) && (
         <div className={`text-center py-8 ${

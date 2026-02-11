@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
 import { LoadingSpinner } from '../shared';
 import DatePickerCalendar from '../shared/DatePickerCalendar';
+import Combobox from '../ui/combobox/Combobox';
 
 interface AdminOutletContext {
   darkMode: boolean;
@@ -152,9 +153,9 @@ export default function ConversationManagement() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+      <div className={`px-4 sm:px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
         <div className="flex items-center justify-between">
-          <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+          <h1 className={`text-xl sm:text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
             Conversation Management
           </h1>
 
@@ -232,24 +233,28 @@ export default function ConversationManagement() {
               className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
             />
 
-            <select
+            <Combobox
+              options={[
+                { id: 'created_at', label: 'Created Date' },
+                { id: 'updated_at', label: 'Updated Date' },
+                { id: 'message_count', label: 'Message Count' },
+              ]}
               value={orderBy}
-              onChange={(e) => setOrderBy(e.target.value)}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-            >
-              <option value="created_at">Created Date</option>
-              <option value="updated_at">Updated Date</option>
-              <option value="message_count">Message Count</option>
-            </select>
+              onChange={(value) => setOrderBy(value || 'created_at')}
+              allowClear={false}
+              className="w-44"
+            />
 
-            <select
+            <Combobox
+              options={[
+                { id: 'desc', label: 'Newest First' },
+                { id: 'asc', label: 'Oldest First' },
+              ]}
               value={orderDir}
-              onChange={(e) => setOrderDir(e.target.value)}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-            >
-              <option value="desc">Newest First</option>
-              <option value="asc">Oldest First</option>
-            </select>
+              onChange={(value) => setOrderDir(value || 'desc')}
+              allowClear={false}
+              className="w-40"
+            />
           </div>
         </div>
       </div>
@@ -365,19 +370,21 @@ export default function ConversationManagement() {
                       Next
                     </button>
                   </div>
-                  <select
-                    value={perPage}
-                    onChange={(e) => {
-                      setPerPage(parseInt(e.target.value));
+                  <Combobox
+                    options={[
+                      { id: '10', label: '10 per page' },
+                      { id: '20', label: '20 per page' },
+                      { id: '50', label: '50 per page' },
+                      { id: '100', label: '100 per page' },
+                    ]}
+                    value={String(perPage)}
+                    onChange={(value) => {
+                      setPerPage(parseInt(value || '20'));
                       setPage(1);
                     }}
-                    className={`px-3 py-1 rounded border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                  >
-                    <option value="10">10 per page</option>
-                    <option value="20">20 per page</option>
-                    <option value="50">50 per page</option>
-                    <option value="100">100 per page</option>
-                  </select>
+                    allowClear={false}
+                    className="w-40"
+                  />
                 </div>
               )}
             </>
@@ -512,15 +519,16 @@ export default function ConversationManagement() {
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                   Export Format
                 </label>
-                <select
+                <Combobox
+                  options={[
+                    { id: 'json', label: 'JSON' },
+                    { id: 'csv', label: 'CSV' },
+                    { id: 'txt', label: 'Text' },
+                  ]}
                   value={exportFormat}
-                  onChange={(e) => setExportFormat(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                >
-                  <option value="json">JSON</option>
-                  <option value="csv">CSV</option>
-                  <option value="txt">Text</option>
-                </select>
+                  onChange={(value) => setExportFormat(value || 'json')}
+                  allowClear={false}
+                />
               </div>
 
               <div className="flex gap-3 justify-end">

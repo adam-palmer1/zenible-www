@@ -5,6 +5,8 @@ import { usePreferences } from '../../contexts/PreferencesContext';
 import planAPI from '../../services/planAPI';
 import StripePaymentModal from '../StripePaymentModal';
 import SubscriptionSuccessModal from '../SubscriptionSuccessModal';
+import PlanChangeConfirmModal from '../user-settings/PlanChangeConfirmModal';
+import type { ChangePlanPreview } from '../user-settings/PlanChangeConfirmModal';
 import tickSquare from '../../assets/icons/tick-square-purple.svg';
 import crossSquare from '../../assets/icons/cross-square-gray.svg';
 
@@ -38,6 +40,21 @@ export default function PricingNew() {
     planName: '',
     price: '',
     billingCycle: 'monthly'
+  });
+  const [planChangeModal, setPlanChangeModal] = useState<{
+    isOpen: boolean;
+    planId: string | null;
+    preview: ChangePlanPreview | null;
+    loading: boolean;
+    confirming: boolean;
+    error: string | null;
+  }>({
+    isOpen: false,
+    planId: null,
+    preview: null,
+    loading: false,
+    confirming: false,
+    error: null,
   });
 
   useEffect(() => {
@@ -151,7 +168,7 @@ export default function PricingNew() {
   };
 
   const handlePaymentError = (_error: any) => {
-    alert(`Payment failed: ${_error?.message || _error}`);
+    setError(`Payment failed: ${_error?.message || _error}`);
   };
 
   const closePaymentModal = () => {
@@ -167,37 +184,48 @@ export default function PricingNew() {
     setSuccessModal({ isOpen: false, planName: '', price: '', billingCycle: 'monthly' });
   };
 
-  const handleUpgrade = async (planId: string) => {
-    if (!confirm('Are you sure you want to upgrade your plan? Changes will take effect immediately.')) {
-      return;
-    }
+  const handleChangePlan = async (planId: string) => {
+    // Open modal in loading state and fetch preview
+    setPlanChangeModal({
+      isOpen: true,
+      planId,
+      preview: null,
+      loading: true,
+      confirming: false,
+      error: null,
+    });
 
-    setProcessingAction(true);
     try {
-      await planAPI.upgradeSubscription(planId, true);
-      alert('Plan upgraded successfully!');
-      await fetchData();
+      const preview = await planAPI.previewPlanChange(planId, { billingCycle }) as ChangePlanPreview;
+      setPlanChangeModal(prev => ({ ...prev, preview, loading: false }));
     } catch (err: unknown) {
-      alert(`Failed to upgrade plan: ${(err as Error).message}`);
-    } finally {
-      setProcessingAction(false);
+      setPlanChangeModal(prev => ({
+        ...prev,
+        loading: false,
+        error: (err as Error).message || 'Failed to load preview',
+      }));
     }
   };
 
-  const handleDowngrade = async (planId: string) => {
-    if (!confirm('Are you sure you want to downgrade your plan? Changes will take effect at the end of your current billing period.')) {
-      return;
-    }
+  const handleConfirmPlanChange = async () => {
+    if (!planChangeModal.planId) return;
 
-    setProcessingAction(true);
+    setPlanChangeModal(prev => ({ ...prev, confirming: true, error: null }));
+
     try {
-      await planAPI.downgradeSubscription(planId);
-      alert('Plan will be downgraded at the end of your billing period.');
-      await fetchData();
+      await planAPI.changeSubscription(planChangeModal.planId, { billingCycle });
+      // Close modal and show success
+      const planName = planChangeModal.preview?.new_plan_name || 'New Plan';
+      const price = String(planChangeModal.preview?.new_price || '');
+      setPlanChangeModal({ isOpen: false, planId: null, preview: null, loading: false, confirming: false, error: null });
+      setSuccessModal({ isOpen: true, planName, price, billingCycle });
+      await Promise.all([fetchData(), checkAuth()]);
     } catch (err: unknown) {
-      alert(`Failed to downgrade plan: ${(err as Error).message}`);
-    } finally {
-      setProcessingAction(false);
+      setPlanChangeModal(prev => ({
+        ...prev,
+        confirming: false,
+        error: (err as Error).message || 'Failed to change plan',
+      }));
     }
   };
 
@@ -205,42 +233,57 @@ export default function PricingNew() {
     return currentSubscription?.plan_id === planId;
   };
 
+  const isFreePlan = (plan: any) => {
+    return parseFloat(plan.monthly_price) === 0;
+  };
+
+  const handleFreeSubscribe = async (planId: string) => {
+    if (!user) {
+      navigate(`/signin?redirect=/pricing&plan=${planId}`);
+      return;
+    }
+
+    setProcessingAction(true);
+    try {
+      await planAPI.createSubscription(planId, 'monthly', null);
+      const plan = plans.find(p => p.id === planId);
+      setSuccessModal({
+        isOpen: true,
+        planName: plan?.name || 'Free',
+        price: '0',
+        billingCycle: 'monthly'
+      });
+      await Promise.all([fetchData(), checkAuth()]);
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to activate free plan');
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
   const getButtonAction = (plan: any) => {
     if (isCurrentPlan(plan.id)) return null;
-
-    const currentPrice = currentSubscription?.plan ?
-      (billingCycle === 'monthly' ?
-        parseFloat(currentSubscription.plan.monthly_price) :
-        parseFloat(currentSubscription.plan.annual_price)
-      ) : 0;
-
-    const planPrice = billingCycle === 'monthly' ?
-      parseFloat(plan.monthly_price) :
-      parseFloat(plan.annual_price);
-
+    if (isFreePlan(plan) && !currentSubscription) return () => handleFreeSubscribe(plan.id);
     if (!currentSubscription) return () => handleSubscribe(plan.id);
-    if (planPrice > currentPrice) return () => handleUpgrade(plan.id);
-    if (planPrice < currentPrice) return () => handleDowngrade(plan.id);
-    return null;
+    return () => handleChangePlan(plan.id);
   };
 
   const getButtonText = (plan: any) => {
     if (isCurrentPlan(plan.id)) return 'Current Plan';
-
-    const currentPrice = currentSubscription?.plan ?
-      (billingCycle === 'monthly' ?
-        parseFloat(currentSubscription.plan.monthly_price) :
-        parseFloat(currentSubscription.plan.annual_price)
-      ) : 0;
-
-    const planPrice = billingCycle === 'monthly' ?
-      parseFloat(plan.monthly_price) :
-      parseFloat(plan.annual_price);
-
+    if (isFreePlan(plan)) return 'Go with Free for Now';
     if (!currentSubscription) return 'Subscribe';
+
+    const currentPrice = billingCycle === 'monthly'
+      ? (parseFloat(currentSubscription.plan?.monthly_price) || 0)
+      : (parseFloat(currentSubscription.plan?.annual_price) || 0);
+
+    const planPrice = billingCycle === 'monthly'
+      ? (parseFloat(plan.monthly_price) || 0)
+      : (parseFloat(plan.annual_price) || 0);
+
     if (planPrice > currentPrice) return 'Upgrade';
     if (planPrice < currentPrice) return 'Downgrade';
-    return 'Subscribe';
+    return 'Change Plan';
   };
 
   if (loading) {
@@ -570,6 +613,17 @@ export default function PricingNew() {
         price={successModal.price}
         billingCycle={successModal.billingCycle}
         onContinue={handleContinueToDashboard}
+      />
+
+      {/* Plan Change Confirmation Modal */}
+      <PlanChangeConfirmModal
+        isOpen={planChangeModal.isOpen}
+        onClose={() => setPlanChangeModal({ isOpen: false, planId: null, preview: null, loading: false, confirming: false, error: null })}
+        onConfirm={handleConfirmPlanChange}
+        loading={planChangeModal.loading}
+        confirming={planChangeModal.confirming}
+        preview={planChangeModal.preview}
+        error={planChangeModal.error}
       />
     </div>
   );

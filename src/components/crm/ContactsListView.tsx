@@ -65,16 +65,16 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
   const handleHideContact = async (contact: any) => {
 
     try {
-      const newVisibility = !contact.is_hidden;
+      const newVisibility = !contact.is_hidden_crm;
       await contactsAPI.update(contact.id, {
-        is_hidden: newVisibility
+        is_hidden_crm: newVisibility
       });
 
-      showSuccess(newVisibility ? 'Contact hidden' : 'Contact is now visible');
+      showSuccess(newVisibility ? 'Contact hidden on CRM' : 'Contact is now visible on CRM');
 
       // Update local state through parent callback
       if (onUpdateStatus) {
-        await onUpdateStatus(contact.id, { is_hidden: newVisibility });
+        await onUpdateStatus(contact.id, { is_hidden_crm: newVisibility });
       }
     } catch (error) {
       console.error('Error updating contact visibility:', error);
@@ -83,16 +83,6 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
   };
 
   const getStatus = (contact: any) => {
-    // Prefer embedded status object over looking up in statuses array
-    const status = contact.current_global_status || contact.current_custom_status;
-    if (status) {
-      return {
-        name: status.friendly_name || status.name,
-        color: status.color || '#6B7280'
-      };
-    }
-
-    // Fallback to looking up in statuses array
     const statusId = contact.current_global_status_id || contact.current_custom_status_id;
     const foundStatus = statuses.find((s: any) => s.id === statusId);
     return {
@@ -176,7 +166,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
                     <td className="px-4 py-4 cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
                       <div className="flex items-center gap-3">
                         <div>
-                          <p className={`font-normal text-sm text-gray-900 dark:text-white ${contact.is_hidden ? 'line-through italic opacity-60' : ''}`}>
+                          <p className={`font-normal text-sm text-gray-900 dark:text-white ${contact.is_hidden_crm ? 'line-through italic opacity-60' : ''}`}>
                             {contact.first_name} {contact.last_name}
                           </p>
                         </div>
@@ -246,7 +236,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
                             handleHideContact(contact);
                           }}
                         >
-                          {contact.is_hidden ? 'Show Contact' : 'Hide Contact'}
+                          {contact.is_hidden_crm ? 'Show on CRM' : 'Hide on CRM'}
                         </Dropdown.Item>
 
                         <Dropdown.Item

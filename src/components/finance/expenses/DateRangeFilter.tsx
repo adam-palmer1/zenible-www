@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, ChevronDown, X } from 'lucide-react';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 
@@ -129,10 +130,30 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
   const [customStart, setCustomStart] = useState(startDate || '');
   const [customEnd, setCustomEnd] = useState(endDate || '');
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+
+  const updatePosition = useCallback(() => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const dropdownHeight = 400;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openAbove = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
+
+      if (openAbove) {
+        setDropdownPos({ bottom: window.innerHeight - rect.top + 8, left: rect.left });
+      } else {
+        setDropdownPos({ top: rect.bottom + 8, left: rect.left });
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current && !containerRef.current.contains(event.target as Node) &&
+        (!dropdownRef.current || !dropdownRef.current.contains(event.target as Node))
+      ) {
         setIsOpen(false);
         setShowCustom(false);
       }
@@ -199,7 +220,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
   return (
     <div ref={containerRef} className="relative">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { if (!isOpen) updatePosition(); setIsOpen(!isOpen); }}
         className={`inline-flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 border-[1.5px] ${hasFilter ? 'border-purple-500' : 'border-[#e5e5e5] dark:border-gray-600'} rounded-xl text-sm font-normal text-[#09090b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors`}
       >
         <Calendar className="h-4 w-4 text-[#71717a]" />
@@ -214,105 +235,120 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
         )}
       </button>
 
-      {isOpen && (
-        <div className="absolute left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-[#e5e5e5] dark:border-gray-600 z-50">
-          {!showCustom ? (
-            <>
-              {onDateFieldChange && (
-                <div className="p-3 border-b border-[#e5e5e5] dark:border-gray-600">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Filter by:</span>
-                    <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                      {DATE_FIELDS.map((field) => (
-                        <button
-                          key={field.key}
-                          onClick={() => onDateFieldChange(field.key)}
-                          className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                            dateField === field.key
-                              ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                          }`}
-                        >
-                          {field.label}
-                        </button>
-                      ))}
+      {isOpen && createPortal(
+        <>
+          <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => { setIsOpen(false); setShowCustom(false); }} />
+          <div
+            ref={dropdownRef}
+            style={{
+              position: 'fixed',
+              left: dropdownPos.left,
+              ...(dropdownPos.top != null ? { top: dropdownPos.top } : {}),
+              ...(dropdownPos.bottom != null ? { bottom: dropdownPos.bottom } : {}),
+              width: 288,
+              zIndex: 9999,
+            }}
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-[#e5e5e5] dark:border-gray-600"
+          >
+            {!showCustom ? (
+              <>
+                {onDateFieldChange && (
+                  <div className="p-3 border-b border-[#e5e5e5] dark:border-gray-600">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Filter by:</span>
+                      <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                        {DATE_FIELDS.map((field) => (
+                          <button
+                            key={field.key}
+                            onClick={() => onDateFieldChange(field.key)}
+                            className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                              dateField === field.key
+                                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                            }`}
+                          >
+                            {field.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <div className="py-1 max-h-80 overflow-y-auto">
-                <button
-                  onClick={() => {
-                    onChange({ start_date: null, end_date: null });
-                    setIsOpen(false);
-                  }}
-                  className={`block w-full text-left px-4 py-2 text-sm ${!startDate && !endDate ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-50 dark:hover:bg-gray-700`}
-                >
-                  All Time
-                </button>
-                {DATE_PRESETS.map((preset) => (
+                <div className="py-1 max-h-80 overflow-y-auto">
                   <button
-                    key={preset.label}
-                    onClick={() => handlePresetClick(preset)}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    onClick={() => {
+                      onChange({ start_date: null, end_date: null });
+                      setIsOpen(false);
+                    }}
+                    className={`block w-full text-left px-4 py-2 text-sm ${!startDate && !endDate ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-50 dark:hover:bg-gray-700`}
                   >
-                    {preset.label}
+                    All Time
                   </button>
-                ))}
-              </div>
-
-              <div className="border-t border-[#e5e5e5] dark:border-gray-600 p-2">
-                <button
-                  onClick={() => setShowCustom(true)}
-                  className="w-full text-left px-2 py-2 text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-md"
-                >
-                  Custom Range...
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="p-4 space-y-4">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Custom Date Range
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">From</label>
-                  <DatePickerCalendar
-                    value={customStart}
-                    onChange={(date) => setCustomStart(date)}
-                  />
+                  {DATE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      onClick={() => handlePresetClick(preset)}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
                 </div>
 
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">To</label>
-                  <DatePickerCalendar
-                    value={customEnd}
-                    onChange={(date) => setCustomEnd(date)}
-                  />
+                <div className="border-t border-[#e5e5e5] dark:border-gray-600 p-2">
+                  <button
+                    onClick={() => setShowCustom(true)}
+                    className="w-full text-left px-2 py-2 text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-md"
+                  >
+                    Custom Range...
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="p-4 space-y-4">
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Custom Date Range
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">From</label>
+                    <DatePickerCalendar
+                      value={customStart}
+                      onChange={(date) => setCustomStart(date)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">To</label>
+                    <DatePickerCalendar
+                      value={customEnd}
+                      onChange={(date) => setCustomEnd(date)}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => setShowCustom(false)}
+                    className="flex-1 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleCustomApply}
+                    disabled={!customStart && !customEnd}
+                    className="flex-1 px-3 py-2 text-sm text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Apply
+                  </button>
                 </div>
               </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={() => setShowCustom(false)}
-                  className="flex-1 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleCustomApply}
-                  disabled={!customStart && !customEnd}
-                  className="flex-1 px-3 py-2 text-sm text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </>,
+        document.body
       )}
     </div>
   );

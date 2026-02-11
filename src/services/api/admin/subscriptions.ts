@@ -9,8 +9,17 @@ const request = createRequest('AdminSubscriptionsAPI');
 
 const adminSubscriptionsAPI = {
   async getSubscriptions(params: Record<string, string> = {}): Promise<unknown> {
+    const merged = { latest_only: 'true', ...params };
+    const queryString = new URLSearchParams(merged).toString();
+    const endpoint = `/subscriptions/admin/all?${queryString}`;
+    return request(endpoint, { method: 'GET' });
+  },
+
+  async getUserSubscriptionHistory(userId: string, params: Record<string, string> = {}): Promise<unknown> {
     const queryString = new URLSearchParams(params).toString();
-    const endpoint = queryString ? `/subscriptions/admin/all?${queryString}` : '/subscriptions/admin/all';
+    const endpoint = queryString
+      ? `/subscriptions/admin/users/${userId}/subscriptions?${queryString}`
+      : `/subscriptions/admin/users/${userId}/subscriptions`;
     return request(endpoint, { method: 'GET' });
   },
 
@@ -34,6 +43,13 @@ const adminSubscriptionsAPI = {
 
   async downgradeSubscription(data: unknown): Promise<unknown> {
     return request('/subscriptions/downgrade', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async changeSubscription(subscriptionId: string, data: { new_plan_id: string }): Promise<unknown> {
+    return request(`/subscriptions/admin/change/${subscriptionId}`, {
       method: 'POST',
       body: JSON.stringify(data),
     });

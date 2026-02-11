@@ -94,16 +94,18 @@ export async function makeAuthenticatedRequest(url: string, options: RequestInit
 }
 
 // Helper to extract error message from API response
-function extractErrorMessage(error: { detail?: string | Array<{ msg?: string }>; message?: string }, fallback: string): string {
+function extractErrorMessage(error: { detail?: unknown; message?: unknown }, fallback: string): string {
   if (Array.isArray(error.detail)) {
     const messages = error.detail.map(e => {
-      let msg = e.msg || '';
-      msg = msg.replace(/^Value error,\s*/i, '');
-      return msg;
+      const msg = typeof e === 'object' && e !== null && 'msg' in e ? e.msg : e;
+      if (typeof msg !== 'string') return '';
+      return msg.replace(/^Value error,\s*/i, '');
     }).filter(Boolean);
     return messages.join('. ') || fallback;
   }
-  return (typeof error.detail === 'string' ? error.detail : error.message) || fallback;
+  if (typeof error.detail === 'string') return error.detail;
+  if (typeof error.message === 'string') return error.message;
+  return fallback;
 }
 
 // Auth API calls

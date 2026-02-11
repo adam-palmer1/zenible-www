@@ -88,7 +88,7 @@ const CRMDashboard: React.FC = () => {
   const { updatePreference } = usePreferences();
 
   // Data hooks
-  const { globalStatuses, customStatuses, fetchStatuses } = useContactStatuses();
+  const { globalStatuses, customStatuses, statusRoles, fetchStatuses } = useContactStatuses();
   const { services, loading: servicesLoading, deleteService } = useServices({}, refreshKey);
 
   // Combine statuses
@@ -318,6 +318,7 @@ const CRMDashboard: React.FC = () => {
         allStatuses={allStatuses}
         globalStatuses={globalStatuses}
         customStatuses={customStatuses}
+        statusRoles={statusRoles}
         selectedStatuses={selectedStatuses}
         selectContact={selectContact}
         openContactModal={openContactModal}

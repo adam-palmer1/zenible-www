@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { PencilIcon, TrashIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, ReceiptPercentIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline';
+import Dropdown from '../ui/dropdown/Dropdown';
 import { useProjects } from '../../hooks/crm';
 import { useCRM } from '../../contexts/CRMContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -167,28 +168,49 @@ export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTablePr
                   <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
                     {project.end_date ? new Date(project.end_date).toLocaleDateString() : '-'}
                   </td>
-                  <td className="px-4 py-4 text-right text-sm" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                    <button
-                      onClick={() => handleExpensesClick(project)}
-                      className="text-green-600 hover:text-green-700 dark:hover:text-green-400 mr-3 transition-colors"
-                      title="Expenses"
+                  <td className="px-4 py-4 whitespace-nowrap text-right">
+                    <Dropdown
+                      trigger={
+                        <button
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                          aria-label="Project actions"
+                        >
+                          <EllipsisVerticalIcon className="h-5 w-5" />
+                        </button>
+                      }
+                      align="end"
+                      side="bottom"
                     >
-                      <ReceiptPercentIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => openProjectModal(project)}
-                      className="text-zenible-primary hover:text-purple-600 dark:hover:text-purple-400 mr-3 transition-colors"
-                      title="Edit"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClick(project)}
-                      className="text-red-600 hover:text-red-900 dark:hover:text-red-400 transition-colors"
-                      title="Delete"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
+                      <Dropdown.Item
+                        onSelect={(e: Event) => {
+                          e.stopPropagation();
+                          handleExpensesClick(project);
+                        }}
+                      >
+                        <ReceiptPercentIcon className="h-4 w-4" />
+                        Finance
+                      </Dropdown.Item>
+                      <Dropdown.Item
+                        onSelect={(e: Event) => {
+                          e.stopPropagation();
+                          openProjectModal(project);
+                        }}
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                        Edit
+                      </Dropdown.Item>
+                      <Dropdown.Item
+                        onSelect={(e: Event) => {
+                          e.stopPropagation();
+                          handleDeleteClick(project);
+                        }}
+                        destructive
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                        Delete
+                      </Dropdown.Item>
+                    </Dropdown>
                   </td>
                 </tr>
               ))}

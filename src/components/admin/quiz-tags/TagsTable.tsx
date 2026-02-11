@@ -2,6 +2,7 @@ import React from 'react';
 import { getIconPath } from '../../../utils/iconUtils';
 import { LoadingSpinner } from '../../shared';
 import { QuizTag } from './types';
+import Combobox from '../../ui/combobox/Combobox';
 
 interface TagsTableProps {
   darkMode: boolean;
@@ -174,19 +175,22 @@ export default function TagsTable({
                   <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                     Page {page} of {totalPages} ({total} total)
                   </span>
-                  <select
-                    value={perPage}
-                    onChange={(e) => {
-                      setPerPage(parseInt(e.target.value));
+                  <Combobox
+                    options={[
+                      { id: '10', label: '10 per page' },
+                      { id: '20', label: '20 per page' },
+                      { id: '50', label: '50 per page' },
+                      { id: '100', label: '100 per page' },
+                    ]}
+                    value={String(perPage)}
+                    onChange={(value) => {
+                      setPerPage(parseInt(value || '10'));
                       setPage(1);
                     }}
-                    className={`px-2 py-1 text-sm rounded border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                  >
-                    <option value="10">10 per page</option>
-                    <option value="20">20 per page</option>
-                    <option value="50">50 per page</option>
-                    <option value="100">100 per page</option>
-                  </select>
+                    placeholder="Per page"
+                    allowClear={false}
+                    className="w-36"
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button

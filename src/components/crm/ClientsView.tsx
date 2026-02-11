@@ -75,7 +75,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
       'display_name',
       'email',
       'phone',
-      'is_hidden',
+      'is_hidden_client',
       'created_at',
     ];
 
@@ -83,7 +83,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
       is_client: true,
       ...(searchQuery ? { search: searchQuery } : {}),
       ...(sortField ? { sort_by: sortField, sort_order: sortDirection || 'desc' } : {}),
-      ...(showHiddenClients ? {} : { is_hidden: false }),
+      ...(showHiddenClients ? {} : { is_hidden_client: false }),
     };
 
     // When not showing preferred currency, preserve original currencies
@@ -108,7 +108,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
   }, [visibleFieldNames, showPreferredCurrency, fieldsLoading, searchQuery, sortField, sortDirection, showHiddenClients]);
 
   // Fetch clients (contacts with is_client: true) with only the requested fields
-  const { contacts: clients, loading: clientsLoading, updateContact, deleteContact } = useContacts(
+  const { contacts: clients, loading: clientsLoading, updateContact, deleteContact, fetchContacts } = useContacts(
     contactFilters,
     refreshKey
   );
@@ -125,13 +125,16 @@ const ClientsView: React.FC<ClientsViewProps> = ({
   const handleHideClient = async (client: any) => {
     try {
       // Determine current hidden state
-      const isCurrentlyHidden = client.is_hidden === true;
+      const isCurrentlyHidden = client.is_hidden_client === true;
       const newHiddenState = !isCurrentlyHidden;
 
       // updateContact handles both API call and local state update
-      await updateContact(client.id, { is_hidden: newHiddenState });
+      await updateContact(client.id, { is_hidden_client: newHiddenState });
 
       showSuccess(newHiddenState ? 'Client has been hidden' : 'Client is now visible');
+
+      // Refetch so the server-side filter removes/adds the contact appropriately
+      fetchContacts();
     } catch (error) {
       console.error('Error updating client visibility:', error);
       showError('Failed to update client visibility');
@@ -375,7 +378,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
                           <div>
                             <p
                               className={`font-medium text-gray-900 dark:text-white ${
-                                client.is_hidden ? 'line-through italic opacity-60' : ''
+                                client.is_hidden_client ? 'line-through italic opacity-60' : ''
                               }`}
                             >
                               {client.display_name || client.business_name || 'Unnamed Client'}
@@ -519,7 +522,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
                               handleHideClient(client);
                             }}
                           >
-                            {!client.is_hidden ? (
+                            {!client.is_hidden_client ? (
                               <>
                                 <EyeSlashIcon className="h-4 w-4" />
                                 Hide Client
@@ -527,7 +530,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
                             ) : (
                               <>
                                 <EyeIcon className="h-4 w-4" />
-                                Show Client
+                                Unhide
                               </>
                             )}
                           </Dropdown.Item>

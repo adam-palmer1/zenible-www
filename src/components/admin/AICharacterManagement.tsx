@@ -346,12 +346,12 @@ export default function AICharacterManagement() {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       {/* Header */}
-      <div className={`h-16 border-b flex items-center px-6 ${
+      <div className={`h-16 border-b flex items-center px-4 sm:px-6 ${
         darkMode
           ? 'bg-zenible-dark-card border-zenible-dark-border'
           : 'bg-white border-neutral-200'
       }`}>
-        <h1 className={`text-2xl font-semibold ${
+        <h1 className={`text-xl sm:text-2xl font-semibold ${
           darkMode ? 'text-zenible-dark-text' : 'text-zinc-900'
         }`}>
           AI Characters
@@ -379,7 +379,7 @@ export default function AICharacterManagement() {
       />
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
         {loading ? (
           <LoadingSpinner height="h-full" />
         ) : error ? (
@@ -433,7 +433,7 @@ export default function AICharacterManagement() {
       {/* Sync Confirmation Modal */}
       {showSyncModal && syncingCharacter && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className={`max-w-md w-full rounded-lg p-6 ${
+          <div className={`max-w-md w-full rounded-lg p-4 sm:p-6 ${
             darkMode ? 'bg-zenible-dark-card' : 'bg-white'
           }`}>
             <h2 className={`text-xl font-semibold mb-4 ${

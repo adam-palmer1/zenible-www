@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Receipt,
   Plus,
@@ -15,6 +15,8 @@ import Modal from '../../ui/modal/Modal';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { formatCurrency } from '../../../utils/currency';
 import expensesAPI from '../../../services/api/finance/expenses';
+import invoicesAPI from '../../../services/api/finance/invoices';
+import { useCurrencyConversion } from '../../../hooks/crm/useCurrencyConversion';
 
 /**
  * Entity type configuration for display
@@ -68,6 +70,8 @@ interface AssignExpenseModalProps {
   currency?: string;
   onUpdate?: () => void;
   numberFormat?: Record<string, unknown>;
+  entityTotal?: number;
+  entityCurrencyCode?: string;
 }
 
 const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
@@ -79,8 +83,11 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
   currency = 'USD',
   onUpdate,
   numberFormat,
+  entityTotal,
+  entityCurrencyCode,
 }) => {
   const { showSuccess, showError } = useNotification();
+  const { convert } = useCurrencyConversion();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -90,7 +97,13 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
   const [expensesLoading, setExpensesLoading] = useState(true);
   const [showAddSection, setShowAddSection] = useState(false);
   const [allocationCache, setAllocationCache] = useState<Record<string, any[]>>({});
+  // Tracks converted amounts keyed by `${expenseId}-${percentage}` for invoice cap
+  const [convertedAmounts, setConvertedAmounts] = useState<Record<string, number>>({});
+  // Tracks expenses already allocated from other sources (not shown in this modal)
+  const [otherAllocatedTotal, setOtherAllocatedTotal] = useState<number>(0);
 
+  const isInvoice = entityType === 'invoice';
+  const hasCapInfo = isInvoice && entityTotal !== undefined && entityCurrencyCode;
   const config = ENTITY_CONFIG[entityType] || ENTITY_CONFIG.invoice;
 
   // Load all expenses and existing assignments when modal opens
@@ -103,14 +116,31 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
   const loadAllData = async () => {
     setLoading(true);
     setExpensesLoading(true);
+    setConvertedAmounts({});
+    setOtherAllocatedTotal(0);
     try {
-      // Fetch all expenses and assignments in parallel
-      const [expensesResult] = await Promise.all([
+      const promises: Promise<any>[] = [
         expensesAPI.list({ per_page: '500' }),
         loadAssignments(),
-      ]);
-      const listResult = expensesResult as { items?: unknown[] };
+      ];
+      // Fetch capacity info for invoices
+      if (isInvoice) {
+        promises.push(
+          invoicesAPI.getExpenseAllocationCapacity(entityId).catch((err: unknown) => {
+            console.error('Failed to load allocation capacity:', err);
+            return null;
+          })
+        );
+      }
+
+      const results = await Promise.all(promises);
+      const listResult = results[0] as { items?: unknown[] };
       setAllExpenses(listResult.items || []);
+
+      // Set other-allocated total from capacity endpoint
+      if (results[2]) {
+        setOtherAllocatedTotal(parseFloat(results[2].allocated_expenses_total) || 0);
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -151,6 +181,44 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
     }
   };
 
+  // Convert expense amount to invoice currency when needed
+  const convertToInvoiceCurrency = useCallback(async (
+    expenseId: string,
+    amount: number,
+    expenseCurrency: string,
+    percentage: number
+  ) => {
+    if (!entityCurrencyCode || expenseCurrency === entityCurrencyCode) return;
+    const allocAmount = amount * (percentage / 100);
+    const key = `${expenseId}-${percentage}`;
+    try {
+      const converted = await convert(allocAmount, expenseCurrency, entityCurrencyCode);
+      setConvertedAmounts(prev => ({ ...prev, [key]: converted }));
+    } catch {
+      // Fallback: use original amount
+      setConvertedAmounts(prev => ({ ...prev, [key]: allocAmount }));
+    }
+  }, [entityCurrencyCode, convert]);
+
+  // Trigger conversions when assigned expenses change
+  useEffect(() => {
+    if (!hasCapInfo) return;
+    assignedExpenses.forEach((item: any) => {
+      const expCurrency = item.expense?.currency?.code || currency;
+      if (expCurrency !== entityCurrencyCode) {
+        const key = `${item.expense_id}-${item.percentage}`;
+        if (convertedAmounts[key] === undefined) {
+          convertToInvoiceCurrency(
+            item.expense_id,
+            parseFloat(item.expense?.amount) || 0,
+            expCurrency,
+            item.percentage
+          );
+        }
+      }
+    });
+  }, [assignedExpenses, hasCapInfo, entityCurrencyCode, currency, convertedAmounts, convertToInvoiceCurrency]);
+
   // Calculate totals
   const totalAssigned = useMemo(() => {
     return assignedExpenses.reduce((sum: number, item: any) => {
@@ -158,6 +226,38 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
       return sum + amount;
     }, 0);
   }, [assignedExpenses]);
+
+  // Calculate total assigned in invoice currency (for cap check)
+  const totalAssignedInInvoiceCurrency = useMemo(() => {
+    if (!hasCapInfo) return 0;
+    return assignedExpenses.reduce((sum: number, item: any) => {
+      const expCurrency = item.expense?.currency?.code || currency;
+      const allocAmount = (parseFloat(item.expense?.amount) || 0) * (item.percentage / 100);
+      if (expCurrency === entityCurrencyCode) {
+        return sum + allocAmount;
+      }
+      // Use cached conversion or fall back to original amount
+      const key = `${item.expense_id}-${item.percentage}`;
+      return sum + (convertedAmounts[key] ?? allocAmount);
+    }, 0);
+  }, [assignedExpenses, hasCapInfo, entityCurrencyCode, currency, convertedAmounts]);
+
+  const hasMixedCurrencies = useMemo(() => {
+    if (!hasCapInfo) return false;
+    return assignedExpenses.some(
+      (item: any) => (item.expense?.currency?.code || currency) !== entityCurrencyCode
+    );
+  }, [assignedExpenses, hasCapInfo, entityCurrencyCode, currency]);
+
+  const isOverAllocated = useMemo(() => {
+    if (!hasCapInfo || entityTotal === undefined) return false;
+    return totalAssignedInInvoiceCurrency > entityTotal + 0.01;
+  }, [hasCapInfo, entityTotal, totalAssignedInInvoiceCurrency]);
+
+  const remainingCapacity = useMemo(() => {
+    if (!hasCapInfo || entityTotal === undefined) return 0;
+    return Math.max(entityTotal - totalAssignedInInvoiceCurrency, 0);
+  }, [hasCapInfo, entityTotal, totalAssignedInInvoiceCurrency]);
 
   // Filter available expenses (not already assigned)
   const availableExpenses = useMemo(() => {
@@ -206,6 +306,14 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
   };
 
   const handleSave = async () => {
+    // Client-side over-allocation check for invoices
+    if (isOverAllocated) {
+      showError(
+        `Total allocated expenses exceed the invoice total of ${formatCurrency(entityTotal || 0, entityCurrencyCode || currency, numberFormat)}. Please reduce allocations.`
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       const updatePromises = assignedExpenses.map((assignment: any) => {
@@ -322,6 +430,78 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
                     </p>
                   </div>
                 </div>
+
+                {/* Invoice capacity info */}
+                {hasCapInfo && entityTotal !== undefined && (
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          Invoice Total
+                        </span>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">
+                          {formatCurrency(entityTotal, entityCurrencyCode || currency, numberFormat)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          Allocated{hasMixedCurrencies ? ` (${entityCurrencyCode})` : ''}
+                        </span>
+                        <p className={`text-sm font-semibold mt-0.5 ${
+                          isOverAllocated
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-gray-900 dark:text-white'
+                        }`}>
+                          {formatCurrency(totalAssignedInInvoiceCurrency, entityCurrencyCode || currency, numberFormat)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          Remaining
+                        </span>
+                        <p className={`text-sm font-semibold mt-0.5 ${
+                          isOverAllocated
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-green-600 dark:text-green-400'
+                        }`}>
+                          {isOverAllocated
+                            ? `-${formatCurrency(totalAssignedInInvoiceCurrency - entityTotal, entityCurrencyCode || currency, numberFormat)}`
+                            : formatCurrency(remainingCapacity, entityCurrencyCode || currency, numberFormat)
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="mt-3 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          isOverAllocated
+                            ? 'bg-red-500'
+                            : totalAssignedInInvoiceCurrency / entityTotal > 0.9
+                              ? 'bg-amber-500'
+                              : 'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min((totalAssignedInInvoiceCurrency / entityTotal) * 100, 100)}%` }}
+                      />
+                    </div>
+
+                    {isOverAllocated && (
+                      <div className="mt-2 flex items-center gap-1.5 text-red-600 dark:text-red-400">
+                        <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="text-xs font-medium">
+                          Allocated expenses exceed invoice total
+                        </span>
+                      </div>
+                    )}
+
+                    {hasMixedCurrencies && !isOverAllocated && (
+                      <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+                        Amounts converted to {entityCurrencyCode} using approximate exchange rates
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Assigned Expenses List */}
@@ -511,7 +691,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
             </button>
             <button
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || isOverAllocated}
               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:bg-opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               {saving ? (

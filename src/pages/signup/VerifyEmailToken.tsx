@@ -25,6 +25,16 @@ export default function VerifyEmailToken() {
   const [error, setError] = useState<string>('');
   const [isResending, setIsResending] = useState<boolean>(false);
   const [resendSuccess, setResendSuccess] = useState<boolean>(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
+
+  // Countdown timer for resend cooldown
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
 
   // Auto-verify if both email and code are in URL
   useEffect(() => {
@@ -106,6 +116,8 @@ export default function VerifyEmailToken() {
       return;
     }
 
+    if (cooldownSeconds > 0) return;
+
     setIsResending(true);
     setError('');
     setResendSuccess(false);
@@ -119,16 +131,23 @@ export default function VerifyEmailToken() {
 
       if (response.ok) {
         setResendSuccess(true);
+        setCooldownSeconds(60);
         setTimeout(() => setResendSuccess(false), 5000);
       } else {
         const data = await response.json();
-        let errorMessage = 'Failed to resend verification email.';
-        if (typeof data.detail === 'string') {
-          errorMessage = data.detail;
-        } else if (data.message) {
-          errorMessage = data.message;
+        if (response.status === 429 && data.detail?.retry_after) {
+          setCooldownSeconds(data.detail.retry_after);
+        } else {
+          let errorMessage = 'Failed to resend verification email.';
+          if (typeof data.detail === 'string') {
+            errorMessage = data.detail;
+          } else if (data.detail?.message) {
+            errorMessage = data.detail.message;
+          } else if (data.message) {
+            errorMessage = data.message;
+          }
+          setError(errorMessage);
         }
-        setError(errorMessage);
       }
     } catch (_err) {
       setError('Failed to resend verification email. Please try again.');
@@ -282,12 +301,12 @@ export default function VerifyEmailToken() {
                 </span>
                 <button
                   onClick={handleResend}
-                  disabled={isResending || !email}
-                  className={`font-inter font-semibold text-[14px] leading-[22px] text-[#8e51ff] dark:text-[#a684ff] hover:underline ${
-                    isResending || !email ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                  disabled={isResending || !email || cooldownSeconds > 0}
+                  className={`font-inter font-semibold text-[14px] leading-[22px] text-[#8e51ff] dark:text-[#a684ff] ${
+                    isResending || !email || cooldownSeconds > 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:underline'
                   }`}
                 >
-                  {isResending ? 'Sending...' : 'Resend'}
+                  {isResending ? 'Sending...' : cooldownSeconds > 0 ? `Resend (${cooldownSeconds}s)` : 'Resend'}
                 </button>
               </div>
             </div>

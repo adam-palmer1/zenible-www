@@ -51,14 +51,14 @@ const VendorsView: React.FC<VendorsViewProps> = ({
 
   // Fetch vendors (contacts with is_vendor: true) with financial details
   // When preserve_currencies is true, financial fields return as arrays with original currencies
-  const { contacts: vendors, loading: vendorsLoading, updateContact, deleteContact } = useContacts(
+  const { contacts: vendors, loading: vendorsLoading, updateContact, deleteContact, fetchContacts } = useContacts(
     {
       is_vendor: true,
       include_financial_details: true,
       ...(showPreferredCurrency === false && { preserve_currencies: true }),
       ...(searchQuery ? { search: searchQuery } : {}),
       ...(sortField ? { sort_by: sortField, sort_order: sortDirection || 'desc' } : {}),
-      ...(showHiddenVendors ? {} : { is_hidden: false }),
+      ...(showHiddenVendors ? {} : { is_hidden_vendor: false }),
     },
     refreshKey
   );
@@ -107,10 +107,13 @@ const VendorsView: React.FC<VendorsViewProps> = ({
 
   const handleHideVendor = async (vendor: any) => {
     try {
-      const isCurrentlyVisible = vendor.is_visible_in_vendors !== false;
-      const newVisibility = !isCurrentlyVisible;
-      await updateContact(vendor.id, { is_visible_in_vendors: newVisibility });
-      showSuccess(newVisibility ? 'Vendor is now visible' : 'Vendor has been hidden');
+      const isCurrentlyHidden = vendor.is_hidden_vendor === true;
+      const newHiddenState = !isCurrentlyHidden;
+      await updateContact(vendor.id, { is_hidden_vendor: newHiddenState });
+      showSuccess(newHiddenState ? 'Vendor has been hidden' : 'Vendor is now visible');
+
+      // Refetch so the server-side filter removes/adds the vendor appropriately
+      fetchContacts();
     } catch (error) {
       console.error('Error updating vendor visibility:', error);
       showError('Failed to update vendor visibility');
@@ -265,7 +268,7 @@ const VendorsView: React.FC<VendorsViewProps> = ({
               />
             ) : (
               filteredVendors.map((vendor: any, index: number) => {
-                const isHidden = vendor.is_visible_in_vendors === false;
+                const isHidden = vendor.is_hidden_vendor === true;
                 const hiddenClass = isHidden ? 'line-through italic opacity-60' : '';
 
                 return (
@@ -369,7 +372,7 @@ const VendorsView: React.FC<VendorsViewProps> = ({
                               handleHideVendor(vendor);
                             }}
                           >
-                            {vendor.is_visible_in_vendors !== false ? (
+                            {!vendor.is_hidden_vendor ? (
                               <>
                                 <EyeSlashIcon className="h-4 w-4" />
                                 Hide Vendor
@@ -377,7 +380,7 @@ const VendorsView: React.FC<VendorsViewProps> = ({
                             ) : (
                               <>
                                 <EyeIcon className="h-4 w-4" />
-                                Show Vendor
+                                Unhide
                               </>
                             )}
                           </Dropdown.Item>

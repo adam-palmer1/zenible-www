@@ -4,12 +4,12 @@ import { adminPaymentsAPI } from '../../services/adminAPI';
 import { useModalState } from '../../hooks/useModalState';
 import { LoadingSpinner } from '../shared';
 import DatePickerCalendar from '../shared/DatePickerCalendar';
+import Combobox from '../ui/combobox/Combobox';
 import type { PaymentStats, PaymentList } from '../../types/auth';
 import type { PaymentResponse } from '../../types/finance';
 
 export default function PaymentTracking() {
   const { darkMode } = useOutletContext<{ darkMode: boolean }>();
-  const [activeTab, setActiveTab] = useState<string>('overview'); // 'overview' or 'list'
 
   // Payment list state
   const [payments, setPayments] = useState<any[]>([]);
@@ -41,13 +41,15 @@ export default function PaymentTracking() {
   const [refundReason, setRefundReason] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
 
+  // Fetch statistics when date range changes
   useEffect(() => {
-    if (activeTab === 'overview') {
-      fetchStatistics();
-    } else {
-      fetchPayments();
-    }
-  }, [page, statusFilter, typeFilter, startDate, endDate, userIdFilter, activeTab, statsDateRange, customStartDate, customEndDate]);
+    fetchStatistics();
+  }, [statsDateRange, customStartDate, customEndDate]);
+
+  // Fetch payments when filters/page change
+  useEffect(() => {
+    fetchPayments();
+  }, [page, statusFilter, typeFilter, startDate, endDate, userIdFilter]);
 
   const getDateRangeParams = () => {
     const now = new Date();
@@ -91,7 +93,6 @@ export default function PaymentTracking() {
       setStatistics(response);
     } catch (err: any) {
       console.error('Failed to fetch statistics:', err);
-      setError('Failed to load payment statistics');
     } finally {
       setStatsLoading(false);
     }
@@ -113,9 +114,9 @@ export default function PaymentTracking() {
       if (endDate) params.end_date = new Date(endDate).toISOString();
       if (userIdFilter) params.user_id = userIdFilter;
 
-      const response = await adminPaymentsAPI.getAllPayments(params) as PaymentList;
-      setPayments(response.payments || []);
-      setTotalPages(response.pages || 1);
+      const response = await adminPaymentsAPI.getAllPayments(params) as any;
+      setPayments(response.items || response.payments || []);
+      setTotalPages(response.total_pages || response.pages || 1);
       setTotalPayments(response.total || 0);
     } catch (err: any) {
       console.error('Failed to fetch payments:', err);
@@ -224,74 +225,39 @@ export default function PaymentTracking() {
   return (
     <div className={`flex-1 overflow-auto ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
       {/* Header */}
-      <div className={`border-b px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-              Payment Management
-            </h1>
-            <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
-              Track and manage all payment transactions
-            </p>
-          </div>
-
-          {/* Tab Switcher */}
-          <div className={`flex space-x-1 p-1 rounded-lg ${darkMode ? 'bg-zenible-dark-card' : 'bg-gray-100'}`}>
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                activeTab === 'overview'
-                  ? darkMode
-                    ? 'bg-zenible-dark-bg text-zenible-primary'
-                    : 'bg-white text-zenible-primary shadow-sm'
-                  : darkMode
-                    ? 'text-zenible-dark-text-secondary hover:text-zenible-dark-text'
-                    : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab('list')}
-              className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                activeTab === 'list'
-                  ? darkMode
-                    ? 'bg-zenible-dark-bg text-zenible-primary'
-                    : 'bg-white text-zenible-primary shadow-sm'
-                  : darkMode
-                    ? 'text-zenible-dark-text-secondary hover:text-zenible-dark-text'
-                    : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Payments List
-            </button>
-          </div>
+      <div className={`border-b px-4 sm:px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+        <div>
+          <h1 className={`text-xl sm:text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+            Payment Management
+          </h1>
+          <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
+            Track and manage all payment transactions
+          </p>
         </div>
       </div>
 
-      {activeTab === 'overview' ? (
-        // Statistics Overview
-        <div className="p-6">
+      <div className="p-4 sm:p-6 space-y-6">
+        {/* Statistics Overview */}
+        <div>
           {/* Date Range Selector */}
-          <div className={`mb-6 p-4 rounded-xl border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+          <div className={`mb-4 p-4 rounded-xl border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
             <div className="flex items-center gap-4 flex-wrap">
               <label className={`text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                 Period:
               </label>
-              <select
+              <Combobox
+                options={[
+                  { id: 'month', label: 'This Month' },
+                  { id: 'quarter', label: 'This Quarter' },
+                  { id: 'year', label: 'This Year' },
+                  { id: 'custom', label: 'Custom Range' },
+                ]}
                 value={statsDateRange}
-                onChange={(e) => setStatsDateRange(e.target.value)}
-                className={`px-3 py-2 rounded-lg border text-sm ${
-                  darkMode
-                    ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value="month">This Month</option>
-                <option value="quarter">This Quarter</option>
-                <option value="year">This Year</option>
-                <option value="custom">Custom Range</option>
-              </select>
+                onChange={(value) => setStatsDateRange(value || 'month')}
+                placeholder="Select period..."
+                allowClear={false}
+                className="w-48"
+              />
 
               {statsDateRange === 'custom' && (
                 <>
@@ -310,9 +276,9 @@ export default function PaymentTracking() {
           </div>
 
           {statsLoading ? (
-            <LoadingSpinner height="py-12" />
+            <LoadingSpinner height="py-8" />
           ) : statistics ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Total Revenue Card */}
               <div className={`rounded-xl border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
                 <div className="p-6">
@@ -410,149 +376,44 @@ export default function PaymentTracking() {
               </div>
             </div>
           ) : (
-            <div className={`text-center py-12 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+            <div className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
               No statistics available for the selected period
             </div>
           )}
         </div>
-      ) : (
-        // Payments List
-        <div className="p-6">
-          {/* Filters */}
-          <div className={`rounded-xl border overflow-hidden mb-6 ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
-            <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-              <div className="flex items-center justify-between">
-                <h3 className={`font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                  Filters
-                </h3>
-                {(statusFilter || typeFilter || startDate || endDate || userIdFilter || searchTerm) && (
-                  <button
-                    onClick={resetFilters}
-                    className={`text-sm font-medium ${
-                      darkMode ? 'text-zenible-primary hover:text-zenible-primary/80' : 'text-zenible-primary hover:text-zenible-primary/80'
-                    }`}
-                  >
-                    Clear Filters
-                  </button>
-                )}
-              </div>
+
+        {/* Filters */}
+        <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+          <div className={`px-4 sm:px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+            <div className="flex items-center justify-between">
+              <h3 className={`font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                Filters
+              </h3>
+              {(statusFilter || typeFilter || startDate || endDate || userIdFilter || searchTerm) && (
+                <button
+                  onClick={resetFilters}
+                  className={`text-sm font-medium ${
+                    darkMode ? 'text-zenible-primary hover:text-zenible-primary/80' : 'text-zenible-primary hover:text-zenible-primary/80'
+                  }`}
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
+          </div>
 
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {/* Search */}
-                <div className="md:col-span-2">
-                  <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                    Search
-                  </label>
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Payment ID, email, or name..."
-                    className={`w-full px-3 py-2 rounded-lg border ${
-                      darkMode
-                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text placeholder-zenible-dark-text-secondary'
-                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                    }`}
-                  />
-                </div>
-
-                {/* Status Filter */}
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                    Status
-                  </label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => {
-                      setStatusFilter(e.target.value);
-                      setPage(1);
-                    }}
-                    className={`w-full px-3 py-2 rounded-lg border ${
-                      darkMode
-                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  >
-                    <option value="">All Status</option>
-                    <option value="succeeded">Succeeded</option>
-                    <option value="pending">Pending</option>
-                    <option value="processing">Processing</option>
-                    <option value="failed">Failed</option>
-                    <option value="canceled">Canceled</option>
-                    <option value="refunded">Refunded</option>
-                  </select>
-                </div>
-
-                {/* Type Filter */}
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                    Type
-                  </label>
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => {
-                      setTypeFilter(e.target.value);
-                      setPage(1);
-                    }}
-                    className={`w-full px-3 py-2 rounded-lg border ${
-                      darkMode
-                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  >
-                    <option value="">All Types</option>
-                    <option value="subscription">Subscription</option>
-                    <option value="refund">Refund</option>
-                    <option value="adjustment">Adjustment</option>
-                    <option value="manual">Manual</option>
-                    <option value="one_time">One Time</option>
-                  </select>
-                </div>
-
-                {/* Start Date */}
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                    Start Date
-                  </label>
-                  <DatePickerCalendar
-                    value={startDate}
-                    onChange={(date) => {
-                      setStartDate(date);
-                      setPage(1);
-                    }}
-                  />
-                </div>
-
-                {/* End Date */}
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                    End Date
-                  </label>
-                  <DatePickerCalendar
-                    value={endDate}
-                    onChange={(date) => {
-                      setEndDate(date);
-                      setPage(1);
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* User ID Filter (separate row) */}
-              <div className="mt-4">
+          <div className="p-4 sm:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* Search */}
+              <div className="md:col-span-2">
                 <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                  User ID (UUID)
+                  Search
                 </label>
                 <input
                   type="text"
-                  value={userIdFilter}
-                  onChange={(e) => {
-                    setUserIdFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  placeholder="Filter by specific user ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Payment ID, email, or name..."
                   className={`w-full px-3 py-2 rounded-lg border ${
                     darkMode
                       ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text placeholder-zenible-dark-text-secondary'
@@ -560,134 +421,230 @@ export default function PaymentTracking() {
                   }`}
                 />
               </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  Status
+                </label>
+                <Combobox
+                  options={[
+                    { id: 'succeeded', label: 'Succeeded' },
+                    { id: 'pending', label: 'Pending' },
+                    { id: 'processing', label: 'Processing' },
+                    { id: 'failed', label: 'Failed' },
+                    { id: 'canceled', label: 'Canceled' },
+                    { id: 'refunded', label: 'Refunded' },
+                  ]}
+                  value={statusFilter}
+                  onChange={(value) => {
+                    setStatusFilter(value);
+                    setPage(1);
+                  }}
+                  placeholder="All Status"
+                  allowClear
+                />
+              </div>
+
+              {/* Type Filter */}
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  Type
+                </label>
+                <Combobox
+                  options={[
+                    { id: 'subscription', label: 'Subscription' },
+                    { id: 'refund', label: 'Refund' },
+                    { id: 'adjustment', label: 'Adjustment' },
+                    { id: 'manual', label: 'Manual' },
+                    { id: 'one_time', label: 'One Time' },
+                  ]}
+                  value={typeFilter}
+                  onChange={(value) => {
+                    setTypeFilter(value);
+                    setPage(1);
+                  }}
+                  placeholder="All Types"
+                  allowClear
+                />
+              </div>
+
+              {/* Start Date */}
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  Start Date
+                </label>
+                <DatePickerCalendar
+                  value={startDate}
+                  onChange={(date) => {
+                    setStartDate(date);
+                    setPage(1);
+                  }}
+                />
+              </div>
+
+              {/* End Date */}
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  End Date
+                </label>
+                <DatePickerCalendar
+                  value={endDate}
+                  onChange={(date) => {
+                    setEndDate(date);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* User ID Filter (separate row) */}
+            <div className="mt-4">
+              <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                User ID (UUID)
+              </label>
+              <input
+                type="text"
+                value={userIdFilter}
+                onChange={(e) => {
+                  setUserIdFilter(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Filter by specific user ID..."
+                className={`w-full px-3 py-2 rounded-lg border ${
+                  darkMode
+                    ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text placeholder-zenible-dark-text-secondary'
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                }`}
+              />
             </div>
           </div>
-
-          {/* Payments Table */}
-          <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
-            {loading ? (
-              <LoadingSpinner height="py-12" />
-            ) : error ? (
-              <div className="text-red-500 text-center py-12">Error: {error}</div>
-            ) : filteredPayments.length === 0 ? (
-              <div className={`text-center py-12 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                <svg className={`w-12 h-12 mx-auto mb-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <p className="font-medium mb-1">No payments found</p>
-                <p className="text-sm">Adjust your filters to see more results</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-                    <tr>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                        Date
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                        User
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                        Amount
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                        Type
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                        Status
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                        Payment ID
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
-                    {filteredPayments.map((payment: any) => (
-                      <tr key={payment.id}>
-                        <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                          {formatDate(payment.created_at)}
-                        </td>
-                        <td className={`px-6 py-4 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                          <div className="text-sm font-medium">{payment.user_name || 'Unknown'}</div>
-                          <div className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                            {payment.user_email || 'N/A'}
-                          </div>
-                        </td>
-                        <td className={`px-6 py-4 text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                          {formatCurrency(payment.amount, payment.currency)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeBadgeClass(payment.type)}`}>
-                            {payment.type || 'N/A'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(payment.status)}`}>
-                            {payment.status}
-                          </span>
-                        </td>
-                        <td className={`px-6 py-4 text-xs font-mono ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                          {payment.stripe_payment_intent_id || payment.id?.slice(0, 8) + '...'}
-                        </td>
-                        <td className="px-6 py-4">
-                          {payment.status === 'succeeded' && (
-                            <button
-                              onClick={() => refundModal.open(payment)}
-                              className="text-red-600 hover:text-red-900 text-sm font-medium"
-                            >
-                              Refund
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {!loading && !error && totalPages > 1 && (
-              <div className={`px-6 py-4 border-t flex items-center justify-between ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-                <div className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                  Showing {((page - 1) * perPage) + 1} to {Math.min(page * perPage, totalPayments)} of {totalPayments} payments
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className={`px-3 py-1 rounded-lg border ${
-                      page === 1
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:bg-opacity-10 hover:bg-zenible-primary'
-                    } ${darkMode ? 'border-zenible-dark-border text-zenible-dark-text' : 'border-gray-300 text-gray-700'}`}
-                  >
-                    Previous
-                  </button>
-                  <span className={`px-3 py-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
-                    Page {page} of {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className={`px-3 py-1 rounded-lg border ${
-                      page === totalPages
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:bg-opacity-10 hover:bg-zenible-primary'
-                    } ${darkMode ? 'border-zenible-dark-border text-zenible-dark-text' : 'border-gray-300 text-gray-700'}`}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
-      )}
+
+        {/* Payments Table */}
+        <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+          {loading ? (
+            <LoadingSpinner height="py-12" />
+          ) : error ? (
+            <div className="text-red-500 text-center py-12">Error: {error}</div>
+          ) : filteredPayments.length === 0 ? (
+            <div className={`text-center py-12 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+              <svg className={`w-12 h-12 mx-auto mb-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p className="font-medium mb-1">No payments found</p>
+              <p className="text-sm">Adjust your filters to see more results</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+                  <tr>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                      Date
+                    </th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                      User
+                    </th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                      Amount
+                    </th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                      Type
+                    </th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                      Status
+                    </th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                      Payment ID
+                    </th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
+                  {filteredPayments.map((payment: any) => (
+                    <tr key={payment.id}>
+                      <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {formatDate(payment.created_at)}
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        <div className="text-sm font-medium">{payment.user_name || 'Unknown'}</div>
+                        <div className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                          {payment.user_email || 'N/A'}
+                        </div>
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-sm font-medium whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        {formatCurrency(payment.amount, payment.currency)}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeBadgeClass(payment.type)}`}>
+                          {payment.type || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(payment.status)}`}>
+                          {payment.status}
+                        </span>
+                      </td>
+                      <td className={`px-4 sm:px-6 py-4 text-xs font-mono whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                        {payment.stripe_payment_intent_id || payment.id?.slice(0, 8) + '...'}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                        {payment.status === 'succeeded' && (
+                          <button
+                            onClick={() => refundModal.open(payment)}
+                            className="text-red-600 hover:text-red-900 text-sm font-medium"
+                          >
+                            Refund
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && !error && totalPages > 1 && (
+            <div className={`px-4 sm:px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+              <div className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                Showing {((page - 1) * perPage) + 1} to {Math.min(page * perPage, totalPayments)} of {totalPayments} payments
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className={`px-3 py-1 rounded-lg border ${
+                    page === 1
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:bg-opacity-10 hover:bg-zenible-primary'
+                  } ${darkMode ? 'border-zenible-dark-border text-zenible-dark-text' : 'border-gray-300 text-gray-700'}`}
+                >
+                  Previous
+                </button>
+                <span className={`px-3 py-1 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className={`px-3 py-1 rounded-lg border ${
+                    page === totalPages
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:bg-opacity-10 hover:bg-zenible-primary'
+                  } ${darkMode ? 'border-zenible-dark-border text-zenible-dark-text' : 'border-gray-300 text-gray-700'}`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Refund Modal */}
       {refundModal.isOpen && refundModal.data && (

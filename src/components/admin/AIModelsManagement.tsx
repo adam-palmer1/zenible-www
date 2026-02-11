@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
 import { request as apiRequest } from '../../services/api/httpClient';
+import Combobox from '../ui/combobox/Combobox';
 import OpenAIModelSyncModal from './OpenAIModelSyncModal';
 import ModelPricingModal from './ModelPricingModal';
 import { useModalState } from '../../hooks/useModalState';
@@ -170,12 +171,12 @@ export default function AIModelsManagement() {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       {/* Header */}
-      <div className={`h-16 border-b flex items-center justify-between px-6 ${
+      <div className={`h-16 border-b flex items-center justify-between px-4 sm:px-6 ${
         darkMode
           ? 'bg-zenible-dark-card border-zenible-dark-border'
           : 'bg-white border-neutral-200'
       }`}>
-        <h1 className={`text-2xl font-semibold ${
+        <h1 className={`text-xl sm:text-2xl font-semibold ${
           darkMode ? 'text-zenible-dark-text' : 'text-zinc-900'
         }`}>
           AI Models Management
@@ -205,7 +206,7 @@ export default function AIModelsManagement() {
             placeholder="Search models..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`flex-1 min-w-[200px] px-3 py-2 rounded-lg border ${
+            className={`w-full sm:flex-1 sm:min-w-[200px] px-3 py-2 rounded-lg border ${
               darkMode
                 ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text placeholder-zenible-dark-text-secondary'
                 : 'bg-white border-neutral-300 text-gray-900 placeholder-gray-500'
@@ -213,24 +214,17 @@ export default function AIModelsManagement() {
           />
 
           {/* Feature Filter */}
-          <select
+          <Combobox
+            options={features.map(feature => ({ id: feature.value, label: feature.label }))}
             value={featureFilter}
-            onChange={(e) => {
-              setFeatureFilter(e.target.value);
+            onChange={(value) => {
+              setFeatureFilter(value);
               setPage(1);
             }}
-            className={`px-3 py-2 rounded-lg border ${
-              darkMode
-                ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
-                : 'bg-white border-neutral-300 text-gray-900'
-            }`}
-          >
-            {features.map(feature => (
-              <option key={feature.value} value={feature.value}>
-                {feature.label}
-              </option>
-            ))}
-          </select>
+            placeholder="All Features"
+            allowClear
+            className="w-48"
+          />
 
           {/* Active Only Toggle */}
           <label className="flex items-center gap-2">
@@ -253,7 +247,7 @@ export default function AIModelsManagement() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto px-4 sm:px-6 py-6">
         {loading ? (
           <LoadingSpinner height="h-full" />
         ) : error ? (
@@ -266,6 +260,7 @@ export default function AIModelsManagement() {
           <div className={`rounded-lg overflow-hidden ${
             darkMode ? 'bg-zenible-dark-card' : 'bg-white'
           }`}>
+           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className={`${
                 darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'
@@ -273,32 +268,32 @@ export default function AIModelsManagement() {
                 darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'
               }`}>
                 <tr>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                  <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                     darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                   }`}>
                     Model
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                  <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                     darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                   }`}>
                     Capabilities
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                  <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                     darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                   }`}>
                     Context Window
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                  <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                     darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                   }`}>
                     Pricing (per 1K)
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                  <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                     darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                   }`}>
                     Status
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                  <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                     darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                   }`}>
                     Actions
@@ -312,7 +307,7 @@ export default function AIModelsManagement() {
                   <tr key={model.model_id} className={`${
                     darkMode ? 'hover:bg-zenible-dark-bg/50' : 'hover:bg-gray-50'
                   }`}>
-                    <td className="px-6 py-4 whitespace-nowrap w-64">
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap w-64">
                       <div>
                         <div
                           className={`font-medium truncate ${
@@ -329,7 +324,7 @@ export default function AIModelsManagement() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 w-48">
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap w-48">
                       <div className="flex flex-wrap gap-1">
                         {getCapabilityBadges(model).map(badge => (
                           <span
@@ -345,14 +340,14 @@ export default function AIModelsManagement() {
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                       <span className={`text-sm ${
                         darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
                       }`}>
                         {model.max_tokens ? `${model.max_tokens.toLocaleString()} tokens` : 'N/A'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                       <div className="text-sm">
                         <div className={darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}>
                           Input: {formatPrice(model.pricing_input)}
@@ -362,7 +357,7 @@ export default function AIModelsManagement() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                       <button
                         onClick={() => handleToggleModelStatus(model.model_id, model.is_active)}
                         className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
@@ -387,7 +382,7 @@ export default function AIModelsManagement() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                       <button
                         onClick={() => handleEditPricing(model)}
                         className={`text-sm ${
@@ -403,6 +398,7 @@ export default function AIModelsManagement() {
                 ))}
               </tbody>
             </table>
+           </div>
 
             {filteredModels.length === 0 && (
               <div className={`text-center py-8 ${
@@ -416,7 +412,7 @@ export default function AIModelsManagement() {
 
         {/* Pagination */}
         {!loading && !error && totalPages > 1 && !featureFilter && (
-          <div className="flex justify-center items-center gap-2 mt-6">
+          <div className="flex flex-wrap justify-center items-center gap-2 mt-6">
             <button
               onClick={() => setPage(Math.max(1, page - 1))}
               disabled={page === 1}

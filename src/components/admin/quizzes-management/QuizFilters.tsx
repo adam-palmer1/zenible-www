@@ -1,5 +1,6 @@
 import React from 'react';
 import { QuizTag } from './types';
+import Combobox from '../../ui/combobox/Combobox';
 
 interface QuizFiltersProps {
   darkMode: boolean;
@@ -44,32 +45,30 @@ export default function QuizFilters({
           className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
         />
 
-        <select
+        <Combobox
+          options={quizTags.map((tag: QuizTag) => ({ id: tag.id, label: tag.name }))}
           value={tagFilter}
-          onChange={(e) => {
-            setTagFilter(e.target.value);
+          onChange={(value) => {
+            setTagFilter(value);
             setPage(1);
           }}
-          className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-        >
-          <option value="">All Tags</option>
-          {quizTags.map((tag: QuizTag) => (
-            <option key={tag.id} value={tag.id}>{tag.name}</option>
-          ))}
-        </select>
+          placeholder="All Tags"
+          allowClear
+        />
 
-        <select
+        <Combobox
+          options={[
+            { id: 'true', label: 'Active' },
+            { id: 'false', label: 'Inactive' },
+          ]}
           value={activeFilter}
-          onChange={(e) => {
-            setActiveFilter(e.target.value);
+          onChange={(value) => {
+            setActiveFilter(value);
             setPage(1);
           }}
-          className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-        >
-          <option value="">All Status</option>
-          <option value="true">Active</option>
-          <option value="false">Inactive</option>
-        </select>
+          placeholder="All Status"
+          allowClear
+        />
       </div>
 
       <div className="flex gap-2">

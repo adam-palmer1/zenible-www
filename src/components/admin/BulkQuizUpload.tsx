@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import quizAPI from '../../services/quizAPI';
 import { ICON_OPTIONS, isValidIcon, getIconPath } from '../../utils/iconUtils';
+import Combobox from '../ui/combobox/Combobox';
 
 // Validation functions
 const validateAnswer = (answer: any, questionIndex: number, answerIndex: number) => {
@@ -463,18 +464,15 @@ export default function BulkQuizUpload({ darkMode, onSuccess }: BulkQuizUploadPr
           Default Icon for Auto-Created Tags
         </label>
         <div className="flex items-center gap-3">
-          <select
+          <Combobox
+            options={ICON_OPTIONS.map(option => ({ id: option.value, label: option.label }))}
             value={defaultTagIcon}
-            onChange={(e) => setDefaultTagIcon(e.target.value)}
+            onChange={(value) => setDefaultTagIcon(value || 'book-open')}
             disabled={uploading}
-            className={`flex-1 px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-gray-300'}`}
-          >
-            {ICON_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            placeholder="Select icon..."
+            allowClear={false}
+            className="flex-1"
+          />
           <div className={`p-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border' : 'bg-white border-gray-300'}`}>
             <svg className={`w-6 h-6 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={getIconPath(defaultTagIcon)} />

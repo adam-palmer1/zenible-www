@@ -571,6 +571,20 @@ const invoicesAPI = {
 
     return response.json();
   },
+  /**
+   * Get expense allocation capacity for an invoice
+   * Returns invoice total, already-allocated amount, and remaining capacity
+   */
+  async getExpenseAllocationCapacity(invoiceId: string): Promise<{
+    invoice_total: string;
+    invoice_currency: string;
+    allocated_expenses_total: string;
+    remaining_capacity: string;
+  }> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}/${invoiceId}/expense-allocation-capacity`, {
+      method: 'GET',
+    });
+  },
 };
 
 // Export singleton instance

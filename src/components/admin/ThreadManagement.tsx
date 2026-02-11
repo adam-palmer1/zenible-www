@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
 import { LoadingSpinner } from '../shared';
+import Combobox from '../ui/combobox/Combobox';
 
 interface AdminThread {
   id: string;
@@ -206,10 +207,10 @@ export default function ThreadManagement() {
   return (
     <div className={`flex-1 overflow-auto ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
       {/* Header */}
-      <div className={`border-b px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+      <div className={`border-b px-4 sm:px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+            <h1 className={`text-xl sm:text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
               Thread Management
             </h1>
             <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
@@ -245,35 +246,41 @@ export default function ThreadManagement() {
               className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
             />
 
-            <select
+            <Combobox
+              options={[
+                { id: 'ACTIVE', label: 'Active' },
+                { id: 'ARCHIVED', label: 'Archived' },
+                { id: 'DELETED', label: 'Deleted' },
+              ]}
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-            >
-              <option value="">All Status</option>
-              <option value="ACTIVE">Active</option>
-              <option value="ARCHIVED">Archived</option>
-              <option value="DELETED">Deleted</option>
-            </select>
+              onChange={(value) => setStatus(value)}
+              placeholder="All Status"
+              allowClear
+              className="w-36"
+            />
 
-            <select
+            <Combobox
+              options={[
+                { id: 'created_at', label: 'Created Date' },
+                { id: 'updated_at', label: 'Updated Date' },
+                { id: 'last_message_at', label: 'Last Message' },
+              ]}
               value={orderBy}
-              onChange={(e) => setOrderBy(e.target.value)}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-            >
-              <option value="created_at">Created Date</option>
-              <option value="updated_at">Updated Date</option>
-              <option value="last_message_at">Last Message</option>
-            </select>
+              onChange={(value) => setOrderBy(value || 'created_at')}
+              allowClear={false}
+              className="w-44"
+            />
 
-            <select
+            <Combobox
+              options={[
+                { id: 'desc', label: 'Newest First' },
+                { id: 'asc', label: 'Oldest First' },
+              ]}
               value={orderDir}
-              onChange={(e) => setOrderDir(e.target.value)}
-              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-            >
-              <option value="desc">Newest First</option>
-              <option value="asc">Oldest First</option>
-            </select>
+              onChange={(value) => setOrderDir(value || 'desc')}
+              allowClear={false}
+              className="w-40"
+            />
 
             <button
               onClick={() => { setPage(1); fetchThreads(); }}
@@ -383,19 +390,21 @@ export default function ThreadManagement() {
                     <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                       Page {page} of {totalPages}
                     </span>
-                    <select
-                      value={perPage}
-                      onChange={(e) => {
-                        setPerPage(parseInt(e.target.value));
+                    <Combobox
+                      options={[
+                        { id: '10', label: '10 per page' },
+                        { id: '20', label: '20 per page' },
+                        { id: '50', label: '50 per page' },
+                        { id: '100', label: '100 per page' },
+                      ]}
+                      value={String(perPage)}
+                      onChange={(value) => {
+                        setPerPage(parseInt(value || '20'));
                         setPage(1);
                       }}
-                      className={`px-2 py-1 text-sm rounded border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                    >
-                      <option value="10">10 per page</option>
-                      <option value="20">20 per page</option>
-                      <option value="50">50 per page</option>
-                      <option value="100">100 per page</option>
-                    </select>
+                      allowClear={false}
+                      className="w-40"
+                    />
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -457,15 +466,17 @@ export default function ThreadManagement() {
                     <div>
                       <dt className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Status</dt>
                       <dd>
-                        <select
+                        <Combobox
+                          options={[
+                            { id: 'ACTIVE', label: 'Active' },
+                            { id: 'ARCHIVED', label: 'Archived' },
+                            { id: 'DELETED', label: 'Deleted' },
+                          ]}
                           value={selectedThread.status}
-                          onChange={(e) => handleUpdateStatus(selectedThread.id, e.target.value)}
-                          className={`px-2 py-1 text-sm rounded border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-                        >
-                          <option value="ACTIVE">Active</option>
-                          <option value="ARCHIVED">Archived</option>
-                          <option value="DELETED">Deleted</option>
-                        </select>
+                          onChange={(value) => handleUpdateStatus(selectedThread.id, value)}
+                          allowClear={false}
+                          className="w-36"
+                        />
                       </dd>
                     </div>
                     <div>

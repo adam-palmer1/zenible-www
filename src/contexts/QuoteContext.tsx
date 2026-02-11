@@ -1,6 +1,7 @@
 import { createContext, useState, useCallback, useMemo, useContext, useEffect, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import quotesAPI from '../services/api/finance/quotes';
+import type { QuoteCreate } from '../types';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
 
 interface QuoteFilters {
@@ -77,7 +78,7 @@ interface QuoteContextValue {
   templates: QuoteTemplate[];
   templatesLoading: boolean;
   fetchQuotes: () => Promise<void>;
-  createQuote: (quoteData: unknown) => Promise<unknown>;
+  createQuote: (quoteData: QuoteCreate) => Promise<unknown>;
   updateQuote: (quoteId: string, quoteData: unknown) => Promise<unknown>;
   deleteQuote: (quoteId: string) => Promise<void>;
   sendQuote: (quoteId: string, emailData: unknown) => Promise<unknown>;
@@ -153,7 +154,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   // -------------------------------------------------------------------------
   // Quote-specific: createQuote triggers refresh to update stats
   // -------------------------------------------------------------------------
-  const createQuote = useCallback(async (quoteData: unknown) => {
+  const createQuote = useCallback(async (quoteData: QuoteCreate) => {
     try {
       doc.setLoading(true);
       const created = await quotesAPI.create(quoteData);

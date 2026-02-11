@@ -17,7 +17,6 @@ import ConfirmationModal from '../common/ConfirmationModal';
 import SuccessModal from '../common/SuccessModal';
 import ContactMergeModal from './ContactMergeModal';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
-import { getNextAppointment } from '../../utils/crm/appointmentUtils';
 import { useModalState } from '../../hooks/useModalState';
 
 interface ContactActionMenuProps {
@@ -35,13 +34,19 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
   const [successContactName, setSuccessContactName] = useState('');
   const mergeModal = useModalState();
 
-  const { editContact, deleteContact, markAsLost, toggleHidden, dismissFollowUp, toggleClient, refreshContacts } = useContactActions();
+  const { editContact, deleteContact, markAsLost, toggleHidden, dismissFollowUp, toggleClient, refreshContacts, statusRoles } = useContactActions();
 
   // Get display name using shared utility
   const displayName = getContactDisplayName(contact, 'Contact');
 
   // Get next appointment to determine if dismiss option should show
-  const nextAppointment = getNextAppointment(contact.appointments);
+  const nextAppointment = contact.next_appointment;
+
+  // Check if contact is already in the lost status (hide "Mark Lost" if so)
+  const contactCurrentStatusId = contact.current_global_status_id || contact.current_custom_status_id;
+  const isAlreadyLost = statusRoles?.lost_status_id
+    ? contactCurrentStatusId === statusRoles.lost_status_id
+    : false;
 
   // Handle add to client list
   const handleAddToClientList = async () => {
@@ -113,7 +118,7 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
       icon: UserMinusIcon,
       onClick: () => setConfirmationModal('remove_client'),
     } : null,
-    showMarkLost ? {
+    showMarkLost && !isAlreadyLost ? {
       id: 'mark_lost',
       label: 'Mark Lost',
       icon: XCircleIcon,
@@ -121,8 +126,8 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
     } : null,
     {
       id: 'toggle_hidden',
-      label: contact.is_hidden ? 'Unhide Contact' : 'Hide Contact',
-      icon: contact.is_hidden ? EyeIcon : EyeSlashIcon,
+      label: contact.is_hidden_crm ? 'Unhide' : 'Hide Contact',
+      icon: contact.is_hidden_crm ? EyeIcon : EyeSlashIcon,
       onClick: () => toggleHidden(contact),
     },
     nextAppointment ? {

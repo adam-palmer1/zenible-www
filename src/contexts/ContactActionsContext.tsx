@@ -2,7 +2,7 @@ import React, { createContext, useContext, useCallback } from 'react';
 import { useNotification } from './NotificationContext';
 import { getContactDisplayName } from '../utils/crm/contactUtils';
 import appointmentsAPI from '../services/api/crm/appointments';
-import { prepareAppointmentData, getNextAppointment } from '../utils/crm/appointmentUtils';
+import { prepareAppointmentData } from '../utils/crm/appointmentUtils';
 
 /** Minimal contact shape used throughout contact actions */
 interface ContactActionContact {
@@ -11,17 +11,11 @@ interface ContactActionContact {
   last_name?: string | null;
   business_name?: string | null;
   email?: string | null;
-  is_hidden?: boolean;
+  is_hidden_crm?: boolean;
+  is_hidden_client?: boolean;
+  is_hidden_vendor?: boolean;
   is_client?: boolean;
-  appointments?: AppointmentLike[] | null;
-  [key: string]: unknown;
-}
-
-/** Minimal appointment shape for accessing appointment data */
-interface AppointmentLike {
-  id?: string;
-  start_datetime?: string | null;
-  deleted_at?: string | null;
+  next_appointment?: { id: string; title?: string; start_datetime?: string; appointment_type?: string } | null;
   [key: string]: unknown;
 }
 
@@ -41,10 +35,18 @@ interface ContactActionResult {
   contactName?: string;
 }
 
+interface StatusRoles {
+  lead_status_id?: string | null;
+  call_booked_status_id?: string | null;
+  lost_status_id?: string | null;
+  won_status_id?: string | null;
+}
+
 interface ContactActionsProviderProps {
   children: React.ReactNode;
   globalStatuses: StatusEntry[];
   customStatuses: StatusEntry[];
+  statusRoles?: StatusRoles;
   onEdit: ((contact: ContactActionContact) => void) | undefined;
   onDelete: (contact: ContactActionContact) => Promise<void>;
   onUpdateStatus: (contactId: string, updates: Record<string, unknown>) => Promise<ContactActionResult>;
@@ -57,11 +59,12 @@ interface ContactActionsContextValue {
   changeStatus: (contact: ContactActionContact, statusId: string, isGlobal?: boolean) => Promise<ContactActionResult>;
   editContact: (contact: ContactActionContact) => void;
   deleteContact: (contact: ContactActionContact) => Promise<ContactActionResult>;
-  toggleHidden: (contact: ContactActionContact) => Promise<ContactActionResult>;
+  toggleHidden: (contact: ContactActionContact, context?: 'crm' | 'client' | 'vendor') => Promise<ContactActionResult>;
   toggleClient: (contact: ContactActionContact, showSuccessModal?: boolean) => Promise<ContactActionResult>;
   setFollowUp: (contact: ContactActionContact, followUpDateTime: string, appointmentType?: string) => Promise<ContactActionResult>;
   dismissFollowUp: (contact: ContactActionContact) => Promise<ContactActionResult>;
   refreshContacts?: () => void;
+  statusRoles?: StatusRoles;
 }
 
 const ContactActionsContext = createContext<ContactActionsContextValue | null>(null);
@@ -81,6 +84,8 @@ export const useContactActions = () => {
 export const ContactActionsProvider = ({
   children,
   globalStatuses,
+  customStatuses,
+  statusRoles,
   onEdit,
   onDelete,
   onUpdateStatus,
@@ -93,16 +98,28 @@ export const ContactActionsProvider = ({
    */
   const markAsLost = useCallback(async (contact: ContactActionContact): Promise<ContactActionResult> => {
     try {
-      const lostStatus = globalStatuses?.find((s: StatusEntry) => s.name === 'lost');
-      if (!lostStatus) {
-        showError('Lost status not found');
-        return { success: false, error: 'Status not found' };
+      // Use role assignment first, fall back to name lookup
+      let lostStatusId = statusRoles?.lost_status_id;
+      let isGlobal = true;
+
+      if (lostStatusId) {
+        // Determine if it's a global or custom status
+        const inGlobal = globalStatuses?.some((s: StatusEntry) => s.id === lostStatusId);
+        const inCustom = customStatuses?.some((s: StatusEntry) => s.id === lostStatusId);
+        isGlobal = inGlobal || !inCustom;
+      } else {
+        const lostStatus = globalStatuses?.find((s: StatusEntry) => s.name === 'lost');
+        if (!lostStatus) {
+          showError('Lost status not found');
+          return { success: false, error: 'Status not found' };
+        }
+        lostStatusId = lostStatus.id;
       }
 
-      const result = await onUpdateStatus(contact.id, {
-        current_global_status_id: lostStatus.id,
-        current_custom_status_id: null
-      });
+      const result = await onUpdateStatus(contact.id, isGlobal
+        ? { current_global_status_id: lostStatusId, current_custom_status_id: null }
+        : { current_custom_status_id: lostStatusId, current_global_status_id: null }
+      );
 
       if (result.success) {
         const displayName = getContactDisplayName(contact, 'Contact');
@@ -115,23 +132,34 @@ export const ContactActionsProvider = ({
       showError((error as Error).message || 'Failed to update contact');
       return { success: false, error };
     }
-  }, [globalStatuses, onUpdateStatus, showSuccess, showError]);
+  }, [globalStatuses, customStatuses, statusRoles, onUpdateStatus, showSuccess, showError]);
 
   /**
    * Mark contact as won
    */
   const markAsWon = useCallback(async (contact: ContactActionContact): Promise<ContactActionResult> => {
     try {
-      const wonStatus = globalStatuses?.find((s: StatusEntry) => s.name === 'won');
-      if (!wonStatus) {
-        showError('Won status not found');
-        return { success: false, error: 'Status not found' };
+      // Use role assignment first, fall back to name lookup
+      let wonStatusId = statusRoles?.won_status_id;
+      let isGlobal = true;
+
+      if (wonStatusId) {
+        const inGlobal = globalStatuses?.some((s: StatusEntry) => s.id === wonStatusId);
+        const inCustom = customStatuses?.some((s: StatusEntry) => s.id === wonStatusId);
+        isGlobal = inGlobal || !inCustom;
+      } else {
+        const wonStatus = globalStatuses?.find((s: StatusEntry) => s.name === 'won');
+        if (!wonStatus) {
+          showError('Won status not found');
+          return { success: false, error: 'Status not found' };
+        }
+        wonStatusId = wonStatus.id;
       }
 
-      const result = await onUpdateStatus(contact.id, {
-        current_global_status_id: wonStatus.id,
-        current_custom_status_id: null
-      });
+      const result = await onUpdateStatus(contact.id, isGlobal
+        ? { current_global_status_id: wonStatusId, current_custom_status_id: null }
+        : { current_custom_status_id: wonStatusId, current_global_status_id: null }
+      );
 
       if (result.success) {
         const displayName = getContactDisplayName(contact, 'Contact');
@@ -144,7 +172,7 @@ export const ContactActionsProvider = ({
       showError((error as Error).message || 'Failed to update contact');
       return { success: false, error };
     }
-  }, [globalStatuses, onUpdateStatus, showSuccess, showError]);
+  }, [globalStatuses, customStatuses, statusRoles, onUpdateStatus, showSuccess, showError]);
 
   /**
    * Change contact status (generic)
@@ -195,12 +223,18 @@ export const ContactActionsProvider = ({
   /**
    * Toggle contact hidden state
    */
-  const toggleHidden = useCallback(async (contact: ContactActionContact): Promise<ContactActionResult> => {
+  const toggleHidden = useCallback(async (contact: ContactActionContact, context: 'crm' | 'client' | 'vendor' = 'crm'): Promise<ContactActionResult> => {
     const displayName = getContactDisplayName(contact, 'Contact');
-    const newHiddenState = !contact.is_hidden;
+    const fieldMap = {
+      crm: 'is_hidden_crm',
+      client: 'is_hidden_client',
+      vendor: 'is_hidden_vendor',
+    } as const;
+    const field = fieldMap[context];
+    const newHiddenState = !contact[field];
 
     try {
-      const result = await onUpdateStatus(contact.id, { is_hidden: newHiddenState });
+      const result = await onUpdateStatus(contact.id, { [field]: newHiddenState });
 
       if (result.success) {
         showSuccess(
@@ -297,8 +331,8 @@ export const ContactActionsProvider = ({
     const displayName = getContactDisplayName(contact, 'Contact');
 
     try {
-      // Get the next appointment from appointments array
-      const nextAppointment = getNextAppointment(contact.appointments);
+      // Get the next appointment from the pre-computed field
+      const nextAppointment = contact.next_appointment;
 
       // Verify appointment exists
       if (!nextAppointment?.id) {
@@ -345,7 +379,10 @@ export const ContactActionsProvider = ({
     dismissFollowUp,
 
     // Refresh callback
-    refreshContacts: onRefreshContacts
+    refreshContacts: onRefreshContacts,
+
+    // Status roles for conditional rendering
+    statusRoles
   };
 
   return (

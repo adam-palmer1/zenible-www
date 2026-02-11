@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, FileText, Receipt, CreditCard, FileMinus, Loader2, Settings2, ChevronDown, ChevronUp, Trash2, Plus, type LucideProps } from 'lucide-react';
 import BillableHoursTab from './BillableHoursTab';
-import { PROJECT_STATUS_LABELS, SERVICE_STATUS, SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS, type ProjectStatus, type ServiceStatus } from '../../constants/crm';
+import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, PROJECT_STATUS_HEX_COLORS, SERVICE_STATUS, SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS, type ProjectStatus, type ServiceStatus } from '../../constants/crm';
+import StatusSelectorModal from './StatusSelectorModal';
 import { formatCurrency } from '../../utils/currency';
 import { useNotification } from '../../contexts/NotificationContext';
 import projectsAPI from '../../services/api/crm/projects';
@@ -154,6 +155,10 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
   const [statusDropdown, setStatusDropdown] = useState<{ isOpen: boolean; serviceId: string | null }>({ isOpen: false, serviceId: null });
   const statusButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
+  // Project status modal
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [updatingProjectStatus, setUpdatingProjectStatus] = useState(false);
+
   // Finance allocation modals
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [financeModal, setFinanceModal] = useState<{ open: boolean; type: string | null }>({ open: false, type: null });
@@ -188,6 +193,24 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
       setServices([]);
     } finally {
       setLoadingServices(false);
+    }
+  };
+
+  // Handle project status change
+  const handleProjectStatusChange = async (newStatus: string) => {
+    if (!project?.id || newStatus === project.status) return;
+
+    try {
+      setUpdatingProjectStatus(true);
+      await projectsAPI.update(project.id, { status: newStatus });
+      setProject(prev => prev ? { ...prev, status: newStatus } : prev);
+      showSuccess(`Project status updated to ${PROJECT_STATUS_LABELS[newStatus as ProjectStatus]}`);
+      _onUpdate?.();
+    } catch (err: unknown) {
+      console.error('Error updating project status:', err);
+      showError((err instanceof Error ? err.message : null) || 'Failed to update project status');
+    } finally {
+      setUpdatingProjectStatus(false);
     }
   };
 
@@ -605,7 +628,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
 
                         {/* Status Dropdown Menu */}
                         {statusDropdown.isOpen && statusDropdown.serviceId === service.id && (
-                          <div className="absolute left-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 border border-[#e5e5e5] dark:border-gray-600 rounded-lg shadow-lg z-50">
+                          <div className="absolute left-0 bottom-full mb-1 w-40 bg-white dark:bg-gray-800 border border-[#e5e5e5] dark:border-gray-600 rounded-lg shadow-lg z-50">
                             {(Object.entries(SERVICE_STATUS) as [string, ServiceStatus][]).map(([_key, value]) => (
                               <button
                                 key={value}
@@ -894,9 +917,22 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
             <h2 className="text-lg font-semibold text-[#09090b] dark:text-white leading-[26px]">
               {project.name}
             </h2>
-            <span className="inline-flex items-center px-2 py-0.5 h-6 bg-[#e5e5e5] dark:bg-gray-700 rounded-md text-xs font-normal text-[#09090b] dark:text-gray-300">
+            <button
+              onClick={() => setShowStatusModal(true)}
+              disabled={updatingProjectStatus}
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 h-6 rounded-md text-xs font-medium transition-colors hover:ring-1 hover:ring-purple-300 dark:hover:ring-purple-600 cursor-pointer disabled:opacity-50 ${PROJECT_STATUS_COLORS[project.status as ProjectStatus] || 'bg-[#e5e5e5] dark:bg-gray-700 text-[#09090b] dark:text-gray-300'}`}
+            >
+              {updatingProjectStatus ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: PROJECT_STATUS_HEX_COLORS[project.status as ProjectStatus] }}
+                />
+              )}
               {PROJECT_STATUS_LABELS[project.status as ProjectStatus] || project.status}
-            </span>
+              <ChevronDown className="h-3 w-3" />
+            </button>
           </div>
           <button
             onClick={onClose}
@@ -967,6 +1003,14 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
         projectName={project.name}
         currency={project.currency || 'USD'}
         onUpdate={handleAllocationUpdate}
+      />
+
+      {/* Project Status Selector Modal */}
+      <StatusSelectorModal
+        isOpen={showStatusModal}
+        onClose={() => setShowStatusModal(false)}
+        onSelect={handleProjectStatusChange}
+        selectedStatus={project.status}
       />
     </div>
   );

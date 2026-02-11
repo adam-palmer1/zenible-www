@@ -26,6 +26,7 @@ interface CRMTabContentProps {
   allStatuses: any[];
   globalStatuses: any[];
   customStatuses: any[];
+  statusRoles?: { lead_status_id?: string | null; call_booked_status_id?: string | null; lost_status_id?: string | null; won_status_id?: string | null };
   selectedStatuses: string[];
   selectContact: (contact: any) => void;
   openContactModal: (...args: any[]) => void;
@@ -57,6 +58,7 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
   allStatuses,
   globalStatuses,
   customStatuses,
+  statusRoles,
   selectedStatuses,
   selectContact,
   openContactModal,
@@ -109,6 +111,7 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
           <ContactActionsProvider
             globalStatuses={globalStatuses}
             customStatuses={customStatuses}
+            statusRoles={statusRoles}
             onEdit={openContactModal}
             onDelete={async (contact: any) => {
               await contactsAPI.delete(contact.id);

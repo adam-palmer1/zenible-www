@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import adminAPI from '../../services/adminAPI';
 import platformAPI from '../../services/platformAPI';
+import Combobox from '../ui/combobox/Combobox';
 
 interface IconProps {
   size?: number;
@@ -477,22 +478,13 @@ export default function CharacterPlatformConfig({ characterId, characterName, is
                       }`}>
                         Select Platform
                       </label>
-                      <select
+                      <Combobox
+                        options={getAvailablePlatformsForAdd().map(platform => ({ id: platform.id, label: platform.name }))}
                         value={selectedPlatform}
-                        onChange={(e) => setSelectedPlatform(e.target.value)}
-                        className={`w-full px-3 py-2 rounded-lg border ${
-                          darkMode
-                            ? 'bg-[#1a1a1a] border-[#444444] text-white'
-                            : 'bg-white border-gray-300 text-gray-900'
-                        }`}
-                      >
-                        <option value="">Choose a platform...</option>
-                        {getAvailablePlatformsForAdd().map(platform => (
-                          <option key={platform.id} value={platform.id}>
-                            {platform.name}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(value) => setSelectedPlatform(value)}
+                        placeholder="Choose a platform..."
+                        allowClear={false}
+                      />
                     </div>
 
                     <div>

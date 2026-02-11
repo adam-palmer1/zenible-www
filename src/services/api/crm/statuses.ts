@@ -33,6 +33,15 @@ const statusesAPI = {
   deleteCustom: (statusId: string) => request(`/crm/statuses/custom/${statusId}`, {
     method: 'DELETE',
   }),
+
+  /** Get status role assignments */
+  getRoles: () => request('/crm/statuses/roles', { method: 'GET' }),
+
+  /** Update status role assignments */
+  updateRoles: (data: Record<string, string | null>) => request('/crm/statuses/roles', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }),
 };
 
 export default statusesAPI;

@@ -22,8 +22,8 @@ export default function FeatureManagement() {
   return (
     <div className={`flex flex-col h-full overflow-hidden ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
       {/* Page Header */}
-      <div className={`flex-shrink-0 px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-card' : 'border-neutral-200 bg-white'}`}>
-        <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+      <div className={`flex-shrink-0 px-4 sm:px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-card' : 'border-neutral-200 bg-white'}`}>
+        <h1 className={`text-xl sm:text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
           Feature Management
         </h1>
         <p className={`mt-1 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
@@ -32,8 +32,8 @@ export default function FeatureManagement() {
       </div>
 
       {/* Tab Navigation */}
-      <div className={`flex-shrink-0 px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-sidebar' : 'border-neutral-200 bg-white'}`}>
-        <div className="flex gap-4">
+      <div className={`flex-shrink-0 px-4 sm:px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-sidebar' : 'border-neutral-200 bg-white'}`}>
+        <div className="flex flex-wrap gap-2 sm:gap-4">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -57,7 +57,7 @@ export default function FeatureManagement() {
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto">
         {/* Tab Content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
         {activeTab === 'display' && (
           <div>
             <div className="mb-6">
@@ -102,7 +102,7 @@ export default function FeatureManagement() {
       </div>
 
         {/* Help Section */}
-        <div className={`mx-6 mb-6 p-4 rounded-lg border ${darkMode ? 'bg-purple-500/10 border-purple-500/30' : 'bg-purple-50 border-purple-200'}`}>
+        <div className={`mx-4 sm:mx-6 mb-6 p-4 rounded-lg border ${darkMode ? 'bg-purple-500/10 border-purple-500/30' : 'bg-purple-50 border-purple-200'}`}>
           <div className="flex items-start gap-3">
             <svg className={`w-5 h-5 mt-0.5 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

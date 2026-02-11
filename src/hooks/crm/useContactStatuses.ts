@@ -13,10 +13,18 @@ let pendingFetch: Promise<unknown> | null = null; // Prevent duplicate concurren
  * Custom hook for managing contact statuses
  * Handles loading global and custom statuses with caching
  */
+interface StatusRoles {
+  lead_status_id?: string | null;
+  call_booked_status_id?: string | null;
+  lost_status_id?: string | null;
+  won_status_id?: string | null;
+}
+
 export function useContactStatuses() {
   const [globalStatuses, setGlobalStatuses] = useState<SimpleStatusResponse[]>([]);
   const [customStatuses, setCustomStatuses] = useState<SimpleStatusResponse[]>([]);
   const [allStatuses, setAllStatuses] = useState<SimpleStatusResponse[]>([]);
+  const [statusRoles, setStatusRoles] = useState<StatusRoles>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +46,7 @@ export function useContactStatuses() {
           ...(statusesCache!.global_statuses || []),
           ...(statusesCache!.custom_statuses || []),
         ]);
+        setStatusRoles((statusesCache as any)?.roles || {});
         return statusesCache;
       }
 
@@ -51,6 +60,7 @@ export function useContactStatuses() {
           ...(typed.global_statuses || []),
           ...(typed.custom_statuses || []),
         ]);
+        setStatusRoles((typed as any)?.roles || {});
         return response;
       }
 
@@ -73,6 +83,7 @@ export function useContactStatuses() {
         ...(typed.global_statuses || []),
         ...(typed.custom_statuses || []),
       ]);
+      setStatusRoles((typed as any)?.roles || {});
 
       return response;
     } catch (err: unknown) {
@@ -195,6 +206,7 @@ export function useContactStatuses() {
     globalStatuses,
     customStatuses,
     allStatuses,
+    statusRoles,
     loading,
     error,
     fetchStatuses,

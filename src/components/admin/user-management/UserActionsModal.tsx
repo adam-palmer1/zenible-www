@@ -100,7 +100,7 @@ const UserActionsModal: React.FC<UserActionsModalProps> = ({
                 <User className="h-4 w-4" />
                 Profile Information
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">First Name</label>
                   <input
@@ -193,7 +193,7 @@ const UserActionsModal: React.FC<UserActionsModalProps> = ({
                   className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-left rounded-lg hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
                 >
                   <span className={selectedPlan ? 'text-gray-900 dark:text-white' : 'text-gray-400'}>
-                    {selectedPlan ? `${selectedPlan.name} - $${selectedPlan.monthly_price}/mo` : (actionPlanId === '' && user.current_plan_id ? 'Remove plan' : 'No plan assigned')}
+                    {selectedPlan ? `${selectedPlan.name} - $${selectedPlan.monthly_price}/mo` : 'Select plan...'}
                   </span>
                 </button>
               </div>

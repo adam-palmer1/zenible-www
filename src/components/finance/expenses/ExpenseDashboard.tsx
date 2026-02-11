@@ -92,77 +92,79 @@ const ExpenseDashboard: React.FC = () => {
   const isLoading = loading;
 
   return (
-    <div className="flex h-screen bg-[#f8f8f8] dark:bg-gray-900">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       <NewSidebar />
 
       <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
-        <div className="bg-white dark:bg-gray-800 border-b border-[#e5e5e5] dark:border-gray-700 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold text-[#09090b] dark:text-white">
-              Expenses
-            </h1>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setShowCategoryModal(true)}
-                className="inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-[#09090b] dark:text-white bg-white dark:bg-gray-800 border border-[#e5e5e5] dark:border-gray-600 rounded-[10px] hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <Tag className="h-5 w-5" />
-                Manage categories
-              </button>
-              <button
-                onClick={() => setShowImportModal(true)}
-                className="inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-[#09090b] dark:text-white bg-white dark:bg-gray-800 border border-[#e5e5e5] dark:border-gray-600 rounded-[10px] hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <Upload className="h-5 w-5" />
-                Import CSV
-              </button>
-              <button
-                onClick={() => navigate('/finance/expenses/new')}
-                className="inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-white bg-[#8e51ff] rounded-[10px] hover:bg-[#7c3aed] transition-colors"
-              >
-                <Plus className="h-5 w-5" />
-                New Expense
-              </button>
-            </div>
+        {/* Top Bar - Fixed at top, matches Invoice design */}
+        <div className="bg-white border-b border-[#e5e5e5] px-4 py-3 flex items-center justify-between min-h-[64px]">
+          <h1 className="text-2xl font-semibold text-[#09090b]">
+            Expenses
+          </h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowCategoryModal(true)}
+              className="inline-flex items-center gap-2 px-3 py-2.5 text-base font-medium text-[#09090b] bg-white border border-[#e5e5e5] rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Tag className="h-5 w-5" />
+              Manage categories
+            </button>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="inline-flex items-center gap-2 px-3 py-2.5 text-base font-medium text-[#09090b] bg-white border border-[#e5e5e5] rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Upload className="h-5 w-5" />
+              Import CSV
+            </button>
+            <button
+              onClick={() => navigate('/finance/expenses/new')}
+              className="inline-flex items-center gap-2 px-3 py-2.5 text-base font-medium text-white bg-[#8e51ff] rounded-lg hover:bg-[#7c3aed] transition-colors"
+            >
+              <Plus className="h-5 w-5" />
+              New Expense
+            </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-4 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
-            <KPICard
-              title="Expenses"
-              value={isLoading ? '...' : totalExpenses.toString()}
-              subtitle={dateRangeLabel}
-              icon={Receipt}
-              iconColor="blue"
-            />
-            <KPICard
-              title={dateRangeLabel}
-              value={isLoading ? '...' : (convertedTotal
-                ? `${convertedTotal.currency_symbol}${applyNumberFormat(parseFloat(String(convertedTotal.total)), numberFormat)}`
-                : `${currencySymbol}0`)}
-              subtitle={!isLoading && totalBreakdown ? totalBreakdown : undefined}
-              icon={DollarSign}
-              iconColor="purple"
-            />
-            <KPICard
-              title="Outstanding"
-              value={isLoading ? '...' : (convertedOutstanding
-                ? `${convertedOutstanding.currency_symbol}${applyNumberFormat(parseFloat(String(convertedOutstanding.total)), numberFormat)}`
-                : `${currencySymbol}0`)}
-              subtitle={!isLoading && outstandingBreakdown ? outstandingBreakdown : undefined}
-              icon={AlertCircle}
-              iconColor="orange"
-            />
-            <KPICard
-              title="Categories"
-              value={isLoading ? '...' : categories.length.toString()}
-              icon={Tag}
-              iconColor="green"
-            />
-          </div>
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-auto">
+          <div className="p-4 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <KPICard
+                title="Expenses"
+                value={isLoading ? '...' : totalExpenses.toString()}
+                subtitle={dateRangeLabel}
+                icon={Receipt}
+                iconColor="blue"
+              />
+              <KPICard
+                title={dateRangeLabel}
+                value={isLoading ? '...' : (convertedTotal
+                  ? `${convertedTotal.currency_symbol}${applyNumberFormat(parseFloat(String(convertedTotal.total)), numberFormat)}`
+                  : `${currencySymbol}0`)}
+                subtitle={!isLoading && totalBreakdown ? totalBreakdown : undefined}
+                icon={DollarSign}
+                iconColor="purple"
+              />
+              <KPICard
+                title="Outstanding"
+                value={isLoading ? '...' : (convertedOutstanding
+                  ? `${convertedOutstanding.currency_symbol}${applyNumberFormat(parseFloat(String(convertedOutstanding.total)), numberFormat)}`
+                  : `${currencySymbol}0`)}
+                subtitle={!isLoading && outstandingBreakdown ? outstandingBreakdown : undefined}
+                icon={AlertCircle}
+                iconColor="orange"
+              />
+              <KPICard
+                title="Categories"
+                value={isLoading ? '...' : categories.length.toString()}
+                icon={Tag}
+                iconColor="green"
+              />
+            </div>
 
-          <ExpenseList />
+            <ExpenseList />
+          </div>
         </div>
       </div>
 

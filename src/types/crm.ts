@@ -129,6 +129,7 @@ export type CustomStatusCreate = components['schemas']['CustomStatusCreate'];
 export type CustomStatusResponse = components['schemas']['CustomStatusResponse'];
 export type CustomStatusUpdate = components['schemas']['CustomStatusUpdate'];
 export type SimpleStatusResponse = components['schemas']['SimpleStatusResponse'];
+export type StatusRolesResponse = components['schemas']['StatusRolesResponse'];
 
 // ──────────────────────────────────────────────
 // Appointments & Calendar

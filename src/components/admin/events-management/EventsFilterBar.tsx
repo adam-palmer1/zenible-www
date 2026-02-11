@@ -1,5 +1,6 @@
 import React from 'react';
 import { EventHost, PlanItem } from './types';
+import Combobox from '../../ui/combobox/Combobox';
 
 interface EventsFilterBarProps {
   darkMode: boolean;
@@ -55,33 +56,27 @@ export default function EventsFilterBar({
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
           />
 
-          <select
+          <Combobox
+            options={hosts.map(host => ({ id: host.id, label: host.name }))}
             value={hostFilter}
-            onChange={(e) => {
-              setHostFilter(e.target.value);
+            onChange={(value) => {
+              setHostFilter(value);
               setPage(1);
             }}
-            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-          >
-            <option value="">All Hosts</option>
-            {hosts.map(host => (
-              <option key={host.id} value={host.id}>{host.name}</option>
-            ))}
-          </select>
+            placeholder="All Hosts"
+            allowClear
+          />
 
-          <select
+          <Combobox
+            options={plans.map(plan => ({ id: plan.id, label: plan.name }))}
             value={planFilter}
-            onChange={(e) => {
-              setPlanFilter(e.target.value);
+            onChange={(value) => {
+              setPlanFilter(value);
               setPage(1);
             }}
-            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-          >
-            <option value="">All Plans</option>
-            {plans.map(plan => (
-              <option key={plan.id} value={plan.id}>{plan.name}</option>
-            ))}
-          </select>
+            placeholder="All Plans"
+            allowClear
+          />
 
           <input
             type="text"
@@ -94,18 +89,19 @@ export default function EventsFilterBar({
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
           />
 
-          <select
+          <Combobox
+            options={[
+              { id: 'true', label: 'Active' },
+              { id: 'false', label: 'Inactive' },
+            ]}
             value={activeFilter}
-            onChange={(e) => {
-              setActiveFilter(e.target.value);
+            onChange={(value) => {
+              setActiveFilter(value);
               setPage(1);
             }}
-            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
-          >
-            <option value="">All Status</option>
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-          </select>
+            placeholder="All Status"
+            allowClear
+          />
         </div>
 
         <div className="flex gap-2">

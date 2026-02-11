@@ -39,7 +39,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ user, onClose, getP
               <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-gray-500 dark:text-gray-400">User ID</label>
               <p className="text-sm text-gray-900 dark:text-white font-mono break-all mt-1">{user.id}</p>
@@ -75,7 +75,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ user, onClose, getP
               <p className="text-sm text-gray-900 dark:text-white mt-1">{formatDate(user.updated_at ?? '')}</p>
             </div>
             {user.deleted_at && (
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <label className="text-sm font-medium text-red-500">Deleted At</label>
                 <p className="text-sm text-red-600 dark:text-red-400 mt-1">{formatDate(user.deleted_at)}</p>
               </div>

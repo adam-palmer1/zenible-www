@@ -256,10 +256,10 @@ export default function PlanManagement() {
 
   return (
     <div className={`flex-1 overflow-auto ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
-      <div className={`border-b px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
-        <div className="flex items-center justify-between">
+      <div className={`border-b px-4 sm:px-6 py-4 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+            <h1 className={`text-xl sm:text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
               Plan Management
             </h1>
             <p className={`text-sm mt-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
@@ -275,7 +275,7 @@ export default function PlanManagement() {
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {loading ? (
           <LoadingSpinner height="py-12" />
         ) : error ? (
@@ -453,7 +453,7 @@ export default function PlanManagement() {
                 className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
                 rows={3}
               />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={`block text-sm mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
                     Monthly Price
@@ -479,7 +479,7 @@ export default function PlanManagement() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={`block text-sm mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
                     Old Monthly Price (Sale)

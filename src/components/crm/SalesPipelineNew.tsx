@@ -17,7 +17,6 @@ import PipelineColumn from './PipelineColumn';
 import { PipelineContactCardContent } from './PipelineContactCard';
 import { useCRM } from '../../contexts/CRMContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import { getNextAppointment } from '../../utils/crm/appointmentUtils';
 
 /**
  * Calculate total value for a contact
@@ -109,8 +108,8 @@ const SalesPipelineNew: React.FC<SalesPipelineNewProps> = ({
         });
       } else if (sortOrder === 'follow_up_date') {
         grouped[statusId].sort((a: any, b: any) => {
-          const nextAppointmentA = getNextAppointment(a.appointments);
-          const nextAppointmentB = getNextAppointment(b.appointments);
+          const nextAppointmentA = a.next_appointment;
+          const nextAppointmentB = b.next_appointment;
 
           const hasAppointmentA = !!nextAppointmentA?.start_datetime;
           const hasAppointmentB = !!nextAppointmentB?.start_datetime;
@@ -276,7 +275,7 @@ const SalesPipelineNew: React.FC<SalesPipelineNewProps> = ({
       onDragCancel={handleDragCancel}
     >
       <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
-        <div className="flex gap-2 sm:gap-3 lg:gap-4 items-start overflow-x-auto pb-4 -mx-3 px-3 md:mx-0 md:px-0">
+        <div className="flex gap-2 sm:gap-3 lg:gap-4 items-start overflow-x-auto scrollbar-hide pb-4">
           {statuses.map((status: any) => (
             <PipelineColumn
               key={status.id}

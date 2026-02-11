@@ -49,11 +49,11 @@ const UserFilters: React.FC<UserFiltersProps> = ({
   const [showOrderDirDropdown, setShowOrderDirDropdown] = useState<boolean>(false);
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className={`p-4 rounded-xl border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
         <form onSubmit={onSearch} className="flex flex-wrap items-center gap-3">
           {/* Search Input */}
-          <div className="flex-1 min-w-[200px]">
+          <div className="w-full sm:flex-1 sm:min-w-[200px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input

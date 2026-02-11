@@ -180,8 +180,13 @@ export default function ResetPassword() {
       setError('Password is required');
       return false;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
+    if (
+      password.length < 8 ||
+      !/[A-Z]/.test(password) ||
+      !/[a-z]/.test(password) ||
+      !/\d/.test(password)
+    ) {
+      setError('Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number');
       return false;
     }
     if (password !== confirmPassword) {
@@ -216,7 +221,8 @@ export default function ResetPassword() {
           navigate('/dashboard');
         }, 2000);
       } else {
-        setError(result.error || 'Failed to set password. The link may have expired.');
+        const errorMsg = typeof result.error === 'string' ? result.error : 'Failed to set password. The link may have expired.';
+        setError(errorMsg);
       }
     } catch (err) {
       console.error('Set password error:', err);
@@ -242,17 +248,17 @@ export default function ResetPassword() {
         buttonText: 'Create Account',
         loadingText: 'Creating account...',
         successTitle: 'Account Created!',
-        successMessage: 'Welcome! Redirecting to your dashboard...'
+        successMessage: ''
       };
     }
     return {
       title: 'Set New Password',
       subtitle: tokenData?.email ? `for ${tokenData.email}` : null,
-      description: 'Your new password must be at least 8 characters long.',
+      description: 'Your new password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.',
       buttonText: 'Reset Password',
       loadingText: 'Resetting...',
       successTitle: 'Password Reset Successful!',
-      successMessage: 'Redirecting to your dashboard...'
+      successMessage: ''
     };
   };
 
@@ -328,12 +334,9 @@ export default function ResetPassword() {
               <div className="text-green-500 dark:text-green-400 mb-6">
                 <CheckIcon />
               </div>
-              <h1 className="font-inter font-bold text-[24px] leading-[32px] text-zinc-950 dark:text-[#ededf0] text-center mb-4">
+              <h1 className="font-inter font-bold text-[24px] leading-[32px] text-zinc-950 dark:text-[#ededf0] text-center mb-6">
                 {content.successTitle}
               </h1>
-              <p className="font-inter font-normal text-[16px] leading-[24px] text-zinc-500 dark:text-[#94969c] text-center mb-6">
-                {content.successMessage}
-              </p>
               <Link
                 to="/dashboard"
                 className="bg-[#8e51ff] dark:bg-[#a684ff] flex items-center justify-center p-[12px] rounded-[12px] w-full hover:bg-[#7a3fe6] dark:hover:bg-[#9370ff] transition-colors"
@@ -437,6 +440,27 @@ export default function ResetPassword() {
                     onToggleVisibility={() => setShowPassword(!showPassword)}
                     required={true}
                   />
+                  {/* Real-time password requirements checklist */}
+                  {password.length > 0 && (
+                    <ul className="flex flex-col gap-[2px] mt-[4px] px-[4px]">
+                      <li className={`font-inter text-[13px] leading-[20px] flex items-center gap-[6px] ${password.length >= 8 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                        <span className="text-[11px]">{password.length >= 8 ? '\u2713' : '\u2717'}</span>
+                        Password must be at least 8 characters long
+                      </li>
+                      <li className={`font-inter text-[13px] leading-[20px] flex items-center gap-[6px] ${/[A-Z]/.test(password) ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                        <span className="text-[11px]">{/[A-Z]/.test(password) ? '\u2713' : '\u2717'}</span>
+                        Contain at least one uppercase letter
+                      </li>
+                      <li className={`font-inter text-[13px] leading-[20px] flex items-center gap-[6px] ${/[a-z]/.test(password) ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                        <span className="text-[11px]">{/[a-z]/.test(password) ? '\u2713' : '\u2717'}</span>
+                        Contain at least one lowercase letter
+                      </li>
+                      <li className={`font-inter text-[13px] leading-[20px] flex items-center gap-[6px] ${/\d/.test(password) ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                        <span className="text-[11px]">{/\d/.test(password) ? '\u2713' : '\u2717'}</span>
+                        Contain at least one number
+                      </li>
+                    </ul>
+                  )}
                 </div>
 
                 {/* Confirm Password Input */}
@@ -456,6 +480,12 @@ export default function ResetPassword() {
                     onToggleVisibility={() => setShowConfirmPassword(!showConfirmPassword)}
                     required={true}
                   />
+                  {/* Real-time password mismatch validation */}
+                  {confirmPassword.length > 0 && password !== confirmPassword && (
+                    <p className="font-inter text-[13px] leading-[20px] text-red-500 dark:text-red-400 px-[4px] mt-[4px]">
+                      Passwords mismatch
+                    </p>
+                  )}
                 </div>
 
                 {/* Error Message */}

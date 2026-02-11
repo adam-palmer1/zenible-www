@@ -25,9 +25,10 @@ interface AppointmentsContact {
   last_name?: string | null;
   business_name?: string | null;
   email?: string | null;
-  is_hidden?: boolean;
+  is_hidden_crm?: boolean;
+  is_hidden_client?: boolean;
+  is_hidden_vendor?: boolean;
   is_client?: boolean;
-  appointments?: AppointmentItem[] | null;
   [key: string]: unknown;
 }
 
@@ -50,15 +51,36 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   const { setFollowUp, refreshContacts } = useContactActions();
   const { showSuccess, showError } = useNotification();
   const [cancelConfirmModal, setCancelConfirmModal] = useState<{ isOpen: boolean; appointment: AppointmentItem | null }>({ isOpen: false, appointment: null });
+  const [fetchedAppointments, setFetchedAppointments] = useState<AppointmentItem[]>([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(false);
 
   const displayName = getContactDisplayName(contact);
-  const scheduledAppointments = getScheduledAppointments(contact.appointments) as AppointmentItem[];
+  const scheduledAppointments = getScheduledAppointments(fetchedAppointments) as AppointmentItem[];
 
-  // Reset to list mode when modal opens/closes
+  // Fetch appointments from API when modal opens
+  const fetchAppointments = async () => {
+    if (!contact?.id) return;
+    try {
+      setLoadingAppointments(true);
+      const data = await appointmentsAPI.list({ contact_id: contact.id }) as { items?: AppointmentItem[] } | AppointmentItem[];
+      const items = Array.isArray(data) ? data : (data.items || []);
+      setFetchedAppointments(items);
+    } catch (err) {
+      console.error('Error fetching appointments:', err);
+      setFetchedAppointments([]);
+    } finally {
+      setLoadingAppointments(false);
+    }
+  };
+
+  // Reset to list mode and fetch appointments when modal opens
   useEffect(() => {
     if (isOpen) {
       setMode('list');
       setEditingAppointment(null);
+      fetchAppointments();
+    } else {
+      setFetchedAppointments([]);
     }
   }, [isOpen]);
 
@@ -98,6 +120,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   const handleSaveNew = async () => {
     const dateTimeValue = `${appointmentDate}T${appointmentTime}:00`;
     await setFollowUp(contact, dateTimeValue, appointmentType);
+    await fetchAppointments();
     setMode('list');
   };
 
@@ -121,12 +144,13 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
 
       showSuccess('Appointment updated successfully');
 
-      // Refresh contacts to get updated appointments
+      // Refresh appointments list and contacts
+      await fetchAppointments();
       if (refreshContacts) {
         refreshContacts();
       }
 
-      onClose();
+      setMode('list');
     } catch (error: any) {
       console.error('Failed to update appointment:', error);
       showError(error.message || 'Failed to update appointment');
@@ -148,12 +172,11 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       showSuccess('Appointment cancelled successfully');
       setCancelConfirmModal({ isOpen: false, appointment: null });
 
-      // Refresh contacts to get updated appointments
+      // Refresh appointments list and contacts
+      await fetchAppointments();
       if (refreshContacts) {
         refreshContacts();
       }
-
-      onClose();
     } catch (error: any) {
       console.error('Failed to cancel appointment:', error);
       showError(error.message || 'Failed to cancel appointment');

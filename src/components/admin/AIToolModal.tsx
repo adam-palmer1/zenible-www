@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/adminAPI';
 import { getSchemaTemplates } from '../../utils/schemaValidation';
+import Combobox from '../ui/combobox/Combobox';
 
 interface AIToolModalProps {
   tool: any;
@@ -246,9 +247,9 @@ export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps)
         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
           <form onSubmit={handleSubmit}>
             {/* Header */}
-            <div className="bg-white px-6 py-4 border-b border-gray-200">
+            <div className="bg-white px-4 sm:px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900">
                   {tool && tool.id ? `Edit Tool: ${tool.name}` : tool ? `Clone Tool: ${tool.name}` : 'Create New AI Tool'}
                 </h3>
                 <button
@@ -265,7 +266,7 @@ export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps)
             </div>
 
             {/* Content */}
-            <div className="bg-white px-6 py-4 max-h-[70vh] overflow-y-auto">
+            <div className="bg-white px-4 sm:px-6 py-4 max-h-[70vh] overflow-y-auto">
               {error && (
                 <div className="mb-4 bg-red-50 border border-red-300 rounded-lg p-4">
                   <p className="text-red-800">{error}</p>
@@ -331,18 +332,14 @@ export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps)
                   <div className="flex items-center justify-between">
                     <h4 className="text-md font-medium text-gray-900">Argument Schema *</h4>
                     <div className="flex gap-2">
-                      <select
-                        onChange={(e) => loadArgumentSchemaTemplate(e.target.value)}
-                        className="text-xs px-2 py-1 border border-gray-300 rounded"
-                        defaultValue=""
-                      >
-                        <option value="">Load Template...</option>
-                        {Object.entries(getSchemaTemplates()).map(([key, template]) => (
-                          <option key={key} value={key}>
-                            {template.name}
-                          </option>
-                        ))}
-                      </select>
+                      <Combobox
+                        options={Object.entries(getSchemaTemplates()).map(([key, template]) => ({ id: key, label: template.name }))}
+                        value=""
+                        onChange={(value) => { if (value) loadArgumentSchemaTemplate(value); }}
+                        placeholder="Load Template..."
+                        allowClear={false}
+                        className="w-48"
+                      />
                     </div>
                   </div>
 
@@ -390,18 +387,14 @@ export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps)
                   <div className="flex items-center justify-between">
                     <h4 className="text-md font-medium text-gray-900">Response Schema</h4>
                     <div className="flex gap-2">
-                      <select
-                        onChange={(e) => loadResponseSchemaTemplate(e.target.value)}
-                        className="text-xs px-2 py-1 border border-gray-300 rounded"
-                        defaultValue=""
-                      >
-                        <option value="">Load Template...</option>
-                        {Object.entries(getSchemaTemplates()).map(([key, template]) => (
-                          <option key={key} value={key}>
-                            {template.name}
-                          </option>
-                        ))}
-                      </select>
+                      <Combobox
+                        options={Object.entries(getSchemaTemplates()).map(([key, template]) => ({ id: key, label: template.name }))}
+                        value=""
+                        onChange={(value) => { if (value) loadResponseSchemaTemplate(value); }}
+                        placeholder="Load Template..."
+                        allowClear={false}
+                        className="w-48"
+                      />
                     </div>
                   </div>
 
@@ -456,7 +449,7 @@ Example:
             </div>
 
             {/* Footer */}
-            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+            <div className="bg-gray-50 px-4 sm:px-6 py-4 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={onClose}

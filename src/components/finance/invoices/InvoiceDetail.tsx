@@ -438,6 +438,8 @@ const InvoiceDetail: React.FC = () => {
         entityName={`Invoice #${invoice.invoice_number}`}
         currency={invoice.currency?.code}
         onUpdate={loadInvoice}
+        entityTotal={parseFloat(invoice.total || '0')}
+        entityCurrencyCode={invoice.currency?.code}
       />
 
       <ConfirmationModal

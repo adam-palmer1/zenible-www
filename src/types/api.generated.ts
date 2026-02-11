@@ -13027,6 +13027,22 @@ export interface components {
             global_statuses: components["schemas"]["SimpleStatusResponse"][];
             /** Custom Statuses */
             custom_statuses: components["schemas"]["SimpleStatusResponse"][];
+            /** Roles */
+            roles?: components["schemas"]["StatusRolesResponse"] | null;
+        };
+        /**
+         * StatusRolesResponse
+         * @description Schema for status role assignments response
+         */
+        StatusRolesResponse: {
+            /** Lead Status Id */
+            lead_status_id?: string | null;
+            /** Call Booked Status Id */
+            call_booked_status_id?: string | null;
+            /** Lost Status Id */
+            lost_status_id?: string | null;
+            /** Won Status Id */
+            won_status_id?: string | null;
         };
         /**
          * BackendProvider
@@ -15226,10 +15242,20 @@ export interface components {
              */
             is_vendor: boolean;
             /**
-             * Is Hidden
+             * Is Hidden Crm
              * @default false
              */
-            is_hidden: boolean;
+            is_hidden_crm: boolean;
+            /**
+             * Is Hidden Client
+             * @default false
+             */
+            is_hidden_client: boolean;
+            /**
+             * Is Hidden Vendor
+             * @default false
+             */
+            is_hidden_vendor: boolean;
             /** Notes */
             notes?: string | null;
             /** Address Line 1 */
@@ -15287,11 +15313,7 @@ export interface components {
             default_expense_category_id?: string | null;
             /** Crm Visibility Id */
             crm_visibility_id?: string | null;
-            /**
-             * Is Visible In Clients
-             * @default true
-             */
-            is_visible_in_clients: boolean;
+
             /** Lost Reason */
             lost_reason?: string | null;
             /** Lost Description */
@@ -15693,10 +15715,20 @@ export interface components {
              */
             is_vendor: boolean;
             /**
-             * Is Hidden
+             * Is Hidden Crm
              * @default false
              */
-            is_hidden: boolean;
+            is_hidden_crm: boolean;
+            /**
+             * Is Hidden Client
+             * @default false
+             */
+            is_hidden_client: boolean;
+            /**
+             * Is Hidden Vendor
+             * @default false
+             */
+            is_hidden_vendor: boolean;
             /** Notes */
             notes?: string | null;
             /** Address Line 1 */
@@ -15754,11 +15786,7 @@ export interface components {
             default_expense_category_id?: string | null;
             /** Crm Visibility Id */
             crm_visibility_id?: string | null;
-            /**
-             * Is Visible In Clients
-             * @default true
-             */
-            is_visible_in_clients: boolean;
+
             /** Lost Reason */
             lost_reason?: string | null;
             /** Lost Description */
@@ -16155,8 +16183,12 @@ export interface components {
             is_client?: boolean | null;
             /** Is Vendor */
             is_vendor?: boolean | null;
-            /** Is Hidden */
-            is_hidden?: boolean | null;
+            /** Is Hidden Crm */
+            is_hidden_crm?: boolean | null;
+            /** Is Hidden Client */
+            is_hidden_client?: boolean | null;
+            /** Is Hidden Vendor */
+            is_hidden_vendor?: boolean | null;
             /** Notes */
             notes?: string | null;
             /** Address Line 1 */
@@ -16208,8 +16240,7 @@ export interface components {
             default_expense_category_id?: string | null;
             /** Crm Visibility Id */
             crm_visibility_id?: string | null;
-            /** Is Visible In Clients */
-            is_visible_in_clients?: boolean | null;
+
             /** Lost Reason */
             lost_reason?: string | null;
             /** Lost Description */
@@ -39013,8 +39044,12 @@ export interface operations {
                 is_client?: boolean | null;
                 /** @description Filter by vendor status */
                 is_vendor?: boolean | null;
-                /** @description Filter by hidden status */
-                is_hidden?: boolean | null;
+                /** @description Filter by hidden on CRM pipeline */
+                is_hidden_crm?: boolean | null;
+                /** @description Filter by hidden on Clients list */
+                is_hidden_client?: boolean | null;
+                /** @description Filter by hidden on Vendors list */
+                is_hidden_vendor?: boolean | null;
                 /** @description Filter by whether contact has a CRM status (global or custom) assigned */
                 has_crm_status?: boolean | null;
                 /** @description Filter by visibility */

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/adminAPI';
 import { LoadingSpinner } from '../shared';
+import Combobox from '../ui/combobox/Combobox';
 
 interface CharacterToolAssignmentProps {
   onError?: (error: string | null) => void;
@@ -342,18 +343,13 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
         {/* Character Filter */}
         <div className="mt-4 flex gap-4">
           <div className="flex-1">
-            <select
+            <Combobox
+              options={characters.map(character => ({ id: character.id, label: character.name }))}
               value={selectedCharacter}
-              onChange={(e) => setSelectedCharacter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            >
-              <option value="">All Characters</option>
-              {characters.map(character => (
-                <option key={character.id} value={character.id}>
-                  {character.name}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setSelectedCharacter(value)}
+              placeholder="All Characters"
+              allowClear
+            />
           </div>
         </div>
       </div>
@@ -527,19 +523,14 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Character
                     </label>
-                    <select
+                    <Combobox
+                      options={characters.map(character => ({ id: character.id, label: character.name }))}
                       value={formData.character_id}
-                      onChange={(e) => setFormData(prev => ({ ...prev, character_id: e.target.value }))}
+                      onChange={(value) => setFormData(prev => ({ ...prev, character_id: value }))}
                       disabled={!!editingAssignment}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-purple disabled:bg-gray-50"
-                    >
-                      <option value="">Select Character</option>
-                      {characters.map(character => (
-                        <option key={character.id} value={character.id}>
-                          {character.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Select Character"
+                      allowClear={false}
+                    />
                   </div>
 
                   {/* Tool Selection */}
@@ -547,18 +538,13 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Tool
                     </label>
-                    <select
+                    <Combobox
+                      options={getAvailableTools().map(tool => ({ id: tool.id, label: `${tool.name} - ${tool.description}` }))}
                       value={formData.tool_id}
-                      onChange={(e) => setFormData(prev => ({ ...prev, tool_id: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    >
-                      <option value="">Select Tool</option>
-                      {getAvailableTools().map(tool => (
-                        <option key={tool.id} value={tool.id}>
-                          {tool.name} - {tool.description}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => setFormData(prev => ({ ...prev, tool_id: value }))}
+                      placeholder="Select Tool"
+                      allowClear={false}
+                    />
                   </div>
 
                   {/* Instructions */}
