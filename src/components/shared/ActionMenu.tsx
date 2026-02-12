@@ -66,7 +66,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
         <div className="py-1">
           {visibleActions.map((action, index) => {
             const isDestructive = action.variant === 'danger';
-            const baseClasses = "block w-full text-left px-4 py-2 text-sm transition-colors";
+            const baseClasses = "block w-full text-left px-4 py-3 lg:py-2 text-sm transition-colors";
             const colorClasses = isDestructive
               ? "text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
               : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700";

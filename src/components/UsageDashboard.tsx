@@ -393,7 +393,7 @@ export default function UsageDashboard() {
               </button>
 
               {expandedSections.features && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {features.map((feature) => (
                     <div
                       key={feature.code}

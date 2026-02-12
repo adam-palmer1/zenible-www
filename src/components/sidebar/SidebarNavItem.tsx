@@ -36,7 +36,7 @@ function SidebarNavItem({
       <button
         onClick={handleClick}
         className={`
-          w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-3 py-2.5 rounded-xl transition-colors duration-150 text-left group
+          w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-3 py-2.5 min-h-[44px] lg:min-h-0 rounded-xl transition-colors duration-150 text-left group
           ${isActive
             ? 'bg-[#F5F3FF] border border-[#8E51FF] text-[#09090B]'
             : 'text-[#71717A] hover:bg-[#F9FAFB] hover:text-[#374151]'

@@ -58,7 +58,7 @@ const ContactForm: React.FC<ContactFormProps> = ({
       )}
 
       {/* Name Fields */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField
           name="first_name"
           label="First Name"
@@ -121,7 +121,7 @@ const ContactForm: React.FC<ContactFormProps> = ({
         placeholder="Apt 4B"
       />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField
           name="city"
           label="City"
@@ -136,7 +136,7 @@ const ContactForm: React.FC<ContactFormProps> = ({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField
           name="postcode"
           label="Postcode"
@@ -173,7 +173,7 @@ const ContactForm: React.FC<ContactFormProps> = ({
             type="text"
             placeholder="12345678"
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
               name="tax_number"
               label="Tax/VAT Number"
@@ -194,7 +194,7 @@ const ContactForm: React.FC<ContactFormProps> = ({
       {watch('is_vendor') && (
         <div className="pt-4 border-t border-gray-200">
           <h3 className="text-sm font-medium text-gray-900 mb-3">Vendor Information</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
               name="vendor_type"
               label="Vendor Type"

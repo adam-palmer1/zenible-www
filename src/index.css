@@ -365,6 +365,40 @@ input[type="number"] {
 .hover\:design-text-primary:hover { color: var(--text-primary); }
 
 /* ================================================
+   Mobile responsive utilities
+   ================================================ */
+
+/* Safe viewport height (fixes iOS Safari / Android Chrome address bar) */
+.h-screen-safe {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.min-h-screen-safe {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Sidebar drawer animations */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes slideOutLeft {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.25s ease-out forwards;
+}
+
+.animate-slide-out-left {
+  animation: slideOutLeft 0.2s ease-in forwards;
+}
+
+/* ================================================
    React Grid Layout - Dashboard Widget Styling
    ================================================ */
 

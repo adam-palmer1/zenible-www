@@ -205,7 +205,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
                 </div>
 
                 {/* Row 1: Payment Amount & Payment Date */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Amount */}
                   <div>
                     <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
@@ -242,7 +242,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
                 </div>
 
                 {/* Row 2: Payment Method & Reference Number */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Payment Method - Styled Dropdown */}
                   <div className="relative" ref={methodDropdownRef}>
                     <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">

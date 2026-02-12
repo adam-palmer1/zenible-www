@@ -180,7 +180,7 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
       {/* Form Fields */}
       <div className="space-y-5">
         {/* Name Fields */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
               First Name
@@ -296,7 +296,7 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
               City
@@ -321,7 +321,7 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
               Postcode
@@ -387,7 +387,7 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
         </div>
 
         {/* Tax Information */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
               Tax/VAT Number
@@ -415,7 +415,7 @@ const ContactFormSinglePage: React.FC<ContactFormSinglePageProps> = ({
         {/* Vendor Information - Only show if is_vendor is true */}
         {isVendor && (
           <>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">
                   Vendor Type

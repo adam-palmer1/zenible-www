@@ -25,7 +25,7 @@ import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
-import NewSidebar from '../../sidebar/NewSidebar';
+import AppLayout from '../../layout/AppLayout';
 import KPICard from '../shared/KPICard';
 import ActionMenu from '../../shared/ActionMenu';
 import ConfirmationModal from '../../shared/ConfirmationModal';
@@ -469,34 +469,26 @@ const CreditNotesDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar */}
-      <NewSidebar />
-
-      {/* Main Content */}
-      <div
-        className="flex-1 flex flex-col transition-all duration-300"
-        style={{ marginLeft: 'var(--sidebar-width, 280px)' }}
-      >
-        {/* Top Bar - Fixed at top, matches Invoice design */}
-        <div className="bg-white border-b border-[#e5e5e5] px-4 py-3 flex items-center justify-between min-h-[64px]">
-          <h1 className="text-2xl font-semibold text-[#09090b]">
-            Credit Notes
-          </h1>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleCreateNew}
-              className="inline-flex items-center gap-2 px-3 py-2.5 text-base font-medium text-white bg-[#8e51ff] rounded-lg hover:bg-[#7c3aed] transition-colors"
-            >
-              <Plus className="h-5 w-5" />
-              New Credit Note
-            </button>
-          </div>
+    <AppLayout pageTitle="Credit Notes">
+      {/* Top Bar - Fixed at top, matches Invoice design */}
+      <div className="bg-white border-b border-[#e5e5e5] px-4 py-3 flex items-center justify-between min-h-[64px]">
+        <h1 className="text-2xl font-semibold text-[#09090b]">
+          Credit Notes
+        </h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleCreateNew}
+            className="inline-flex items-center gap-2 px-3 py-2.5 text-base font-medium text-white bg-[#8e51ff] rounded-lg hover:bg-[#7c3aed] transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            New Credit Note
+          </button>
         </div>
+      </div>
 
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-auto">
-          <div className="p-4 space-y-6">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-auto">
+        <div className="p-4 space-y-6">
             {/* KPI Cards Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
@@ -1073,7 +1065,7 @@ const CreditNotesDashboard: React.FC = () => {
         confirmText="Delete"
         variant="danger"
       />
-    </div>
+    </AppLayout>
   );
 };
 

@@ -34,6 +34,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { PaymentsProvider } from './contexts/PaymentsContext';
 import { ReportsProvider } from './contexts/ReportsContext';
 import { UsageDashboardProvider } from './contexts/UsageDashboardContext';
+import { SidebarProvider } from './contexts/SidebarContext';
 
 // ---------------------------------------------------------------------------
 // Lazy-loaded route components (code-split per route)
@@ -124,13 +125,15 @@ function PageLoadingFallback() {
 // Root layout component with WebSocket and UsageDashboard providers
 function RootLayout(): React.ReactElement {
   return (
-    <UsageDashboardProvider>
-      <WebSocketProvider>
-        <ErrorBoundary level="page">
-          <Outlet />
-        </ErrorBoundary>
-      </WebSocketProvider>
-    </UsageDashboardProvider>
+    <SidebarProvider>
+      <UsageDashboardProvider>
+        <WebSocketProvider>
+          <ErrorBoundary level="page">
+            <Outlet />
+          </ErrorBoundary>
+        </WebSocketProvider>
+      </UsageDashboardProvider>
+    </SidebarProvider>
   );
 }
 

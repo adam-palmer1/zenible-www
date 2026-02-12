@@ -193,7 +193,7 @@ export default function ForgotPassword() {
     >
       {/* Card Container */}
       <div className="bg-white dark:bg-[#161b26] relative rounded-[12px] w-full max-w-[467px]">
-        <div className="flex flex-col gap-[32px] h-full p-[34px]">
+        <div className="flex flex-col gap-[32px] h-full p-5 sm:p-[34px]">
           {/* Back Button */}
           <div className="flex flex-col items-start">
             <Link
@@ -211,8 +211,8 @@ export default function ForgotPassword() {
           <div className="flex flex-col items-center justify-center w-full">
             <div className="flex flex-col gap-[24px] items-center w-full">
               {/* Header */}
-              <div className="flex flex-col gap-[12px] items-center text-center w-[336px]">
-                <h1 className="font-inter font-bold text-[32px] leading-[40px] text-zinc-950 dark:text-[#ededf0]">
+              <div className="flex flex-col gap-[12px] items-center text-center w-full max-w-[336px]">
+                <h1 className="font-inter font-bold text-2xl sm:text-[32px] leading-tight sm:leading-[40px] text-zinc-950 dark:text-[#ededf0]">
                   Forgot password?
                 </h1>
                 <p className="font-inter font-normal text-[16px] leading-[24px] text-zinc-500 dark:text-[#94969c]">

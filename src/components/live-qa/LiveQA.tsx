@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import NewSidebar from '../sidebar/NewSidebar';
+import AppLayout from '../layout/AppLayout';
 import TabNavigation from './TabNavigation';
 import EventCard from './EventCard';
 import RegistrationModal from './RegistrationModal';
@@ -143,13 +143,8 @@ export default function LiveQA() {
   }, [activeTab]);
 
   return (
-    <div className={`flex h-screen ${darkMode ? 'bg-gray-900' : 'bg-neutral-50'}`}>
-      {/* Main Navigation Sidebar */}
-      <NewSidebar />
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
-        {/* Page Header */}
+    <AppLayout pageTitle="Live Q&A">
+      {/* Page Header */}
         <div
           className={`border-b border-solid ${
             darkMode ? 'border-gray-700 bg-gray-800' : 'border-neutral-200 bg-white'
@@ -232,7 +227,6 @@ export default function LiveQA() {
             </div>
           )}
         </div>
-      </div>
 
       {/* Registration Modal */}
       {showRegistrationModal && selectedEvent && (
@@ -242,6 +236,6 @@ export default function LiveQA() {
           darkMode={darkMode}
         />
       )}
-    </div>
+    </AppLayout>
   );
 }

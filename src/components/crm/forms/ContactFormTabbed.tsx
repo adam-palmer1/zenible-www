@@ -323,7 +323,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('basic')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-3 lg:py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'basic'
               ? 'border-zenible-primary text-zenible-primary'
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -334,7 +334,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('address')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-3 lg:py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'address'
               ? 'border-zenible-primary text-zenible-primary'
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -345,7 +345,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('contacts')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-3 lg:py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'contacts'
               ? 'border-zenible-primary text-zenible-primary'
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -356,7 +356,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('additional')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-3 lg:py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'additional'
               ? 'border-zenible-primary text-zenible-primary'
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -367,7 +367,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('finance')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-3 lg:py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'finance'
               ? 'border-zenible-primary text-zenible-primary'
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -382,15 +382,15 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
         {activeTab === 'basic' && (
           <div className="space-y-4">
             {/* Name Fields */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField name="first_name" label="First Name" type="text" placeholder="John" />
               <FormField name="last_name" label="Last Name" type="text" placeholder="Doe" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField name="business_name" label="Business Name" type="text" placeholder="Acme Corporation" />
               <FormField name="registration_number" label="Company Registration Number" type="text" placeholder="12345678" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField name="email" label="Email" type="email" placeholder="john@example.com" />
               <div className="grid grid-cols-3 gap-2">
                 <FormField name="country_code" label="Country Code" type="tel" placeholder="+44" />
@@ -407,11 +407,11 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
           <div className="space-y-4">
             <FormField name="address_line_1" label="Address Line 1" type="text" placeholder="123 Main Street" />
             <FormField name="address_line_2" label="Address Line 2" type="text" placeholder="Apt 4B" />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField name="city" label="City" type="text" placeholder="London" />
               <FormField name="state" label="State/Province" type="text" placeholder="California" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField name="postcode" label="Postcode" type="text" placeholder="SW1A 1AA" />
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Country</label>
@@ -455,7 +455,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
                       <div key={person.id} className="p-3 border border-gray-200 dark:border-gray-600 rounded-lg">
                         {editingPersonId === person.id ? (
                           <div className="space-y-3">
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <input type="text" defaultValue={person.first_name} placeholder="First Name *" id={`edit-first-${person.id}`} className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm" />
                               <input type="text" defaultValue={person.last_name || ''} placeholder="Last Name" id={`edit-last-${person.id}`} className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm" />
                             </div>
@@ -498,7 +498,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
                     <PlusIcon className="h-4 w-4" />Add New Contact Person
                   </h3>
                   <div className="space-y-3" key={contactPersons.length}>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <input type="text" value={newPerson.first_name} onChange={(e) => setNewPerson({ ...newPerson, first_name: e.target.value })} placeholder="First Name *" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zenible-primary" />
                       <input type="text" value={newPerson.last_name} onChange={(e) => setNewPerson({ ...newPerson, last_name: e.target.value })} placeholder="Last Name" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zenible-primary" />
                     </div>
@@ -529,7 +529,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
         {activeTab === 'finance' && (
           <div className="space-y-4">
             {companyCurrencies.length > 0 && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Currency</label>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Primary currency for invoices and payments</p>
@@ -570,7 +570,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hourly Rate</label>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Override company default hourly rate for this contact</p>
@@ -590,7 +590,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
             {watch('is_vendor') && (
               <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="text-sm font-medium text-gray-900 dark:text-gray-300 mb-3">Vendor Information</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField name="vendor_type" label="Vendor Type" type="text" placeholder="e.g., Supplier, Contractor" />
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Default Payment Terms (Days)</label>

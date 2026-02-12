@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import NewSidebar from '../sidebar/NewSidebar';
+import AppLayout from '../layout/AppLayout';
 import quizAPI from '../../services/quizAPI';
 
 export default function QuizHistoryPage() {
@@ -56,9 +56,8 @@ export default function QuizHistoryPage() {
 
   if (error) {
     return (
-      <div className="flex h-screen bg-white">
-        <NewSidebar />
-        <div className="flex-1 flex items-center justify-center transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
+      <AppLayout pageTitle="History">
+        <div className="flex-1 flex items-center justify-center">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-[500px]">
             <p className="font-['Inter'] font-normal text-[16px] text-red-600">
               {error}
@@ -71,16 +70,13 @@ export default function QuizHistoryPage() {
             </button>
           </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="flex h-screen bg-white">
-      <NewSidebar />
-
-      <div className="flex-1 overflow-auto transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
-        {/* Top Bar */}
+    <AppLayout pageTitle="History">
+      {/* Top Bar */}
         <div className="h-[64px] border-b border-neutral-200 flex items-center justify-between px-[24px]">
           <h1 className="font-['Inter'] font-semibold text-[24px] text-zinc-950 leading-[32px]">
             My Quiz History
@@ -222,7 +218,6 @@ export default function QuizHistoryPage() {
             </>
           )}
         </div>
-      </div>
-    </div>
+    </AppLayout>
   );
 }

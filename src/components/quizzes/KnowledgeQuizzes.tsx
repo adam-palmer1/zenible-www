@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import NewSidebar from '../sidebar/NewSidebar';
+import AppLayout from '../layout/AppLayout';
 import QuizCard from './QuizCard';
 import QuizPreviewModal from './QuizPreviewModal';
 import quizAPI from '../../services/quizAPI';
@@ -113,11 +113,8 @@ export default function KnowledgeQuizzes() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-white">
-      <NewSidebar />
-
-      <div className="flex-1 overflow-auto transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
-        {/* Top Bar */}
+    <AppLayout pageTitle="Quizzes">
+      {/* Top Bar */}
         <div className="border-b border-neutral-200 flex items-center justify-between px-[24px] sticky top-0 bg-white z-10 py-[16px]">
           <div className="flex flex-col gap-[4px]">
             <h1 className="font-['Inter'] font-semibold text-[24px] text-zinc-950 leading-[32px]">
@@ -196,7 +193,6 @@ export default function KnowledgeQuizzes() {
             </div>
           )}
         </div>
-      </div>
 
       {/* Quiz Preview Modal */}
       {previewQuiz && (
@@ -250,6 +246,6 @@ export default function KnowledgeQuizzes() {
           </div>
         </div>
       )}
-    </div>
+    </AppLayout>
   );
 }

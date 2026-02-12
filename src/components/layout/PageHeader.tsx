@@ -30,8 +30,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   children
 }) => {
   return (
-    <div className="mt-16 md:mt-5 w-full max-md:max-w-full">
-      <div className="flex flex-wrap gap-10 justify-between items-center px-5 py-5 w-full bg-[#fefefe] dark:bg-gray-900 rounded-xl max-md:px-5 max-md:max-w-full">
+    <div className="mt-4 lg:mt-5 w-full">
+      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:gap-10 lg:justify-between lg:items-center px-4 py-4 lg:px-5 lg:py-5 w-full bg-[#fefefe] dark:bg-gray-900 rounded-xl">
         <div className="flex items-center gap-4">
           {showBackButton && (
             <button
@@ -45,7 +45,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             </button>
           )}
           <div>
-            <div className="text-2xl font-medium tracking-tight text-design-text-primary dark:text-white">
+            <div className="text-xl lg:text-2xl font-medium tracking-tight text-design-text-primary dark:text-white">
               {title}
             </div>
             {description && (

@@ -81,13 +81,13 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
   const addButtonConfig = getAddButtonConfig();
 
   return (
-    <div className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between h-[42px]">
+    <div className="bg-white border-b border-gray-200 px-4 py-3 lg:px-6 lg:py-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         {/* Left: Title */}
-        <h1 className="text-2xl font-bold text-gray-900">CRM</h1>
+        <h1 className="text-xl lg:text-2xl font-bold text-gray-900">CRM</h1>
 
         {/* Right: View Toggle + Actions */}
-        <div className="flex items-center gap-3 h-full">
+        <div className="flex items-center gap-3 flex-wrap">
           {/* Usage Limit Badge */}
           {usageContext && (
             <UsageLimitBadge
@@ -102,7 +102,7 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
             <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
               <button
                 onClick={() => handleViewModeChange('pipeline')}
-                className={`p-2 rounded-md transition-colors ${
+                className={`p-2.5 lg:p-2 rounded-md transition-colors ${
                   viewMode === 'pipeline'
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -113,7 +113,7 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
               </button>
               <button
                 onClick={() => handleViewModeChange('list')}
-                className={`p-2 rounded-md transition-colors ${
+                className={`p-2.5 lg:p-2 rounded-md transition-colors ${
                   viewMode === 'list'
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'

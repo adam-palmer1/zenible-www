@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, FileText, Receipt, CreditCard, FileMinus, Loader2, Settings2, ChevronDown, ChevronUp, Trash2, Plus, type LucideProps } from 'lucide-react';
 import BillableHoursTab from './BillableHoursTab';
-import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, SERVICE_STATUS, SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS, type ProjectStatus, type ServiceStatus } from '../../constants/crm';
-import StatusSelectorModal from './StatusSelectorModal';
+import { PROJECT_STATUS_LABELS, SERVICE_STATUS, SERVICE_STATUS_LABELS, type ProjectStatus, type ServiceStatus } from '../../constants/crm';
+import GenericDropdown from './GenericDropdown';
 import { formatCurrency } from '../../utils/currency';
 import { useNotification } from '../../contexts/NotificationContext';
 import projectsAPI from '../../services/api/crm/projects';
@@ -153,11 +153,6 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
   const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({});
   const [updatingServiceId, setUpdatingServiceId] = useState<string | null>(null);
   const [detachConfirm, setDetachConfirm] = useState<{ isOpen: boolean; service: ProjectServiceAssignment | null }>({ isOpen: false, service: null });
-  const [statusDropdown, setStatusDropdown] = useState<{ isOpen: boolean; serviceId: string | null }>({ isOpen: false, serviceId: null });
-  const statusButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-
-  // Project status modal
-  const [showStatusModal, setShowStatusModal] = useState(false);
   const [updatingProjectStatus, setUpdatingProjectStatus] = useState(false);
 
   // Finance allocation modals
@@ -275,20 +270,6 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
     }
   }, [isOpen, projectProp?.id]);
 
-  // Close status dropdown when clicking outside
-  useEffect(() => {
-    if (!statusDropdown.isOpen) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      const buttonRef = statusButtonRefs.current[statusDropdown.serviceId!];
-      if (buttonRef && !buttonRef.contains(e.target as Node)) {
-        setStatusDropdown({ isOpen: false, serviceId: null });
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [statusDropdown.isOpen, statusDropdown.serviceId]);
 
   // Early returns AFTER all hooks
   if (!isOpen || !projectProp) return null;
@@ -453,7 +434,6 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
 
     try {
       setUpdatingServiceId(service.id);
-      setStatusDropdown({ isOpen: false, serviceId: null });
 
       await projectsAPI.updateServiceAssignment(project.id, service.id, {
         status: newStatus
@@ -542,18 +522,13 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
                     )}
                   </button>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-semibold ${
-                        isInactiveStatus
-                          ? 'text-[#71717a] dark:text-gray-400'
-                          : 'text-[#09090b] dark:text-white'
-                      }`}>
-                        {serviceName}
-                      </span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${SERVICE_STATUS_COLORS[service.status as ServiceStatus] || SERVICE_STATUS_COLORS[SERVICE_STATUS.ACTIVE]}`}>
-                        {SERVICE_STATUS_LABELS[service.status as ServiceStatus] || 'Active'}
-                      </span>
-                    </div>
+                    <span className={`text-sm font-semibold ${
+                      isInactiveStatus
+                        ? 'text-[#71717a] dark:text-gray-400'
+                        : 'text-[#09090b] dark:text-white'
+                    }`}>
+                      {serviceName}
+                    </span>
                   </div>
                 </div>
                 {servicePrice && (
@@ -607,55 +582,14 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
                     {/* Actions */}
                     <div className="flex items-center justify-between pt-3 border-t border-[#e5e5e5] dark:border-gray-700">
                       {/* Status Dropdown */}
-                      <div className="relative">
-                        <button
-                          ref={(el) => { statusButtonRefs.current[service.id] = el; }}
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            setStatusDropdown(prev => ({
-                              isOpen: prev.serviceId === service.id ? !prev.isOpen : true,
-                              serviceId: service.id
-                            }));
-                          }}
+                      <div onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                        <GenericDropdown
+                          value={service.status || SERVICE_STATUS.ACTIVE}
+                          onChange={(newStatus: string) => handleChangeServiceStatus(service, newStatus)}
+                          options={Object.entries(SERVICE_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
                           disabled={isUpdating}
-                          className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-[#e5e5e5] dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-[#71717a]" />
-                          ) : (
-                            <>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${SERVICE_STATUS_COLORS[service.status as ServiceStatus] || SERVICE_STATUS_COLORS[SERVICE_STATUS.ACTIVE]}`}>
-                                {SERVICE_STATUS_LABELS[service.status as ServiceStatus] || 'Active'}
-                              </span>
-                              <ChevronDown className="h-4 w-4 text-[#71717a]" />
-                            </>
-                          )}
-                        </button>
-
-                        {/* Status Dropdown Menu */}
-                        {statusDropdown.isOpen && statusDropdown.serviceId === service.id && (
-                          <div className="absolute left-0 bottom-full mb-1 w-40 bg-white dark:bg-gray-800 border border-[#e5e5e5] dark:border-gray-600 rounded-lg shadow-lg z-50">
-                            {(Object.entries(SERVICE_STATUS) as [string, ServiceStatus][]).map(([_key, value]) => (
-                              <button
-                                key={value}
-                                onClick={(e: React.MouseEvent) => {
-                                  e.stopPropagation();
-                                  handleChangeServiceStatus(service, value);
-                                }}
-                                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg flex items-center justify-between ${
-                                  service.status === value ? 'bg-purple-50 dark:bg-purple-900/20' : ''
-                                }`}
-                              >
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${SERVICE_STATUS_COLORS[value]}`}>
-                                  {SERVICE_STATUS_LABELS[value]}
-                                </span>
-                                {service.status === value && (
-                                  <span className="text-purple-600 dark:text-purple-400">&#10003;</span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                          className="w-[140px]"
+                        />
                       </div>
 
                       {/* Detach Button */}
@@ -919,21 +853,17 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
       <div className="relative bg-white rounded-xl shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-[#e5e5e5] max-w-[650px] w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col dark:bg-gray-800 dark:border-gray-700">
         {/* Header */}
         <div className="flex items-center justify-between p-4 shrink-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold text-[#09090b] dark:text-white leading-[26px]">
               {project.name}
             </h2>
-            <button
-              onClick={() => setShowStatusModal(true)}
+            <GenericDropdown
+              value={project.status}
+              onChange={(newStatus: string) => handleProjectStatusChange(newStatus)}
+              options={Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
               disabled={updatingProjectStatus}
-              className={`inline-flex items-center gap-1.5 px-2 py-0.5 h-6 rounded-md text-xs font-medium transition-colors hover:ring-1 hover:ring-purple-300 dark:hover:ring-purple-600 cursor-pointer disabled:opacity-50 ${PROJECT_STATUS_COLORS[project.status as ProjectStatus] || 'bg-[#e5e5e5] dark:bg-gray-700 text-[#09090b] dark:text-gray-300'}`}
-            >
-              {updatingProjectStatus && (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              )}
-              {PROJECT_STATUS_LABELS[project.status as ProjectStatus] || project.status}
-              <ChevronDown className="h-3 w-3" />
-            </button>
+              className="w-[140px]"
+            />
           </div>
           <button
             onClick={onClose}
@@ -1006,13 +936,6 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
         onUpdate={handleAllocationUpdate}
       />
 
-      {/* Project Status Selector Modal */}
-      <StatusSelectorModal
-        isOpen={showStatusModal}
-        onClose={() => setShowStatusModal(false)}
-        onSelect={handleProjectStatusChange}
-        selectedStatus={project.status}
-      />
     </div>
   );
 };

@@ -285,6 +285,8 @@ const CRMDashboard: React.FC = () => {
                   selectedStatuses={projectsFilters.selectedStatuses}
                   onStatusToggle={projectsFilters.handleStatusToggle}
                   onClearStatuses={projectsFilters.handleClearStatuses}
+                  searchQuery={projectsFilters.searchQuery}
+                  onSearchChange={projectsFilters.setSearchQuery}
                 />
               </Suspense>
             )}

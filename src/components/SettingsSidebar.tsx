@@ -81,7 +81,7 @@ export default function SettingsSidebar({ activeTab, setActiveTab }: SettingsSid
   ];
 
   return (
-    <div className={`fixed left-0 top-0 h-screen w-[280px] flex flex-col border-r z-40 ${
+    <div className={`hidden lg:flex fixed left-0 top-0 h-screen w-[280px] flex-col border-r z-40 ${
       darkMode
         ? 'bg-zenible-dark-sidebar border-zenible-dark-border'
         : 'bg-white border-neutral-200'

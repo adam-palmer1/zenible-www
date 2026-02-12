@@ -51,10 +51,13 @@ const Modal: React.FC<ModalProps> = ({
     setPortalContainer(node);
   }, []);
 
-  // Size mappings
+  // Whether this size should go fullscreen on small screens
+  const isLargeSize = ['lg', 'xl', '2xl', '3xl', '4xl', 'full'].includes(size);
+
+  // Size mappings — small/md stay compact; lg+ go fullscreen on mobile
   const sizeClasses: Record<ModalSize, string> = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
+    sm: 'max-w-sm mx-4',
+    md: 'max-w-md mx-4',
     lg: 'max-w-lg',
     xl: 'max-w-xl',
     '2xl': 'max-w-2xl',
@@ -72,22 +75,26 @@ const Modal: React.FC<ModalProps> = ({
         {/* Content */}
         <Dialog.Content
           className={`
-            fixed left-[50%] top-[50%] z-50
-            translate-x-[-50%] translate-y-[-50%]
-            w-full ${sizeClasses[size]}
-            max-h-[90vh] flex flex-col
-            bg-white dark:bg-gray-800 rounded-lg shadow-lg
+            fixed z-50 flex flex-col
+            bg-white dark:bg-gray-800 shadow-lg
             focus:outline-none
             data-[state=open]:animate-in
             data-[state=closed]:animate-out
             data-[state=closed]:fade-out-0
             data-[state=open]:fade-in-0
-            data-[state=closed]:zoom-out-95
-            data-[state=open]:zoom-in-95
-            data-[state=closed]:slide-out-to-left-1/2
-            data-[state=closed]:slide-out-to-top-[48%]
-            data-[state=open]:slide-in-from-left-1/2
-            data-[state=open]:slide-in-from-top-[48%]
+            ${isLargeSize
+              ? `inset-0 rounded-none max-h-full w-full
+                 sm:inset-auto sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]
+                 sm:rounded-lg sm:max-h-[90vh] sm:w-full ${sizeClasses[size]}
+                 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95
+                 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%]
+                 sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]`
+              : `left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]
+                 rounded-lg max-h-[90vh] w-full ${sizeClasses[size]}
+                 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95
+                 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%]
+                 data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]`
+            }
             ${className}
           `}
         >
@@ -95,10 +102,10 @@ const Modal: React.FC<ModalProps> = ({
           <ModalPortalContext.Provider value={portalContainer}>
             {/* Header */}
             {(title || showCloseButton) && (
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                 <div>
                   {title && (
-                    <Dialog.Title className="text-xl font-semibold text-gray-900 dark:text-white">
+                    <Dialog.Title className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
                       {title}
                     </Dialog.Title>
                   )}
@@ -114,7 +121,7 @@ const Modal: React.FC<ModalProps> = ({
                 </div>
 
                 {showCloseButton && (
-                  <Dialog.Close className="rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-gray-100 dark:data-[state=open]:bg-gray-700">
+                  <Dialog.Close className="p-2 -mr-2 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-gray-100 dark:data-[state=open]:bg-gray-700">
                     <XMarkIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                     <span className="sr-only">Close</span>
                   </Dialog.Close>
@@ -123,7 +130,7 @@ const Modal: React.FC<ModalProps> = ({
             )}
 
             {/* Body - Scrollable */}
-            <div className="p-6 overflow-y-auto flex-1">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
               {children}
             </div>
           </ModalPortalContext.Provider>
@@ -219,7 +226,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           type="button"
           onClick={handleCancel}
           disabled={isLoading}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+          className="px-4 py-2 min-h-[44px] sm:min-h-0 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
         >
           {cancelText}
         </button>
@@ -227,7 +234,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           type="button"
           onClick={handleConfirm}
           disabled={isLoading}
-          className={`px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 ${confirmButtonClass}`}
+          className={`px-4 py-2 min-h-[44px] sm:min-h-0 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 ${confirmButtonClass}`}
         >
           {isLoading ? 'Processing...' : confirmText}
         </button>

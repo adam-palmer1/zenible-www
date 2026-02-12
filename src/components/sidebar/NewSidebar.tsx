@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import SidebarHeader from './SidebarHeader';
 import SidebarNavItem from './SidebarNavItem';
 import SidebarNavItemWithSubmenu from './SidebarNavItemWithSubmenu';
 import UserProfileSection from './UserProfileSection';
+import { useSidebar } from '../../contexts/SidebarContext';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 // Icons
 import DashboardIcon from './icons/DashboardIcon';
@@ -37,20 +39,11 @@ interface NavItem {
 
 export default function NewSidebar() {
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isCollapsed, toggleCollapse, isMobile, isMobileOpen, closeMobile } = useSidebar();
   const [isHovered, setIsHovered] = useState(false);
 
-  const toggleSidebar = useCallback(() => {
-    setIsCollapsed(prev => !prev);
-  }, []);
-
-  // Update CSS custom property for main content margin
-  useEffect(() => {
-    document.documentElement.style.setProperty(
-      '--sidebar-width',
-      isCollapsed ? '64px' : '280px'
-    );
-  }, [isCollapsed]);
+  // Lock body scroll when mobile drawer is open
+  useBodyScrollLock(isMobile && isMobileOpen);
 
   const mainNavItems: NavItem[] = [
     {
@@ -199,6 +192,87 @@ export default function NewSidebar() {
     }
   ];
 
+  const sidebarContent = (
+    <div
+      className={`flex flex-col h-full bg-white border-r border-[#E5E7EB] ${
+        isMobile ? 'w-[280px]' : isCollapsed ? 'w-16' : 'w-[280px]'
+      }`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Header */}
+      <SidebarHeader
+        isCollapsed={!isMobile && isCollapsed}
+        onToggle={isMobile ? closeMobile : toggleCollapse}
+        isMobile={isMobile}
+      />
+
+      {/* Navigation - Scrollable */}
+      <nav className="flex-1 pt-2 pb-3 relative overflow-hidden">
+        <div
+          className="h-full overflow-y-auto"
+          style={!isMobile ? {
+            width: isHovered ? '100%' : 'calc(100% + 17px)',
+            paddingRight: isHovered ? '0' : '17px',
+            transition: 'width 0.2s ease, padding-right 0.2s ease'
+          } : undefined}
+        >
+          <div className="space-y-2">
+            {mainNavItems.map((item, index) => (
+              item.hasSubmenu ? (
+                <SidebarNavItemWithSubmenu
+                  key={index}
+                  icon={item.icon}
+                  label={item.label}
+                  path={item.path}
+                  isActive={item.isActive}
+                  submenuItems={item.submenuItems}
+                  onClick={item.onClick}
+                  isCollapsed={!isMobile && isCollapsed}
+                />
+              ) : (
+                <SidebarNavItem
+                  key={index}
+                  icon={item.icon}
+                  label={item.label}
+                  path={item.path}
+                  isActive={item.isActive}
+                  hasChevron={item.hasChevron}
+                  onClick={item.onClick}
+                  isCollapsed={!isMobile && isCollapsed}
+                />
+              )
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {/* User Profile Section */}
+      <UserProfileSection />
+    </div>
+  );
+
+  // Mobile: render as drawer with backdrop
+  if (isMobile) {
+    if (!isMobileOpen) return null;
+
+    return (
+      <>
+        {/* Backdrop */}
+        <div
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={closeMobile}
+          aria-hidden="true"
+        />
+        {/* Drawer */}
+        <div className="fixed left-0 top-0 h-full z-50 animate-slide-in-left">
+          {sidebarContent}
+        </div>
+      </>
+    );
+  }
+
+  // Desktop: fixed sidebar
   return (
     <div
       className={`sidebar-container fixed left-0 top-0 h-screen bg-white border-r border-[#E5E7EB] flex flex-col transition-all duration-300 ease-in-out z-40 ${
@@ -208,7 +282,7 @@ export default function NewSidebar() {
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Header */}
-      <SidebarHeader isCollapsed={isCollapsed} onToggle={toggleSidebar} />
+      <SidebarHeader isCollapsed={isCollapsed} onToggle={toggleCollapse} isMobile={false} />
 
       {/* Navigation - Scrollable */}
       <nav className="flex-1 pt-2 pb-3 relative overflow-hidden">

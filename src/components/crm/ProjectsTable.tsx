@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PencilIcon, TrashIcon, ReceiptPercentIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 import Dropdown from '../ui/dropdown/Dropdown';
@@ -21,9 +21,10 @@ import type { ProjectListItemResponse } from '../../types/crm';
 
 interface ProjectsTableProps {
   selectedStatuses?: string[];
+  searchQuery?: string;
 }
 
-export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTableProps) {
+export default function ProjectsTable({ selectedStatuses = [], searchQuery = '' }: ProjectsTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const deleteConfirm = useDeleteConfirmation<ProjectListItemResponse>();
   const [showExpensesModal, setShowExpensesModal] = useState(false);
@@ -33,8 +34,28 @@ export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTablePr
   const { projects: rawProjects, loading, deleteProject, refresh } = useProjects(
     selectedStatuses.length > 0 ? { statuses: selectedStatuses } : {}
   );
-  const projects = rawProjects as unknown as ProjectListItemResponse[];
+  const allProjects = rawProjects as unknown as ProjectListItemResponse[];
   const { openProjectModal } = useCRM();
+
+  // Client-side search filtering by project name, client company name, client name
+  const projects = useMemo(() => {
+    if (!searchQuery) return allProjects;
+    const query = searchQuery.toLowerCase();
+    return allProjects.filter((project: any) => {
+      const projectName = (project.name || '').toLowerCase();
+      const businessName = (project.contact?.business_name || '').toLowerCase();
+      const firstName = (project.contact?.first_name || '').toLowerCase();
+      const lastName = (project.contact?.last_name || '').toLowerCase();
+      const fullName = `${firstName} ${lastName}`.trim();
+      return (
+        projectName.includes(query) ||
+        businessName.includes(query) ||
+        firstName.includes(query) ||
+        lastName.includes(query) ||
+        fullName.includes(query)
+      );
+    });
+  }, [allProjects, searchQuery]);
   const { showSuccess, showError } = useNotification();
 
   // Handle projectId query parameter - open project detail modal
@@ -153,7 +174,7 @@ export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTablePr
                     </div>
                   </td>
                   <td className="px-4 py-4">
-                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${PROJECT_STATUS_COLORS[project.status as ProjectStatus]}`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PROJECT_STATUS_COLORS[project.status as ProjectStatus]}`}>
                       {PROJECT_STATUS_LABELS[project.status as ProjectStatus]}
                     </span>
                   </td>

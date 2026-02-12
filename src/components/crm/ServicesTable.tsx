@@ -72,13 +72,7 @@ const ServicesTable: React.FC<ServicesTableProps> = ({ services = [], onEdit, on
                 )}
               </td>
               <td className="px-4 py-4 whitespace-nowrap">
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    service.frequency_type === 'recurring'
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                  }`}
-                >
+                <span className="text-sm text-gray-900 dark:text-white">
                   {service.frequency_type === 'recurring'
                     ? service.time_period || 'Recurring'
                     : 'One-off'}

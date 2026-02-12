@@ -58,7 +58,7 @@ function SidebarNavItemWithSubmenu({
         <button
           onClick={handleMainClick}
           className={`
-            w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-3 py-2.5 rounded-xl transition-colors duration-150 text-left group
+            w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-3 py-2.5 min-h-[44px] lg:min-h-0 rounded-xl transition-colors duration-150 text-left group
             ${isActive && !isExpanded
               ? 'bg-[#F5F3FF] border border-[#8E51FF] text-[#09090B]'
               : 'text-[#71717A] hover:bg-[#F9FAFB] hover:text-[#374151]'
@@ -102,7 +102,7 @@ function SidebarNavItemWithSubmenu({
               <button
                 onClick={() => handleSubmenuClick(item)}
                 className={`
-                  w-full flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors duration-150 text-left
+                  w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] lg:min-h-0 rounded-xl transition-colors duration-150 text-left
                   ${item.isActive
                     ? 'bg-[#F5F3FF] border border-[#8E51FF] text-[#09090B]'
                     : 'text-[#71717A] hover:bg-[#F9FAFB] hover:text-[#374151]'

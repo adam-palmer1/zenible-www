@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import NewSidebar from '../sidebar/NewSidebar';
+import AppLayout from '../layout/AppLayout';
 import ExpertSidebar from './ExpertSidebar';
 import BoardroomArea from './BoardroomArea';
 import PersonalizeAIBanner from '../shared/PersonalizeAIBanner';
@@ -52,35 +52,29 @@ export default function Boardroom() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className={`flex h-screen ${darkMode ? 'bg-gray-900' : 'bg-neutral-50'}`}>
-        {/* Main Navigation Sidebar */}
-        <NewSidebar />
-
-        {/* Main Content Area with Expert Sidebar and Boardroom */}
-        <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
-          {/* Personalize AI Banner */}
-          <div className="px-4 pt-4">
-            <PersonalizeAIBanner darkMode={darkMode} />
-          </div>
-
-          <div className="flex-1 flex p-4 gap-3.5">
-            {/* Expert Sidebar */}
-            <ExpertSidebar
-              characters={characters}
-              loadingCharacters={loadingCharacters}
-              darkMode={darkMode}
-            />
-
-            {/* Boardroom Drop Area */}
-            <BoardroomArea
-              selectedExperts={selectedExperts}
-              onExpertDrop={handleExpertDrop}
-              onExpertRemove={handleExpertRemove}
-              darkMode={darkMode}
-            />
-          </div>
+      <AppLayout pageTitle="Boardroom">
+        {/* Personalize AI Banner */}
+        <div className="px-4 pt-4">
+          <PersonalizeAIBanner darkMode={darkMode} />
         </div>
-      </div>
+
+        <div className="flex-1 flex p-4 gap-3.5">
+          {/* Expert Sidebar */}
+          <ExpertSidebar
+            characters={characters}
+            loadingCharacters={loadingCharacters}
+            darkMode={darkMode}
+          />
+
+          {/* Boardroom Drop Area */}
+          <BoardroomArea
+            selectedExperts={selectedExperts}
+            onExpertDrop={handleExpertDrop}
+            onExpertRemove={handleExpertRemove}
+            darkMode={darkMode}
+          />
+        </div>
+      </AppLayout>
     </DndProvider>
   );
 }

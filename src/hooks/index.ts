@@ -31,3 +31,8 @@ export { useNetworkStatus } from './useNetworkStatus';
 
 // Session management
 export { useSessionGuard } from './useSessionGuard';
+
+// Responsive / mobile hooks
+export { useMediaQuery } from './useMediaQuery';
+export { useMobile, useIsDesktop } from './useMobile';
+export { useBodyScrollLock } from './useBodyScrollLock';

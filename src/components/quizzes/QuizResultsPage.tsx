@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import NewSidebar from '../sidebar/NewSidebar';
+import AppLayout from '../layout/AppLayout';
 import quizAPI from '../../services/quizAPI';
 
 export default function QuizResultsPage() {
@@ -42,22 +42,20 @@ export default function QuizResultsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-white">
-        <NewSidebar />
-        <div className="flex-1 flex items-center justify-center transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
+      <AppLayout pageTitle="Results">
+        <div className="flex-1 flex items-center justify-center">
           <p className="font-['Inter'] font-normal text-[16px] text-zinc-500">
             Loading results...
           </p>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (error || !result) {
     return (
-      <div className="flex h-screen bg-white">
-        <NewSidebar />
-        <div className="flex-1 flex items-center justify-center transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
+      <AppLayout pageTitle="Results">
+        <div className="flex-1 flex items-center justify-center">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-[500px]">
             <p className="font-['Inter'] font-normal text-[16px] text-red-600">
               {error || 'No results found'}
@@ -70,18 +68,15 @@ export default function QuizResultsPage() {
             </button>
           </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   const grade = getGrade(result.percentage);
 
   return (
-    <div className="flex h-screen bg-white">
-      <NewSidebar />
-
-      <div className="flex-1 overflow-auto transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
-        {/* Top Bar */}
+    <AppLayout pageTitle="Results">
+      {/* Top Bar */}
         <div className="h-[64px] border-b border-neutral-200 flex items-center px-[24px]">
           <h1 className="font-['Inter'] font-semibold text-[24px] text-zinc-950 leading-[32px]">
             Quiz Results
@@ -126,7 +121,7 @@ export default function QuizResultsPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-[24px] mb-[48px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-[24px] mb-[48px]">
             <div className="bg-neutral-50 border border-neutral-200 rounded-[12px] p-[24px]">
               <p className="font-['Inter'] font-normal text-[14px] text-zinc-500 mb-[8px]">
                 Questions Correct
@@ -167,7 +162,6 @@ export default function QuizResultsPage() {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </AppLayout>
   );
 }

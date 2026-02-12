@@ -1,9 +1,8 @@
 import React, { useRef, useEffect } from 'react';
-import { ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import {
   PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
-  PROJECT_STATUS_COLORS,
 } from '../../../constants/crm';
 import type { ProjectStatus } from '../../../constants/crm';
 
@@ -11,16 +10,19 @@ interface ProjectsFiltersBarProps {
   selectedStatuses: string[];
   onStatusToggle: (status: string) => void;
   onClearStatuses: () => void;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
 }
 
 /**
- * ProjectsFiltersBar - Status filter for Projects tab
- * Matches the inline design of other filter bars
+ * ProjectsFiltersBar - Search and status filter for Projects tab
  */
 const ProjectsFiltersBar: React.FC<ProjectsFiltersBarProps> = ({
   selectedStatuses,
   onStatusToggle,
   onClearStatuses,
+  searchQuery,
+  onSearchChange,
 }) => {
   const [showStatusFilter, setShowStatusFilter] = React.useState(false);
   const statusFilterRef = useRef<HTMLDivElement>(null);
@@ -43,6 +45,28 @@ const ProjectsFiltersBar: React.FC<ProjectsFiltersBarProps> = ({
 
   return (
     <div className="flex items-center gap-2">
+      {/* Search */}
+      <div className="relative w-64">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+        </div>
+        <input
+          type="text"
+          placeholder="Search projects..."
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="w-full pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary text-sm"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => onSearchChange('')}
+            className="absolute inset-y-0 right-0 pr-2 flex items-center"
+          >
+            <XMarkIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+          </button>
+        )}
+      </div>
+
       {/* Status Filter */}
       <div className="relative" ref={statusFilterRef}>
         <button
@@ -73,11 +97,9 @@ const ProjectsFiltersBar: React.FC<ProjectsFiltersBarProps> = ({
                     onChange={() => onStatusToggle(status)}
                     className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
                   />
-                  <div className="flex items-center gap-2 flex-1">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PROJECT_STATUS_COLORS[status as ProjectStatus]}`}>
-                      {PROJECT_STATUS_LABELS[status as ProjectStatus]}
-                    </span>
-                  </div>
+                  <span className="text-sm text-gray-700">
+                    {PROJECT_STATUS_LABELS[status as ProjectStatus]}
+                  </span>
                 </label>
               ))}
             </div>

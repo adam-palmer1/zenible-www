@@ -80,7 +80,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           placeholder={searchPlaceholder}
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-9 pr-8 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          className="w-full pl-9 pr-8 py-2.5 lg:py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white min-h-[44px] lg:min-h-0"
         />
         {searchValue && (
           <button
@@ -97,7 +97,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
         <div className="relative" ref={filterRef}>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm bg-white dark:bg-gray-800"
+            className="flex items-center gap-2 px-3 py-2.5 lg:py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm bg-white dark:bg-gray-800 min-h-[44px] lg:min-h-0"
           >
             <FunnelIcon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
             {activeFilterCount > 0 && (
@@ -238,7 +238,7 @@ export const SortButton: React.FC<SortButtonProps> = ({ sortOrder, onSortChange,
     <div className="relative">
       <button
         onClick={() => setShowSort(!showSort)}
-        className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm bg-white dark:bg-gray-800"
+        className="flex items-center gap-2 px-3 py-2.5 lg:py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm bg-white dark:bg-gray-800 min-h-[44px] lg:min-h-0"
       >
         <ArrowsUpDownIcon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
         <span className="text-gray-700 dark:text-gray-300">Sort</span>

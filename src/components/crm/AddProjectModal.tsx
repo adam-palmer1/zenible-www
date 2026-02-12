@@ -8,13 +8,11 @@ import DatePickerCalendar from '../shared/DatePickerCalendar';
 import {
   PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
-  PROJECT_STATUS_COLORS,
-  type ProjectStatus,
 } from '../../constants/crm';
 import contactsAPI from '../../services/api/crm/contacts';
 import ContactSelectorModal from '../calendar/ContactSelectorModal';
 import ServiceSelectorModal from './ServiceSelectorModal';
-import StatusSelectorModal from './StatusSelectorModal';
+import GenericDropdown from './GenericDropdown';
 import CurrencySelectorModal from './CurrencySelectorModal';
 import { useModalState } from '../../hooks/useModalState';
 
@@ -37,9 +35,6 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
   const [selectedContact, setSelectedContact] = useState<any>(null);
   const [showContactSelector, setShowContactSelector] = useState(false);
   const contactButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Status selector state
-  const statusModal = useModalState();
 
   // Currency selector state
   const currencyModal = useModalState();
@@ -370,19 +365,15 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Status
               </label>
-              <button
-                type="button"
-                onClick={() => statusModal.open()}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-left hover:border-zenible-primary focus:ring-2 focus:ring-zenible-primary focus:border-transparent transition-colors bg-white dark:bg-gray-700"
-              >
-                <span className={`inline-flex items-center gap-2 px-3 py-1 text-xs leading-5 font-semibold rounded-full ${PROJECT_STATUS_COLORS[formData.status as ProjectStatus]}`}>
-                  {PROJECT_STATUS_LABELS[formData.status as ProjectStatus]}
-                </span>
-              </button>
+              <GenericDropdown
+                value={formData.status}
+                onChange={handleStatusSelect}
+                options={Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
+              />
             </div>
 
             {/* Start Date & End Date */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Start Date
@@ -425,7 +416,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
                 Billing Defaults (Optional)
               </h4>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Default Hourly Rate */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -571,13 +562,6 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
         loading={loadingServices}
       />
 
-      {/* Status Selector Modal */}
-      <StatusSelectorModal
-        isOpen={statusModal.isOpen}
-        onClose={statusModal.close}
-        onSelect={handleStatusSelect}
-        selectedStatus={formData.status}
-      />
     </>
   );
 };

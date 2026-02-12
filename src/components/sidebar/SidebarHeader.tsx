@@ -7,9 +7,10 @@ import brandIcon from '../../assets/icons/brand-icon.svg';
 interface SidebarHeaderProps {
   isCollapsed: boolean;
   onToggle: () => void;
+  isMobile?: boolean;
 }
 
-export default function SidebarHeader({ isCollapsed, onToggle }: SidebarHeaderProps) {
+export default function SidebarHeader({ isCollapsed, onToggle, isMobile = false }: SidebarHeaderProps) {
   const { user: rawUser } = useAuth();
   const user = rawUser;
   const [planName, setPlanName] = useState('Free Plan');
@@ -24,7 +25,6 @@ export default function SidebarHeader({ isCollapsed, onToggle }: SidebarHeaderPr
           }
         } catch (error) {
           console.error('Failed to fetch plan details:', error);
-          // Keep default "Free Plan" if fetch fails
         }
       }
     };
@@ -54,26 +54,31 @@ export default function SidebarHeader({ isCollapsed, onToggle }: SidebarHeaderPr
           )}
         </div>
 
-        {/* Toggle Button */}
+        {/* Toggle / Close Button */}
         <button
           onClick={onToggle}
-          className="p-1 rounded-md hover:bg-gray-100 transition-colors duration-200"
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="p-2 rounded-md hover:bg-gray-100 transition-colors duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center lg:p-1 lg:min-h-0 lg:min-w-0"
+          title={isMobile ? "Close menu" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <svg
-            className="w-4 h-4 text-gray-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            {isCollapsed ? (
-              // Expand icon (>)
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            ) : (
-              // Collapse icon (<)
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            )}
-          </svg>
+          {isMobile ? (
+            // X close icon for mobile
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg
+              className="w-4 h-4 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              {isCollapsed ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              )}
+            </svg>
+          )}
         </button>
       </div>
     </div>

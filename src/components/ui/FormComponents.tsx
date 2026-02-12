@@ -95,7 +95,7 @@ export const FormSelect: React.FC<FormSelectComponentProps> = ({
         value={value}
         onChange={onChange}
         disabled={disabled}
-        className={`w-full px-3 py-2 text-sm text-design-text-primary bg-design-input-bg rounded border border-solid border-design-border-input outline-none focus:border-brand-purple focus:bg-design-card-bg disabled:bg-design-border-light disabled:text-design-text-muted disabled:cursor-not-allowed ${
+        className={`w-full px-3 py-2 text-sm text-design-text-primary bg-design-input-bg rounded border border-solid border-design-border-input outline-none focus:border-brand-purple focus:bg-design-card-bg disabled:bg-design-border-light disabled:text-design-text-muted disabled:cursor-not-allowed min-h-[44px] ${
           error ? 'border-red-300 focus:border-red-500' : ''
         }`}
         {...props}

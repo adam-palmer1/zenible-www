@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import NewSidebar from '../sidebar/NewSidebar';
+import AppLayout from '../layout/AppLayout';
+import { useMobile } from '../../hooks/useMobile';
 import { useCalendar } from '../../hooks/useCalendar';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useCRMReferenceData, type EnumItem } from '../../contexts/CRMReferenceDataContext';
@@ -51,6 +52,7 @@ interface AppointmentFormData {
 }
 
 export default function Calendar() {
+  const isMobile = useMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('weekly');
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
@@ -69,6 +71,13 @@ export default function Calendar() {
   // Delete confirmation modal state
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [appointmentToDelete, setAppointmentToDelete] = useState<CalendarAppointmentResponse | null>(null);
+
+  // Auto-switch to day view on mobile (week view needs 800px+)
+  useEffect(() => {
+    if (isMobile && viewMode === 'weekly') {
+      setViewMode('daily');
+    }
+  }, [isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
     appointments,
@@ -531,11 +540,8 @@ export default function Calendar() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <NewSidebar />
-
-      <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
-        <div className="flex-1 flex gap-4 p-4 overflow-hidden max-w-[2000px] mx-auto w-full">
+    <AppLayout pageTitle="Calendar">
+      <div className="flex-1 flex gap-4 p-4 overflow-hidden max-w-[2000px] mx-auto w-full">
           {/* Left: Calendar View */}
           <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm overflow-hidden min-w-0">
             {/* Calendar Header */}
@@ -614,8 +620,8 @@ export default function Calendar() {
             </div>
           </div>
 
-          {/* Right Sidebar */}
-          <div className="w-72 flex-shrink-0 flex flex-col gap-4">
+          {/* Right Sidebar - hidden on mobile */}
+          <div className="hidden lg:flex w-72 flex-shrink-0 flex-col gap-4">
             {/* Mini Calendar */}
             <CalendarMiniCalendar
               currentDate={currentDate}
@@ -629,7 +635,6 @@ export default function Calendar() {
               onAppointmentClick={handleAppointmentClick}
             />
           </div>
-        </div>
       </div>
 
       {/* Appointment Modal */}
@@ -699,6 +704,6 @@ export default function Calendar() {
           resetColors={resetColors}
         />
       )}
-    </div>
+    </AppLayout>
   );
 }

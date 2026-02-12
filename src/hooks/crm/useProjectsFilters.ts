@@ -11,6 +11,7 @@ export function useProjectsFilters() {
   const { updatePreference: updateDebouncedPreference } = useDebouncedPreference();
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [preferencesLoaded, setPreferencesLoaded] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Load status filter from preferences
   useEffect(() => {
@@ -52,5 +53,7 @@ export function useProjectsFilters() {
     handleStatusToggle,
     handleClearStatuses,
     preferencesLoaded,
+    searchQuery,
+    setSearchQuery,
   };
 }

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import NewSidebar from '../../sidebar/NewSidebar';
+import AppLayout from '../../layout/AppLayout';
 
 interface CRMLayoutProps {
   header: React.ReactNode;
@@ -12,7 +12,7 @@ interface CRMLayoutProps {
  * CRMLayout - Wrapper component for CRM dashboard
  *
  * Provides:
- * - Sidebar integration
+ * - Sidebar integration via AppLayout
  * - Scroll container with ref for scroll preservation
  * - Consistent layout structure
  */
@@ -22,11 +22,10 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ header, children, refreshKey, sav
   // Restore scroll position after data updates
   useEffect(() => {
     if (savedScrollPosition?.current > 0 && scrollContainerRef.current) {
-      // Use a small delay to ensure DOM has updated
       const timeoutId = setTimeout(() => {
         if (scrollContainerRef.current) {
           scrollContainerRef.current.scrollTop = savedScrollPosition.current;
-          savedScrollPosition.current = 0; // Reset after restoring
+          savedScrollPosition.current = 0;
         }
       }, 50);
 
@@ -35,24 +34,11 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ header, children, refreshKey, sav
   }, [refreshKey, savedScrollPosition]);
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <NewSidebar />
-
-      {/* Main Content */}
-      <div
-        className="flex-1 min-w-0 flex flex-col transition-all duration-300"
-        style={{ marginLeft: 'var(--sidebar-width, 280px)' }}
-      >
-        {/* Header Section */}
-        {header}
-
-        {/* Content Section with Scroll */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden p-6">
-          {children}
-        </div>
+    <AppLayout header={header} pageTitle="CRM" rawContent>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-6">
+        {children}
       </div>
-    </div>
+    </AppLayout>
   );
 };
 

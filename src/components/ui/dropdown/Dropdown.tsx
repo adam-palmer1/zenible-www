@@ -133,7 +133,7 @@ const DropdownItem: React.FC<DropdownItemProps> = ({
       className={`
         px-[12px] py-[8px]
         text-[14px] leading-[22px]
-        h-[36px]
+        h-[36px] min-h-[44px] lg:min-h-[36px]
         outline-none
         cursor-pointer
         rounded-[10px]
@@ -166,7 +166,7 @@ const DropdownCheckboxItem: React.FC<DropdownCheckboxItemProps> = ({
       onCheckedChange={onCheckedChange}
       disabled={disabled}
       className={`
-        px-3 py-2
+        px-3 py-3 lg:py-2
         text-sm
         text-gray-700
         outline-none

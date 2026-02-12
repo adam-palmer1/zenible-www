@@ -7,6 +7,8 @@ import planAPI from '../services/planAPI';
 import companyUsersAPI from '../services/api/crm/companyUsers';
 import UpdatePaymentModal from './UpdatePaymentModal';
 import SettingsSidebar from './SettingsSidebar';
+import MobileSettingsTabBar from './user-settings/MobileSettingsTabBar';
+import MobileHeader from './layout/MobileHeader';
 import ProfileSettingsTab from './user-settings/ProfileSettingsTab';
 import SubscriptionSettingsTab from './user-settings/SubscriptionSettingsTab';
 import CustomizationSettingsTab from './user-settings/CustomizationSettingsTab';
@@ -173,14 +175,17 @@ export default function UserSettings() {
 
   if (loading) {
     return (
-      <div className={`flex h-screen ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
+      <div className={`min-h-screen-safe ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
         <SettingsSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-        <div className="flex-1 flex items-center justify-center ml-[280px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary mx-auto"></div>
-            <p className={`mt-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-              Loading settings...
-            </p>
+        <div className="lg:ml-[280px] flex-1 flex flex-col">
+          <MobileHeader title="Settings" />
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary mx-auto"></div>
+              <p className={`mt-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                Loading settings...
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -188,15 +193,25 @@ export default function UserSettings() {
   }
 
   return (
-    <div className={`flex h-screen ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
-      {/* Settings Sidebar */}
+    <div className={`min-h-screen-safe ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
+      {/* Settings Sidebar - hidden on mobile */}
       <SettingsSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col ml-[280px]">
+      <div className="flex-1 flex flex-col lg:ml-[280px]">
+        {/* Mobile header */}
+        <MobileHeader title="Settings" />
+
+        {/* Mobile tab bar */}
+        <MobileSettingsTabBar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isCompanyAdmin={isCompanyAdmin}
+        />
+
         {/* Content Area */}
         <div className="flex-1 overflow-auto bg-gray-50 dark:bg-zenible-dark-bg">
-          <div className="max-w-4xl mx-auto p-6">
+          <div className="max-w-4xl mx-auto p-4 lg:p-6">
             {/* Notifications */}
             {error && (
           <div className={`p-4 rounded-lg mb-6 ${darkMode ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-700'}`}>

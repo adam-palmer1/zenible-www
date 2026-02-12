@@ -67,7 +67,7 @@ const ServicesView: React.FC<ServicesViewProps> = ({
     refreshKey
   );
 
-  // Filter default services by search query
+  // Filter default services by search query (name, description)
   const filteredDefaultServices = useMemo(() => {
     if (!searchQuery || activeSubtab !== 'default') return services;
 

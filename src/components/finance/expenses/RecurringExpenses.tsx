@@ -13,7 +13,7 @@ import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { formatCurrency } from '../../../utils/currency';
 import { calculateNextBillingDate } from '../../../utils/recurringBilling';
 import expensesAPI from '../../../services/api/finance/expenses';
-import NewSidebar from '../../sidebar/NewSidebar';
+import AppLayout from '../../layout/AppLayout';
 import Modal from '../../ui/modal/Modal';
 import ActionMenu from '../../shared/ActionMenu';
 
@@ -391,43 +391,38 @@ const RecurringExpenses: React.FC = () => {
   }, [allExpenses]);
 
   return (
-    <div className="flex h-screen bg-[#f8f8f8] dark:bg-gray-900">
-      {/* Sidebar */}
-      <NewSidebar />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
-        {/* Top Bar */}
-        <div className="bg-white dark:bg-gray-800 border-b border-[#e5e5e5] dark:border-gray-700 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/finance/expenses')}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                title="Back to expenses"
-              >
-                <ArrowLeft className="h-5 w-5 design-text-secondary" />
-              </button>
-              <div>
-                <h1 className="text-2xl font-semibold text-[#09090b] dark:text-white">
-                  Recurring Expenses
-                </h1>
-                <p className="text-sm design-text-secondary">
-                  Manage subscription and recurring expense templates
-                </p>
-              </div>
-            </div>
+    <AppLayout pageTitle="Recurring">
+      {/* Top Bar */}
+      <div className="bg-white dark:bg-gray-800 border-b border-[#e5e5e5] dark:border-gray-700 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate('/finance/expenses/new?recurring=true')}
-              className="inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-white bg-[#8e51ff] rounded-[10px] hover:bg-[#7c3aed] transition-colors"
+              onClick={() => navigate('/finance/expenses')}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              title="Back to expenses"
             >
-              <Plus className="h-5 w-5" />
-              New Recurring Expense
+              <ArrowLeft className="h-5 w-5 design-text-secondary" />
             </button>
+            <div>
+              <h1 className="text-2xl font-semibold text-[#09090b] dark:text-white">
+                Recurring Expenses
+              </h1>
+              <p className="text-sm design-text-secondary">
+                Manage subscription and recurring expense templates
+              </p>
+            </div>
           </div>
+          <button
+            onClick={() => navigate('/finance/expenses/new?recurring=true')}
+            className="inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-white bg-[#8e51ff] rounded-[10px] hover:bg-[#7c3aed] transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            New Recurring Expense
+          </button>
         </div>
+      </div>
 
-        {/* Status Tabs */}
+      {/* Status Tabs */}
         <div className="bg-white dark:bg-gray-800 border-b border-[#e5e5e5] dark:border-gray-700 px-4">
           <div className="flex gap-1">
             {statusTabs.map((tab) => (
@@ -521,7 +516,6 @@ const RecurringExpenses: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
 
       {/* Generated Expenses Modal */}
       <GeneratedExpensesModal
@@ -576,7 +570,7 @@ const RecurringExpenses: React.FC = () => {
           />
         );
       })()}
-    </div>
+    </AppLayout>
   );
 };
 

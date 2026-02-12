@@ -95,7 +95,7 @@ const ChipSelector: React.FC<ChipSelectorProps> = ({
             key={option.value}
             type="button"
             onClick={() => handleToggle(option.value)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-[8px] border transition-all ${
+            className={`flex items-center gap-2 px-3 py-3 lg:py-2 rounded-[8px] border transition-all ${
               selected
                 ? 'border-[' + mainColor + ']'
                 : 'border-[#e5e5e5] hover:border-gray-300'

@@ -14,7 +14,7 @@ import {
 import { useNotification } from '../../../contexts/NotificationContext';
 import { formatCurrency } from '../../../utils/currency';
 import invoicesAPI from '../../../services/api/finance/invoices';
-import NewSidebar from '../../sidebar/NewSidebar';
+import AppLayout from '../../layout/AppLayout';
 import KPICard from '../shared/KPICard';
 import ActionMenu from '../../shared/ActionMenu';
 import ConfirmationModal from '../../common/ConfirmationModal';
@@ -203,32 +203,24 @@ const RecurringInvoices: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar */}
-      <NewSidebar />
-
-      {/* Main Content */}
-      <div
-        className="flex-1 flex flex-col transition-all duration-300"
-        style={{ marginLeft: 'var(--sidebar-width, 280px)' }}
-      >
-        {/* Top Bar */}
-        <div className="bg-white dark:bg-gray-800 border-b border-[#e5e5e5] dark:border-gray-700 px-4 py-3 flex items-center justify-between min-h-[64px]">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/finance/invoices')}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-            >
-              <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-            </button>
-            <h1 className="text-2xl font-semibold text-[#09090b] dark:text-white">
-              Recurring Invoices
-            </h1>
-          </div>
+    <AppLayout pageTitle="Recurring">
+      {/* Top Bar */}
+      <div className="bg-white dark:bg-gray-800 border-b border-[#e5e5e5] dark:border-gray-700 px-4 py-3 flex items-center justify-between min-h-[64px]">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/finance/invoices')}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+          >
+            <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+          </button>
+          <h1 className="text-2xl font-semibold text-[#09090b] dark:text-white">
+            Recurring Invoices
+          </h1>
         </div>
+      </div>
 
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-auto p-4 space-y-4">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-auto p-4 space-y-4">
           {/* KPI Cards Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
             <KPICard
@@ -439,7 +431,6 @@ const RecurringInvoices: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
 
       <ConfirmationModal
         isOpen={cancelConfirmModal.isOpen}
@@ -451,7 +442,7 @@ const RecurringInvoices: React.FC = () => {
         cancelText="Keep"
         confirmColor="red"
       />
-    </div>
+    </AppLayout>
   );
 };
 

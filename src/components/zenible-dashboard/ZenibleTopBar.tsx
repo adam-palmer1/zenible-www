@@ -25,9 +25,9 @@ export default function ZenibleTopBar({ darkMode }: ZenibleTopBarProps) {
         ? 'bg-zenible-dark-sidebar border-zenible-dark-border'
         : 'bg-white border-neutral-200'
     }`}>
-      <div className="flex items-center justify-between h-full px-4">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between h-full px-4 py-2 lg:py-0">
         {/* Tab Buttons */}
-        <div className="flex items-center">
+        <div className="flex items-center overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -47,8 +47,8 @@ export default function ZenibleTopBar({ darkMode }: ZenibleTopBarProps) {
         </div>
 
         {/* Search Field */}
-        <div className="flex items-center">
-          <div className="relative w-[358px]">
+        <div className="hidden lg:flex items-center">
+          <div className="relative w-full lg:w-[358px]">
             <div className={`flex items-center gap-3 px-4 py-3 rounded-[10px] border-[1.5px] ${
               darkMode
                 ? 'bg-zenible-dark-card border-zenible-dark-border'

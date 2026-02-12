@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import NewSidebar from '../sidebar/NewSidebar';
+import AppLayout from '../layout/AppLayout';
 import QuizHeader from './QuizHeader';
 import QuestionCard from './QuestionCard';
 import AnswerFeedback from './AnswerFeedback';
@@ -113,9 +113,8 @@ export default function QuizAttemptPage() {
 
   if (error) {
     return (
-      <div className="flex h-screen bg-white">
-        <NewSidebar />
-        <div className="flex-1 flex items-center justify-center transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
+      <AppLayout pageTitle="Quiz">
+        <div className="flex-1 flex items-center justify-center">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-[500px]">
             <h2 className="font-['Inter'] font-semibold text-[20px] text-red-800 mb-2">
               Error
@@ -131,29 +130,25 @@ export default function QuizAttemptPage() {
             </button>
           </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (!currentQuestion) {
     return (
-      <div className="flex h-screen bg-white">
-        <NewSidebar />
-        <div className="flex-1 flex items-center justify-center transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
+      <AppLayout pageTitle="Quiz">
+        <div className="flex-1 flex items-center justify-center">
           <p className="font-['Inter'] font-normal text-[16px] text-zinc-500">
             Loading quiz...
           </p>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="flex h-screen bg-white">
-      <NewSidebar />
-
-      <div className="flex-1 overflow-auto transition-all duration-300" style={{ marginLeft: 'var(--sidebar-width, 280px)' }}>
-        <QuizHeader
+    <AppLayout pageTitle="Quiz">
+      <QuizHeader
           questionNumber={questionNumber}
           totalQuestions={totalQuestions}
           score={score}
@@ -180,7 +175,6 @@ export default function QuizAttemptPage() {
             />
           )}
         </div>
-      </div>
 
       {/* Quit Confirmation Modal */}
       {quitModal.isOpen && (
@@ -189,6 +183,6 @@ export default function QuizAttemptPage() {
           onCancel={handleCancelQuit}
         />
       )}
-    </div>
+    </AppLayout>
   );
 }
