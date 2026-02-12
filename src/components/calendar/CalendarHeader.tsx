@@ -22,11 +22,11 @@ export default function CalendarHeader({
   onOpenSettings,
 }: CalendarHeaderProps) {
   return (
-    <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+    <div className="p-3 md:p-6 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-4">
         <button
           onClick={() => onNavigateDate('prev')}
-          className="p-2 hover:bg-gray-100 rounded"
+          className="p-2.5 hover:bg-gray-100 rounded"
         >
           <ChevronLeftIcon className="w-5 h-5" />
         </button>
@@ -37,7 +37,7 @@ export default function CalendarHeader({
         </h2>
         <button
           onClick={() => onNavigateDate('next')}
-          className="p-2 hover:bg-gray-100 rounded"
+          className="p-2.5 hover:bg-gray-100 rounded"
         >
           <ChevronRightIcon className="w-5 h-5" />
         </button>
@@ -49,12 +49,12 @@ export default function CalendarHeader({
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3">
         {/* View Mode Tabs */}
         <div className="flex bg-gray-100 rounded-lg p-1">
           <button
             onClick={() => onViewModeChange('daily')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 md:px-4 py-1.5 md:py-2 rounded-md text-sm font-medium transition-colors ${
               viewMode === 'daily'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -64,7 +64,7 @@ export default function CalendarHeader({
           </button>
           <button
             onClick={() => onViewModeChange('weekly')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 md:px-4 py-1.5 md:py-2 rounded-md text-sm font-medium transition-colors ${
               viewMode === 'weekly'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -74,7 +74,7 @@ export default function CalendarHeader({
           </button>
           <button
             onClick={() => onViewModeChange('monthly')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 md:px-4 py-1.5 md:py-2 rounded-md text-sm font-medium transition-colors ${
               viewMode === 'monthly'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -86,10 +86,10 @@ export default function CalendarHeader({
 
         <button
           onClick={onNewAppointment}
-          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center gap-2"
+          className="px-3 md:px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center gap-2"
         >
           <PlusIcon className="w-5 h-5" />
-          New Appointment
+          <span className="hidden sm:inline">New Appointment</span>
         </button>
 
         <button

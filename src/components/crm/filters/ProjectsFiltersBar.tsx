@@ -1,5 +1,10 @@
 import React, { useRef, useEffect } from 'react';
-import { ChevronDownIcon, XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import {
+  ChevronDownIcon,
+  XMarkIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
+} from '@heroicons/react/24/outline';
 import {
   PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
@@ -12,6 +17,14 @@ interface ProjectsFiltersBarProps {
   onClearStatuses: () => void;
   searchQuery: string;
   onSearchChange: (value: string) => void;
+  // Hidden/Lost toggles
+  showHiddenClients: boolean;
+  onShowHiddenClientsToggle: () => void;
+  showHiddenContacts: boolean;
+  onShowHiddenContactsToggle: () => void;
+  showLostContacts: boolean;
+  onShowLostContactsToggle: () => void;
+  activeFilterCount?: number;
 }
 
 /**
@@ -23,9 +36,18 @@ const ProjectsFiltersBar: React.FC<ProjectsFiltersBarProps> = ({
   onClearStatuses,
   searchQuery,
   onSearchChange,
+  showHiddenClients,
+  onShowHiddenClientsToggle,
+  showHiddenContacts,
+  onShowHiddenContactsToggle,
+  showLostContacts,
+  onShowLostContactsToggle,
+  activeFilterCount: _activeFilterCount = 0,
 }) => {
   const [showStatusFilter, setShowStatusFilter] = React.useState(false);
+  const [showFunnelFilter, setShowFunnelFilter] = React.useState(false);
   const statusFilterRef = useRef<HTMLDivElement>(null);
+  const funnelFilterRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -41,7 +63,27 @@ const ProjectsFiltersBar: React.FC<ProjectsFiltersBarProps> = ({
     }
   }, [showStatusFilter]);
 
+  // Close funnel dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (funnelFilterRef.current && !funnelFilterRef.current.contains(event.target as Node)) {
+        setShowFunnelFilter(false);
+      }
+    };
+
+    if (showFunnelFilter) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showFunnelFilter]);
+
   const allProjectStatuses = Object.values(PROJECT_STATUS) as string[];
+
+  // Count filters for funnel badge
+  const funnelFilterCount =
+    (showHiddenClients ? 1 : 0) +
+    (showHiddenContacts ? 1 : 0) +
+    (showLostContacts ? 1 : 0);
 
   return (
     <div className="flex items-center gap-2">
@@ -119,6 +161,59 @@ const ProjectsFiltersBar: React.FC<ProjectsFiltersBarProps> = ({
                 </button>
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Filters dropdown (Hidden/Lost) */}
+      <div className="relative" ref={funnelFilterRef}>
+        <button
+          onClick={() => setShowFunnelFilter(!showFunnelFilter)}
+          className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+        >
+          <FunnelIcon className="h-4 w-4 text-gray-600" />
+          {funnelFilterCount > 0 && (
+            <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-zenible-primary rounded-full">
+              {funnelFilterCount}
+            </span>
+          )}
+          <ChevronDownIcon className={`h-4 w-4 text-gray-400 transition-transform ${showFunnelFilter ? 'rotate-180' : ''}`} />
+        </button>
+
+        {showFunnelFilter && (
+          <div className="absolute top-full right-0 mt-2 w-[300px] bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+            <div className="p-4">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Show Additional</label>
+              <div className="space-y-1">
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showHiddenClients}
+                    onChange={onShowHiddenClientsToggle}
+                    className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+                  />
+                  <span className="text-sm text-gray-700">Hidden Clients</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showHiddenContacts}
+                    onChange={onShowHiddenContactsToggle}
+                    className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+                  />
+                  <span className="text-sm text-gray-700">Hidden Contacts</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showLostContacts}
+                    onChange={onShowLostContactsToggle}
+                    className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+                  />
+                  <span className="text-sm text-gray-700">Lost Contacts</span>
+                </label>
+              </div>
+            </div>
           </div>
         )}
       </div>

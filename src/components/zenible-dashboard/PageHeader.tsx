@@ -28,7 +28,7 @@ export default function PageHeader({ darkMode }: PageHeaderProps) {
           ? 'bg-zenible-dark-sidebar border-zenible-dark-border'
           : 'bg-white border-neutral-200'
       }`}>
-        <h1 className={`font-inter font-semibold text-2xl ${
+        <h1 className={`font-inter font-semibold text-xl md:text-2xl ${
           darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'
         }`}>Dashboard</h1>
         <div className="flex items-center gap-2">

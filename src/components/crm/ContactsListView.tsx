@@ -124,7 +124,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
         <table className="w-full">
           <thead>
             <tr className="border-b border-[#e5e5e5] dark:border-gray-700">
-              <th className="px-4 py-3 text-left w-12">
+              <th className="px-2 lg:px-4 py-3 text-left w-12">
                 <input
                   type="checkbox"
                   checked={selectedContacts.length === contacts.length && contacts.length > 0}
@@ -132,14 +132,14 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
                   className="w-4 h-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
                 />
               </th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Name</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Email</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Phone</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Company</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Status</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Type</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Created</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400"></th>
+              <th className="text-left px-2 lg:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Name</th>
+              <th className="text-left px-2 lg:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Email</th>
+              <th className="text-left px-2 lg:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hidden lg:table-cell">Phone</th>
+              <th className="text-left px-2 lg:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hidden lg:table-cell">Company</th>
+              <th className="text-left px-2 lg:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">Status</th>
+              <th className="text-left px-2 lg:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hidden lg:table-cell">Type</th>
+              <th className="text-left px-2 lg:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hidden lg:table-cell">Created</th>
+              <th className="text-right px-2 lg:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400"></th>
             </tr>
           </thead>
           <tbody>
@@ -155,7 +155,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
                     key={contact.id}
                     className={`border-b border-[#e5e5e5] dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${index === contacts.length - 1 ? 'border-b-0' : ''}`}
                   >
-                    <td className="px-4 py-4" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                    <td className="px-2 lg:px-4 py-4" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedContacts.includes(contact.id)}
@@ -163,7 +163,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
                         className="w-4 h-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
                       />
                     </td>
-                    <td className="px-4 py-4 cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
+                    <td className="px-2 lg:px-4 py-4 cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
                       <div className="flex items-center gap-3">
                         <div>
                           <p className={`font-normal text-sm text-gray-900 dark:text-white ${contact.is_hidden_crm ? 'line-through italic opacity-60' : ''}`}>
@@ -172,21 +172,21 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
+                    <td className="px-2 lg:px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
                       {contact.email || '-'}
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
+                    <td className="px-2 lg:px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer hidden lg:table-cell" onClick={() => onContactClick && onContactClick(contact)}>
                       {contact.phone || '-'}
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
+                    <td className="px-2 lg:px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer hidden lg:table-cell" onClick={() => onContactClick && onContactClick(contact)}>
                       {contact.business_name || '-'}
                     </td>
-                    <td className="px-4 py-4 cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
+                    <td className="px-2 lg:px-4 py-4 cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusBadgeClass}`}>
                         {status.name}
                       </span>
                     </td>
-                    <td className="px-4 py-4 cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
+                    <td className="px-2 lg:px-4 py-4 cursor-pointer hidden lg:table-cell" onClick={() => onContactClick && onContactClick(contact)}>
                       <div className="flex gap-1">
                         {contact.is_client && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-300">
@@ -200,15 +200,15 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-400 cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
+                    <td className="px-2 lg:px-4 py-4 text-sm text-gray-600 dark:text-gray-400 cursor-pointer hidden lg:table-cell" onClick={() => onContactClick && onContactClick(contact)}>
                       {formatDate(contact.created_at) || '-'}
                     </td>
-                    <td className="px-4 py-4 text-right">
+                    <td className="px-2 lg:px-4 py-4 text-right">
                       <Dropdown
                         trigger={
                           <button
                             onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                            className="p-1 rounded-full transition-colors text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="p-2 rounded-full transition-colors text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
                           >
                             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path d="M10 10.8334C10.4603 10.8334 10.8334 10.4603 10.8334 10C10.8334 9.53978 10.4603 9.16669 10 9.16669C9.53978 9.16669 9.16669 9.53978 9.16669 10C9.16669 10.4603 9.53978 10.8334 10 10.8334Z" fill="currentColor"/>

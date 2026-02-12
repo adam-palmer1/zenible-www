@@ -22,18 +22,33 @@ import type { ProjectListItemResponse } from '../../types/crm';
 interface ProjectsTableProps {
   selectedStatuses?: string[];
   searchQuery?: string;
+  showHiddenClients?: boolean;
+  showHiddenContacts?: boolean;
+  showLostContacts?: boolean;
 }
 
-export default function ProjectsTable({ selectedStatuses = [], searchQuery = '' }: ProjectsTableProps) {
+export default function ProjectsTable({ selectedStatuses = [], searchQuery = '', showHiddenClients = false, showHiddenContacts = false, showLostContacts = false }: ProjectsTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const deleteConfirm = useDeleteConfirmation<ProjectListItemResponse>();
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [projectForExpenses, setProjectForExpenses] = useState<ProjectListItemResponse | null>(null);
   const detailModal = useModalState<ProjectListItemResponse>();
 
-  const { projects: rawProjects, loading, deleteProject, refresh } = useProjects(
-    selectedStatuses.length > 0 ? { statuses: selectedStatuses } : {}
-  );
+  const projectFilters: Record<string, unknown> = {};
+  if (selectedStatuses.length > 0) {
+    projectFilters.statuses = selectedStatuses;
+  }
+  if (showHiddenClients) {
+    projectFilters.include_hidden_clients = 'true';
+  }
+  if (showHiddenContacts) {
+    projectFilters.include_hidden_contacts = 'true';
+  }
+  if (showLostContacts) {
+    projectFilters.include_lost_contacts = 'true';
+  }
+
+  const { projects: rawProjects, loading, deleteProject, refresh } = useProjects(projectFilters);
   const allProjects = rawProjects as unknown as ProjectListItemResponse[];
   const { openProjectModal } = useCRM();
 
@@ -126,25 +141,25 @@ export default function ProjectsTable({ selectedStatuses = [], searchQuery = '' 
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#e5e5e5] dark:border-gray-700">
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
+                <th className="text-left px-2 md:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                   Project Name
                 </th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
+                <th className="text-left px-2 md:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                   Client
                 </th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
+                <th className="text-left px-2 md:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                   Status
                 </th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
+                <th className="hidden md:table-cell text-left px-2 md:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                   Services
                 </th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
+                <th className="hidden md:table-cell text-left px-2 md:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                   Start Date
                 </th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
+                <th className="hidden md:table-cell text-left px-2 md:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                   End Date
                 </th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
+                <th className="text-right px-2 md:px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                   Actions
                 </th>
               </tr>
@@ -156,7 +171,7 @@ export default function ProjectsTable({ selectedStatuses = [], searchQuery = '' 
                   onClick={() => handleViewProject(project)}
                   className={`border-b border-[#e5e5e5] dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${index === projects.length - 1 ? 'border-b-0' : ''}`}
                 >
-                  <td className="px-4 py-4">
+                  <td className="px-2 md:px-4 py-4">
                     <div className="text-sm font-medium text-gray-900 dark:text-white">
                       {project.name}
                     </div>
@@ -166,30 +181,30 @@ export default function ProjectsTable({ selectedStatuses = [], searchQuery = '' 
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-2 md:px-4 py-4">
                     <div className="text-sm text-gray-900 dark:text-white">
                       {project.contact?.business_name ||
                        `${project.contact?.first_name || ''} ${project.contact?.last_name || ''}`.trim() ||
                        'N/A'}
                     </div>
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-2 md:px-4 py-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PROJECT_STATUS_COLORS[project.status as ProjectStatus]}`}>
                       {PROJECT_STATUS_LABELS[project.status as ProjectStatus]}
                     </span>
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="hidden md:table-cell px-2 md:px-4 py-4">
                     <span className="text-sm text-gray-900 dark:text-white">
                       {project.services_count || 0} services
                     </span>
                   </td>
-                  <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
+                  <td className="hidden md:table-cell px-2 md:px-4 py-4 text-sm text-gray-900 dark:text-white">
                     {project.start_date ? new Date(project.start_date).toLocaleDateString() : '-'}
                   </td>
-                  <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
+                  <td className="hidden md:table-cell px-2 md:px-4 py-4 text-sm text-gray-900 dark:text-white">
                     {project.end_date ? new Date(project.end_date).toLocaleDateString() : '-'}
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-right">
+                  <td className="px-2 md:px-4 py-4 whitespace-nowrap text-right">
                     <Dropdown
                       trigger={
                         <button

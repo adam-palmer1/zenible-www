@@ -407,7 +407,7 @@ export default function PricingNew() {
       </div>
 
       {/* Page Header */}
-      <div className={`flex items-center justify-between px-[156px] py-4 ${darkMode ? 'bg-zenible-dark-bg' : 'bg-white'}`}>
+      <div className={`flex items-center justify-between px-4 md:px-12 lg:px-[156px] py-4 ${darkMode ? 'bg-zenible-dark-bg' : 'bg-white'}`}>
         <h2 className={`text-[18px] font-semibold leading-[26px] ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
           Upgrade to unleash everything
         </h2>
@@ -453,7 +453,7 @@ export default function PricingNew() {
       </div>
 
       {/* Content Section */}
-      <div className="flex-1 flex items-start justify-center gap-[14px] px-4 pb-4">
+      <div className="flex-1 flex flex-wrap items-start justify-center gap-[14px] px-4 pb-4">
         {plans.filter(plan =>
           billingCycle === 'monthly' ? plan.monthly_price !== null : plan.annual_price !== null
         ).length === 0 && !loading && (
@@ -507,7 +507,7 @@ export default function PricingNew() {
           return (
             <div
               key={plan.id || plan.name}
-              className={`relative bg-white rounded-xl p-6 w-[366.667px] h-[586px] flex flex-col border-2 ${
+              className={`relative bg-white rounded-xl p-6 w-full sm:w-[366.667px] h-[586px] flex flex-col border-2 ${
                 isPopular
                   ? 'border-zenible-primary'
                   : darkMode

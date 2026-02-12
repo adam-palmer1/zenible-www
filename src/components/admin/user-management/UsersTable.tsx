@@ -47,26 +47,26 @@ const UsersTable: React.FC<UsersTableProps> = ({
               <table className="w-full">
                 <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
                   <tr>
-                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>User</th>
-                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Role</th>
-                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Plan</th>
-                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Subscription</th>
-                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Active</th>
-                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Verified</th>
-                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Created</th>
-                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Actions</th>
+                    <th className={`px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>User</th>
+                    <th className={`px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Role</th>
+                    <th className={`hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Plan</th>
+                    <th className={`hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Subscription</th>
+                    <th className={`hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Active</th>
+                    <th className={`hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Verified</th>
+                    <th className={`hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Created</th>
+                    <th className={`px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Actions</th>
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-neutral-200'}`}>
                   {users.map((user: AdminUser) => (
                     <tr key={user.id}>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <td className="px-2 sm:px-4 lg:px-6 py-4 whitespace-nowrap">
                         <div className={`text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                           {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.first_name || 'N/A'}
                         </div>
                         <div className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>{user.email}</div>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <td className="px-2 sm:px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                           user.role === 'ADMIN'
                             ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
@@ -75,12 +75,12 @@ const UsersTable: React.FC<UsersTableProps> = ({
                           {user.role}
                         </span>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <td className="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className={`text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                           {getPlanName(user.current_plan_id ?? '') || <span className="text-gray-400">-</span>}
                         </span>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <td className="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-4 whitespace-nowrap">
                         {user.subscription_status ? (
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                             user.subscription_status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
@@ -96,7 +96,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                           <span className="text-gray-400 text-sm">-</span>
                         )}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <td className="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                           user.deleted_at
                             ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
@@ -105,7 +105,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                           {user.deleted_at ? 'Deleted' : 'Active'}
                         </span>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <td className="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                           user.email_verified
                             ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
@@ -114,10 +114,10 @@ const UsersTable: React.FC<UsersTableProps> = ({
                           {user.email_verified ? 'Verified' : 'Unverified'}
                         </span>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                      <td className="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>{formatDate(user.created_at ?? '')}</span>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-2 sm:px-4 lg:px-6 py-4 whitespace-nowrap text-sm">
                         <button
                           onClick={(e) => openActionsDropdown(e, user)}
                           className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"

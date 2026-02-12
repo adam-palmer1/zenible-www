@@ -19,7 +19,7 @@ const ReportsDashboard: React.FC = () => {
     <AppLayout pageTitle="Reports">
       {/* Top Bar */}
       <div className="bg-white border-b border-[#e5e5e5] px-4 py-3 flex items-center justify-between min-h-[64px]">
-        <h1 className="text-2xl font-semibold text-[#09090b]">Reports</h1>
+        <h1 className="text-xl md:text-2xl font-semibold text-[#09090b]">Reports</h1>
         <ExportButton />
       </div>
 

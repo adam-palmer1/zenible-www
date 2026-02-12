@@ -244,7 +244,7 @@ export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps)
         </div>
 
         {/* Modal */}
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle max-w-[95vw] sm:w-full md:max-w-6xl">
           <form onSubmit={handleSubmit}>
             {/* Header */}
             <div className="bg-white px-4 sm:px-6 py-4 border-b border-gray-200">

@@ -93,7 +93,7 @@ const GoogleCalendarCallback: React.FC = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+      <div className="bg-white p-4 md:p-8 rounded-lg shadow-md max-w-md w-full">
         {status === 'processing' && (
           <>
             <div className="flex justify-center mb-4">

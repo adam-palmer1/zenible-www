@@ -17,6 +17,7 @@ import userAPI from '../../services/userAPI';
 import { getCharacterTools } from '../../services/toolDiscoveryAPI';
 import UsageLimitBadge from '../ui/UsageLimitBadge';
 import { useModalState } from '../../hooks/useModalState';
+import { useMobile } from '../../hooks/useMobile';
 
 interface AICharacter {
   id: string;
@@ -100,6 +101,7 @@ interface AnalysisHistoryEntry {
 export default function ProposalWizard() {
   const { darkMode } = usePreferences();
   const { isAdmin } = useAuth();
+  const isMobile = useMobile();
 
   // State
   const [selectedPlatform, setSelectedPlatform] = useState('');
@@ -129,6 +131,7 @@ export default function ProposalWizard() {
   const [selectedHistoryConversation, setSelectedHistoryConversation] = useState<ConversationSummary | null>(null);
   const [conversationMessages, setConversationMessages] = useState<ConversationMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [mobileShowMessages, setMobileShowMessages] = useState(false);
 
   // Message pagination and filtering state
   const [messagePage, setMessagePage] = useState(1);
@@ -512,6 +515,7 @@ export default function ProposalWizard() {
     setMessagePage(1);
     setMessageFilter('');
     setMessageOrder('asc');
+    setMobileShowMessages(true);
     await loadConversationMessages(conv.id, 1);
   };
 
@@ -711,7 +715,7 @@ export default function ProposalWizard() {
       {/* History Modal */}
       {historyModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className={`w-full max-w-4xl max-h-[90vh] rounded-xl shadow-xl flex flex-col ${
+          <div className={`w-full max-w-[95vw] md:max-w-4xl max-h-[90vh] rounded-xl shadow-xl flex flex-col ${
             darkMode ? 'bg-[#1e1e1e]' : 'bg-white'
           }`}>
             {/* Modal Header */}
@@ -736,9 +740,9 @@ export default function ProposalWizard() {
             </div>
 
             {/* Modal Content */}
-            <div className="flex-1 overflow-hidden flex">
+            <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
               {/* Conversations List */}
-              <div className={`w-1/3 border-r overflow-y-auto ${
+              <div className={`w-full md:w-1/3 border-r overflow-y-auto ${isMobile && mobileShowMessages ? 'hidden' : ''} ${
                 darkMode ? 'border-[#333333]' : 'border-gray-200'
               }`}>
                 {loadingConversations ? (
@@ -807,9 +811,22 @@ export default function ProposalWizard() {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 flex flex-col">
+              <div className={`${isMobile && !mobileShowMessages ? 'hidden' : 'flex-1'} flex flex-col`}>
                 {selectedHistoryConversation ? (
                   <>
+                    {/* Back Button (Mobile Only) */}
+                    {isMobile && (
+                      <button
+                        onClick={() => setMobileShowMessages(false)}
+                        className={`flex items-center gap-1 px-4 py-2 text-sm border-b ${
+                          darkMode
+                            ? 'text-gray-300 hover:text-white border-[#333333]'
+                            : 'text-gray-600 hover:text-gray-900 border-gray-200'
+                        }`}
+                      >
+                        ← Back to conversations
+                      </button>
+                    )}
                     {/* Message Filters */}
                     <div className={`p-4 border-b flex gap-2 ${
                       darkMode ? 'border-[#333333]' : 'border-gray-200'

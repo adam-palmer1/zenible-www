@@ -51,14 +51,14 @@ const CurrentProjectsWidget = () => {
 
   if (loading) {
     return (
-      <div className="bg-white border border-neutral-200 rounded-xl p-6 h-[246px] flex items-center justify-center">
+      <div className="bg-white border border-neutral-200 rounded-xl p-6 h-auto min-h-[200px] lg:h-[246px] flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-4 h-[246px] flex flex-col">
+    <div className="bg-white border border-neutral-200 rounded-xl p-4 h-auto min-h-[200px] lg:h-[246px] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">

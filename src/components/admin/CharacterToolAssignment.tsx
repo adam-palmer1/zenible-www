@@ -481,7 +481,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
             </div>
 
             {/* Modal */}
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle max-w-[95vw] sm:w-full md:max-w-4xl">
               <div className="bg-white px-6 py-4 max-h-[80vh] overflow-y-auto">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">
                   {editingAssignment ? 'Edit Tool Assignment' : 'Assign Tool to Character'}

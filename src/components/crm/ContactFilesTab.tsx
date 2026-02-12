@@ -128,14 +128,14 @@ const FileItem: React.FC<FileItemProps> = ({ file, projects, onEdit, onDelete, o
                 <button
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
+                  className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
                   title="Save"
                 >
                   <CheckIcon className="w-4 h-4" />
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                   title="Cancel"
                 >
                   <XMarkIcon className="w-4 h-4" />
@@ -145,21 +145,21 @@ const FileItem: React.FC<FileItemProps> = ({ file, projects, onEdit, onDelete, o
               <>
                 <button
                   onClick={() => onDownload(file)}
-                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                   title="Download"
                 >
                   <ArrowDownTrayIcon className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                   title="Edit"
                 >
                   <PencilIcon className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => onDelete(file)}
-                  className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                  className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                   title="Delete"
                 >
                   <TrashIcon className="w-4 h-4" />

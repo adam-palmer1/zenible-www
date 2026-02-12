@@ -39,19 +39,19 @@ export default function CalendarMiniCalendar({ currentDate, onDateSelect, appoin
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-900">{format(miniCalendarDate, 'MMMM yyyy')}</h3>
         <div className="flex gap-1">
           <button
             onClick={() => setMiniCalendarDate(addMonths(miniCalendarDate, -1))}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-2 hover:bg-gray-100 rounded"
           >
             <ChevronLeftIcon className="w-4 h-4" />
           </button>
           <button
             onClick={() => setMiniCalendarDate(addMonths(miniCalendarDate, 1))}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-2 hover:bg-gray-100 rounded"
           >
             <ChevronRightIcon className="w-4 h-4" />
           </button>

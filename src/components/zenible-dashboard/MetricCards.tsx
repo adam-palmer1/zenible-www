@@ -49,11 +49,11 @@ interface MetricCardsProps {
 
 export default function MetricCards({ darkMode }: MetricCardsProps) {
   return (
-    <div className="flex gap-3.5 p-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 p-4">
       {metrics.map((metric) => (
         <div
           key={metric.id}
-          className={`flex-1 rounded-xl border p-6 ${
+          className={`rounded-xl border p-6 ${
             darkMode
               ? 'bg-zenible-dark-card border-zenible-dark-border'
               : 'bg-white border-neutral-200'
@@ -72,7 +72,7 @@ export default function MetricCards({ darkMode }: MetricCardsProps) {
             </div>
           </div>
           <div className="flex flex-col gap-0.5">
-            <p className={`font-inter font-semibold text-2xl leading-8 ${
+            <p className={`font-inter font-semibold text-xl md:text-2xl leading-8 ${
               darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'
             }`}>
               {metric.value}

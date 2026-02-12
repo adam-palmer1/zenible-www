@@ -2,25 +2,36 @@ import React from 'react';
 import ExpertCard from './ExpertCard';
 import { useUsageDashboardOptional } from '../../contexts/UsageDashboardContext';
 import UsageLimitBadge from '../ui/UsageLimitBadge';
+import { useMobile } from '../../hooks/useMobile';
+import { X } from 'lucide-react';
 
 interface ExpertSidebarProps {
   characters: any[];
   loadingCharacters: boolean;
   darkMode: boolean;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export default function ExpertSidebar({ characters, loadingCharacters, darkMode }: ExpertSidebarProps) {
+export default function ExpertSidebar({ characters, loadingCharacters, darkMode, isOpen = true, onClose }: ExpertSidebarProps) {
   const usageContext = useUsageDashboardOptional();
   const planName = usageContext?.planName || 'Free Plan';
+  const isMobile = useMobile();
 
-  return (
+  // Don't render on mobile if not open
+  if (isMobile && !isOpen) return null;
+
+  const sidebarContent = (
     <div
-      className={`h-full border-r border-solid flex flex-col ${
+      className={`h-full border-solid flex flex-col ${
+        isMobile
+          ? 'w-full'
+          : 'w-[312px] border-r'
+      } ${
         darkMode
           ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-neutral-200'
       }`}
-      style={{ width: '312px' }}
     >
       {/* Header */}
       <div
@@ -54,6 +65,21 @@ export default function ExpertSidebar({ characters, loadingCharacters, darkMode 
             )}
           </div>
         </div>
+
+        {/* Close button for mobile */}
+        {isMobile && onClose && (
+          <button
+            onClick={onClose}
+            className={`ml-2 p-1 rounded-lg transition-colors ${
+              darkMode
+                ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200'
+                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+            }`}
+            aria-label="Close sidebar"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       {/* Scrollable Expert Cards */}
@@ -92,4 +118,25 @@ export default function ExpertSidebar({ characters, loadingCharacters, darkMode 
       </div>
     </div>
   );
+
+  // On mobile: render as full-screen overlay with backdrop
+  if (isMobile) {
+    return (
+      <>
+        {/* Backdrop */}
+        <div
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+        {/* Sidebar overlay */}
+        <div className="fixed inset-0 z-50">
+          {sidebarContent}
+        </div>
+      </>
+    );
+  }
+
+  // Desktop: normal sidebar panel
+  return sidebarContent;
 }

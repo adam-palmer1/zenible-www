@@ -279,7 +279,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center">
         <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-        <div className="relative bg-white rounded-xl shadow-xl p-8 dark:bg-gray-800">
+        <div className="relative bg-white rounded-xl shadow-xl p-4 md:p-8 dark:bg-gray-800">
           <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
         </div>
       </div>
@@ -326,7 +326,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
       </div>
 
       {/* Date Row with Divider */}
-      <div className="bg-[#fafafa] dark:bg-gray-900 border border-[#e5e5e5] dark:border-gray-700 rounded-xl p-4 flex items-center gap-6">
+      <div className="bg-[#fafafa] dark:bg-gray-900 border border-[#e5e5e5] dark:border-gray-700 rounded-xl p-4 flex items-center gap-4 md:gap-6">
         <div className="flex-1">
           <p className="text-sm text-[#71717a] dark:text-gray-400 leading-[22px]">Start Date</p>
           <p className="text-lg font-semibold text-[#09090b] dark:text-white leading-[26px]">

@@ -348,7 +348,7 @@ const InvoiceDetail: React.FC = () => {
       {/* Content Section */}
       <div className="px-4 md:px-8 lg:px-[300px] py-4 flex flex-col gap-[14px] items-center">
         {/* Main Invoice Card */}
-        <div className="w-full max-w-[840px] bg-white dark:bg-gray-800 border-2 border-[#e5e5e5] dark:border-gray-700 rounded-[12px] p-6 flex flex-col gap-6">
+        <div className="w-full max-w-[840px] bg-white dark:bg-gray-800 border-2 border-[#e5e5e5] dark:border-gray-700 rounded-[12px] p-4 md:p-6 flex flex-col gap-6">
           <InvoiceDetailHeader
             invoice={invoice}
             company={company}

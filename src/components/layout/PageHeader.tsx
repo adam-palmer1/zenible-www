@@ -31,7 +31,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
 }) => {
   return (
     <div className="mt-4 lg:mt-5 w-full">
-      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:gap-10 lg:justify-between lg:items-center px-4 py-4 lg:px-5 lg:py-5 w-full bg-[#fefefe] dark:bg-gray-900 rounded-xl">
+      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap gap-3 md:gap-10 lg:justify-between lg:items-center px-4 py-4 lg:px-5 lg:py-5 w-full bg-[#fefefe] dark:bg-gray-900 rounded-xl">
         <div className="flex items-center gap-4">
           {showBackButton && (
             <button
@@ -55,7 +55,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             )}
           </div>
         </div>
-        <div className={`flex gap-3 items-center self-stretch my-auto ${showAddButton || actionButton ? 'min-w-60' : ''}`}>
+        <div className={`flex gap-3 items-center self-stretch my-auto ${showAddButton || actionButton ? 'min-w-0 md:min-w-60' : ''}`}>
           {actionButton && (
             <button
               onClick={actionButton.onClick}
@@ -67,7 +67,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           {showAddButton && (
             <button
               onClick={onAddClick ?? undefined}
-              className="flex gap-2 justify-center items-center self-stretch px-4 py-3 my-auto text-sm font-medium tracking-tight leading-none bg-design-input-bg dark:bg-gray-800 border border-solid border-design-border-input dark:border-gray-600 min-h-11 rounded-[44px] text-design-text-muted dark:text-gray-400 w-[122px] hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex gap-2 justify-center items-center self-stretch px-4 py-3 my-auto text-sm font-medium tracking-tight leading-none bg-design-input-bg dark:bg-gray-800 border border-solid border-design-border-input dark:border-gray-600 min-h-11 rounded-[44px] text-design-text-muted dark:text-gray-400 w-full sm:w-[122px] hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <svg
                 className="w-3 h-3 text-design-text-muted dark:text-gray-400"

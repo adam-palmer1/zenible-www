@@ -55,7 +55,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon: Icon, i
         <p className="text-sm text-[#71717a] leading-[22px] mb-1">
           {title}
         </p>
-        <p className="text-lg font-semibold text-[#09090b] leading-[26px]">
+        <p className="text-base md:text-lg font-semibold text-[#09090b] leading-[22px] md:leading-[26px]">
           {value}
         </p>
         {subtitle && (

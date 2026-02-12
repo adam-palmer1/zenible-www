@@ -361,7 +361,7 @@ export default function CharacterFormModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className={`max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-lg p-6 ${
+      <div className={`max-w-[95vw] md:max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-lg p-6 ${
         darkMode ? 'bg-zenible-dark-card' : 'bg-white'
       }`}>
         <div className="flex justify-between items-center mb-4">

@@ -70,12 +70,12 @@ export default function TipOfTheDay({ characterId = null, className = "" }: TipO
 
   if (loading) {
     return (
-      <div className={`bg-white border border-neutral-200 border-solid box-border content-stretch flex flex-col gap-[22px] items-start p-[16px] relative rounded-[12px] shrink-0 w-[1128px] ${className}`}>
+      <div className={`bg-white border border-neutral-200 border-solid box-border content-stretch flex flex-col gap-[22px] items-start p-[16px] relative rounded-[12px] shrink-0 w-full ${className}`}>
         <div className="content-stretch flex gap-[16px] items-start relative shrink-0 w-full">
           <div className="bg-violet-50 box-border content-stretch flex gap-[4px] items-center justify-center p-[4px] relative rounded-[8px] shrink-0 size-[46px]">
             <div className="animate-pulse bg-violet-200 rounded size-[24px]" />
           </div>
-          <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 w-[895px]">
+          <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 flex-1 min-w-0">
             <div className="content-stretch flex flex-col items-start relative shrink-0 w-full">
               <div className="content-stretch flex gap-[8px] items-center justify-center relative shrink-0">
                 <div className="animate-pulse bg-gray-200 h-[26px] w-[120px] rounded" />
@@ -90,12 +90,12 @@ export default function TipOfTheDay({ characterId = null, className = "" }: TipO
 
   if (error && !tipData) {
     return (
-      <div className={`bg-red-50 border border-red-200 border-solid box-border content-stretch flex flex-col gap-[22px] items-start p-[16px] relative rounded-[12px] shrink-0 w-[1128px] ${className}`}>
+      <div className={`bg-red-50 border border-red-200 border-solid box-border content-stretch flex flex-col gap-[22px] items-start p-[16px] relative rounded-[12px] shrink-0 w-full ${className}`}>
         <div className="content-stretch flex gap-[16px] items-start relative shrink-0 w-full">
           <div className="bg-red-100 box-border content-stretch flex gap-[4px] items-center justify-center p-[4px] relative rounded-[8px] shrink-0 size-[46px]">
             <span className="text-red-600 text-lg">⚠</span>
           </div>
-          <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 w-[895px]">
+          <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 flex-1 min-w-0">
             <div className="content-stretch flex flex-col items-start relative shrink-0 w-full">
               <h3 className="font-['Inter'] font-semibold text-[18px] text-red-900 leading-[26px]">
                 Unable to load tip
@@ -123,7 +123,7 @@ export default function TipOfTheDay({ characterId = null, className = "" }: TipO
   const { tip } = tipData;
 
   return (
-    <div className={`bg-white border border-neutral-200 border-solid box-border content-stretch flex flex-col gap-[22px] items-start p-[16px] relative rounded-[12px] shrink-0 w-[1128px] ${className}`}>
+    <div className={`bg-white border border-neutral-200 border-solid box-border content-stretch flex flex-col gap-[22px] items-start p-[16px] relative rounded-[12px] shrink-0 w-full ${className}`}>
       <div className="content-stretch flex gap-[16px] items-start relative shrink-0 w-full">
         {/* Character or Bulb Icon */}
         {character ? (
@@ -169,7 +169,7 @@ export default function TipOfTheDay({ characterId = null, className = "" }: TipO
             </div>
           </div>
         )}
-        <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 w-[895px]">
+        <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 flex-1 min-w-0">
           <div className="content-stretch flex flex-col items-start relative shrink-0 w-full">
             <div className="content-stretch flex gap-[8px] items-center justify-center relative shrink-0">
               <div className="flex flex-col font-['Inter'] font-semibold justify-center leading-[0] not-italic relative shrink-0 text-[18px] text-nowrap text-zinc-950">

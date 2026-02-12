@@ -287,7 +287,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
           </div>
 
           {/* Tab Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6">
             {activeTab === 'notes' ? (
               <NotesSection contactId={contact.id} />
             ) : activeTab === 'services' ? (

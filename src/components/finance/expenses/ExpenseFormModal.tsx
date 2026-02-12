@@ -57,7 +57,7 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({ isOpen, onClose, ex
         <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
 
         <Dialog.Content
-          className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] w-full max-w-4xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl focus:outline-none overflow-y-auto"
+          className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] w-full max-w-[95vw] md:max-w-4xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl focus:outline-none overflow-y-auto"
         >
           <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4 z-10">
             <button

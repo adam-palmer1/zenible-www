@@ -36,7 +36,7 @@ function QuizCard({
 
   return (
     <div
-      className={`bg-white border border-neutral-200 border-solid box-border content-stretch flex flex-col gap-[16px] items-start p-[16px] relative rounded-[12px] shrink-0 w-[366px] transition-all ${
+      className={`bg-white border border-neutral-200 border-solid box-border content-stretch flex flex-col gap-[16px] items-start p-[16px] relative rounded-[12px] shrink-0 w-full transition-all ${
         isAvailable
           ? 'cursor-pointer hover:shadow-md'
           : 'opacity-60 cursor-not-allowed'

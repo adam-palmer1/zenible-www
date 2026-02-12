@@ -79,7 +79,7 @@ const InvoiceListTable: React.FC<InvoiceListTableProps> = ({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th scope="col" className="w-12 px-4 py-3">
+              <th scope="col" className="w-12 px-2 md:px-4 py-3">
                 <input
                   type="checkbox"
                   checked={selectedIds.length === paginatedInvoices.length && paginatedInvoices.length > 0}
@@ -87,25 +87,25 @@ const InvoiceListTable: React.FC<InvoiceListTableProps> = ({
                   className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                 />
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Invoice
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Client
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="hidden md:table-cell px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Created
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="hidden md:table-cell px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Due Date
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Total
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
-              <th scope="col" className="w-12 px-4 py-3"></th>
+              <th scope="col" className="w-12 px-2 md:px-4 py-3"></th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -131,7 +131,7 @@ const InvoiceListTable: React.FC<InvoiceListTableProps> = ({
                     className="hover:bg-gray-50 transition-colors cursor-pointer"
                     onClick={() => onView(invoice)}
                   >
-                    <td className="px-4 py-3" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                    <td className="px-2 md:px-4 py-3" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(invoice.id)}
@@ -139,25 +139,25 @@ const InvoiceListTable: React.FC<InvoiceListTableProps> = ({
                         className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                       />
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    <td className="px-2 md:px-4 py-3 text-sm font-medium text-gray-900">
                       #{invoice.invoice_number || '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
+                    <td className="px-2 md:px-4 py-3 text-sm text-gray-900">
                       {invoice.contact?.business_name ||
                        (invoice.contact?.first_name && invoice.contact?.last_name
                          ? `${invoice.contact.first_name} ${invoice.contact.last_name}`
                          : '-')}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="hidden md:table-cell px-2 md:px-4 py-3 text-sm text-gray-500">
                       {formatDate(invoice.issue_date || invoice.invoice_date)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="hidden md:table-cell px-2 md:px-4 py-3 text-sm text-gray-500">
                       {formatDate(invoice.due_date)}
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    <td className="px-2 md:px-4 py-3 text-sm font-medium text-gray-900">
                       {invoice.currency?.symbol || getCurrencySymbol(invoice.currency?.code)}{formatNumber(typeof invoice.total === 'number' ? invoice.total : parseFloat(invoice.total || 0))}
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-2 md:px-4 py-3 text-sm">
                       <div className="flex flex-wrap gap-1">
                         <StatusBadge status={invoice.status} />
 
@@ -221,7 +221,7 @@ const InvoiceListTable: React.FC<InvoiceListTableProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                    <td className="px-2 md:px-4 py-3 text-sm" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                       <div className="relative inline-block">
                         <button
                           id={`action-btn-${invoice.id}`}

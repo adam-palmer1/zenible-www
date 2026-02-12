@@ -1,11 +1,14 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { contactServicesAPI } from '../../services/api/crm';
 import type { ContactServiceResponse } from '../../types';
 
 interface UseContactServicesOptions {
   searchQuery?: string;
-  status?: string;
-  frequencyType?: string;
+  statusFilters?: string[];
+  frequencyTypeFilters?: string[];
+  showHiddenClients?: boolean;
+  showHiddenContacts?: boolean;
+  showLostContacts?: boolean;
 }
 
 /** A contact service enriched with the owning contact's details. */
@@ -33,7 +36,14 @@ export function useContactServices(options: UseContactServicesOptions = {}, refr
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { searchQuery = '', status = '', frequencyType = '' } = options;
+  const {
+    searchQuery = '',
+    statusFilters = [],
+    frequencyTypeFilters = [],
+    showHiddenClients = false,
+    showHiddenContacts = false,
+    showLostContacts = false,
+  } = options;
 
   // Debounce search to avoid excessive API calls
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,17 +71,22 @@ export function useContactServices(options: UseContactServicesOptions = {}, refr
 
       // Build query params — only include non-empty filters
       const params: Record<string, string> = {
-        per_page: '100',
+        per_page: '200',
       };
 
       if (debouncedSearch) {
         params.search = debouncedSearch;
       }
-      if (status) {
-        params.status = status;
+
+      // Pass hidden/lost params to API (server-side filtering when supported)
+      if (showHiddenClients) {
+        params.include_hidden_clients = 'true';
       }
-      if (frequencyType) {
-        params.frequency_type = frequencyType;
+      if (showHiddenContacts) {
+        params.include_hidden_contacts = 'true';
+      }
+      if (showLostContacts) {
+        params.include_lost_contacts = 'true';
       }
 
       const response = await contactServicesAPI.list(params) as ContactServicesListResponse;
@@ -86,12 +101,29 @@ export function useContactServices(options: UseContactServicesOptions = {}, refr
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, status, frequencyType]);
+  }, [debouncedSearch, showHiddenClients, showHiddenContacts, showLostContacts]);
 
   // Fetch when filters change or refreshKey changes
   useEffect(() => {
     fetchContactServices();
   }, [fetchContactServices, refreshKey]);
+
+  // Client-side filtering for multi-select status and frequency
+  const filteredServices = useMemo(() => {
+    let result = contactServices;
+
+    // Filter by selected statuses (if any selected)
+    if (statusFilters.length > 0) {
+      result = result.filter((s: any) => statusFilters.includes(s.status));
+    }
+
+    // Filter by selected frequency types (if any selected)
+    if (frequencyTypeFilters.length > 0) {
+      result = result.filter((s: any) => frequencyTypeFilters.includes(s.frequency_type));
+    }
+
+    return result;
+  }, [contactServices, statusFilters, frequencyTypeFilters]);
 
   // Get unique statuses for filter dropdown
   const availableStatuses = ['pending', 'inactive', 'confirmed', 'active', 'completed'];
@@ -102,8 +134,8 @@ export function useContactServices(options: UseContactServicesOptions = {}, refr
   return {
     // All services (server-filtered)
     contactServices,
-    // Filtered services (same as contactServices since filtering is server-side now)
-    filteredServices: contactServices,
+    // Filtered services (with client-side multi-select filtering applied)
+    filteredServices,
     // State
     loading,
     error,

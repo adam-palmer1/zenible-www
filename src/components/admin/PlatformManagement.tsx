@@ -258,7 +258,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className={`${
         darkMode ? 'bg-[#1a1a1a]' : 'bg-white'
-      } rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden`}>
+      } rounded-lg shadow-xl w-full max-w-[95vw] md:max-w-6xl max-h-[90vh] overflow-hidden`}>
         {/* Header */}
         <div className={`flex items-center justify-between p-6 border-b ${
           darkMode ? 'border-[#333333]' : 'border-gray-200'

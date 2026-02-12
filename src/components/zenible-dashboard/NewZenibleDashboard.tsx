@@ -18,7 +18,7 @@ export default function NewZenibleDashboard() {
       <div className="box-border flex flex-col gap-1 items-start p-4 shrink-0 w-full bg-white border-b border-gray-100">
         <div className="flex items-center justify-between w-full">
           <div>
-            <p className="font-semibold text-2xl text-zinc-950">
+            <p className="font-semibold text-xl md:text-2xl text-zinc-950">
               Welcome back, {firstName}!
             </p>
             <p className="font-normal text-sm text-zinc-500">

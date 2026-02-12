@@ -30,7 +30,7 @@ const QuoteFormModal: React.FC<QuoteFormModalProps> = ({ isOpen, onClose, quote 
 
         {/* Content */}
         <Dialog.Content
-          className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] w-full max-w-4xl max-h-[90vh] bg-white rounded-lg shadow-xl focus:outline-none overflow-y-auto"
+          className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] w-full max-w-[95vw] md:max-w-4xl max-h-[90vh] bg-white rounded-lg shadow-xl focus:outline-none overflow-y-auto"
         >
           {/* Header */}
           <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 z-10">

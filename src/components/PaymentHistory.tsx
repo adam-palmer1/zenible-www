@@ -418,27 +418,27 @@ export default function PaymentHistory() {
                 <table className="w-full">
                   <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`}>
                     <tr>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Date
                       </th>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Amount
                       </th>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Type
                       </th>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Status
                       </th>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th className={`hidden md:table-cell px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Payment ID
@@ -448,23 +448,23 @@ export default function PaymentHistory() {
                   <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-gray-200'}`}>
                     {payments.map((payment) => (
                       <tr key={payment.id}>
-                        <td className={`px-4 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        <td className={`px-2 md:px-4 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                           {formatDate(payment.created_at)}
                         </td>
-                        <td className={`px-4 py-4 text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        <td className={`px-2 md:px-4 py-4 text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                           {formatCurrency(payment.amount, payment.currency)}
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-2 md:px-4 py-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeBadgeClass(payment.type)}`}>
                             {payment.type}
                           </span>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-2 md:px-4 py-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(payment.status)}`}>
                             {payment.status}
                           </span>
                         </td>
-                        <td className={`px-4 py-4 text-xs font-mono ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                        <td className={`hidden md:table-cell px-2 md:px-4 py-4 text-xs font-mono ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                           {payment.stripe_payment_intent_id || payment.id.slice(0, 8) + '...'}
                         </td>
                       </tr>
@@ -488,32 +488,32 @@ export default function PaymentHistory() {
                 <table className="w-full">
                   <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`}>
                     <tr>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Date
                       </th>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th className={`hidden md:table-cell px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Invoice ID
                       </th>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Amount
                       </th>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Status
                       </th>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th className={`hidden md:table-cell px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Period
                       </th>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Actions
@@ -523,24 +523,24 @@ export default function PaymentHistory() {
                   <tbody className={`divide-y ${darkMode ? 'divide-zenible-dark-border' : 'divide-gray-200'}`}>
                     {invoices.map((invoice) => (
                       <tr key={invoice.id}>
-                        <td className={`px-4 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        <td className={`px-2 md:px-4 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                           {formatDate(invoice.created_at)}
                         </td>
-                        <td className={`px-4 py-4 text-sm font-mono ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        <td className={`hidden md:table-cell px-2 md:px-4 py-4 text-sm font-mono ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                           {invoice.stripe_invoice_id || invoice.id}
                         </td>
-                        <td className={`px-4 py-4 text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                        <td className={`px-2 md:px-4 py-4 text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                           {formatCurrency(invoice.amount_paid, invoice.currency)}
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-2 md:px-4 py-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(invoice.status)}`}>
                             {invoice.status}
                           </span>
                         </td>
-                        <td className={`px-4 py-4 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                        <td className={`hidden md:table-cell px-2 md:px-4 py-4 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                           {formatDate(invoice.period_start)} - {formatDate(invoice.period_end)}
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-2 md:px-4 py-4">
                           {invoice.download_url && (
                             <a
                               href={invoice.download_url}

@@ -128,7 +128,7 @@ const ProjectStatsCards: React.FC<ProjectStatsCardsProps> = ({ stats, activeFilt
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   {card.title}
                 </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">
+                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">
                   {card.value}
                 </p>
               </div>

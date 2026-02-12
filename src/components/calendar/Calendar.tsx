@@ -541,7 +541,7 @@ export default function Calendar() {
 
   return (
     <AppLayout pageTitle="Calendar">
-      <div className="flex-1 flex gap-4 p-4 overflow-hidden max-w-[2000px] mx-auto w-full">
+      <div className="flex-1 flex gap-2 p-2 md:gap-4 md:p-4 overflow-hidden max-w-[2000px] mx-auto w-full">
           {/* Left: Calendar View */}
           <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm overflow-hidden min-w-0">
             {/* Calendar Header */}

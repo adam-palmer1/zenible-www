@@ -89,7 +89,7 @@ const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
 
       {/* Payment Section */}
       {canPay && !paymentSuccess && !cardSetupSuccess && (
-      <div className="bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6 flex flex-col gap-6">
+      <div className="bg-white border-2 border-[#e5e5e5] rounded-[12px] p-4 md:p-6 flex flex-col gap-4 md:gap-6">
         <p className="text-[16px] font-bold leading-[24px] text-[#09090b]">
           {isRecurring ? 'Recurring Invoice' : 'Make a Payment'}
         </p>

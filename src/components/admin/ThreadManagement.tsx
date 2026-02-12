@@ -432,7 +432,7 @@ export default function ThreadManagement() {
       {/* Thread Details Modal */}
       {showDetailsModal && selectedThread && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
+          <div className={`w-full max-w-[95vw] md:max-w-4xl mx-4 max-h-[90vh] overflow-y-auto rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b sticky top-0 ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-card' : 'border-neutral-200 bg-white'}`}>
               <h3 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
                 Thread Details
@@ -568,7 +568,7 @@ export default function ThreadManagement() {
       {/* Messages Modal */}
       {showMessagesModal && selectedThread && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
+          <div className={`w-full max-w-[95vw] md:max-w-4xl mx-4 max-h-[90vh] overflow-y-auto rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
             <div className={`px-6 py-4 border-b sticky top-0 ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-card' : 'border-neutral-200 bg-white'}`}>
               <h3 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
                 Thread Messages

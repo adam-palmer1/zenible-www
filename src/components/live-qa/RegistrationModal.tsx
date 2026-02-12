@@ -54,8 +54,7 @@ export default function RegistrationModal({ event, onClose, darkMode: _darkMode 
       onClick={() => onClose()}
     >
       <div
-        className="bg-white border border-neutral-200 border-solid content-stretch flex flex-col items-start relative rounded-[12px]"
-        style={{ width: '550px', minHeight: '300px', maxHeight: '500px' }}
+        className="bg-white border border-neutral-200 border-solid content-stretch flex flex-col items-start relative rounded-[12px] w-full max-w-[550px] mx-4 min-h-[300px] max-h-[500px]"
         onClick={handleModalClick}
       >
         {/* Section Header */}

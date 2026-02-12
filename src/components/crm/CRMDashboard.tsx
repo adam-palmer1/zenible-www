@@ -287,6 +287,13 @@ const CRMDashboard: React.FC = () => {
                   onClearStatuses={projectsFilters.handleClearStatuses}
                   searchQuery={projectsFilters.searchQuery}
                   onSearchChange={projectsFilters.setSearchQuery}
+                  showHiddenClients={projectsFilters.showHiddenClients}
+                  onShowHiddenClientsToggle={() => projectsFilters.setShowHiddenClients(!projectsFilters.showHiddenClients)}
+                  showHiddenContacts={projectsFilters.showHiddenContacts}
+                  onShowHiddenContactsToggle={() => projectsFilters.setShowHiddenContacts(!projectsFilters.showHiddenContacts)}
+                  showLostContacts={projectsFilters.showLostContacts}
+                  onShowLostContactsToggle={() => projectsFilters.setShowLostContacts(!projectsFilters.showLostContacts)}
+                  activeFilterCount={projectsFilters.activeFilterCount}
                 />
               </Suspense>
             )}
@@ -299,10 +306,18 @@ const CRMDashboard: React.FC = () => {
                   onSubtabChange={servicesFilters.setActiveSubtab}
                   searchQuery={servicesFilters.searchQuery}
                   onSearchChange={servicesFilters.setSearchQuery}
-                  statusFilter={servicesFilters.statusFilter}
-                  onStatusFilterChange={servicesFilters.setStatusFilter}
-                  frequencyTypeFilter={servicesFilters.frequencyTypeFilter}
-                  onFrequencyTypeFilterChange={servicesFilters.setFrequencyTypeFilter}
+                  statusFilters={servicesFilters.statusFilters}
+                  onStatusToggle={servicesFilters.toggleStatusFilter}
+                  onClearStatuses={servicesFilters.clearStatusFilters}
+                  frequencyTypeFilters={servicesFilters.frequencyTypeFilters}
+                  onFrequencyTypeToggle={servicesFilters.toggleFrequencyTypeFilter}
+                  onClearFrequencyTypes={servicesFilters.clearFrequencyTypeFilters}
+                  showHiddenClients={servicesFilters.showHiddenClients}
+                  onShowHiddenClientsToggle={() => servicesFilters.setShowHiddenClients(!servicesFilters.showHiddenClients)}
+                  showHiddenContacts={servicesFilters.showHiddenContacts}
+                  onShowHiddenContactsToggle={() => servicesFilters.setShowHiddenContacts(!servicesFilters.showHiddenContacts)}
+                  showLostContacts={servicesFilters.showLostContacts}
+                  onShowLostContactsToggle={() => servicesFilters.setShowLostContacts(!servicesFilters.showLostContacts)}
                   activeFilterCount={servicesFilters.activeFilterCount}
                 />
               </Suspense>

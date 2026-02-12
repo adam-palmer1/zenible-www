@@ -713,7 +713,7 @@ export default function HeadlineAnalyzer() {
       {/* History Modal */}
       {historyModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className={`w-full max-w-4xl max-h-[90vh] rounded-xl shadow-xl flex flex-col ${
+          <div className={`w-full max-w-[95vw] md:max-w-4xl max-h-[90vh] rounded-xl shadow-xl flex flex-col ${
             darkMode ? 'bg-[#1e1e1e]' : 'bg-white'
           }`}>
             {/* Modal Header */}

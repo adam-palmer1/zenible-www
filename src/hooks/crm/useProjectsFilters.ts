@@ -4,23 +4,33 @@ import { useDebouncedPreference } from '../useDebouncedPreference';
 
 /**
  * Hook to manage projects filter state
- * Handles status filtering with preference persistence
+ * Handles status filtering and hidden/lost toggles with preference persistence
  */
 export function useProjectsFilters() {
-  const { getPreference } = usePreferences();
+  const { getPreference, initialized: preferencesInitialized } = usePreferences();
   const { updatePreference: updateDebouncedPreference } = useDebouncedPreference();
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [preferencesLoaded, setPreferencesLoaded] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Load status filter from preferences
+  // Hidden/Lost contact toggles
+  const [showHiddenClients, setShowHiddenClientsState] = useState<boolean>(false);
+  const [showHiddenContacts, setShowHiddenContactsState] = useState<boolean>(false);
+  const [showLostContacts, setShowLostContactsState] = useState<boolean>(false);
+
+  // Load all filter preferences on mount
   useEffect(() => {
-    if (!preferencesLoaded) {
+    if (preferencesInitialized && !preferencesLoaded) {
       const savedStatuses = getPreference('projects_status_filter', []) as string[];
       setSelectedStatuses(savedStatuses);
+
+      setShowHiddenClientsState(getPreference('projects_show_hidden_clients', false) as boolean);
+      setShowHiddenContactsState(getPreference('projects_show_hidden_contacts', false) as boolean);
+      setShowLostContactsState(getPreference('projects_show_lost_contacts', false) as boolean);
+
       setPreferencesLoaded(true);
     }
-  }, [getPreference, preferencesLoaded]);
+  }, [getPreference, preferencesInitialized, preferencesLoaded]);
 
   // Handle status toggle
   const handleStatusToggle = useCallback(async (status: string): Promise<void> => {
@@ -30,7 +40,6 @@ export function useProjectsFilters() {
 
     setSelectedStatuses(newStatuses);
 
-    // Save to backend preferences
     try {
       await updateDebouncedPreference('projects_status_filter', newStatuses, 'projects');
     } catch (error) {
@@ -48,6 +57,34 @@ export function useProjectsFilters() {
     }
   }, [updateDebouncedPreference]);
 
+  // Hidden/Lost toggles with persistence
+  const setShowHiddenClients = useCallback((value: boolean): void => {
+    setShowHiddenClientsState(value);
+    updateDebouncedPreference('projects_show_hidden_clients', value, 'projects').catch(err =>
+      console.error('Failed to save hidden clients preference:', err)
+    );
+  }, [updateDebouncedPreference]);
+
+  const setShowHiddenContacts = useCallback((value: boolean): void => {
+    setShowHiddenContactsState(value);
+    updateDebouncedPreference('projects_show_hidden_contacts', value, 'projects').catch(err =>
+      console.error('Failed to save hidden contacts preference:', err)
+    );
+  }, [updateDebouncedPreference]);
+
+  const setShowLostContacts = useCallback((value: boolean): void => {
+    setShowLostContactsState(value);
+    updateDebouncedPreference('projects_show_lost_contacts', value, 'projects').catch(err =>
+      console.error('Failed to save lost contacts preference:', err)
+    );
+  }, [updateDebouncedPreference]);
+
+  // Count active filters (for badge display)
+  const activeFilterCount: number =
+    (showHiddenClients ? 1 : 0) +
+    (showHiddenContacts ? 1 : 0) +
+    (showLostContacts ? 1 : 0);
+
   return {
     selectedStatuses,
     handleStatusToggle,
@@ -55,5 +92,14 @@ export function useProjectsFilters() {
     preferencesLoaded,
     searchQuery,
     setSearchQuery,
+    // Hidden/Lost toggles
+    showHiddenClients,
+    setShowHiddenClients,
+    showHiddenContacts,
+    setShowHiddenContacts,
+    showLostContacts,
+    setShowLostContacts,
+    // Utils
+    activeFilterCount,
   };
 }

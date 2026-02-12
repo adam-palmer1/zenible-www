@@ -350,7 +350,7 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
         </div>
 
         {/* Body Editor with Variables Panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           <div className="lg:col-span-2">
             <label htmlFor="body" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Email Body * (HTML)
@@ -363,7 +363,7 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
               onChange={handleChange}
               onFocus={() => setFocusedField('body')}
               disabled={isSystemTemplate}
-              rows={20}
+              rows={12}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-transparent font-mono text-sm disabled:bg-gray-100 dark:disabled:bg-gray-800 dark:bg-gray-700 dark:text-white"
               placeholder="<html>&#10;  <body>&#10;    <h1>Invoice from {{company_name}}</h1>&#10;    <p>Dear {{client_name}},</p>&#10;    ...&#10;  </body>&#10;</html>"
               required
@@ -420,7 +420,7 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
           onClick={() => setShowPreview(false)}
         >
           <div
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-[95vw] md:max-w-4xl w-full max-h-[90vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">

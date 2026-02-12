@@ -122,12 +122,11 @@ function EventCardInner({ event, darkMode, onRegisterClick, onUnregisterClick }:
 
   return (
     <div
-      className={`border border-solid rounded-xl flex flex-col h-[440px] transition-shadow hover:shadow-lg ${
+      className={`border border-solid rounded-xl flex flex-col h-auto min-h-[440px] sm:h-[440px] w-full sm:max-w-[367px] transition-shadow hover:shadow-lg ${
         darkMode
           ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-neutral-200'
       }`}
-      style={{ width: '366.667px' }}
     >
       {/* Top Section - Status, Rating, Title, Description */}
       <div className="flex flex-col gap-2 p-4">

@@ -61,7 +61,7 @@ const InvoiceDetailHeader: React.FC<InvoiceDetailHeaderProps> = ({
       <div className="h-px bg-[#e5e5e5] dark:bg-gray-700 w-full" />
 
       {/* From / Billed To */}
-      <div className="flex gap-8">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-8">
         {/* From */}
         <div className="flex-1 flex flex-col gap-[6px]">
           <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">From</p>

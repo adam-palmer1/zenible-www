@@ -17,7 +17,7 @@ const FinanceClientsDashboard: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold design-text-primary">Clients</h1>
+              <h1 className="text-2xl md:text-3xl font-bold design-text-primary">Clients</h1>
               <p className="text-sm design-text-secondary mt-1">
                 Manage your clients and their financial information
               </p>

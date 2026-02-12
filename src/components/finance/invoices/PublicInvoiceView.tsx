@@ -308,7 +308,7 @@ const PublicInvoiceView: React.FC = () => {
         {/* Main Content - Invoice and Payment side by side */}
         <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row gap-4">
           {/* Main Invoice Card */}
-          <div className="flex-1 bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6 flex flex-col gap-6">
+          <div className="flex-1 bg-white border-2 border-[#e5e5e5] rounded-[12px] p-4 md:p-6 flex flex-col gap-6">
           {/* Header: Logo + Invoice Number | Dates + Status */}
           <InvoiceHeader invoice={invoice} formatDate={formatDate} />
 

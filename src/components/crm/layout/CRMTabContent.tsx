@@ -208,7 +208,13 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
     return (
       <Suspense fallback={<TabLoadingFallback />}>
         <div className="bg-white rounded-lg shadow h-full overflow-hidden">
-          <ProjectsTable selectedStatuses={projectsFilters?.selectedStatuses || []} searchQuery={projectsFilters?.searchQuery || ''} />
+          <ProjectsTable
+            selectedStatuses={projectsFilters?.selectedStatuses || []}
+            searchQuery={projectsFilters?.searchQuery || ''}
+            showHiddenClients={projectsFilters?.showHiddenClients || false}
+            showHiddenContacts={projectsFilters?.showHiddenContacts || false}
+            showLostContacts={projectsFilters?.showLostContacts || false}
+          />
         </div>
       </Suspense>
     );

@@ -57,12 +57,11 @@ function ExpertCard({ expert, darkMode }: ExpertCardProps) {
   return (
     <div
       ref={drag as unknown as React.Ref<HTMLDivElement>}
-      className={`w-full border border-solid box-border flex flex-col gap-4 p-4 rounded-xl transition-opacity ${
+      className={`w-full sm:w-[280px] border border-solid box-border flex flex-col gap-4 p-4 rounded-xl transition-opacity ${
         darkMode
           ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-neutral-200'
       } ${isDragging ? 'opacity-50' : 'opacity-100'} cursor-move`}
-      style={{ width: '280px' }}
     >
       {/* Header with Avatar, Name, Role, and Drag Handle */}
       <div className="flex gap-3 items-center w-full">

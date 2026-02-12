@@ -5,7 +5,6 @@ import {
   ChevronDownIcon,
   FunnelIcon,
 } from '@heroicons/react/24/outline';
-import Dropdown from '../../ui/dropdown/Dropdown';
 import {
   SERVICE_STATUS,
   SERVICE_STATUS_LABELS,
@@ -16,10 +15,22 @@ interface ServicesFiltersBarProps {
   onSubtabChange: (subtab: string) => void;
   searchQuery: string;
   onSearchChange: (value: string) => void;
-  statusFilter: string;
-  onStatusFilterChange: (value: string) => void;
-  frequencyTypeFilter: string;
-  onFrequencyTypeFilterChange: (value: string) => void;
+  // Multi-select status
+  statusFilters: string[];
+  onStatusToggle: (status: string) => void;
+  onClearStatuses: () => void;
+  // Multi-select frequency
+  frequencyTypeFilters: string[];
+  onFrequencyTypeToggle: (freq: string) => void;
+  onClearFrequencyTypes: () => void;
+  // Hidden/Lost toggles
+  showHiddenClients: boolean;
+  onShowHiddenClientsToggle: () => void;
+  showHiddenContacts: boolean;
+  onShowHiddenContactsToggle: () => void;
+  showLostContacts: boolean;
+  onShowLostContactsToggle: () => void;
+  // Filter count
   activeFilterCount?: number;
 }
 
@@ -27,25 +38,28 @@ interface ServicesFiltersBarProps {
  * ServicesFiltersBar - Subtab selector, search, and filters for Services tab
  */
 const ServicesFiltersBar: React.FC<ServicesFiltersBarProps> = ({
-  // Subtab
   activeSubtab,
   onSubtabChange,
-  // Search
   searchQuery,
   onSearchChange,
-  // Client Services filters
-  statusFilter,
-  onStatusFilterChange,
-  frequencyTypeFilter,
-  onFrequencyTypeFilterChange,
-  // Filter counts
+  statusFilters,
+  onStatusToggle,
+  onClearStatuses,
+  frequencyTypeFilters,
+  onFrequencyTypeToggle,
+  onClearFrequencyTypes,
+  showHiddenClients,
+  onShowHiddenClientsToggle,
+  showHiddenContacts,
+  onShowHiddenContactsToggle,
+  showLostContacts,
+  onShowLostContactsToggle,
   activeFilterCount: _activeFilterCount = 0,
 }) => {
   const [showStatusFilter, setShowStatusFilter] = React.useState(false);
   const statusFilterRef = useRef<HTMLDivElement>(null);
 
   const statusOptions = [
-    { value: '', label: 'All Statuses' },
     { value: SERVICE_STATUS.ACTIVE, label: SERVICE_STATUS_LABELS[SERVICE_STATUS.ACTIVE] },
     { value: SERVICE_STATUS.PENDING, label: SERVICE_STATUS_LABELS[SERVICE_STATUS.PENDING] },
     { value: SERVICE_STATUS.COMPLETED, label: SERVICE_STATUS_LABELS[SERVICE_STATUS.COMPLETED] },
@@ -53,7 +67,6 @@ const ServicesFiltersBar: React.FC<ServicesFiltersBarProps> = ({
   ];
 
   const frequencyOptions = [
-    { value: '', label: 'All Frequencies' },
     { value: 'one_off', label: 'One-off' },
     { value: 'recurring', label: 'Recurring' },
   ];
@@ -72,8 +85,12 @@ const ServicesFiltersBar: React.FC<ServicesFiltersBarProps> = ({
     }
   }, [showStatusFilter]);
 
-  // Count only frequency filter for the funnel badge
-  const frequencyFilterCount = frequencyTypeFilter ? 1 : 0;
+  // Count filters for funnel badge (frequency + hidden/lost toggles)
+  const funnelFilterCount =
+    frequencyTypeFilters.length +
+    (showHiddenClients ? 1 : 0) +
+    (showHiddenContacts ? 1 : 0) +
+    (showLostContacts ? 1 : 0);
 
   return (
     <div className="flex items-center gap-2">
@@ -126,16 +143,16 @@ const ServicesFiltersBar: React.FC<ServicesFiltersBarProps> = ({
       {/* Client Services filters */}
       {activeSubtab === 'client' && (
         <>
-          {/* Status Filter - Separate dropdown */}
+          {/* Status Filter - Separate dropdown with checkboxes */}
           <div className="relative" ref={statusFilterRef}>
             <button
               onClick={() => setShowStatusFilter(!showStatusFilter)}
               className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <span className="text-sm font-medium text-gray-700">Status</span>
-              {statusFilter && (
+              {statusFilters.length > 0 && (
                 <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-zenible-primary rounded-full">
-                  1
+                  {statusFilters.length}
                 </span>
               )}
               <ChevronDownIcon className={`h-4 w-4 text-gray-400 transition-transform ${showStatusFilter ? 'rotate-180' : ''}`} />
@@ -144,21 +161,17 @@ const ServicesFiltersBar: React.FC<ServicesFiltersBarProps> = ({
             {/* Status Dropdown */}
             {showStatusFilter && (
               <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                <div className="p-3 space-y-1">
+                <div className="p-3 space-y-2">
                   {statusOptions.map((option) => (
                     <label
                       key={option.value}
                       className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 cursor-pointer"
                     >
                       <input
-                        type="radio"
-                        name="statusFilter"
-                        checked={statusFilter === option.value}
-                        onChange={() => {
-                          onStatusFilterChange(option.value);
-                          setShowStatusFilter(false);
-                        }}
-                        className="w-4 h-4 text-zenible-primary border-gray-300 focus:ring-zenible-primary"
+                        type="checkbox"
+                        checked={statusFilters.includes(option.value)}
+                        onChange={() => onStatusToggle(option.value)}
+                        className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
                       />
                       <span className="text-sm text-gray-700">
                         {option.label}
@@ -166,57 +179,179 @@ const ServicesFiltersBar: React.FC<ServicesFiltersBarProps> = ({
                     </label>
                   ))}
                 </div>
+
+                {/* Clear Status Filter */}
+                {statusFilters.length > 0 && (
+                  <div className="border-t border-gray-200 p-3">
+                    <button
+                      onClick={() => {
+                        onClearStatuses();
+                        setShowStatusFilter(false);
+                      }}
+                      className="w-full text-sm text-gray-600 hover:text-gray-800 flex items-center justify-center gap-2"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                      Clear Filter
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Frequency Filter - Funnel icon dropdown */}
-          <Dropdown
-            trigger={
-              <button className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors">
-                <FunnelIcon className="h-4 w-4 text-gray-600" />
-                {frequencyFilterCount > 0 && (
-                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-zenible-primary rounded-full">
-                    {frequencyFilterCount}
-                  </span>
-                )}
-                <ChevronDownIcon className="h-4 w-4 text-gray-400" />
-              </button>
-            }
-            align="start"
-            side="bottom"
-          >
-            <div className="p-4 min-w-[280px]">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Filters</h3>
-              <div className="space-y-4">
-                {/* Frequency Type Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Frequency</label>
-                  <div className="space-y-1">
-                    {frequencyOptions.map((option) => (
-                      <label
-                        key={option.value}
-                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors"
-                      >
-                        <input
-                          type="radio"
-                          name="frequencyFilter"
-                          checked={frequencyTypeFilter === option.value}
-                          onChange={() => onFrequencyTypeFilterChange(option.value)}
-                          className="w-4 h-4 text-zenible-primary border-gray-300 focus:ring-zenible-primary"
-                        />
-                        <span className="text-sm text-gray-700">{option.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Dropdown>
+          {/* Filters dropdown (Frequency + Hidden/Lost) */}
+          <div className="relative">
+            <FilterDropdown
+              funnelFilterCount={funnelFilterCount}
+              frequencyOptions={frequencyOptions}
+              frequencyTypeFilters={frequencyTypeFilters}
+              onFrequencyTypeToggle={onFrequencyTypeToggle}
+              onClearFrequencyTypes={onClearFrequencyTypes}
+              showHiddenClients={showHiddenClients}
+              onShowHiddenClientsToggle={onShowHiddenClientsToggle}
+              showHiddenContacts={showHiddenContacts}
+              onShowHiddenContactsToggle={onShowHiddenContactsToggle}
+              showLostContacts={showLostContacts}
+              onShowLostContactsToggle={onShowLostContactsToggle}
+            />
+          </div>
         </>
       )}
     </div>
   );
 };
+
+/** Funnel filter dropdown with frequency checkboxes + hidden/lost toggles */
+function FilterDropdown({
+  funnelFilterCount,
+  frequencyOptions,
+  frequencyTypeFilters,
+  onFrequencyTypeToggle,
+  onClearFrequencyTypes,
+  showHiddenClients,
+  onShowHiddenClientsToggle,
+  showHiddenContacts,
+  onShowHiddenContactsToggle,
+  showLostContacts,
+  onShowLostContactsToggle,
+}: {
+  funnelFilterCount: number;
+  frequencyOptions: { value: string; label: string }[];
+  frequencyTypeFilters: string[];
+  onFrequencyTypeToggle: (freq: string) => void;
+  onClearFrequencyTypes: () => void;
+  showHiddenClients: boolean;
+  onShowHiddenClientsToggle: () => void;
+  showHiddenContacts: boolean;
+  onShowHiddenContactsToggle: () => void;
+  showLostContacts: boolean;
+  onShowLostContactsToggle: () => void;
+}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  return (
+    <div ref={ref}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+      >
+        <FunnelIcon className="h-4 w-4 text-gray-600" />
+        {funnelFilterCount > 0 && (
+          <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-zenible-primary rounded-full">
+            {funnelFilterCount}
+          </span>
+        )}
+        <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full right-0 mt-2 w-[300px] bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+          <div className="p-4 space-y-5">
+            {/* Frequency Type Filter - Checkboxes */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">Frequency</label>
+                {frequencyTypeFilters.length > 0 && (
+                  <button
+                    onClick={onClearFrequencyTypes}
+                    className="text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="space-y-1">
+                {frequencyOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={frequencyTypeFilters.includes(option.value)}
+                      onChange={() => onFrequencyTypeToggle(option.value)}
+                      className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+                    />
+                    <span className="text-sm text-gray-700">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-gray-200" />
+
+            {/* Visibility Filters */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Show Additional</label>
+              <div className="space-y-1">
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showHiddenClients}
+                    onChange={onShowHiddenClientsToggle}
+                    className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+                  />
+                  <span className="text-sm text-gray-700">Hidden Clients</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showHiddenContacts}
+                    onChange={onShowHiddenContactsToggle}
+                    className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+                  />
+                  <span className="text-sm text-gray-700">Hidden Contacts</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={showLostContacts}
+                    onChange={onShowLostContactsToggle}
+                    className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+                  />
+                  <span className="text-sm text-gray-700">Lost Contacts</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default ServicesFiltersBar;

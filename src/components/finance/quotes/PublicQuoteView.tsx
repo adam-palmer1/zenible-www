@@ -138,7 +138,7 @@ const PublicQuoteView: React.FC = () => {
         {/* Main Content - Quote and Actions side by side */}
         <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row gap-4">
           {/* Main Quote Card */}
-          <div className="flex-1 bg-white border-2 border-[#e5e5e5] rounded-[12px] p-6 flex flex-col gap-6">
+          <div className="flex-1 bg-white border-2 border-[#e5e5e5] rounded-[12px] p-4 md:p-6 flex flex-col gap-6">
             {/* Header: Logo + Quote Number | Dates */}
             <div className="flex items-start justify-between">
               <div className="flex flex-col">
@@ -177,7 +177,7 @@ const PublicQuoteView: React.FC = () => {
             <div className="h-px bg-[#e5e5e5] w-full" />
 
             {/* From Section */}
-            <div className="flex gap-8">
+            <div className="flex flex-col md:flex-row gap-4 md:gap-8">
               {/* From */}
               <div className="flex-1 flex flex-col gap-[6px]">
                 <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">From</p>
@@ -420,7 +420,7 @@ const PublicQuoteView: React.FC = () => {
 
             {/* Notes & Terms - Side by Side */}
             {(quote.notes || quote.terms) && (
-              <div className="flex gap-8 pt-4 border-t border-[#e5e5e5]">
+              <div className="flex flex-col md:flex-row gap-4 md:gap-8 pt-4 border-t border-[#e5e5e5]">
                 {/* Notes Section */}
                 {quote.notes && (
                   <div className="flex-1 flex flex-col gap-4">

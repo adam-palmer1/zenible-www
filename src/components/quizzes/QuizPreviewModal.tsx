@@ -24,8 +24,7 @@ export default function QuizPreviewModal({ quiz, onStartQuiz, onTryAnother, onCl
       onClick={onClose}
     >
       <div
-        className="bg-white border border-neutral-200 border-solid content-stretch flex flex-col items-start relative rounded-[12px] max-w-[700px] max-h-[90vh] overflow-auto"
-        style={{ width: '700px' }}
+        className="bg-white border border-neutral-200 border-solid content-stretch flex flex-col items-start relative rounded-[12px] max-w-[95vw] md:max-w-[700px] max-h-[90vh] overflow-auto"
         onClick={handleModalClick}
       >
         {/* Header */}

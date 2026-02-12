@@ -16,8 +16,11 @@ interface ServicesViewProps {
   // Filter state from useServicesFilters
   activeSubtab: string;
   searchQuery: string;
-  statusFilter: string;
-  frequencyTypeFilter: string;
+  statusFilters: string[];
+  frequencyTypeFilters: string[];
+  showHiddenClients?: boolean;
+  showHiddenContacts?: boolean;
+  showLostContacts?: boolean;
   // Client click handler
   onClientClick?: (client: any) => void;
   // Refresh key
@@ -40,8 +43,11 @@ const ServicesView: React.FC<ServicesViewProps> = ({
   // Filter state from useServicesFilters
   activeSubtab,
   searchQuery,
-  statusFilter,
-  frequencyTypeFilter,
+  statusFilters,
+  frequencyTypeFilters,
+  showHiddenClients,
+  showHiddenContacts,
+  showLostContacts,
   // Client click handler
   onClientClick,
   // Refresh key
@@ -61,8 +67,11 @@ const ServicesView: React.FC<ServicesViewProps> = ({
   } = useContactServices(
     {
       searchQuery: activeSubtab === 'client' ? searchQuery : '',
-      status: statusFilter,
-      frequencyType: frequencyTypeFilter,
+      statusFilters,
+      frequencyTypeFilters,
+      showHiddenClients,
+      showHiddenContacts,
+      showLostContacts,
     },
     refreshKey
   );

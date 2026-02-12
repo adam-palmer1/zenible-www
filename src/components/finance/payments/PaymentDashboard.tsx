@@ -29,7 +29,7 @@ const PaymentDashboard: React.FC = () => {
     <AppLayout pageTitle="Payments">
       {/* Top Bar - Fixed at top, matches Invoice design */}
       <div className="bg-white border-b border-[#e5e5e5] px-4 py-3 flex items-center justify-between min-h-[64px]">
-        <h1 className="text-2xl font-semibold text-[#09090b]">
+        <h1 className="text-xl md:text-2xl font-semibold text-[#09090b]">
           Payments
         </h1>
         <div className="flex items-center gap-3">

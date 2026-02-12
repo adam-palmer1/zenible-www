@@ -115,14 +115,14 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
   return (
     <div className="flex flex-col h-full relative">
       <div className="flex border-b border-gray-200 flex-shrink-0">
-        <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
+        <div className="w-16 md:w-24 flex-shrink-0 border-r border-gray-200"></div>
 
         <div className="flex-1 flex">
           {days.map((day: Date, dayIndex: number) => {
             const allDayAppts = getAllDayAppointmentsForDay(day);
             const weekend = isWeekend(day);
             return (
-              <div key={dayIndex} className={`flex-1 min-w-[100px] border-r border-gray-200 last:border-r-0 ${weekend ? 'bg-gray-50' : ''}`}>
+              <div key={dayIndex} className={`flex-1 min-w-[60px] md:min-w-[100px] border-r border-gray-200 last:border-r-0 ${weekend ? 'bg-gray-50' : ''}`}>
                   <div className={`min-h-16 flex flex-col items-center justify-start py-1 ${
                     isSameDay(day, new Date()) ? 'bg-purple-100' : ''
                   }`}>
@@ -175,9 +175,9 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
         </div>
       </div>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-auto scrollbar-hide">
         <div className="flex">
-          <div className="w-24 flex-shrink-0 border-r border-gray-200">
+          <div className="w-16 md:w-24 flex-shrink-0 border-r border-gray-200">
             {timeSlots.map((hour: number) => (
               <div key={hour} className="h-16 border-b border-gray-200 px-3 py-2">
                 <span className="text-sm text-gray-500">
@@ -196,7 +196,7 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
               return (
                 <div
                   key={dayIndex}
-                  className="flex-1 min-w-[100px] border-r border-gray-200 last:border-r-0 relative"
+                  className="flex-1 min-w-[60px] md:min-w-[100px] border-r border-gray-200 last:border-r-0 relative"
                     onDragOver={(e: React.DragEvent) => onDragOver(day, e, timeSlots)}
                     onDrop={(e: React.DragEvent) => onDrop(day, e, timeSlots)}
                   >
@@ -337,7 +337,7 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
             const colors = [...new Set(dayApptsBelow.map((apt: any) => getAppointmentColor(apt)))];
 
             return (
-              <div key={dayIndex} className="flex-1 min-w-[100px] flex h-full">
+              <div key={dayIndex} className="flex-1 min-w-[60px] md:min-w-[100px] flex h-full">
                 {colors.length > 0 ? (
                   colors.map((color: string, colorIndex: number) => (
                     <div
