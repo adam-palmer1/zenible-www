@@ -92,27 +92,9 @@ const DocumentTotals: React.FC<DocumentTotalsProps> = ({
         <>
           {totals.documentTaxBreakdown.map((tax: any, index: number) => (
             <div key={index} className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">
-                  {tax.tax_name} ({tax.tax_rate}%):
-                </span>
-                {index === 0 && (
-                  <>
-                    <button
-                      onClick={onEditTax}
-                      className="text-xs text-purple-600 hover:text-purple-700"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={onRemoveTax}
-                      className="text-xs text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </button>
-                  </>
-                )}
-              </div>
+              <span className="text-sm text-gray-600">
+                {tax.tax_name} ({tax.tax_rate}%):
+              </span>
               <span className="text-sm font-medium text-gray-900">
                 {symbol}{formatNumber(tax.tax_amount || 0)}
               </span>
@@ -157,15 +139,13 @@ const DocumentTotals: React.FC<DocumentTotalsProps> = ({
 
       {/* Add buttons */}
       <div className="flex items-center gap-3 pt-2">
-        {documentTaxes.length === 0 && (
-          <button
-            onClick={onEditTax}
-            className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-          >
-            <Plus className="h-4 w-4" />
-            Add Tax
-          </button>
-        )}
+        <button
+          onClick={onEditTax}
+          className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
+        >
+          <Plus className="h-4 w-4" />
+          {documentTaxes.length > 0 ? 'Edit Taxes' : 'Add Tax'}
+        </button>
         {discountValue === 0 && onEditDiscount && (
           <button
             onClick={onEditDiscount}

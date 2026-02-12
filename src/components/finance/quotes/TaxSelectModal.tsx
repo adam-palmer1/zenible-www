@@ -1,34 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Check, Loader2 } from 'lucide-react';
+import { X, Plus, Check, Loader2, Trash2 } from 'lucide-react';
 import taxesAPI from '../../../services/api/crm/taxes';
+
+interface TaxItem {
+  tax_name: string;
+  tax_rate: number;
+}
 
 interface TaxSelectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (rate: number, label: string) => void;
-  initialTaxRate?: number;
-  initialTaxLabel?: string;
+  onSave: (taxes: TaxItem[]) => void;
+  initialDocumentTaxes?: TaxItem[];
 }
 
 /**
  * Tax Select Modal for Quotes
- * Allows selecting from company taxes or adding a new one
+ * Multi-select from company taxes or add new ones
  */
 const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  initialTaxRate = 0,
-  initialTaxLabel = 'Tax'
+  initialDocumentTaxes = [],
 }) => {
-  const [taxes, setTaxes] = useState<any[]>([]);
+  const [companyTaxes, setCompanyTaxes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Selected tax state
-  const [selectedTaxId, setSelectedTaxId] = useState<string | null>(null);
-  const [, setTaxRate] = useState(initialTaxRate);
-  const [, setTaxLabel] = useState(initialTaxLabel);
+  // Selected taxes
+  const [selectedTaxes, setSelectedTaxes] = useState<TaxItem[]>([]);
 
   // Add new tax form
   const [showAddForm, setShowAddForm] = useState(false);
@@ -36,54 +37,27 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
   const [newTaxRate, setNewTaxRate] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Custom rate (when not using company taxes)
-  const [useCustom, setUseCustom] = useState(false);
-  const [customRate, setCustomRate] = useState('');
-  const [customLabel, setCustomLabel] = useState('Tax');
-
-  // Fetch company taxes
+  // Initialize when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchTaxes();
-      // Reset form state
-      setSelectedTaxId(null);
+      setSelectedTaxes(initialDocumentTaxes.map(t => ({
+        tax_name: t.tax_name,
+        tax_rate: typeof t.tax_rate === 'string' ? parseFloat(t.tax_rate) : t.tax_rate,
+      })));
       setShowAddForm(false);
-      setUseCustom(false);
-      setCustomRate('');
-      setCustomLabel('Tax');
-
-      // If there's an initial value, try to match it
-      if (initialTaxRate > 0) {
-        setTaxRate(initialTaxRate);
-        setTaxLabel(initialTaxLabel);
-      }
+      setNewTaxName('');
+      setNewTaxRate('');
+      setError(null);
     }
-  }, [isOpen, initialTaxRate, initialTaxLabel]);
-
-  // Try to select matching tax when taxes load
-  useEffect(() => {
-    if (taxes.length > 0 && initialTaxRate > 0) {
-      const matchingTax = taxes.find((t: any) =>
-        parseFloat(t.tax_rate) === parseFloat(String(initialTaxRate)) &&
-        t.tax_name === initialTaxLabel
-      );
-      if (matchingTax) {
-        setSelectedTaxId(matchingTax.id);
-      } else {
-        // No matching tax, use custom
-        setUseCustom(true);
-        setCustomRate(String(initialTaxRate));
-        setCustomLabel(initialTaxLabel);
-      }
-    }
-  }, [taxes, initialTaxRate, initialTaxLabel]);
+  }, [isOpen, initialDocumentTaxes]);
 
   const fetchTaxes = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await (taxesAPI as Record<string, Function>).list();
-      setTaxes(data || []);
+      setCompanyTaxes(data || []);
     } catch (err: any) {
       console.error('Failed to fetch taxes:', err);
       setError('Failed to load taxes');
@@ -92,27 +66,35 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
     }
   };
 
-  const handleSelectTax = (tax: any) => {
-    setSelectedTaxId(tax.id);
-    setTaxRate(parseFloat(tax.tax_rate));
-    setTaxLabel(tax.tax_name);
-    setUseCustom(false);
-    setCustomRate('');
-    setCustomLabel('Tax');
+  const isTaxSelected = (tax: any): boolean => {
+    return selectedTaxes.some(
+      t => t.tax_name === tax.tax_name && t.tax_rate === parseFloat(tax.tax_rate)
+    );
   };
 
-  const handleUseCustom = () => {
-    setUseCustom(true);
-    setSelectedTaxId(null);
+  const toggleTax = (tax: any) => {
+    const rate = parseFloat(tax.tax_rate);
+    const existingIndex = selectedTaxes.findIndex(
+      t => t.tax_name === tax.tax_name && t.tax_rate === rate
+    );
+
+    if (existingIndex >= 0) {
+      setSelectedTaxes(prev => prev.filter((_, i) => i !== existingIndex));
+    } else {
+      setSelectedTaxes(prev => [...prev, { tax_name: tax.tax_name, tax_rate: rate }]);
+    }
+  };
+
+  const removeSelectedTax = (index: number) => {
+    setSelectedTaxes(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleAddNewTax = async () => {
-    if (!newTaxName.trim() || !newTaxRate) {
-      return;
-    }
+    if (!newTaxName.trim() || !newTaxRate) return;
 
     const rate = parseFloat(newTaxRate);
     if (isNaN(rate) || rate < 0 || rate > 100) {
+      setError('Tax rate must be between 0 and 100');
       return;
     }
 
@@ -123,11 +105,9 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
         tax_rate: rate,
       });
 
-      // Add to list and select it
-      setTaxes(prev => [...prev, newTax]);
-      handleSelectTax(newTax);
-
-      // Reset form
+      // Add to company list and auto-select
+      setCompanyTaxes(prev => [...prev, newTax]);
+      setSelectedTaxes(prev => [...prev, { tax_name: newTax.tax_name, tax_rate: parseFloat(newTax.tax_rate) }]);
       setNewTaxName('');
       setNewTaxRate('');
       setShowAddForm(false);
@@ -140,36 +120,12 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
   };
 
   const handleSave = () => {
-    let finalRate: number, finalLabel: string;
-
-    if (useCustom) {
-      finalRate = parseFloat(customRate) || 0;
-      finalLabel = customLabel.trim() || 'Tax';
-    } else if (selectedTaxId) {
-      const selectedTax = taxes.find((t: any) => t.id === selectedTaxId);
-      if (selectedTax) {
-        finalRate = parseFloat(selectedTax.tax_rate);
-        finalLabel = selectedTax.tax_name;
-      } else {
-        finalRate = 0;
-        finalLabel = 'Tax';
-      }
-    } else {
-      finalRate = 0;
-      finalLabel = 'Tax';
-    }
-
-    if (finalRate < 0 || finalRate > 100) {
-      setError('Tax rate must be between 0 and 100');
-      return;
-    }
-
-    onSave(finalRate, finalLabel);
+    onSave(selectedTaxes);
     onClose();
   };
 
-  const handleRemoveTax = () => {
-    onSave(0, 'Tax');
+  const handleRemoveAll = () => {
+    onSave([]);
     onClose();
   };
 
@@ -190,7 +146,7 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
           <div className="bg-white dark:bg-gray-800 px-6 pt-6 pb-4">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {initialTaxRate > 0 ? 'Edit Tax' : 'Add Tax'}
+                {initialDocumentTaxes.length > 0 ? 'Edit Taxes' : 'Add Taxes'}
               </h3>
               <button
                 onClick={onClose}
@@ -215,39 +171,65 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
             ) : (
               <div className="space-y-4">
                 {/* Company Taxes List */}
-                {taxes.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                      Select Tax
-                    </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                    Available Taxes
+                  </label>
+                  {companyTaxes.length > 0 ? (
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {taxes.map((tax: any) => (
-                        <button
-                          key={tax.id}
-                          type="button"
-                          onClick={() => handleSelectTax(tax)}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
-                            selectedTaxId === tax.id && !useCustom
-                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                              : 'border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500'
-                          }`}
-                        >
-                          <div className="text-left">
-                            <div className="font-medium text-gray-900 dark:text-white">
-                              {tax.tax_name}
+                      {companyTaxes.map((tax: any) => {
+                        const selected = isTaxSelected(tax);
+                        return (
+                          <button
+                            key={tax.id}
+                            type="button"
+                            onClick={() => toggleTax(tax)}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
+                              selected
+                                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                                selected
+                                  ? 'bg-purple-600 border-purple-600'
+                                  : 'border-gray-300 dark:border-gray-500'
+                              }`}>
+                                {selected && <Check className="h-3 w-3 text-white" />}
+                              </div>
+                              <span className={`font-medium ${
+                                selected
+                                  ? 'text-purple-700 dark:text-purple-400'
+                                  : 'text-gray-900 dark:text-white'
+                              }`}>
+                                {tax.tax_name}
+                              </span>
                             </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                            <span className={`text-sm ${
+                              selected
+                                ? 'text-purple-600 dark:text-purple-400'
+                                : 'text-gray-500 dark:text-gray-400'
+                            }`}>
                               {parseFloat(tax.tax_rate)}%
-                            </div>
-                          </div>
-                          {selectedTaxId === tax.id && !useCustom && (
-                            <Check className="h-5 w-5 text-purple-600" />
-                          )}
-                        </button>
-                      ))}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
-                  </div>
-                )}
+                  ) : !showAddForm ? (
+                    <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+                      <p className="mb-3">No saved taxes found</p>
+                      <button
+                        onClick={() => setShowAddForm(true)}
+                        className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 font-medium"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Create your first tax
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
 
                 {/* Add New Tax Button/Form */}
                 {!showAddForm ? (
@@ -316,64 +298,39 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
                   </div>
                 )}
 
-                {/* Custom Tax Rate */}
-                <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
-                  <button
-                    type="button"
-                    onClick={handleUseCustom}
-                    className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
-                      useCustom
-                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                        : 'border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        Use Custom Rate
-                      </span>
-                      {useCustom && <Check className="h-5 w-5 text-purple-600" />}
+                {/* Applied Taxes Summary */}
+                {selectedTaxes.length > 0 && (
+                  <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Applied Taxes ({selectedTaxes.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTaxes([])}
+                        className="text-xs text-red-600 hover:text-red-700 dark:text-red-400"
+                      >
+                        Clear All
+                      </button>
                     </div>
-                  </button>
-
-                  {useCustom && (
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        value={customLabel}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomLabel(e.target.value)}
-                        placeholder="Tax Label"
-                        className="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 dark:text-white"
-                      />
-                      <div className="relative">
-                        <input
-                          type="number"
-                          value={customRate}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomRate(e.target.value)}
-                          placeholder="Rate"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          className="w-full px-3 py-2 pr-8 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 dark:text-white"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Preview */}
-                {(selectedTaxId || useCustom) && (
-                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-300 text-sm">Preview:</span>
-                      <span className="text-gray-900 dark:text-white font-medium">
-                        {useCustom
-                          ? `${customLabel || 'Tax'} (${customRate || 0}%)`
-                          : selectedTaxId
-                            ? `${taxes.find((t: any) => t.id === selectedTaxId)?.tax_name} (${taxes.find((t: any) => t.id === selectedTaxId)?.tax_rate}%)`
-                            : 'No tax selected'
-                        }
-                      </span>
+                    <div className="space-y-2">
+                      {selectedTaxes.map((tax, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                        >
+                          <span className="text-sm text-gray-900 dark:text-white">
+                            {tax.tax_name} ({tax.tax_rate}%)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeSelectedTax(index)}
+                            className="text-red-500 hover:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -383,13 +340,13 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
 
           {/* Footer */}
           <div className="bg-gray-50 dark:bg-gray-900 px-6 py-4 flex justify-between gap-3">
-            {initialTaxRate > 0 && (
+            {initialDocumentTaxes.length > 0 && (
               <button
                 type="button"
-                onClick={handleRemoveTax}
+                onClick={handleRemoveAll}
                 className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
               >
-                Remove Tax
+                Remove All
               </button>
             )}
             <div className="flex gap-3 ml-auto">
@@ -403,10 +360,10 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={!selectedTaxId && !useCustom}
+                disabled={selectedTaxes.length === 0}
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Apply
+                Apply Taxes
               </button>
             </div>
           </div>

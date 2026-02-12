@@ -3,7 +3,7 @@ import Modal from '../ui/modal/Modal';
 import {
   PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
-  PROJECT_STATUS_HEX_COLORS,
+  PROJECT_STATUS_COLORS,
 } from '../../constants/crm';
 import type { ProjectStatus } from '../../constants/crm';
 
@@ -52,11 +52,7 @@ const StatusSelectorModal: React.FC<StatusSelectorModalProps> = ({
               }`}
             >
               <div className="flex items-center gap-3">
-                <div
-                  className="w-4 h-4 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: PROJECT_STATUS_HEX_COLORS[status as ProjectStatus] }}
-                />
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PROJECT_STATUS_COLORS[status as ProjectStatus]}`}>
                   {PROJECT_STATUS_LABELS[status as ProjectStatus]}
                 </span>
               </div>

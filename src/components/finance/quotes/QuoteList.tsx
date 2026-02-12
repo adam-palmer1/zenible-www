@@ -101,6 +101,7 @@ const QuoteList: React.FC = () => {
   // Date filter presets
   const DATE_PRESETS = [
     { key: 'all', label: 'All Time' },
+    { key: 'last_30_days', label: 'Last 30 Days' },
     { key: 'today', label: 'Today' },
     { key: 'this_week', label: 'This Week' },
     { key: 'this_month', label: 'This Month' },
@@ -118,7 +119,7 @@ const QuoteList: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
-  const [datePreset, setDatePreset] = useState('all');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [dateType] = useState('issue'); // 'issue' or 'valid'
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
@@ -133,6 +134,20 @@ const QuoteList: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
+  // Apply default "last 30 days" date filter on mount
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 29);
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    updateFilters({
+      issue_date_from: fmt(thirtyDaysAgo),
+      issue_date_to: fmt(today),
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Calculate date range from preset
   const getDateRangeFromPreset = (preset: string) => {
     const today = new Date();
@@ -143,6 +158,11 @@ const QuoteList: React.FC = () => {
     };
 
     switch (preset) {
+      case 'last_30_days': {
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 29);
+        return { from: formatDate(thirtyDaysAgo), to: formatDate(today) };
+      }
       case 'today': {
         return { from: formatDate(today), to: formatDate(today) };
       }
@@ -669,19 +689,6 @@ const QuoteList: React.FC = () => {
               )}
             </div>
 
-            {/* Active Date Filter Tag */}
-            {datePreset !== 'all' && (
-              <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm">
-                <span>Date:</span>
-                <span className="font-medium">{getDateFilterLabel()}</span>
-                <button
-                  onClick={clearDateFilter}
-                  className="ml-1 p-0.5 hover:bg-purple-200 rounded-full"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
 
             {/* Active Client Filter Tag */}
             {selectedClientIds.length > 0 && (

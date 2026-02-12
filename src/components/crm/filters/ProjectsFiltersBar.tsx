@@ -3,7 +3,7 @@ import { ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import {
   PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
-  PROJECT_STATUS_HEX_COLORS
+  PROJECT_STATUS_COLORS,
 } from '../../../constants/crm';
 import type { ProjectStatus } from '../../../constants/crm';
 
@@ -74,11 +74,7 @@ const ProjectsFiltersBar: React.FC<ProjectsFiltersBarProps> = ({
                     className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
                   />
                   <div className="flex items-center gap-2 flex-1">
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: PROJECT_STATUS_HEX_COLORS[status as ProjectStatus] }}
-                    />
-                    <span className="text-sm text-gray-900">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PROJECT_STATUS_COLORS[status as ProjectStatus]}`}>
                       {PROJECT_STATUS_LABELS[status as ProjectStatus]}
                     </span>
                   </div>

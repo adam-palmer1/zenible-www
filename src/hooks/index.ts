@@ -26,5 +26,8 @@ export { useSSEStreaming } from './useSSEStreaming';
 export { useWebSocketConnection } from './useWebSocketConnection';
 export { useDebouncedPreference } from './useDebouncedPreference';
 
+// Network status
+export { useNetworkStatus } from './useNetworkStatus';
+
 // Session management
 export { useSessionGuard } from './useSessionGuard';

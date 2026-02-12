@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Check, Loader2 } from 'lucide-react';
-import companiesAPI from '../../../services/api/crm/companies';
+import { X, Plus, Check, Loader2, Trash2 } from 'lucide-react';
+import taxesAPI from '../../../services/api/crm/taxes';
 
 interface CompanyTax {
   id: string;
   tax_name: string;
   tax_rate: string;
 }
-
-const companiesAPITyped = companiesAPI as typeof companiesAPI & {
-  listTaxes: () => Promise<CompanyTax[]>;
-  createTax: (data: { tax_name: string; tax_rate: number }) => Promise<CompanyTax>;
-};
 
 interface TaxItem {
   tax_name: string;
@@ -27,10 +22,7 @@ interface TaxModalProps {
 }
 
 const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDocumentTaxes = [] }) => {
-  // Extract first tax from array for backwards compatibility
-  const initialTax = initialDocumentTaxes[0] || ({} as Partial<TaxItem>);
-  const [taxRate, setTaxRate] = useState(parseFloat(String(initialTax.tax_rate ?? 0)) || 0);
-  const [taxLabel, setTaxLabel] = useState(initialTax.tax_name || 'Tax');
+  const [selectedTaxes, setSelectedTaxes] = useState<TaxItem[]>([]);
   const [companyTaxes, setCompanyTaxes] = useState<CompanyTax[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -38,12 +30,13 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
   const [newTaxRate, setNewTaxRate] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Fetch company taxes when modal opens
+  // Initialize when modal opens
   useEffect(() => {
     if (isOpen) {
-      const tax = initialDocumentTaxes[0] || ({} as Partial<TaxItem>);
-      setTaxRate(parseFloat(String(tax.tax_rate ?? 0)) || 0);
-      setTaxLabel(tax.tax_name || 'Tax');
+      setSelectedTaxes(initialDocumentTaxes.map(t => ({
+        tax_name: t.tax_name,
+        tax_rate: typeof t.tax_rate === 'string' ? parseFloat(t.tax_rate) : t.tax_rate,
+      })));
       setShowAddForm(false);
       setNewTaxName('');
       setNewTaxRate('');
@@ -54,7 +47,7 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
   const loadCompanyTaxes = async () => {
     try {
       setLoading(true);
-      const taxes = await companiesAPITyped.listTaxes();
+      const taxes = await (taxesAPI as Record<string, Function>).list();
       setCompanyTaxes(taxes || []);
     } catch (error: any) {
       console.error('Failed to load company taxes:', error);
@@ -64,24 +57,35 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
     }
   };
 
-  const handleSelectTax = (tax: CompanyTax) => {
-    setTaxRate(parseFloat(tax.tax_rate));
-    setTaxLabel(tax.tax_name);
-    setShowAddForm(false);
+  const isTaxSelected = (tax: CompanyTax): boolean => {
+    return selectedTaxes.some(
+      t => t.tax_name === tax.tax_name && t.tax_rate === parseFloat(tax.tax_rate)
+    );
+  };
+
+  const toggleTax = (tax: CompanyTax) => {
+    const rate = parseFloat(tax.tax_rate);
+    const existingIndex = selectedTaxes.findIndex(
+      t => t.tax_name === tax.tax_name && t.tax_rate === rate
+    );
+
+    if (existingIndex >= 0) {
+      setSelectedTaxes(prev => prev.filter((_, i) => i !== existingIndex));
+    } else {
+      setSelectedTaxes(prev => [...prev, { tax_name: tax.tax_name, tax_rate: rate }]);
+    }
+  };
+
+  const removeSelectedTax = (index: number) => {
+    setSelectedTaxes(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = () => {
-    if (taxRate < 0 || taxRate > 100) {
-      alert('Tax rate must be between 0 and 100');
-      return;
-    }
-    // Return as document_taxes array format
-    onSave([{ tax_name: taxLabel, tax_rate: taxRate }]);
+    onSave(selectedTaxes);
     onClose();
   };
 
-  const handleRemove = () => {
-    // Return empty array to remove all document taxes
+  const handleRemoveAll = () => {
     onSave([]);
     onClose();
   };
@@ -99,15 +103,14 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
 
     try {
       setSaving(true);
-      const newTax = await companiesAPITyped.createTax({
+      const newTax = await (taxesAPI as Record<string, Function>).create({
         tax_name: newTaxName.trim(),
         tax_rate: rate,
       });
 
-      // Add to local list and select it
+      // Add to company list and auto-select it
       setCompanyTaxes(prev => [...prev, newTax]);
-      setTaxRate(rate);
-      setTaxLabel(newTaxName.trim());
+      setSelectedTaxes(prev => [...prev, { tax_name: newTax.tax_name, tax_rate: parseFloat(newTax.tax_rate) }]);
       setShowAddForm(false);
       setNewTaxName('');
       setNewTaxRate('');
@@ -130,7 +133,7 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
           <div className="bg-white dark:bg-gray-800 px-6 pt-6 pb-4">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {initialDocumentTaxes.length > 0 ? 'Edit Tax' : 'Add Tax'}
+                {initialDocumentTaxes.length > 0 ? 'Edit Taxes' : 'Add Taxes'}
               </h3>
               <button
                 onClick={onClose}
@@ -144,7 +147,7 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
               {/* Company Saved Taxes */}
               <div>
                 <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                  Select Tax
+                  Available Taxes
                 </label>
 
                 {loading ? (
@@ -163,30 +166,30 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
                     {companyTaxes.map((tax: CompanyTax) => {
-                      const isSelected = taxRate === parseFloat(tax.tax_rate) && taxLabel === tax.tax_name;
+                      const selected = isTaxSelected(tax);
                       return (
                         <button
                           key={tax.id}
                           type="button"
-                          onClick={() => handleSelectTax(tax)}
+                          onClick={() => toggleTax(tax)}
                           className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
-                            isSelected
+                            selected
                               ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
                               : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600'
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                              isSelected
-                                ? 'border-purple-500 bg-purple-500'
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                              selected
+                                ? 'bg-purple-600 border-purple-600'
                                 : 'border-gray-300 dark:border-gray-600'
                             }`}>
-                              {isSelected && <Check className="h-3 w-3 text-white" />}
+                              {selected && <Check className="h-3 w-3 text-white" />}
                             </div>
                             <span className={`font-medium ${
-                              isSelected
+                              selected
                                 ? 'text-purple-700 dark:text-purple-400'
                                 : 'text-gray-900 dark:text-white'
                             }`}>
@@ -194,7 +197,7 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
                             </span>
                           </div>
                           <span className={`text-sm ${
-                            isSelected
+                            selected
                               ? 'text-purple-600 dark:text-purple-400'
                               : 'text-gray-500 dark:text-gray-400'
                           }`}>
@@ -288,14 +291,39 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
                 </div>
               )}
 
-              {/* Preview */}
-              {taxRate > 0 && (
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-300 text-sm">Selected:</span>
-                    <span className="text-gray-900 dark:text-white font-medium">
-                      {taxLabel} ({taxRate}%)
-                    </span>
+              {/* Applied Taxes Summary */}
+              {selectedTaxes.length > 0 && (
+                <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Applied Taxes ({selectedTaxes.length})
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTaxes([])}
+                      className="text-xs text-red-600 hover:text-red-700 dark:text-red-400"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {selectedTaxes.map((tax, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                      >
+                        <span className="text-sm text-gray-900 dark:text-white">
+                          {tax.tax_name} ({tax.tax_rate}%)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeSelectedTax(index)}
+                          className="text-red-500 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -306,10 +334,10 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
             {initialDocumentTaxes.length > 0 && (
               <button
                 type="button"
-                onClick={handleRemove}
+                onClick={handleRemoveAll}
                 className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
               >
-                Remove Tax
+                Remove All
               </button>
             )}
             <div className="flex gap-3 ml-auto">
@@ -323,10 +351,10 @@ const TaxModal: React.FC<TaxModalProps> = ({ isOpen, onClose, onSave, initialDoc
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={taxRate === 0}
+                disabled={selectedTaxes.length === 0}
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Apply Tax
+                Apply Taxes
               </button>
             </div>
           </div>

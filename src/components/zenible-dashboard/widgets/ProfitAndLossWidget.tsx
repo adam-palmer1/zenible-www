@@ -161,10 +161,10 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
     };
 
     return (
-      <div className="relative" ref={chartRef}>
+      <div className="relative h-full" ref={chartRef}>
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="w-full h-auto"
+          className="w-full h-full"
           preserveAspectRatio="xMidYMid meet"
           onMouseLeave={() => setHoveredBar(null)}
         >

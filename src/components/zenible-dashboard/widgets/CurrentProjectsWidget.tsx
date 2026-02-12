@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RectangleStackIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import { PROJECT_STATUS, PROJECT_STATUS_LABELS, PROJECT_STATUS_HEX_COLORS, type ProjectStatus } from '../../../constants/crm';
+import { PROJECT_STATUS, PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, type ProjectStatus } from '../../../constants/crm';
 import projectsAPI from '../../../services/api/crm/projects';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '../../shared';
@@ -96,11 +96,7 @@ const CurrentProjectsWidget = ({ settings = {}, isHovered = false }: CurrentProj
                     {project.name}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
-                    <div
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: PROJECT_STATUS_HEX_COLORS[project.status as ProjectStatus] }}
-                    />
-                    <span className="text-xs text-gray-500">
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${PROJECT_STATUS_COLORS[project.status as ProjectStatus]}`}>
                       {PROJECT_STATUS_LABELS[project.status as ProjectStatus]}
                     </span>
                     {project.services_count > 0 && (

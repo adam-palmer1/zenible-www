@@ -9,7 +9,6 @@ import {
   PROJECT_STATUS,
   PROJECT_STATUS_LABELS,
   PROJECT_STATUS_COLORS,
-  PROJECT_STATUS_HEX_COLORS,
   type ProjectStatus,
 } from '../../constants/crm';
 import contactsAPI from '../../services/api/crm/contacts';

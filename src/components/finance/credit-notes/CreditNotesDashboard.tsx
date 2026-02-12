@@ -623,19 +623,6 @@ const CreditNotesDashboard: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Active Date Filter Tag */}
-                  {datePreset !== 'all' && (
-                    <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm">
-                      <span>Issue Date:</span>
-                      <span className="font-medium">{getDateFilterLabel()}</span>
-                      <button
-                        onClick={clearDateFilter}
-                        className="ml-1 p-0.5 hover:bg-purple-200 rounded-full"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  )}
 
                   {/* Active Client Filter Tag */}
                   {selectedClientIds.length > 0 && (

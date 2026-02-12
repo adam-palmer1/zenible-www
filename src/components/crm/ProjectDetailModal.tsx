@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, FileText, Receipt, CreditCard, FileMinus, Loader2, Settings2, ChevronDown, ChevronUp, Trash2, Plus, type LucideProps } from 'lucide-react';
 import BillableHoursTab from './BillableHoursTab';
-import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, PROJECT_STATUS_HEX_COLORS, SERVICE_STATUS, SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS, type ProjectStatus, type ServiceStatus } from '../../constants/crm';
+import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, SERVICE_STATUS, SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS, type ProjectStatus, type ServiceStatus } from '../../constants/crm';
 import StatusSelectorModal from './StatusSelectorModal';
 import { formatCurrency } from '../../utils/currency';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -113,6 +113,7 @@ interface ProjectServiceAssignment {
     name?: string;
     price?: string | number | null;
     description?: string | null;
+    status?: string | null;
     currency_id?: string | null;
     currency?: { code?: string } | null;
     template_service?: {
@@ -187,7 +188,12 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
       setLoadingServices(true);
       const data = await projectsAPI.listServices(projectProp.id) as { items?: ProjectServiceAssignment[] } | ProjectServiceAssignment[];
       const items = Array.isArray(data) ? data : (data.items || []);
-      setServices(items);
+      // Map status from nested contact_service to top-level for display
+      const mapped = items.map((s: ProjectServiceAssignment) => ({
+        ...s,
+        status: s.status || s.contact_service?.status || undefined,
+      }));
+      setServices(mapped);
     } catch (err) {
       console.error('Error fetching project services:', err);
       setServices([]);
@@ -922,13 +928,8 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
               disabled={updatingProjectStatus}
               className={`inline-flex items-center gap-1.5 px-2 py-0.5 h-6 rounded-md text-xs font-medium transition-colors hover:ring-1 hover:ring-purple-300 dark:hover:ring-purple-600 cursor-pointer disabled:opacity-50 ${PROJECT_STATUS_COLORS[project.status as ProjectStatus] || 'bg-[#e5e5e5] dark:bg-gray-700 text-[#09090b] dark:text-gray-300'}`}
             >
-              {updatingProjectStatus ? (
+              {updatingProjectStatus && (
                 <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: PROJECT_STATUS_HEX_COLORS[project.status as ProjectStatus] }}
-                />
               )}
               {PROJECT_STATUS_LABELS[project.status as ProjectStatus] || project.status}
               <ChevronDown className="h-3 w-3" />

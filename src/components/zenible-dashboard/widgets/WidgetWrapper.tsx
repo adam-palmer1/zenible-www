@@ -122,7 +122,7 @@ const WidgetWrapper = ({
         {/* Widget content - fills remaining space */}
         <div className="px-3 pb-3 flex-1 min-h-0 overflow-hidden">
           <Suspense fallback={<WidgetSkeleton />}>
-            <WidgetComponent settings={widgetSettings} isHovered={isHovered} />
+            <WidgetComponent settings={widgetSettings} isHovered={isHovered} widgetId={widgetId} />
           </Suspense>
         </div>
       </div>

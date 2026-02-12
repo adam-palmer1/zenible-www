@@ -58,6 +58,7 @@ const InvoiceList: React.FC = () => {
   // Date filter presets
   const DATE_PRESETS = [
     { key: 'all', label: 'All Time' },
+    { key: 'last_30_days', label: 'Last 30 Days' },
     { key: 'today', label: 'Today' },
     { key: 'this_week', label: 'This Week' },
     { key: 'this_month', label: 'This Month' },
@@ -77,7 +78,7 @@ const InvoiceList: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<any[]>([]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
-  const [datePreset, setDatePreset] = useState('all');
+  const [datePreset, setDatePreset] = useState('last_30_days');
   const [dateType, setDateType] = useState('issue'); // 'issue' or 'due'
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
@@ -130,6 +131,20 @@ const InvoiceList: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlStatus]);
 
+  // Apply default "last 30 days" date filter on mount
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 29);
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    updateFilters({
+      issue_date_from: fmt(thirtyDaysAgo),
+      issue_date_to: fmt(today),
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Clear parent filter
   const clearParentFilter = useCallback(() => {
     setSearchParams({});
@@ -146,6 +161,11 @@ const InvoiceList: React.FC = () => {
     };
 
     switch (preset) {
+      case 'last_30_days': {
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 29);
+        return { from: formatDate(thirtyDaysAgo), to: formatDate(today) };
+      }
       case 'today': {
         return { from: formatDate(today), to: formatDate(today) };
       }

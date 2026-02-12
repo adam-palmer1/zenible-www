@@ -697,20 +697,8 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
       <TaxSelectModal
         isOpen={showTaxModal}
         onClose={() => setShowTaxModal(false)}
-        onSave={(rate: number, label: string) => {
-          // Convert to document_taxes array format
-          if (rate > 0) {
-            setDocumentTaxes([{
-              tax_name: label,
-              tax_rate: rate,
-              display_order: 0,
-            }]);
-          } else {
-            setDocumentTaxes([]);
-          }
-        }}
-        initialTaxRate={documentTaxes[0]?.tax_rate || 0}
-        initialTaxLabel={documentTaxes[0]?.tax_name || 'Tax'}
+        onSave={(taxes) => setDocumentTaxes(taxes)}
+        initialDocumentTaxes={documentTaxes}
       />
 
       <DiscountModal

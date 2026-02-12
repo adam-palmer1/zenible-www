@@ -196,7 +196,7 @@ export const calculateAnnualValue = (amount: number | string, frequency: string)
   const multipliers: Record<string, number> = {
     monthly: 12,
     quarterly: 4,
-    annually: 1,
+    annual: 1,
     one_time: 1,
   };
 

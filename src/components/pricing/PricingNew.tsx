@@ -430,9 +430,9 @@ export default function PricingNew() {
               Monthly
             </button>
             <button
-              onClick={() => setBillingCycle('annually')}
+              onClick={() => setBillingCycle('annual')}
               className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                billingCycle === 'annually'
+                billingCycle === 'annual'
                   ? darkMode
                     ? 'bg-zenible-dark-bg text-zenible-dark-text border border-zenible-dark-border shadow-sm'
                     : 'bg-white text-zinc-950 border border-neutral-200 shadow-sm'

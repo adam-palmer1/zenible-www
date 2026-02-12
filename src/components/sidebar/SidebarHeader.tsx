@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import planAPI from '../../services/planAPI';
 import type { PlanDetailResponse } from '../../types';
+import brandIcon from '../../assets/icons/brand-icon.svg';
 
 interface SidebarHeaderProps {
   isCollapsed: boolean;
@@ -35,9 +36,9 @@ export default function SidebarHeader({ isCollapsed, onToggle }: SidebarHeaderPr
     <div className="px-4 py-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* Brand Icon - Purple background with white Z */}
-          <div className="w-8 h-8 rounded-lg bg-[#8B5CF6] flex items-center justify-center">
-            <span className="text-white font-bold text-sm">Z</span>
+          {/* Brand Icon - Purple background with Zenible logo */}
+          <div className="w-8 h-8 rounded-lg bg-[#8B5CF6] flex items-center justify-center p-[6px]">
+            <img src={brandIcon} alt="" className="w-[19.2px] h-[19.2px]" />
           </div>
 
           {/* Brand Text - Hidden when collapsed */}

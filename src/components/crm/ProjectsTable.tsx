@@ -30,7 +30,7 @@ export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTablePr
   const [projectForExpenses, setProjectForExpenses] = useState<ProjectListItemResponse | null>(null);
   const detailModal = useModalState<ProjectListItemResponse>();
 
-  const { projects: rawProjects, loading, deleteProject } = useProjects(
+  const { projects: rawProjects, loading, deleteProject, refresh } = useProjects(
     selectedStatuses.length > 0 ? { statuses: selectedStatuses } : {}
   );
   const projects = rawProjects as unknown as ProjectListItemResponse[];
@@ -266,9 +266,7 @@ export default function ProjectsTable({ selectedStatuses = [] }: ProjectsTablePr
         isOpen={detailModal.isOpen}
         onClose={handleCloseDetailModal}
         project={detailModal.data}
-        onUpdate={() => {
-          // Optionally refresh projects if needed
-        }}
+        onUpdate={refresh}
       />
     </div>
   );

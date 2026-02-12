@@ -6,9 +6,11 @@
 import { API_BASE_URL } from '@/config/api';
 import logger from '@/utils/logger';
 import { ApiError } from './ApiError';
+import { NetworkError } from './NetworkError';
 
-// Re-export ApiError so existing imports from httpClient continue to work
+// Re-export so existing imports from httpClient continue to work
 export { ApiError } from './ApiError';
+export { NetworkError } from './NetworkError';
 
 interface ValidationError {
   loc?: (string | number)[];
@@ -115,6 +117,12 @@ export const createRequest = (context = 'API'): RequestFn => {
 
       return data as T;
     } catch (error) {
+      // Wrap fetch TypeError (network failure / offline) as NetworkError
+      if (error instanceof TypeError && !navigator.onLine) {
+        const networkError = new NetworkError();
+        logger.error(`[${context}] Network error (offline):`, networkError);
+        throw networkError;
+      }
       logger.error(`[${context}] Request failed:`, error);
       throw error;
     }

@@ -194,6 +194,16 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
   const getDisplayText = () => {
     if (!startDate && !endDate) return 'All Time';
 
+    // Check if current dates match a preset and show its label
+    if (startDate && endDate) {
+      for (const preset of DATE_PRESETS) {
+        const { start_date, end_date } = preset.getValue();
+        if (startDate === start_date && endDate === end_date) {
+          return preset.label;
+        }
+      }
+    }
+
     const formatDate = (dateStr: string) => {
       if (!dateStr) return '';
       const date = new Date(dateStr + 'T00:00:00');
@@ -216,6 +226,12 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
   };
 
   const hasFilter = startDate || endDate;
+
+  const isPresetActive = (preset: DatePreset) => {
+    if (!startDate || !endDate) return false;
+    const { start_date, end_date } = preset.getValue();
+    return startDate === start_date && endDate === end_date;
+  };
 
   return (
     <div ref={containerRef} className="relative">
@@ -289,7 +305,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
                     <button
                       key={preset.label}
                       onClick={() => handlePresetClick(preset)}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      className={`block w-full text-left px-4 py-2 text-sm ${isPresetActive(preset) ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-50 dark:hover:bg-gray-700`}
                     >
                       {preset.label}
                     </button>

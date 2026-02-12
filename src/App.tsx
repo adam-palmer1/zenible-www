@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useCallback, useRef } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
 import { QueryClientProvider } from './lib/react-query';
 import { queryClient } from './lib/react-query';
@@ -7,12 +7,14 @@ import { AuthProvider } from './contexts/AuthContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { CRMProvider } from './contexts/CRMContext';
-import { NotificationProvider } from './contexts/NotificationContext';
+import { NotificationProvider, useNotification } from './contexts/NotificationContext';
 import { InvoiceProvider } from './contexts/InvoiceContext';
 import { QuoteProvider } from './contexts/QuoteContext';
 import { ExpenseProvider } from './contexts/ExpenseContext';
 import { PaymentIntegrationsProvider } from './contexts/PaymentIntegrationsContext';
 import { CRMReferenceDataProvider } from './contexts/CRMReferenceDataContext';
+import { useNetworkStatus } from './hooks/useNetworkStatus';
+import NetworkErrorOverlay from './components/shared/NetworkErrorOverlay';
 
 // Auth pages (eager - critical path, first pages users see)
 import SignIn from './pages/signin/SignIn';
@@ -36,6 +38,9 @@ import { UsageDashboardProvider } from './contexts/UsageDashboardContext';
 // ---------------------------------------------------------------------------
 // Lazy-loaded route components (code-split per route)
 // ---------------------------------------------------------------------------
+
+// Network error QA page
+const NetworkErrorPage = React.lazy(() => import('./components/shared/NetworkErrorPage'));
 
 // Feature routes
 const UserSettings = React.lazy(() => import('./components/UserSettings'));
@@ -557,12 +562,49 @@ const router = createBrowserRouter([
         ]
       },
       {
+        path: 'network-error',
+        element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><NetworkErrorPage /></Suspense></ErrorBoundary>
+      },
+      {
         index: true,
         element: <Navigate to="/dashboard" replace />
       }
     ]
   }
 ]);
+
+/**
+ * Bridge component that sits inside NotificationProvider so it can
+ * call useNotification(), and renders the network-offline overlay
+ * plus the router. When connectivity returns, a "You're back online!" toast appears.
+ */
+function AppWithNetworkStatus(): React.ReactElement {
+  const { isOnline } = useNetworkStatus();
+  const { showSuccess } = useNotification();
+  const wasOffline = useRef(false);
+
+  const handleReconnect = useCallback(() => {
+    // Only after being offline → back online (not on initial mount)
+    if (wasOffline.current) {
+      showSuccess("You're back online!");
+    }
+  }, [showSuccess]);
+
+  // Track offline state for reconnect toast
+  if (!isOnline) {
+    wasOffline.current = true;
+  } else if (wasOffline.current) {
+    wasOffline.current = false;
+    handleReconnect();
+  }
+
+  return (
+    <>
+      {!isOnline && <NetworkErrorOverlay />}
+      <RouterProvider router={router} />
+    </>
+  );
+}
 
 function App(): React.ReactElement {
   return (
@@ -571,7 +613,7 @@ function App(): React.ReactElement {
         <CRMReferenceDataProvider>
           <PreferencesProvider>
             <NotificationProvider>
-              <RouterProvider router={router} />
+              <AppWithNetworkStatus />
             </NotificationProvider>
           </PreferencesProvider>
         </CRMReferenceDataProvider>
