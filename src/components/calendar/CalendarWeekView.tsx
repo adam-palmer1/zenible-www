@@ -53,7 +53,8 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
 
   useEffect(() => {
     if (scrollContainerRef.current) {
-      const scrollPosition = 8 * 64;
+      const previousHour = Math.max(0, new Date().getHours() - 1);
+      const scrollPosition = previousHour * 64;
       scrollContainerRef.current.scrollTop = scrollPosition;
     }
   }, []);
@@ -113,11 +114,12 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
   };
 
   return (
-    <div className="flex flex-col h-full relative">
-      <div className="flex border-b border-gray-200 flex-shrink-0">
-        <div className="w-16 md:w-24 flex-shrink-0 border-r border-gray-200"></div>
+    <div className="h-full relative">
+      <div ref={scrollContainerRef} className="h-full overflow-y-auto overflow-x-auto scrollbar-hide">
+        <div className="sticky top-0 z-10 bg-white flex border-b border-gray-200">
+          <div className="w-16 md:w-24 flex-shrink-0 border-r border-gray-200"></div>
 
-        <div className="flex-1 flex">
+          <div className="flex-1 flex">
           {days.map((day: Date, dayIndex: number) => {
             const allDayAppts = getAllDayAppointmentsForDay(day);
             const weekend = isWeekend(day);
@@ -172,10 +174,9 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
                 </div>
             );
           })}
+          </div>
         </div>
-      </div>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-auto scrollbar-hide">
         <div className="flex">
           <div className="w-16 md:w-24 flex-shrink-0 border-r border-gray-200">
             {timeSlots.map((hour: number) => (

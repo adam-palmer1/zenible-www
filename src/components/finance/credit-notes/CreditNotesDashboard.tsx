@@ -1045,7 +1045,6 @@ const CreditNotesDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal

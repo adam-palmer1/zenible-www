@@ -42,7 +42,8 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
 
   useEffect(() => {
     if (scrollContainerRef.current) {
-      const scrollPosition = 8 * 64;
+      const previousHour = Math.max(0, new Date().getHours() - 1);
+      const scrollPosition = previousHour * 64;
       scrollContainerRef.current.scrollTop = scrollPosition;
     }
   }, []);
@@ -97,10 +98,11 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
   const appointmentsWithLayout = calculateAppointmentLayout(dayAppointments, parseISO, getHours, getMinutes);
 
   return (
-    <div className="flex flex-col h-full relative">
-      <div className="flex border-b border-gray-200 flex-shrink-0">
-        <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
-        <div className="flex-1 min-h-16 flex flex-col items-center justify-start bg-purple-100 py-2">
+    <div className="h-full relative">
+      <div ref={scrollContainerRef} className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide">
+        <div className="sticky top-0 z-10 bg-white flex border-b border-gray-200">
+          <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
+          <div className="flex-1 min-h-16 flex flex-col items-center justify-start bg-purple-100 py-2">
           <span className="text-lg font-semibold text-purple-600">
             {format(currentDate, 'EEEE, MMMM d')}
           </span>
@@ -142,10 +144,9 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
               })}
             </div>
           )}
+          </div>
         </div>
-      </div>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide">
         <div className="flex">
           <div className="w-24 flex-shrink-0 border-r border-gray-200">
             {timeSlots.map((hour: number) => (

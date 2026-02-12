@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import AppLayout from '../layout/AppLayout';
 import { useMobile } from '../../hooks/useMobile';
 import { useCalendar } from '../../hooks/useCalendar';
@@ -56,6 +56,31 @@ export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('weekly');
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const viewContainerRef = useRef<HTMLDivElement>(null);
+
+  // Lock page scroll and constrain the calendar view to the viewport
+  useLayoutEffect(() => {
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
+    const updateHeight = () => {
+      const el = viewContainerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const bottomPadding = window.innerWidth >= 768 ? 16 : 8;
+      const height = window.innerHeight - rect.top - bottomPadding;
+      el.style.height = `${Math.max(200, height)}px`;
+    };
+
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      window.removeEventListener('resize', updateHeight);
+    };
+  }, []);
   const [selectedAppointment, setSelectedAppointment] = useState<CalendarAppointmentResponse | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [draggingAppointment, setDraggingAppointment] = useState<CalendarAppointmentResponse | null>(null);
@@ -540,8 +565,8 @@ export default function Calendar() {
   };
 
   return (
-    <AppLayout pageTitle="Calendar" rawContent>
-      <div className="flex-1 min-h-0 flex gap-2 p-2 md:gap-4 md:p-4 overflow-hidden max-w-[2000px] mx-auto w-full">
+    <AppLayout pageTitle="Calendar">
+      <div className="flex-1 flex gap-2 p-2 md:gap-4 md:p-4 overflow-hidden max-w-[2000px] mx-auto w-full">
           {/* Left: Calendar View */}
           <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm overflow-hidden min-w-0">
             {/* Calendar Header */}
@@ -556,7 +581,7 @@ export default function Calendar() {
             />
 
             {/* Calendar View */}
-            <div className="flex-1 overflow-hidden relative">
+            <div ref={viewContainerRef} className="flex-1 overflow-hidden relative">
               {viewMode === 'weekly' && <CalendarWeekView
                 currentDate={currentDate}
                 appointments={filteredAppointments}

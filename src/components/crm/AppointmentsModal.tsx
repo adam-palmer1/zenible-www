@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { CalendarIcon, PhoneIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, PhoneIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon, ClockIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { Z_INDEX } from '../../constants/crm';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
 import { getScheduledAppointments, getNextHour } from '../../utils/crm/appointmentUtils';
@@ -10,6 +10,15 @@ import { useNotification } from '../../contexts/NotificationContext';
 import ConfirmationModal from '../common/ConfirmationModal';
 import DatePickerCalendar from '../shared/DatePickerCalendar';
 import TimePickerInput from '../shared/TimePickerInput';
+import Dropdown from '../ui/dropdown/Dropdown';
+
+const DURATION_OPTIONS = [
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
+  { value: 45, label: '45 min' },
+  { value: 60, label: '60 min' },
+  { value: 90, label: '90 min' },
+];
 
 interface AppointmentItem {
   id: string;
@@ -48,6 +57,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   const [appointmentType, setAppointmentType] = useState('call');
   const [appointmentDate, setAppointmentDate] = useState(new Date().toISOString().split('T')[0]);
   const [appointmentTime, setAppointmentTime] = useState(getNextHour());
+  const [duration, setDuration] = useState(60);
   const { setFollowUp, refreshContacts } = useContactActions();
   const { showSuccess, showError } = useNotification();
   const [cancelConfirmModal, setCancelConfirmModal] = useState<{ isOpen: boolean; appointment: AppointmentItem | null }>({ isOpen: false, appointment: null });
@@ -91,6 +101,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
     setAppointmentDate(new Date().toISOString().split('T')[0]);
     setAppointmentTime(getNextHour());
     setAppointmentType('call');
+    setDuration(60);
   };
 
   // Initialize form when editing appointment
@@ -114,12 +125,13 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       }
     }
     setAppointmentType(appointment.appointment_type || 'call');
+    setDuration(60);
   };
 
   // Handle creating new appointment
   const handleSaveNew = async () => {
     const dateTimeValue = `${appointmentDate}T${appointmentTime}:00`;
-    await setFollowUp(contact, dateTimeValue, appointmentType);
+    await setFollowUp(contact, dateTimeValue, appointmentType, duration);
     await fetchAppointments();
     setMode('list');
   };
@@ -131,9 +143,9 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
     try {
       const dateTimeValue = `${appointmentDate}T${appointmentTime}:00`;
 
-      // Calculate end_datetime (1 hour later)
+      // Calculate end_datetime based on duration
       const startDate = new Date(dateTimeValue);
-      const endDate = new Date(startDate.getTime() + 60 * 60000);
+      const endDate = new Date(startDate.getTime() + duration * 60000);
       const endDateTime = endDate.toISOString().slice(0, 19);
 
       await appointmentsAPI.update(editingAppointment.id, {
@@ -323,23 +335,56 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                 })}
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Date
-              </label>
-              <DatePickerCalendar
-                value={appointmentDate}
-                onChange={(date) => setAppointmentDate(date)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Time
-              </label>
-              <TimePickerInput
-                value={appointmentTime}
-                onChange={(time) => setAppointmentTime(time)}
-              />
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Date
+                </label>
+                <DatePickerCalendar
+                  value={appointmentDate}
+                  onChange={(date) => setAppointmentDate(date)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Time
+                </label>
+                <TimePickerInput
+                  value={appointmentTime}
+                  onChange={(time) => setAppointmentTime(time)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Duration
+                </label>
+                <Dropdown
+                  trigger={
+                    <button
+                      type="button"
+                      className="flex items-center justify-between w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <ClockIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        {DURATION_OPTIONS.find(o => o.value === duration)?.label}
+                      </span>
+                      <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+                    </button>
+                  }
+                  align="start"
+                  className="min-w-[140px] !z-[9700]"
+                >
+                  {DURATION_OPTIONS.map((option) => (
+                    <Dropdown.Item
+                      key={option.value}
+                      onSelect={() => setDuration(option.value)}
+                      highlighted={duration === option.value}
+                    >
+                      {option.label}
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown>
+              </div>
             </div>
             <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
