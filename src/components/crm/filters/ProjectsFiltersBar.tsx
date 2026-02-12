@@ -18,8 +18,6 @@ interface ProjectsFiltersBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   // Hidden/Lost toggles
-  showHiddenClients: boolean;
-  onShowHiddenClientsToggle: () => void;
   showHiddenContacts: boolean;
   onShowHiddenContactsToggle: () => void;
   showLostContacts: boolean;
@@ -36,8 +34,6 @@ const ProjectsFiltersBar: React.FC<ProjectsFiltersBarProps> = ({
   onClearStatuses,
   searchQuery,
   onSearchChange,
-  showHiddenClients,
-  onShowHiddenClientsToggle,
   showHiddenContacts,
   onShowHiddenContactsToggle,
   showLostContacts,
@@ -81,7 +77,6 @@ const ProjectsFiltersBar: React.FC<ProjectsFiltersBarProps> = ({
 
   // Count filters for funnel badge
   const funnelFilterCount =
-    (showHiddenClients ? 1 : 0) +
     (showHiddenContacts ? 1 : 0) +
     (showLostContacts ? 1 : 0);
 
@@ -185,15 +180,6 @@ const ProjectsFiltersBar: React.FC<ProjectsFiltersBarProps> = ({
             <div className="p-4">
               <label className="text-sm font-medium text-gray-700 mb-2 block">Show Additional</label>
               <div className="space-y-1">
-                <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={showHiddenClients}
-                    onChange={onShowHiddenClientsToggle}
-                    className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
-                  />
-                  <span className="text-sm text-gray-700">Hidden Clients</span>
-                </label>
                 <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
                   <input
                     type="checkbox"

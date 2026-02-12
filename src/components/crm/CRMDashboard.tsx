@@ -287,8 +287,6 @@ const CRMDashboard: React.FC = () => {
                   onClearStatuses={projectsFilters.handleClearStatuses}
                   searchQuery={projectsFilters.searchQuery}
                   onSearchChange={projectsFilters.setSearchQuery}
-                  showHiddenClients={projectsFilters.showHiddenClients}
-                  onShowHiddenClientsToggle={() => projectsFilters.setShowHiddenClients(!projectsFilters.showHiddenClients)}
                   showHiddenContacts={projectsFilters.showHiddenContacts}
                   onShowHiddenContactsToggle={() => projectsFilters.setShowHiddenContacts(!projectsFilters.showHiddenContacts)}
                   showLostContacts={projectsFilters.showLostContacts}
@@ -312,8 +310,6 @@ const CRMDashboard: React.FC = () => {
                   frequencyTypeFilters={servicesFilters.frequencyTypeFilters}
                   onFrequencyTypeToggle={servicesFilters.toggleFrequencyTypeFilter}
                   onClearFrequencyTypes={servicesFilters.clearFrequencyTypeFilters}
-                  showHiddenClients={servicesFilters.showHiddenClients}
-                  onShowHiddenClientsToggle={() => servicesFilters.setShowHiddenClients(!servicesFilters.showHiddenClients)}
                   showHiddenContacts={servicesFilters.showHiddenContacts}
                   onShowHiddenContactsToggle={() => servicesFilters.setShowHiddenContacts(!servicesFilters.showHiddenContacts)}
                   showLostContacts={servicesFilters.showLostContacts}

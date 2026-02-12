@@ -22,12 +22,11 @@ import type { ProjectListItemResponse } from '../../types/crm';
 interface ProjectsTableProps {
   selectedStatuses?: string[];
   searchQuery?: string;
-  showHiddenClients?: boolean;
   showHiddenContacts?: boolean;
   showLostContacts?: boolean;
 }
 
-export default function ProjectsTable({ selectedStatuses = [], searchQuery = '', showHiddenClients = false, showHiddenContacts = false, showLostContacts = false }: ProjectsTableProps) {
+export default function ProjectsTable({ selectedStatuses = [], searchQuery = '', showHiddenContacts = false, showLostContacts = false }: ProjectsTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const deleteConfirm = useDeleteConfirmation<ProjectListItemResponse>();
   const [showExpensesModal, setShowExpensesModal] = useState(false);
@@ -37,9 +36,6 @@ export default function ProjectsTable({ selectedStatuses = [], searchQuery = '',
   const projectFilters: Record<string, unknown> = {};
   if (selectedStatuses.length > 0) {
     projectFilters.statuses = selectedStatuses;
-  }
-  if (showHiddenClients) {
-    projectFilters.include_hidden_clients = 'true';
   }
   if (showHiddenContacts) {
     projectFilters.include_hidden_contacts = 'true';

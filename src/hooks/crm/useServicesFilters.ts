@@ -23,7 +23,6 @@ export function useServicesFilters() {
   const [frequencyTypeFilters, setFrequencyTypeFilters] = useState<string[]>([]);
 
   // Hidden/Lost contact toggles
-  const [showHiddenClients, setShowHiddenClientsState] = useState<boolean>(false);
   const [showHiddenContacts, setShowHiddenContactsState] = useState<boolean>(false);
   const [showLostContacts, setShowLostContactsState] = useState<boolean>(false);
 
@@ -43,7 +42,6 @@ export function useServicesFilters() {
         setFrequencyTypeFilters(savedFrequency);
       }
 
-      setShowHiddenClientsState(getPreference('services_show_hidden_clients', false) as boolean);
       setShowHiddenContactsState(getPreference('services_show_hidden_contacts', false) as boolean);
       setShowLostContactsState(getPreference('services_show_lost_contacts', false) as boolean);
 
@@ -96,13 +94,6 @@ export function useServicesFilters() {
   }, [updateDebouncedPreference]);
 
   // Hidden/Lost toggles with persistence
-  const setShowHiddenClients = useCallback((value: boolean): void => {
-    setShowHiddenClientsState(value);
-    updateDebouncedPreference('services_show_hidden_clients', value, 'services').catch(err =>
-      console.error('Failed to save hidden clients preference:', err)
-    );
-  }, [updateDebouncedPreference]);
-
   const setShowHiddenContacts = useCallback((value: boolean): void => {
     setShowHiddenContactsState(value);
     updateDebouncedPreference('services_show_hidden_contacts', value, 'services').catch(err =>
@@ -122,14 +113,12 @@ export function useServicesFilters() {
     setSearchQuery('');
     setStatusFilters([]);
     setFrequencyTypeFilters([]);
-    setShowHiddenClientsState(false);
     setShowHiddenContactsState(false);
     setShowLostContactsState(false);
 
     Promise.all([
       updateDebouncedPreference('services_status_filter', [], 'services'),
       updateDebouncedPreference('services_frequency_filter', [], 'services'),
-      updateDebouncedPreference('services_show_hidden_clients', false, 'services'),
       updateDebouncedPreference('services_show_hidden_contacts', false, 'services'),
       updateDebouncedPreference('services_show_lost_contacts', false, 'services'),
     ]).catch(err => console.error('Failed to clear all filter preferences:', err));
@@ -139,7 +128,6 @@ export function useServicesFilters() {
   const activeFilterCount: number =
     statusFilters.length +
     frequencyTypeFilters.length +
-    (showHiddenClients ? 1 : 0) +
     (showHiddenContacts ? 1 : 0) +
     (showLostContacts ? 1 : 0);
 
@@ -161,8 +149,6 @@ export function useServicesFilters() {
     clearFrequencyTypeFilters,
 
     // Hidden/Lost toggles
-    showHiddenClients,
-    setShowHiddenClients,
     showHiddenContacts,
     setShowHiddenContacts,
     showLostContacts,

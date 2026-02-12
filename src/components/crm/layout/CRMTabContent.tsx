@@ -211,7 +211,6 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
           <ProjectsTable
             selectedStatuses={projectsFilters?.selectedStatuses || []}
             searchQuery={projectsFilters?.searchQuery || ''}
-            showHiddenClients={projectsFilters?.showHiddenClients || false}
             showHiddenContacts={projectsFilters?.showHiddenContacts || false}
             showLostContacts={projectsFilters?.showLostContacts || false}
           />

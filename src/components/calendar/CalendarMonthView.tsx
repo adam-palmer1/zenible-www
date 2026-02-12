@@ -86,7 +86,7 @@ export default function CalendarMonthView({ currentDate, appointments, onAppoint
         ))}
       </div>
 
-      <div ref={gridRef} className="flex-1 overflow-y-auto scrollbar-hover">
+      <div ref={gridRef} className="flex-1 overflow-hidden">
         <div className="grid grid-cols-7 h-full" style={{ gridTemplateRows: 'repeat(auto-fit, minmax(0, 1fr))' }}>
         {days.map((day, index) => {
           const dayAppointments = getAppointmentsForDay(day);

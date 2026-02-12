@@ -6,7 +6,6 @@ interface UseContactServicesOptions {
   searchQuery?: string;
   statusFilters?: string[];
   frequencyTypeFilters?: string[];
-  showHiddenClients?: boolean;
   showHiddenContacts?: boolean;
   showLostContacts?: boolean;
 }
@@ -40,7 +39,6 @@ export function useContactServices(options: UseContactServicesOptions = {}, refr
     searchQuery = '',
     statusFilters = [],
     frequencyTypeFilters = [],
-    showHiddenClients = false,
     showHiddenContacts = false,
     showLostContacts = false,
   } = options;
@@ -78,10 +76,7 @@ export function useContactServices(options: UseContactServicesOptions = {}, refr
         params.search = debouncedSearch;
       }
 
-      // Pass hidden/lost params to API (server-side filtering when supported)
-      if (showHiddenClients) {
-        params.include_hidden_clients = 'true';
-      }
+      // Pass hidden/lost params to API
       if (showHiddenContacts) {
         params.include_hidden_contacts = 'true';
       }
@@ -101,7 +96,7 @@ export function useContactServices(options: UseContactServicesOptions = {}, refr
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, showHiddenClients, showHiddenContacts, showLostContacts]);
+  }, [debouncedSearch, showHiddenContacts, showLostContacts]);
 
   // Fetch when filters change or refreshKey changes
   useEffect(() => {

@@ -16,7 +16,7 @@ export default function CalendarUpcomingSchedule({ appointments, onAppointmentCl
   const upcomingAppointments = appointments
     .filter((apt: any) => new Date(apt.start_datetime) >= new Date())
     .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())
-    .slice(0, 20);
+    .slice(0, 5);
 
   const formatDateLabel = (date: Date) => {
     const today = new Date();

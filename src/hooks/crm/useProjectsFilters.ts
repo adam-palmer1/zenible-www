@@ -14,7 +14,6 @@ export function useProjectsFilters() {
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Hidden/Lost contact toggles
-  const [showHiddenClients, setShowHiddenClientsState] = useState<boolean>(false);
   const [showHiddenContacts, setShowHiddenContactsState] = useState<boolean>(false);
   const [showLostContacts, setShowLostContactsState] = useState<boolean>(false);
 
@@ -24,7 +23,6 @@ export function useProjectsFilters() {
       const savedStatuses = getPreference('projects_status_filter', []) as string[];
       setSelectedStatuses(savedStatuses);
 
-      setShowHiddenClientsState(getPreference('projects_show_hidden_clients', false) as boolean);
       setShowHiddenContactsState(getPreference('projects_show_hidden_contacts', false) as boolean);
       setShowLostContactsState(getPreference('projects_show_lost_contacts', false) as boolean);
 
@@ -58,13 +56,6 @@ export function useProjectsFilters() {
   }, [updateDebouncedPreference]);
 
   // Hidden/Lost toggles with persistence
-  const setShowHiddenClients = useCallback((value: boolean): void => {
-    setShowHiddenClientsState(value);
-    updateDebouncedPreference('projects_show_hidden_clients', value, 'projects').catch(err =>
-      console.error('Failed to save hidden clients preference:', err)
-    );
-  }, [updateDebouncedPreference]);
-
   const setShowHiddenContacts = useCallback((value: boolean): void => {
     setShowHiddenContactsState(value);
     updateDebouncedPreference('projects_show_hidden_contacts', value, 'projects').catch(err =>
@@ -81,7 +72,6 @@ export function useProjectsFilters() {
 
   // Count active filters (for badge display)
   const activeFilterCount: number =
-    (showHiddenClients ? 1 : 0) +
     (showHiddenContacts ? 1 : 0) +
     (showLostContacts ? 1 : 0);
 
@@ -93,8 +83,6 @@ export function useProjectsFilters() {
     searchQuery,
     setSearchQuery,
     // Hidden/Lost toggles
-    showHiddenClients,
-    setShowHiddenClients,
     showHiddenContacts,
     setShowHiddenContacts,
     showLostContacts,
