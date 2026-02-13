@@ -43,6 +43,8 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(displayName);
   const inputRef = useRef<HTMLInputElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerTooNarrow, setHeaderTooNarrow] = useState(false);
 
   // Sortable hook for column reordering
   const {
@@ -117,6 +119,17 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
       inputRef.current.select();
     }
   }, [isEditingTitle]);
+
+  // Hide column totals when header is too narrow to display them
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setHeaderTooNarrow(entry.contentRect.width < 180);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const handleStartEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -200,6 +213,7 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
     >
       {/* Column Header - drag handle for column reordering */}
       <div
+        ref={headerRef}
         {...columnAttributes}
         {...columnListeners}
         className={`p-3 w-full rounded-2xl bg-white border ${
@@ -285,62 +299,64 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
           )}
         </div>
 
-        {/* Always show divider and amount area for consistent column height */}
-        <>
-          {/* Horizontal divider line */}
-          <div className="border-t border-[#e5e5e5] my-2" />
-          {/* Amount - show pending, confirmed and active separately */}
-          <div className="flex flex-col gap-1 text-xs sm:text-sm min-h-[20px]">
-            {hasPendingValues || hasConfirmedValues || hasActiveValues ? (
-              <>
-                {hasPendingValues && (
-                  <div className="flex items-center gap-1.5 overflow-hidden">
-                    <span className="text-amber-600 dark:text-amber-400 text-xs shrink-0">
-                      Pending:
-                    </span>
-                    <div className="truncate min-w-0">
-                      <ServiceValueDisplay
-                        oneOffTotal={columnTotals.pendingOneOff}
-                        recurringTotal={columnTotals.pendingRecurring}
-                        currency={totalCurrency}
-                        variant="pending"
-                      />
+        {/* Show divider and totals only when column is wide enough */}
+        {!headerTooNarrow && (
+          <>
+            {/* Horizontal divider line */}
+            <div className="border-t border-[#e5e5e5] my-2" />
+            {/* Amount - show pending, confirmed and active separately */}
+            <div className="flex flex-col gap-1 text-xs sm:text-sm min-h-[20px]">
+              {hasPendingValues || hasConfirmedValues || hasActiveValues ? (
+                <>
+                  {hasPendingValues && (
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                      <span className="text-amber-600 dark:text-amber-400 text-xs shrink-0">
+                        Pending:
+                      </span>
+                      <div className="truncate min-w-0">
+                        <ServiceValueDisplay
+                          oneOffTotal={columnTotals.pendingOneOff}
+                          recurringTotal={columnTotals.pendingRecurring}
+                          currency={totalCurrency}
+                          variant="pending"
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
-                {hasConfirmedValues && (
-                  <div className="flex items-center gap-1.5 overflow-hidden">
-                    <span className="text-zenible-primary text-xs shrink-0">Confirmed:</span>
-                    <div className="truncate min-w-0">
-                      <ServiceValueDisplay
-                        oneOffTotal={columnTotals.confirmedOneOff}
-                        recurringTotal={columnTotals.confirmedRecurring}
-                        currency={totalCurrency}
-                        variant="confirmed"
-                      />
+                  )}
+                  {hasConfirmedValues && (
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                      <span className="text-zenible-primary text-xs shrink-0">Confirmed:</span>
+                      <div className="truncate min-w-0">
+                        <ServiceValueDisplay
+                          oneOffTotal={columnTotals.confirmedOneOff}
+                          recurringTotal={columnTotals.confirmedRecurring}
+                          currency={totalCurrency}
+                          variant="confirmed"
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
-                {hasActiveValues && (
-                  <div className="flex items-center gap-1.5 overflow-hidden">
-                    <span className="text-gray-500 dark:text-gray-400 text-xs shrink-0">
-                      Active:
-                    </span>
-                    <div className="truncate min-w-0">
-                      <ServiceValueDisplay
-                        oneOffTotal={columnTotals.activeOneOff}
-                        recurringTotal={columnTotals.activeRecurring}
-                        currency={totalCurrency}
-                      />
+                  )}
+                  {hasActiveValues && (
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                      <span className="text-gray-500 dark:text-gray-400 text-xs shrink-0">
+                        Active:
+                      </span>
+                      <div className="truncate min-w-0">
+                        <ServiceValueDisplay
+                          oneOffTotal={columnTotals.activeOneOff}
+                          recurringTotal={columnTotals.activeRecurring}
+                          currency={totalCurrency}
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <span className="text-transparent select-none">-</span>
-            )}
-          </div>
-        </>
+                  )}
+                </>
+              ) : (
+                <span className="text-transparent select-none">-</span>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Contacts List */}

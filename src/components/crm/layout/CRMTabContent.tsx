@@ -107,7 +107,7 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
 
     if (viewMode === 'pipeline') {
       return (
-        <div className="h-full">
+        <div className="flex-1 min-h-0 flex flex-col">
           <ContactActionsProvider
             globalStatuses={globalStatuses}
             customStatuses={customStatuses}

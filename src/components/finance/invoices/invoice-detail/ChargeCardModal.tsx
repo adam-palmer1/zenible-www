@@ -1,6 +1,7 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { formatCurrency } from '../../../../utils/currency';
+import { useEscapeKey } from '../../../../hooks/useEscapeKey';
 import type { InvoiceDetailData } from './InvoiceDetailTypes';
 
 interface ChargeCardModalProps {
@@ -20,6 +21,8 @@ const ChargeCardModal: React.FC<ChargeCardModalProps> = ({
   onConfirm,
   onClose,
 }) => {
+  useEscapeKey(onClose, true);
+
   const currencyCode = invoice.currency?.code;
 
   return (

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import invoicesAPI from '../../../services/api/finance/invoices';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface AutomaticPaymentConsentModalProps {
   isOpen: boolean;
@@ -23,6 +24,8 @@ const AutomaticPaymentConsentModal: React.FC<AutomaticPaymentConsentModalProps> 
   isPublic: _isPublic = false,
   publicToken = null,
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   const [accepted, setAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

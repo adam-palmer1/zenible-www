@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { XMarkIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
 import { usePreferences } from '../../../../../contexts/PreferencesContext';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 import companyUsersAPI from '../../../../../services/api/crm/companyUsers';
@@ -33,6 +34,8 @@ const EditPermissionsModal = ({
 }: EditPermissionsModalProps) => {
   const { darkMode } = usePreferences();
   const { showError } = useNotification();
+
+  useEscapeKey(onClose);
 
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>(user.permissions || []);
   const [isSubmitting, setIsSubmitting] = useState(false);

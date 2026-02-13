@@ -45,6 +45,7 @@ const NetworkErrorPage = React.lazy(() => import('./components/shared/NetworkErr
 
 // Feature routes
 const UserSettings = React.lazy(() => import('./components/UserSettings'));
+const SupportPage = React.lazy(() => import('./components/SupportPage'));
 const StripeOAuthCallback = React.lazy(() => import('./components/settings/StripeOAuthCallback'));
 const CRMDashboard = React.lazy(() => import('./components/crm/CRMDashboard'));
 const Calendar = React.lazy(() => import('./components/calendar/Calendar'));
@@ -73,6 +74,7 @@ const QuoteDetail = React.lazy(() => import('./components/finance/quotes/QuoteDe
 const PublicQuoteView = React.lazy(() => import('./components/finance/quotes/PublicQuoteView'));
 const CreditNotesDashboard = React.lazy(() => import('./components/finance/credit-notes/CreditNotesDashboard'));
 const CreditNoteForm = React.lazy(() => import('./components/finance/credit-notes/CreditNoteForm'));
+const PublicCreditNoteView = React.lazy(() => import('./components/finance/credit-notes/PublicCreditNoteView'));
 const ExpenseDashboard = React.lazy(() => import('./components/finance/expenses/ExpenseDashboard'));
 const ExpenseForm = React.lazy(() => import('./components/finance/expenses/ExpenseForm'));
 const CategoryManagement = React.lazy(() => import('./components/finance/expenses/CategoryManagement'));
@@ -283,6 +285,14 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: 'support',
+        element: (
+          <ProtectedRoute>
+            <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><SupportPage /></Suspense></ErrorBoundary>
+          </ProtectedRoute>
+        )
+      },
+      {
         path: 'settings/payments/callback',
         element: (
           <ProtectedRoute>
@@ -416,6 +426,10 @@ const router = createBrowserRouter([
             <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><CreditNoteForm /></Suspense></ErrorBoundary>
           </ProtectedRoute>
         )
+      },
+      {
+        path: 'credit-notes/public/:token',
+        element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><PublicCreditNoteView /></Suspense></ErrorBoundary>
       },
       {
         path: 'finance/expenses',

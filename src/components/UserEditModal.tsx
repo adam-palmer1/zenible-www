@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { adminAPI, subscriptionAPI } from '../utils/auth';
 
 interface UserEditModalProps {
@@ -8,6 +9,7 @@ interface UserEditModalProps {
 }
 
 export default function UserEditModal({ user, onClose, onSave }: UserEditModalProps) {
+  useEscapeKey(onClose);
   const [formData, setFormData] = useState({
     email: user?.email || '',
     role: user?.role || 'user',

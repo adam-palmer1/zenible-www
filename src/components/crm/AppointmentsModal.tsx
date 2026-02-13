@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarIcon, PhoneIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon, ClockIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { Z_INDEX } from '../../constants/crm';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
-import { getScheduledAppointments, getNextHour } from '../../utils/crm/appointmentUtils';
+import { getScheduledAppointments, getNextHour, calculateEndDateTime } from '../../utils/crm/appointmentUtils';
 import { useContactActions } from '../../contexts/ContactActionsContext';
 import appointmentsAPI from '../../services/api/crm/appointments';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -52,6 +53,8 @@ interface AppointmentsModalProps {
  * Allows viewing, creating, editing, and cancelling appointments
  */
 const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, contact }) => {
+  useEscapeKey(onClose, isOpen);
+
   const [mode, setMode] = useState<'list' | 'create' | 'edit'>('list');
   const [editingAppointment, setEditingAppointment] = useState<AppointmentItem | null>(null);
   const [appointmentType, setAppointmentType] = useState('call');
@@ -143,10 +146,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
     try {
       const dateTimeValue = `${appointmentDate}T${appointmentTime}:00`;
 
-      // Calculate end_datetime based on duration
-      const startDate = new Date(dateTimeValue);
-      const endDate = new Date(startDate.getTime() + duration * 60000);
-      const endDateTime = endDate.toISOString().slice(0, 19);
+      const endDateTime = calculateEndDateTime(dateTimeValue, duration);
 
       await appointmentsAPI.update(editingAppointment.id, {
         start_datetime: dateTimeValue,

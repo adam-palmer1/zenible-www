@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, CreditCard, Loader2, User, DollarSign, Calendar, FileText, Pencil, Receipt, Plus, Unlink, ChevronDown, Building2, Banknote, Wallet, CircleDollarSign } from 'lucide-react';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { formatCurrency } from '../../../utils/currency';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import expensesAPI from '../../../services/api/finance/expenses';
@@ -30,6 +31,7 @@ interface EditPaymentModalProps {
 const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, payment: paymentProp, refreshKey }) => {
   const { updatePayment, refresh } = usePayments();
   const { showSuccess, showError } = useNotification();
+  useEscapeKey(onClose, isOpen);
   const methodDropdownRef = useRef<HTMLDivElement>(null);
 
   const [submitting, setSubmitting] = useState(false);

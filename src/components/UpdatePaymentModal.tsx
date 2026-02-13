@@ -9,6 +9,7 @@ import {
   useElements
 } from '@stripe/react-stripe-js';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 
 interface UpdatePaymentFormProps {
   onSuccess: (paymentMethodId: string) => void;
@@ -406,6 +407,7 @@ export default function UpdatePaymentModal({
   onSuccess,
   onError
 }: UpdatePaymentModalProps) {
+  useEscapeKey(onClose, isOpen);
   const [loading, setLoading] = useState(false);
 
   const handleSuccess = async (paymentMethodId: string) => {

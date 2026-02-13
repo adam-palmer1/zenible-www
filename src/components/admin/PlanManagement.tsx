@@ -83,7 +83,7 @@ export default function PlanManagement() {
     setLoading(true);
     setError(null);
     try {
-      const response = await adminAPI.getPlans() as { plans?: PlanResponse[] };
+      const response = await adminAPI.getPlans({ include_inactive: 'true' }) as { plans?: PlanResponse[] };
       setPlans(response.plans || []);
     } catch (err: any) {
       setError(err.message);
@@ -285,7 +285,7 @@ export default function PlanManagement() {
             {plans.map((plan: PlanResponse) => (
               <div
                 key={plan.id}
-                className={`rounded-xl border p-6 ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}
+                className={`rounded-xl border p-6 ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'} ${!plan.is_active ? 'opacity-70' : ''}`}
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -306,9 +306,13 @@ export default function PlanManagement() {
                     </div>
                   </div>
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    plan.is_active ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                    plan.is_active
+                      ? 'bg-purple-100 text-purple-800'
+                      : darkMode
+                        ? 'bg-red-900/30 text-red-400'
+                        : 'bg-red-100 text-red-700'
                   }`}>
-                    {plan.is_active ? 'Active' : 'Inactive'}
+                    {plan.is_active ? 'Active' : 'Deactivated'}
                   </span>
                 </div>
 

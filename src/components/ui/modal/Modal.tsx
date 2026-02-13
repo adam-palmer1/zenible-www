@@ -74,6 +74,12 @@ const Modal: React.FC<ModalProps> = ({
 
         {/* Content */}
         <Dialog.Content
+          onFocusOutside={(e) => {
+            // Allow focus to move to our portal container for nested dropdowns/comboboxes
+            if (portalContainer?.contains(e.target as Node)) {
+              e.preventDefault();
+            }
+          }}
           className={`
             fixed z-50 flex flex-col
             bg-white dark:bg-gray-800 shadow-lg

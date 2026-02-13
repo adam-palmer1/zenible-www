@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileText, Calendar, User, Mail, DollarSign, Loader2, Send, Download, Edit, Trash2 } from 'lucide-react';
+import { X, FileText, Calendar, User, Mail, DollarSign, Loader2, Send, Download, Edit, Trash2, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   CREDIT_NOTE_STATUS_LABELS,
@@ -8,9 +8,11 @@ import {
 import type { CreditNoteStatus } from '../../../constants/finance';
 import { formatCurrency } from '../../../utils/currency';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
 import { AllocationSummaryBar, ProjectAllocationModal } from '../allocations';
 import SendCreditNoteModal from './SendCreditNoteModal';
+import ApplyCreditNoteModal from './ApplyCreditNoteModal';
 import { useModalState } from '../../../hooks/useModalState';
 
 interface CreditNoteDetailModalProps {
@@ -27,8 +29,10 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const sendModal = useModalState();
+  useEscapeKey(onClose, isOpen);
   const [issuingOrVoiding, setIssuingOrVoiding] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [showApplyModal, setShowApplyModal] = useState(false);
 
   // Function to fetch credit note details
   const fetchCreditNoteDetails = async (showLoading: boolean = true) => {
@@ -186,10 +190,35 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
     if (onUpdate) onUpdate();
   };
 
+  const handleRemoveAllocation = async (allocationId: string) => {
+    const confirmed = await showConfirm(
+      'Remove Application',
+      'Are you sure you want to remove this credit note application? The invoice balance will be restored.'
+    );
+
+    if (confirmed) {
+      try {
+        await creditNotesAPI.removeApplication(creditNote.id, allocationId);
+        showSuccess('Application removed successfully');
+        fetchCreditNoteDetails(false);
+        if (onUpdate) onUpdate();
+      } catch (err: any) {
+        showError(err.message || 'Failed to remove application');
+      }
+    }
+  };
+
+  const handleApplySuccess = () => {
+    setShowApplyModal(false);
+    fetchCreditNoteDetails(false);
+    if (onUpdate) onUpdate();
+  };
+
   const canIssue = creditNote.status === 'draft';
   const canVoid = creditNote.status === 'issued';
   const canDelete = creditNote.status === 'draft';
   const canSend = creditNote.status === 'issued';
+  const canApply = (creditNote.status === 'issued' || creditNote.status === 'applied') && parseFloat(creditNote.remaining_amount || '0') > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -325,6 +354,38 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
             </div>
           )}
 
+          {/* Applied to Invoices */}
+          {creditNote.invoice_allocations?.length > 0 && (
+            <div className="space-y-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                Applied to Invoices
+              </h3>
+              <div className="space-y-1">
+                {creditNote.invoice_allocations.map((alloc: any) => (
+                  <div key={alloc.id} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded dark:bg-gray-900">
+                    <span className="text-gray-900 dark:text-white">
+                      Invoice #{alloc.invoice_number || alloc.invoice?.invoice_number || alloc.invoice_id?.toString().slice(-8)}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {formatCurrency(alloc.amount_applied, getCurrencyCode())}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAllocation(alloc.id)}
+                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Remove application"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Project Allocations */}
           <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
             <AllocationSummaryBar
@@ -383,6 +444,15 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
                 Send
               </button>
             )}
+            {canApply && (
+              <button
+                onClick={() => setShowApplyModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <DollarSign className="h-4 w-4" />
+                Apply
+              </button>
+            )}
             {canVoid && (
               <button
                 onClick={handleVoid}
@@ -431,6 +501,16 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
           creditNote={creditNote}
           contact={creditNote?.contact}
           onSuccess={handleSendSuccess}
+        />
+      )}
+
+      {/* Apply Credit Note Modal */}
+      {showApplyModal && (
+        <ApplyCreditNoteModal
+          isOpen={showApplyModal}
+          onClose={() => setShowApplyModal(false)}
+          creditNote={creditNote}
+          onSuccess={handleApplySuccess}
         />
       )}
     </div>

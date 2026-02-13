@@ -1,5 +1,6 @@
 import React from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { Currency } from './types';
 
 interface AddCurrencyModalProps {
@@ -19,6 +20,8 @@ export default function AddCurrencyModal({
   onAdd,
   onClose,
 }: AddCurrencyModalProps) {
+  useEscapeKey(onClose);
+
   return (
     <div className="fixed inset-0 z-[60] overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4">

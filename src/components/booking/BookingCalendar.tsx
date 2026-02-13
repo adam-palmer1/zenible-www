@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
-const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -40,13 +40,13 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
       // Last day of the month
       const lastDay = new Date(year, month + 1, 0);
 
-      // Start from the Sunday of the first week
+      // Start from the Monday of the first week
       const startDate = new Date(firstDay);
-      startDate.setDate(startDate.getDate() - startDate.getDay());
+      startDate.setDate(startDate.getDate() - ((startDate.getDay() + 6) % 7));
 
-      // End on the Saturday of the last week
+      // End on the Sunday of the last week
       const endDate = new Date(lastDay);
-      endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+      endDate.setDate(endDate.getDate() + ((7 - endDate.getDay()) % 7));
 
       const formatDate = (d: Date) => d.toISOString().split('T')[0];
       onMonthChange(formatDate(startDate), formatDate(endDate));
@@ -68,13 +68,13 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
     // Last day of the month
     const lastDay = new Date(year, month + 1, 0);
 
-    // Start from the Sunday of the first week
+    // Start from the Monday of the first week
     const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - startDate.getDay());
+    startDate.setDate(startDate.getDate() - ((startDate.getDay() + 6) % 7));
 
-    // End on the Saturday of the last week
+    // End on the Sunday of the last week
     const endDate = new Date(lastDay);
-    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+    endDate.setDate(endDate.getDate() + ((7 - endDate.getDay()) % 7));
 
     const days: Date[] = [];
     const current = new Date(startDate);

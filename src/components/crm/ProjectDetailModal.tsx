@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, FileText, Receipt, CreditCard, FileMinus, Loader2, Settings2, ChevronDown, ChevronUp, Trash2, Plus, type LucideProps } from 'lucide-react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import BillableHoursTab from './BillableHoursTab';
 import { PROJECT_STATUS_LABELS, SERVICE_STATUS, SERVICE_STATUS_LABELS, type ProjectStatus, type ServiceStatus } from '../../constants/crm';
 import GenericDropdown from './GenericDropdown';
@@ -145,6 +146,7 @@ const TABS = [
 
 const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose, project: projectProp, onUpdate: _onUpdate }) => {
   const { showError, showSuccess } = useNotification();
+  useEscapeKey(onClose, isOpen);
   const [project, setProject] = useState<ProjectData | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');

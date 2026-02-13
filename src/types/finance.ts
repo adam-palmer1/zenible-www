@@ -187,8 +187,6 @@ export type CreditNoteStatsResponse = components['schemas']['CreditNoteStatsResp
 export type CreditNoteCurrencyTotal = components['schemas']['CreditNoteCurrencyTotal'];
 export type CreditNoteItemResponse = components['schemas']['CreditNoteItemResponse'];
 export type CreditNoteItemCreate = components['schemas']['CreditNoteItemCreate'];
-export type CreditNoteItemTaxResponse = components['schemas']['CreditNoteItemTaxResponse'];
-export type CreditNoteItemTaxCreate = components['schemas']['CreditNoteItemTaxCreate'];
 export type CreditNoteSendRequest = components['schemas']['CreditNoteSendRequest'];
 
 // ──────────────────────────────────────────────

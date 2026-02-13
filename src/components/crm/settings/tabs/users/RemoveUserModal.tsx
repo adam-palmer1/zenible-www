@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { XMarkIcon, ExclamationTriangleIcon, PauseCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
 import { usePreferences } from '../../../../../contexts/PreferencesContext';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 import companyUsersAPI from '../../../../../services/api/crm/companyUsers';
@@ -10,6 +11,8 @@ import companyUsersAPI from '../../../../../services/api/crm/companyUsers';
 const RemoveUserModal = ({ user, onClose, onSuccess }: { user: any; onClose: () => void; onSuccess?: () => void }) => {
   const { darkMode } = usePreferences();
   const { showError } = useNotification();
+
+  useEscapeKey(onClose);
 
   const [action, setAction] = useState('deactivate'); // 'deactivate' or 'delete'
   const [isSubmitting, setIsSubmitting] = useState(false);

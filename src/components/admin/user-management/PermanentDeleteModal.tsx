@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Loader2, AlertTriangle, Skull } from 'lucide-react';
 import { PermanentDeleteModalState } from './types';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface PermanentDeleteModalProps {
   permanentDeleteModal: PermanentDeleteModalState;
@@ -17,6 +18,8 @@ const PermanentDeleteModal: React.FC<PermanentDeleteModalProps> = ({
   onClose,
   onExecute,
 }) => {
+  useEscapeKey(onClose);
+
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={() => !permanentDeleteModal.loading && onClose()} />

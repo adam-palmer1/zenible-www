@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface ChangePlanPreview {
   direction: string;
@@ -35,6 +36,7 @@ export default function PlanChangeConfirmModal({
   error,
 }: PlanChangeConfirmModalProps) {
   const { darkMode } = usePreferences();
+  useEscapeKey(onClose, isOpen);
 
   if (!isOpen) return null;
 

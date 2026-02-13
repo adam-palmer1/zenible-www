@@ -144,9 +144,8 @@ const InvoiceListTable: React.FC<InvoiceListTableProps> = ({
                     </td>
                     <td className="px-2 md:px-4 py-3 text-sm text-gray-900">
                       {invoice.contact?.business_name ||
-                       (invoice.contact?.first_name && invoice.contact?.last_name
-                         ? `${invoice.contact.first_name} ${invoice.contact.last_name}`
-                         : '-')}
+                       `${invoice.contact?.first_name || ''} ${invoice.contact?.last_name || ''}`.trim() ||
+                       '-'}
                     </td>
                     <td className="hidden md:table-cell px-2 md:px-4 py-3 text-sm text-gray-500">
                       {formatDate(invoice.issue_date || invoice.invoice_date)}

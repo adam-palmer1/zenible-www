@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, FileText, Loader2 } from 'lucide-react';
 import { useQuotes } from '../../../contexts/QuoteContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { formatCurrency } from '../../../utils/currency';
 
 interface ConvertToInvoiceModalProps {
@@ -15,6 +16,7 @@ const ConvertToInvoiceModal: React.FC<ConvertToInvoiceModalProps> = ({ isOpen, o
   const navigate = useNavigate();
   const { convertToInvoice } = useQuotes();
   const { showSuccess, showError } = useNotification();
+  useEscapeKey(onClose, isOpen);
 
   const [converting, setConverting] = useState(false);
 

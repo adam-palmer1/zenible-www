@@ -7,6 +7,7 @@ import { useContacts } from '../../../hooks/crm/useContacts';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { getCurrencySymbol } from '../../../utils/currency';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
+import { formatLocalDate } from '../../../utils/dateUtils';
 import { useInvoiceStats } from '../../../hooks/finance/useInvoiceStats';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import SendInvoiceDialog from './SendInvoiceDialog';
@@ -137,10 +138,9 @@ const InvoiceList: React.FC = () => {
     today.setHours(0, 0, 0, 0);
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 29);
-    const fmt = (d: Date) => d.toISOString().split('T')[0];
     updateFilters({
-      issue_date_from: fmt(thirtyDaysAgo),
-      issue_date_to: fmt(today),
+      issue_date_from: formatLocalDate(thirtyDaysAgo),
+      issue_date_to: formatLocalDate(today),
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -156,46 +156,42 @@ const InvoiceList: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const formatDate = (date: Date) => {
-      return date.toISOString().split('T')[0];
-    };
-
     switch (preset) {
       case 'last_30_days': {
         const thirtyDaysAgo = new Date(today);
         thirtyDaysAgo.setDate(today.getDate() - 29);
-        return { from: formatDate(thirtyDaysAgo), to: formatDate(today) };
+        return { from: formatLocalDate(thirtyDaysAgo), to: formatLocalDate(today) };
       }
       case 'today': {
-        return { from: formatDate(today), to: formatDate(today) };
+        return { from: formatLocalDate(today), to: formatLocalDate(today) };
       }
       case 'this_week': {
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
-        return { from: formatDate(startOfWeek), to: formatDate(endOfWeek) };
+        return { from: formatLocalDate(startOfWeek), to: formatLocalDate(endOfWeek) };
       }
       case 'this_month': {
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        return { from: formatDate(startOfMonth), to: formatDate(endOfMonth) };
+        return { from: formatLocalDate(startOfMonth), to: formatLocalDate(endOfMonth) };
       }
       case 'last_month': {
         const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-        return { from: formatDate(startOfLastMonth), to: formatDate(endOfLastMonth) };
+        return { from: formatLocalDate(startOfLastMonth), to: formatLocalDate(endOfLastMonth) };
       }
       case 'this_quarter': {
         const quarter = Math.floor(today.getMonth() / 3);
         const startOfQuarter = new Date(today.getFullYear(), quarter * 3, 1);
         const endOfQuarter = new Date(today.getFullYear(), (quarter + 1) * 3, 0);
-        return { from: formatDate(startOfQuarter), to: formatDate(endOfQuarter) };
+        return { from: formatLocalDate(startOfQuarter), to: formatLocalDate(endOfQuarter) };
       }
       case 'this_year': {
         const startOfYear = new Date(today.getFullYear(), 0, 1);
         const endOfYear = new Date(today.getFullYear(), 11, 31);
-        return { from: formatDate(startOfYear), to: formatDate(endOfYear) };
+        return { from: formatLocalDate(startOfYear), to: formatLocalDate(endOfYear) };
       }
       default:
         return { from: null, to: null };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
 import { usePreferences } from '../../../../../contexts/PreferencesContext';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 import companyUsersAPI from '../../../../../services/api/crm/companyUsers';
@@ -31,6 +32,8 @@ const InviteUserModal = ({
 }: InviteUserModalProps) => {
   const { darkMode } = usePreferences();
   const { showError } = useNotification();
+
+  useEscapeKey(onClose);
 
   const [email, setEmail] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);

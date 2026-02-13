@@ -10,7 +10,7 @@ interface DocumentLineItemsProps {
   onAddItem: () => void;
   onUpdateItem: (index: number, field: string, value: any) => void;
   onRemoveItem: (index: number) => void;
-  onOpenTaxModal: (index: number) => void;
+  onOpenTaxModal?: (index: number) => void;
   calculateItemTotal: (item: any) => number;
 }
 
@@ -148,13 +148,15 @@ const DocumentLineItems: React.FC<DocumentLineItemsProps> = ({
                       <div className="text-sm font-medium text-gray-900">
                         {symbol}{formatNumber(item.amount)}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => onOpenTaxModal(index)}
-                        className="text-xs text-purple-600 hover:text-purple-700 font-medium"
-                      >
-                        {item.taxes && item.taxes.length > 0 ? 'Edit Tax' : '+ Tax'}
-                      </button>
+                      {onOpenTaxModal && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenTaxModal(index)}
+                          className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                        >
+                          {item.taxes && item.taxes.length > 0 ? 'Edit Tax' : '+ Tax'}
+                        </button>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3 align-top">
@@ -162,7 +164,7 @@ const DocumentLineItems: React.FC<DocumentLineItemsProps> = ({
                       <div className="text-sm font-semibold text-gray-900">
                         {symbol}{formatNumber(calculateItemTotal(item))}
                       </div>
-                      {item.taxes && item.taxes.length > 0 && (
+                      {onOpenTaxModal && item.taxes && item.taxes.length > 0 && (
                         <div className="mt-0.5">
                           {item.taxes.map((tax: any, taxIndex: number) => (
                             <div key={taxIndex} className="text-xs text-gray-500">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import GoogleCalendarConnector from './GoogleCalendarConnector';
 
 interface CalendarSettingsModalProps {
@@ -45,6 +46,8 @@ export default function CalendarSettingsModal({
   updateTypeColor,
   resetColors,
 }: CalendarSettingsModalProps) {
+  useEscapeKey(onClose);
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { userAPI } from '../../utils/auth';
+import TwoFactorSection from './TwoFactorSection';
 
 interface ProfileSettingsTabProps {
   profile: any;
@@ -416,7 +417,14 @@ export default function ProfileSettingsTab({
           </h2>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-6">
+          {/* Two-Factor Authentication */}
+          <TwoFactorSection setError={setError} setSuccessMessage={setSuccessMessage} />
+
+          {/* Divider */}
+          <div className={`border-t ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`} />
+
+          {/* Password */}
           <div>
             <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
               Password

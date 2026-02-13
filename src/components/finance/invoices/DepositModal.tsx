@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';
 import { calculateDepositAmount } from '../../../utils/invoiceCalculations';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -22,6 +23,8 @@ const DepositModal: React.FC<DepositModalProps> = ({
   total = 0,
   currency = 'USD',
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   const [depositType, setDepositType] = useState(initialDepositType || 'percentage');
   const [depositValue, setDepositValue] = useState<any>(initialDepositValue);
 

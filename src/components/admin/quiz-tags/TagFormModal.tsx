@@ -1,6 +1,7 @@
 import React from 'react';
 import { ICON_OPTIONS, getIconPath } from '../../../utils/iconUtils';
 import { QuizTag, Plan, TagFormState } from './types';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface TagFormModalProps {
   darkMode: boolean;
@@ -25,6 +26,8 @@ export default function TagFormModal({
   onSave,
   onClose,
 }: TagFormModalProps) {
+  useEscapeKey(onClose);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className={`w-full max-w-2xl mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>

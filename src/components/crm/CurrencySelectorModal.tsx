@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useModalPortal } from '../../contexts/ModalPortalContext';
 
 interface CurrencySelectorModalProps {
@@ -25,6 +26,8 @@ const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
 
   const modalPortal = useModalPortal();
   const portalTarget = modalPortal || document.body;
+
+  useEscapeKey(onClose, isOpen);
 
   // Calculate dropdown position when opening
   useEffect(() => {

@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface CroppedAreaPixels {
   x: number;
@@ -25,6 +26,8 @@ export default function ImageCropperModal({
   aspectRatio = 1, // 1:1 for square/circle
   cropShape = 'round' // 'rect' or 'round'
 }: ImageCropperModalProps) {
+  useEscapeKey(onCancel);
+
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);

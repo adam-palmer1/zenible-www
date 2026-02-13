@@ -5,6 +5,7 @@ import { DURATION_OPTIONS, ROLE_OPTIONS } from './constants';
 import PlanSelectorModal from './PlanSelectorModal';
 import DurationSelectorModal from './DurationSelectorModal';
 import RoleSelectorModal from './RoleSelectorModal';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface UserActionsModalProps {
   user: AdminUser;
@@ -69,6 +70,8 @@ const UserActionsModal: React.FC<UserActionsModalProps> = ({
   onClose,
   onSave,
 }) => {
+  useEscapeKey(onClose);
+
   const selectedPlan = plans.find((p: AdminPlan) => p.id === actionPlanId);
   const selectedDurationOption: FilterOption | undefined = DURATION_OPTIONS.find(opt => opt.id === durationPreset);
   const selectedRoleOption: FilterOption | undefined = ROLE_OPTIONS.find(opt => opt.id === actionRole);

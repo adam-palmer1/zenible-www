@@ -202,7 +202,12 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await companiesAPI.updateCurrent(formData);
+      const payload = {
+        ...formData,
+        primary_color: formData.primary_color || null,
+        secondary_color: formData.secondary_color || null,
+      };
+      await companiesAPI.updateCurrent(payload);
       setHasChanges(false);
       showSuccess('Company settings saved successfully');
     } catch (error) {

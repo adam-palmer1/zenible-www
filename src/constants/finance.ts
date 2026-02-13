@@ -103,6 +103,7 @@ export const PAYMENT_METHOD = {
   CASH: 'cash',
   CHECK: 'check',
   STRIPE: 'stripe',
+  CREDIT_NOTE: 'credit_note',
   OTHER: 'other',
 } as const;
 
@@ -117,6 +118,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   [PAYMENT_METHOD.CASH]: 'Cash',
   [PAYMENT_METHOD.CHECK]: 'Check',
   [PAYMENT_METHOD.STRIPE]: 'Stripe',
+  [PAYMENT_METHOD.CREDIT_NOTE]: 'Credit Note',
   [PAYMENT_METHOD.OTHER]: 'Other',
 };
 

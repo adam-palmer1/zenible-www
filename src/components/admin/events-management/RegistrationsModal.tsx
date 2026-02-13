@@ -2,6 +2,7 @@ import React from 'react';
 import { LoadingSpinner } from '../../shared';
 import { EventItem, EventRegistration } from './types';
 import eventsAPI from '../../../services/eventsAPI';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface RegistrationsModalProps {
   darkMode: boolean;
@@ -23,6 +24,8 @@ export default function RegistrationsModal({
   registrationsLoading,
   onClose,
 }: RegistrationsModalProps) {
+  useEscapeKey(onClose);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className={`w-full max-w-[95vw] md:max-w-4xl max-h-[80vh] overflow-hidden rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>

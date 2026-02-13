@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import {
   Search,
@@ -108,6 +109,26 @@ const PaymentList: React.FC = () => {
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
   const deleteConfirmation = useDeleteConfirmation<PaymentItem>();
+
+  // Dropdown refs and positions for portal rendering
+  const statusFilterButtonRef = useRef<HTMLButtonElement>(null);
+  const sortButtonRef = useRef<HTMLButtonElement>(null);
+  const [statusFilterPos, setStatusFilterPos] = useState({ top: 0, right: 0 });
+  const [sortDropdownPos, setSortDropdownPos] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    if (showFilterDropdown && statusFilterButtonRef.current) {
+      const rect = statusFilterButtonRef.current.getBoundingClientRect();
+      setStatusFilterPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+  }, [showFilterDropdown]);
+
+  useEffect(() => {
+    if (showSortDropdown && sortButtonRef.current) {
+      const rect = sortButtonRef.current.getBoundingClientRect();
+      setSortDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+  }, [showSortDropdown]);
 
   // Handle payment query parameter - open payment detail modal
   const urlPaymentId = searchParams.get('payment');
@@ -378,61 +399,85 @@ const PaymentList: React.FC = () => {
             {/* Status Filter Dropdown */}
             <div className="relative">
               <button
+                ref={statusFilterButtonRef}
                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                 className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 <Filter className="h-4 w-4" />
                 {filterStatus === 'all' ? 'All Status' : PAYMENT_STATUS_LABELS[filterStatus as PaymentStatus]}
               </button>
-              {showFilterDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 dark:bg-gray-800 dark:border-gray-600">
-                  <div className="py-1">
-                    <button
-                      onClick={() => handleStatusFilter('all')}
-                      className={`block w-full text-left px-4 py-2 text-sm ${filterStatus === 'all' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-50 dark:hover:bg-gray-700`}
-                    >
-                      All Status
-                    </button>
-                    {Object.entries(PAYMENT_STATUS_LABELS as Record<string, string>).map(([key, label]) => (
+              {showFilterDropdown && createPortal(
+                <>
+                  <div
+                    className="fixed inset-0"
+                    style={{ zIndex: 9998 }}
+                    onClick={() => setShowFilterDropdown(false)}
+                  />
+                  <div
+                    style={{ position: 'fixed', top: statusFilterPos.top, right: statusFilterPos.right, width: 192, zIndex: 9999 }}
+                    className="bg-white rounded-lg shadow-lg border border-gray-200 dark:bg-gray-800 dark:border-gray-600"
+                  >
+                    <div className="py-1">
                       <button
-                        key={key}
-                        onClick={() => handleStatusFilter(key)}
-                        className={`block w-full text-left px-4 py-2 text-sm ${filterStatus === key ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-50 dark:hover:bg-gray-700`}
+                        onClick={() => handleStatusFilter('all')}
+                        className={`block w-full text-left px-4 py-2 text-sm ${filterStatus === 'all' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-50 dark:hover:bg-gray-700`}
                       >
-                        {label}
+                        All Status
                       </button>
-                    ))}
+                      {Object.entries(PAYMENT_STATUS_LABELS as Record<string, string>).map(([key, label]) => (
+                        <button
+                          key={key}
+                          onClick={() => handleStatusFilter(key)}
+                          className={`block w-full text-left px-4 py-2 text-sm ${filterStatus === key ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-50 dark:hover:bg-gray-700`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                </>,
+                document.body
               )}
             </div>
 
             {/* Sort Dropdown */}
             <div className="relative">
               <button
+                ref={sortButtonRef}
                 onClick={() => setShowSortDropdown(!showSortDropdown)}
                 className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 {filters.sort_direction === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
                 {getSortLabel()}
               </button>
-              {showSortDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 dark:bg-gray-800 dark:border-gray-600">
-                  <div className="py-1">
-                    {SORT_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => handleSort(option.value)}
-                        className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between ${filters.sort_by === option.value ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-50 dark:hover:bg-gray-700`}
-                      >
-                        <span>{option.label}</span>
-                        {filters.sort_by === option.value && (
-                          filters.sort_direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                        )}
-                      </button>
-                    ))}
+              {showSortDropdown && createPortal(
+                <>
+                  <div
+                    className="fixed inset-0"
+                    style={{ zIndex: 9998 }}
+                    onClick={() => setShowSortDropdown(false)}
+                  />
+                  <div
+                    style={{ position: 'fixed', top: sortDropdownPos.top, right: sortDropdownPos.right, width: 192, zIndex: 9999 }}
+                    className="bg-white rounded-lg shadow-lg border border-gray-200 dark:bg-gray-800 dark:border-gray-600"
+                  >
+                    <div className="py-1">
+                      {SORT_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => handleSort(option.value)}
+                          className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between ${filters.sort_by === option.value ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 dark:text-gray-300'} hover:bg-gray-50 dark:hover:bg-gray-700`}
+                        >
+                          <span>{option.label}</span>
+                          {filters.sort_by === option.value && (
+                            filters.sort_direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                </>,
+                document.body
               )}
             </div>
 

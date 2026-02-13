@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';
 import { calculateDiscountAmount } from '../../../utils/invoiceCalculations';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface DiscountModalProps {
   isOpen: boolean;
@@ -22,6 +23,8 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
   subtotal = 0,
   currency = 'USD',
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   const [discountType, setDiscountType] = useState(initialDiscountType);
   const [discountValue, setDiscountValue] = useState<any>(initialDiscountValue);
 

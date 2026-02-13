@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify';
 import { X, Mail, Eye, Plus, Users } from 'lucide-react';
 import { useEffectiveTemplateQuery } from '../../../hooks/queries/useEmailTemplatesQuery';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import contactsAPI from '../../../services/api/crm/contacts';
 
 const RichTextEditor = lazy(() => import('../../shared/RichTextEditor'));
@@ -182,6 +183,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
   onSendSuccess,
 }) => {
   const { showSuccess, showError } = useNotification();
+  useEscapeKey(onClose, isOpen);
 
   const documentLabel = documentLabelProp || DOCUMENT_LABELS[documentType];
   const templateKey = TEMPLATE_KEYS[documentType];

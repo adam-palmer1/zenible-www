@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import quotesAPI from '../services/api/finance/quotes';
 import type { QuoteCreate } from '../types';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
+import { formatLocalDate } from '../utils/dateUtils';
 
 interface QuoteFilters {
   search: string;
@@ -116,8 +117,8 @@ const getDefaultDateRange = () => {
   const thirtyDaysAgo = new Date(today);
   thirtyDaysAgo.setDate(today.getDate() - 29);
   return {
-    start_date: thirtyDaysAgo.toISOString().split('T')[0],
-    end_date: today.toISOString().split('T')[0],
+    start_date: formatLocalDate(thirtyDaysAgo),
+    end_date: formatLocalDate(today),
   };
 };
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import calendarVioletIcon from '../../assets/icons/live-qa/calendar-violet-icon.svg';
 import closeX1 from '../../assets/icons/live-qa/close-x-1.svg';
 import closeX2 from '../../assets/icons/live-qa/close-x-2.svg';
@@ -13,6 +14,8 @@ interface RegistrationModalProps {
 }
 
 export default function RegistrationModal({ event, onClose, darkMode: _darkMode }: RegistrationModalProps) {
+  useEscapeKey(() => onClose());
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

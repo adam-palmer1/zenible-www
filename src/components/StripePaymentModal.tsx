@@ -10,6 +10,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 
 interface CheckoutFormProps {
   planName: string;
@@ -289,6 +290,7 @@ export default function StripePaymentModal({
   onError
 }: StripePaymentModalProps) {
   const { darkMode } = usePreferences();
+  useEscapeKey(onClose, isOpen);
   const [loading, setLoading] = useState(false);
 
   const handleSuccess = async (paymentMethodId: string) => {

@@ -20,6 +20,7 @@ export { useViralPostAnalysis } from './useViralPostAnalysis';
 // UI state hooks
 export { useModalState } from './useModalState';
 export { useDeleteConfirmation } from './useDeleteConfirmation';
+export { useEscapeKey } from './useEscapeKey';
 
 // Utility hooks
 export { useSSEStreaming } from './useSSEStreaming';

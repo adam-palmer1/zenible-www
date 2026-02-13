@@ -1,4 +1,5 @@
 import React from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface DeleteConfirmationModalProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ export default function DeleteConfirmationModal({
   cancelText = 'Cancel',
   darkMode
 }: DeleteConfirmationModalProps) {
+  useEscapeKey(onClose, isOpen);
+
   if (!isOpen) return null;
 
   return (

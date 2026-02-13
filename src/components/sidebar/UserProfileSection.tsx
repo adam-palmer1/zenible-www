@@ -36,6 +36,11 @@ export default function UserProfileSection() {
     setShowDropdown(false);
   };
 
+  const handleSupport = () => {
+    navigate('/support');
+    setShowDropdown(false);
+  };
+
   const handleAdminSettings = () => {
     navigate('/admin');
     setShowDropdown(false);
@@ -116,6 +121,12 @@ export default function UserProfileSection() {
             className="w-full text-left px-4 py-3 lg:py-2 text-sm text-[#374151] hover:bg-[#F9FAFB] transition-colors"
           >
             Settings
+          </button>
+          <button
+            onClick={handleSupport}
+            className="w-full text-left px-4 py-3 lg:py-2 text-sm text-[#374151] hover:bg-[#F9FAFB] transition-colors"
+          >
+            Support
           </button>
           <div className="border-t border-[#E5E7EB] my-1"></div>
           <button

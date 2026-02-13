@@ -1,5 +1,6 @@
 import React from 'react';
 import { EventItem } from './types';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface DeleteEventModalProps {
   darkMode: boolean;
@@ -14,6 +15,8 @@ export default function DeleteEventModal({
   onConfirm,
   onCancel,
 }: DeleteEventModalProps) {
+  useEscapeKey(onCancel);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className={`w-full max-w-md mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>

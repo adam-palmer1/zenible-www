@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MagnifyingGlassIcon, CheckIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import contactsAPI from '../../services/api/crm/contacts';
 
 interface ContactSelectorModalProps {
@@ -24,6 +25,8 @@ const ContactSelectorModal: React.FC<ContactSelectorModalProps> = ({ isOpen, onC
   const [createError, setCreateError] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEscapeKey(onClose, isOpen);
 
   // Focus search input when dropdown opens
   useEffect(() => {

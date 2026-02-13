@@ -1,6 +1,7 @@
 import React from 'react';
 import { getIconPath } from '../../../utils/iconUtils';
 import { QuizTag, BulkDeleteResult } from './types';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface BulkDeleteModalProps {
   darkMode: boolean;
@@ -19,6 +20,8 @@ export default function BulkDeleteModal({
   onBulkDelete,
   onClose,
 }: BulkDeleteModalProps) {
+  useEscapeKey(onClose);
+
   const getSelectedTags = () => {
     return tags.filter((tag: QuizTag) => selectedTagIds.includes(tag.id));
   };

@@ -17,7 +17,14 @@ interface AppointmentLike {
 export const calculateEndDateTime = (startDateTime: string, durationMinutes = 60): string => {
   const startDate = new Date(startDateTime);
   const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
-  return endDate.toISOString().slice(0, 19); // Remove milliseconds and Z
+  // Format as local time to match start_datetime format (not UTC via toISOString)
+  const year = endDate.getFullYear();
+  const month = String(endDate.getMonth() + 1).padStart(2, '0');
+  const day = String(endDate.getDate()).padStart(2, '0');
+  const hours = String(endDate.getHours()).padStart(2, '0');
+  const minutes = String(endDate.getMinutes()).padStart(2, '0');
+  const seconds = String(endDate.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 };
 
 export const formatAppointmentTitle = (contact: ContactLike | null | undefined, appointmentType: string): string => {

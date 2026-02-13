@@ -9,7 +9,7 @@ interface DatePickerCalendarProps {
   className?: string;
 }
 
-const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const formatDisplay = (dateStr: string) => {
   if (!dateStr) return '';
@@ -74,7 +74,7 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
 
-  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  const firstDayOfMonth = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const monthLabel = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });

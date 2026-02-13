@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Settings } from 'lucide-react';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface QuoteSettingsModalProps {
   isOpen: boolean;
@@ -30,6 +31,8 @@ const QuoteSettingsModal: React.FC<QuoteSettingsModalProps> = ({
   paymentInstructions = '',
   onChange,
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   if (!isOpen) return null;
 
   return (

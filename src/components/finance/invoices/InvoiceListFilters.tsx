@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import {
   Search,
@@ -123,6 +124,34 @@ const InvoiceListFilters: React.FC<InvoiceListFiltersProps> = ({
   onBulkDeleteClick,
   onClearSelection,
 }) => {
+  const dateButtonRef = useRef<HTMLButtonElement>(null);
+  const clientButtonRef = useRef<HTMLButtonElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const [dateDropdownPos, setDateDropdownPos] = useState({ top: 0, right: 0 });
+  const [clientDropdownPos, setClientDropdownPos] = useState({ top: 0, right: 0 });
+  const [filterDropdownPos, setFilterDropdownPos] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    if (showDateDropdown && dateButtonRef.current) {
+      const rect = dateButtonRef.current.getBoundingClientRect();
+      setDateDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+  }, [showDateDropdown]);
+
+  useEffect(() => {
+    if (showClientDropdown && clientButtonRef.current) {
+      const rect = clientButtonRef.current.getBoundingClientRect();
+      setClientDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+  }, [showClientDropdown]);
+
+  useEffect(() => {
+    if (showFilterDropdown && filterButtonRef.current) {
+      const rect = filterButtonRef.current.getBoundingClientRect();
+      setFilterDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+  }, [showFilterDropdown]);
+
   return (
     <>
       {/* Section Header with Search and Filter */}
@@ -144,6 +173,7 @@ const InvoiceListFilters: React.FC<InvoiceListFiltersProps> = ({
           {/* Date Filter Dropdown */}
           <div className="relative">
             <button
+              ref={dateButtonRef}
               onClick={onToggleDateDropdown}
               className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                 datePreset !== 'all'
@@ -156,13 +186,17 @@ const InvoiceListFilters: React.FC<InvoiceListFiltersProps> = ({
               <ChevronDown className={`h-4 w-4 transition-transform ${showDateDropdown ? 'rotate-180' : ''}`} />
             </button>
 
-            {showDateDropdown && (
+            {showDateDropdown && createPortal(
               <>
                 <div
-                  className="fixed inset-0 z-30"
+                  className="fixed inset-0"
+                  style={{ zIndex: 9998 }}
                   onClick={onCloseDateDropdown}
                 />
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-40">
+                <div
+                  style={{ position: 'fixed', top: dateDropdownPos.top, right: dateDropdownPos.right, width: 320, zIndex: 9999 }}
+                  className="bg-white rounded-lg shadow-lg border border-gray-200"
+                >
                   <div className="p-3 border-b border-gray-200">
                     {/* Date Type Toggle */}
                     <div className="flex items-center gap-2 mb-3">
@@ -243,13 +277,15 @@ const InvoiceListFilters: React.FC<InvoiceListFiltersProps> = ({
                     </button>
                   </div>
                 </div>
-              </>
+              </>,
+              document.body
             )}
           </div>
 
           {/* Clients Dropdown */}
           <div className="relative">
             <button
+              ref={clientButtonRef}
               onClick={onToggleClientDropdown}
               className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                 selectedClientIds.length > 0
@@ -265,13 +301,17 @@ const InvoiceListFilters: React.FC<InvoiceListFiltersProps> = ({
                 </span>
               )}
             </button>
-            {showClientDropdown && (
+            {showClientDropdown && createPortal(
               <>
                 <div
-                  className="fixed inset-0 z-30"
+                  className="fixed inset-0"
+                  style={{ zIndex: 9998 }}
                   onClick={onCloseClientDropdown}
                 />
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-40">
+                <div
+                  style={{ position: 'fixed', top: clientDropdownPos.top, right: clientDropdownPos.right, width: 320, zIndex: 9999 }}
+                  className="bg-white rounded-lg shadow-lg border border-gray-200"
+                >
                   {/* Search Input */}
                   <div className="p-3 border-b border-gray-200">
                     <div className="relative">
@@ -347,7 +387,8 @@ const InvoiceListFilters: React.FC<InvoiceListFiltersProps> = ({
                     </button>
                   </div>
                 </div>
-              </>
+              </>,
+              document.body
             )}
           </div>
 
@@ -406,6 +447,7 @@ const InvoiceListFilters: React.FC<InvoiceListFiltersProps> = ({
           {/* Filter Dropdown */}
           <div className="relative">
             <button
+              ref={filterButtonRef}
               onClick={onToggleFilterDropdown}
               className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                 filterStatus !== 'all' || showRecurringOnly
@@ -421,13 +463,17 @@ const InvoiceListFilters: React.FC<InvoiceListFiltersProps> = ({
                 </span>
               )}
             </button>
-            {showFilterDropdown && (
+            {showFilterDropdown && createPortal(
               <>
                 <div
-                  className="fixed inset-0 z-30"
+                  className="fixed inset-0"
+                  style={{ zIndex: 9998 }}
                   onClick={onCloseFilterDropdown}
                 />
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-40">
+                <div
+                  style={{ position: 'fixed', top: filterDropdownPos.top, right: filterDropdownPos.right, width: 288, zIndex: 9999 }}
+                  className="bg-white rounded-lg shadow-lg border border-gray-200"
+                >
                   {/* Status Filter Section */}
                   <div className="p-3 border-b border-gray-200">
                     <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Status</div>
@@ -505,7 +551,8 @@ const InvoiceListFilters: React.FC<InvoiceListFiltersProps> = ({
                     </button>
                   </div>
                 </div>
-              </>
+              </>,
+              document.body
             )}
           </div>
         </div>

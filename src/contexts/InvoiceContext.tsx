@@ -2,6 +2,7 @@ import { createContext, useState, useCallback, useMemo, useContext, type Dispatc
 import { useAuth } from './AuthContext';
 import invoicesAPI from '../services/api/finance/invoices';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
+import { formatLocalDate } from '../utils/dateUtils';
 
 interface InvoiceFilters {
   search: string;
@@ -79,8 +80,8 @@ const getDefaultDateRange = () => {
   const thirtyDaysAgo = new Date(today);
   thirtyDaysAgo.setDate(today.getDate() - 29);
   return {
-    start_date: thirtyDaysAgo.toISOString().split('T')[0],
-    end_date: today.toISOString().split('T')[0],
+    start_date: formatLocalDate(thirtyDaysAgo),
+    end_date: formatLocalDate(today),
   };
 };
 

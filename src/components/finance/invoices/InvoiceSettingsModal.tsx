@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { X, Settings, Bell, AlertTriangle, Clock, Calendar, StopCircle } from 'lucide-react';
 import RecurringInvoiceSettings from './RecurringInvoiceSettings';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface InvoiceSettingsModalProps {
   isOpen: boolean;
@@ -73,6 +74,7 @@ const InvoiceSettingsModal: React.FC<InvoiceSettingsModalProps> = ({
 }) => {
   // Get company settings for inheritance display
   const { attributes: companyAttributes } = useCompanyAttributes();
+  useEscapeKey(onClose, isOpen);
 
   // Calculate effective settings with priority cascade
   const effectiveSettings = useMemo(() => {

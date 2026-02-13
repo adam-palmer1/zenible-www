@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 
 interface SubscriptionSuccessModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export default function SubscriptionSuccessModal({
   onContinue
 }: SubscriptionSuccessModalProps) {
   const { darkMode } = usePreferences();
+  useEscapeKey(onClose, isOpen);
 
   useEffect(() => {
     if (isOpen) {

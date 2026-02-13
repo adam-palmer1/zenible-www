@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Check, Loader2, Trash2 } from 'lucide-react';
 import taxesAPI from '../../../services/api/crm/taxes';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface TaxItem {
   tax_name: string;
@@ -24,6 +25,8 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
   onSave,
   initialDocumentTaxes = [],
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   const [companyTaxes, setCompanyTaxes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

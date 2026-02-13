@@ -1,5 +1,6 @@
 import React from 'react';
 import { QuizTag } from './types';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface DeleteTagModalProps {
   darkMode: boolean;
@@ -16,6 +17,8 @@ export default function DeleteTagModal({
   onConfirm,
   onCancel,
 }: DeleteTagModalProps) {
+  useEscapeKey(onCancel);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className={`w-full max-w-md mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>

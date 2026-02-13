@@ -132,6 +132,7 @@ export const authAPI = {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ email, password })
     });
 
@@ -269,6 +270,117 @@ export const authAPI = {
       throw new Error(error.message || 'Google auth failed');
     }
 
+    return response.json();
+  }
+};
+
+// Two-Factor Authentication API calls
+export const twoFactorAPI = {
+  async setup() {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/auth/2fa/setup`, {
+      method: 'POST'
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(extractErrorMessage(error, 'Failed to setup 2FA'));
+    }
+    return response.json();
+  },
+
+  async enable(code: string) {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/auth/2fa/enable`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(extractErrorMessage(error, 'Failed to enable 2FA'));
+    }
+    return response.json();
+  },
+
+  async verify(challengeToken: string, code: string, trustDevice: boolean = false) {
+    const response = await fetch(`${API_BASE_URL}/auth/2fa/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        challenge_token: challengeToken,
+        code,
+        trust_device: trustDevice
+      })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(extractErrorMessage(error, 'Verification failed'));
+    }
+    return response.json();
+  },
+
+  async disable(password: string, code: string) {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/auth/2fa/disable`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, code })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(extractErrorMessage(error, 'Failed to disable 2FA'));
+    }
+    return response.json();
+  },
+
+  async getStatus() {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/auth/2fa/status`);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(extractErrorMessage(error, 'Failed to get 2FA status'));
+    }
+    return response.json();
+  },
+
+  async regenerateBackupCodes(password: string) {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/auth/2fa/backup-codes/regenerate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(extractErrorMessage(error, 'Failed to regenerate backup codes'));
+    }
+    return response.json();
+  },
+
+  async getTrustedDevices() {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/auth/2fa/devices`);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(extractErrorMessage(error, 'Failed to get trusted devices'));
+    }
+    return response.json();
+  },
+
+  async revokeTrustedDevice(deviceId: string) {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/auth/2fa/devices/${deviceId}`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(extractErrorMessage(error, 'Failed to revoke device'));
+    }
+    return response.json();
+  },
+
+  async revokeAllTrustedDevices() {
+    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/auth/2fa/devices`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(extractErrorMessage(error, 'Failed to revoke devices'));
+    }
     return response.json();
   }
 };

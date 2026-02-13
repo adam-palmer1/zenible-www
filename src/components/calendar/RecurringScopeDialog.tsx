@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useCRMReferenceData } from '../../contexts/CRMReferenceDataContext';
 
 interface RecurringScopeDialogProps {
@@ -13,6 +14,8 @@ interface RecurringScopeDialogProps {
 const RecurringScopeDialog: React.FC<RecurringScopeDialogProps> = ({ isOpen, onClose, onConfirm, mode = 'edit', appointment: _appointment }) => {
   const { editScopes } = useCRMReferenceData();
   const [selectedScope, setSelectedScope] = useState('this');
+
+  useEscapeKey(onClose, isOpen);
 
   if (!isOpen) return null;
 

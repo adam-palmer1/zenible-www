@@ -1,4 +1,5 @@
 import React from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import chartIcon from '../../assets/icons/quizzes/chart-icon.svg';
 
 interface QuizPreviewModalProps {
@@ -9,6 +10,8 @@ interface QuizPreviewModalProps {
 }
 
 export default function QuizPreviewModal({ quiz, onStartQuiz, onTryAnother, onClose }: QuizPreviewModalProps) {
+  useEscapeKey(onClose);
+
   if (!quiz) return null;
 
   // Prevent clicks inside modal from closing it

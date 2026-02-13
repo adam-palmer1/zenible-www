@@ -102,6 +102,15 @@ const creditNotesAPI = {
     window.URL.revokeObjectURL(downloadUrl);
   },
 
+  /**
+   * Get credit note by public share code (no auth required)
+   */
+  async getPublic(shareCode: string): Promise<unknown> {
+    return baseCRUD.request(`/credit-notes/${shareCode}`, {
+      method: 'GET',
+    });
+  },
+
   // ========== Project Allocation Endpoints ==========
 
   /**
@@ -130,6 +139,49 @@ const creditNotesAPI = {
     return baseCRUD.request(`${baseCRUD.baseEndpoint}${creditNoteId}/allocations`, {
       method: 'DELETE',
     });
+  },
+
+  // ========== Invoice Application Endpoints ==========
+
+  /**
+   * Apply credit note to one or more invoices
+   */
+  async applyToInvoices(creditNoteId: string, allocations: { invoice_id: string; amount: number; notes?: string }[]): Promise<unknown> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${creditNoteId}/applications`, {
+      method: 'POST',
+      body: JSON.stringify({ allocations }),
+    });
+  },
+
+  /**
+   * Get all invoice applications for a credit note
+   */
+  async getApplications(creditNoteId: string): Promise<unknown> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${creditNoteId}/applications`, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Remove a specific invoice application from a credit note
+   */
+  async removeApplication(creditNoteId: string, allocationId: string): Promise<unknown> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${creditNoteId}/applications/${allocationId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * List credit notes filtered by contact (for invoice-side picker)
+   */
+  async listByContact(contactId: string, params?: Record<string, string>): Promise<unknown> {
+    const queryParams = new URLSearchParams({
+      contact_id: contactId,
+      status: 'issued',
+      available_only: 'true',
+      ...params,
+    });
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}?${queryParams}`, { method: 'GET' });
   },
 };
 

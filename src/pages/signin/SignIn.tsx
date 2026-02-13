@@ -65,7 +65,14 @@ export default function SignIn() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string>('');
 
-  const { login, googleLogin, isAuthenticated, loading: authLoading, checkAuth } = useAuth();
+  // 2FA state
+  const [requires2FA, setRequires2FA] = useState<boolean>(false);
+  const [challengeToken, setChallengeToken] = useState<string>('');
+  const [totpCode, setTotpCode] = useState<string>('');
+  const [useBackupCode, setUseBackupCode] = useState<boolean>(false);
+  const [trustDevice, setTrustDevice] = useState<boolean>(false);
+
+  const { login, verify2FA, googleLogin, isAuthenticated, loading: authLoading, checkAuth } = useAuth();
   const navigate = useNavigate();
 
   // Force re-check authentication when component mounts
@@ -152,6 +159,13 @@ export default function SignIn() {
     try {
       const result = await login(email, password);
 
+      if (result.requires2FA && result.challengeToken) {
+        setRequires2FA(true);
+        setChallengeToken(result.challengeToken);
+        setIsLoading(false);
+        return;
+      }
+
       if (result.success) {
         // Get redirect path from URL params
         const searchParams = new URLSearchParams(window.location.search);
@@ -166,6 +180,40 @@ export default function SignIn() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleVerify2FA = async () => {
+    if (!totpCode.trim()) {
+      setApiError('Please enter a verification code');
+      return;
+    }
+    setIsLoading(true);
+    setApiError('');
+
+    try {
+      const result = await verify2FA(challengeToken, totpCode, trustDevice);
+      if (result.success) {
+        const searchParams = new URLSearchParams(window.location.search);
+        const redirectPath = searchParams.get('redirect');
+        const targetPath = isValidInternalRedirect(redirectPath) ? redirectPath! : '/dashboard';
+        navigate(targetPath);
+      } else {
+        setApiError(result.error || 'Verification failed. Please try again.');
+      }
+    } catch (_error) {
+      setApiError('Network error. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    setRequires2FA(false);
+    setChallengeToken('');
+    setTotpCode('');
+    setUseBackupCode(false);
+    setTrustDevice(false);
+    setApiError('');
   };
 
   const handleGoogleSignIn = async () => {
@@ -205,6 +253,122 @@ export default function SignIn() {
           <p className="text-lg font-inter font-medium text-zinc-950 dark:text-[#ededf0]">
             Loading...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 2FA Challenge Screen ────────────────────────────────────────
+  if (requires2FA) {
+    return (
+      <div className="bg-[#fafafa] dark:bg-[#0c111d] min-h-screen flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-[#161b26] relative rounded-[12px] w-full max-w-[467px]">
+          <div className="flex flex-col gap-[32px] p-5 sm:p-[34px]">
+            {/* Logo */}
+            <div className="flex items-center justify-center">
+              <div className="bg-[#8e51ff] dark:bg-[#a684ff] rounded-[16px] p-[4px] size-[64px] flex items-center justify-center">
+                <img alt="Zenible" className="size-[38.4px]" src={isDarkMode ? brandIconDark : brandIcon} />
+              </div>
+            </div>
+
+            {/* Header */}
+            <div className="flex flex-col gap-[12px] items-center text-center">
+              <h1 className="font-inter font-bold text-2xl sm:text-[32px] leading-tight sm:leading-[40px] text-zinc-950 dark:text-[#ededf0]">
+                Two-Factor Authentication
+              </h1>
+              <p className="font-inter font-normal text-[16px] leading-[24px] text-zinc-500 dark:text-[#94969c]">
+                {useBackupCode
+                  ? 'Enter one of your backup codes'
+                  : 'Enter the 6-digit code from your authenticator app'}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-[24px] items-start w-full">
+              {apiError && (
+                <div className="w-full p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-600 dark:text-red-400 font-inter">{apiError}</p>
+                </div>
+              )}
+
+              {/* Code input */}
+              <div className="flex flex-col gap-[4px] w-full">
+                <div className="box-border content-stretch flex gap-[10px] items-center px-[4px] py-0 relative shrink-0 w-full">
+                  <div className="basis-0 font-inter font-medium grow leading-[0] min-h-px min-w-px relative shrink-0 text-[14px] text-zinc-950 dark:text-[#ededf0]">
+                    <p className="leading-[22px]">{useBackupCode ? 'Backup Code' : 'Verification Code'}</p>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-[#161b26] relative rounded-[10px] shrink-0 w-full">
+                  <div className="box-border content-stretch flex gap-[12px] items-center overflow-clip px-[16px] py-[12px] relative w-full">
+                    <input
+                      type="text"
+                      value={totpCode}
+                      onChange={(e) => {
+                        setTotpCode(e.target.value);
+                        if (apiError) setApiError('');
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !isLoading) handleVerify2FA(); }}
+                      placeholder={useBackupCode ? 'Enter backup code' : '000000'}
+                      maxLength={useBackupCode ? 8 : 6}
+                      autoFocus
+                      className="basis-0 box-border content-stretch flex grow h-[20px] items-center justify-center min-h-px min-w-px pb-0 pt-[2px] px-0 relative shrink-0 font-inter font-normal text-[16px] text-zinc-950 dark:text-[#ededf0] placeholder:text-zinc-400 dark:placeholder:text-[#85888e] outline-none bg-transparent w-full tracking-[0.3em] text-center"
+                    />
+                  </div>
+                  <div aria-hidden="true" className="absolute border-[1.5px] border-neutral-200 dark:border-[#1f242f] border-solid inset-0 pointer-events-none rounded-[10px]" />
+                </div>
+              </div>
+
+              {/* Toggle backup code */}
+              <button
+                type="button"
+                onClick={() => { setUseBackupCode(!useBackupCode); setTotpCode(''); setApiError(''); }}
+                className="font-inter font-medium text-[14px] text-[#8e51ff] dark:text-[#a684ff] hover:underline"
+              >
+                {useBackupCode ? 'Use authenticator code instead' : 'Use a backup code instead'}
+              </button>
+
+              {/* Trust device checkbox */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={trustDevice}
+                  onChange={(e) => setTrustDevice(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-[#8e51ff] focus:ring-[#8e51ff]"
+                />
+                <span className="font-inter font-normal text-[14px] text-zinc-500 dark:text-[#94969c]">
+                  Trust this device for 30 days
+                </span>
+              </label>
+
+              {/* Verify button */}
+              <button
+                onClick={handleVerify2FA}
+                disabled={isLoading}
+                className={`bg-[#8e51ff] dark:bg-[#a684ff] flex items-center justify-center p-[12px] rounded-[12px] w-full transition-colors ${
+                  isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-[#7a3fe6] dark:hover:bg-[#9370ff]'
+                }`}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span className="font-inter font-medium text-[16px] text-white">Verifying...</span>
+                  </div>
+                ) : (
+                  <span className="font-inter font-medium text-[16px] leading-[24px] text-white">Verify</span>
+                )}
+              </button>
+
+              {/* Back link */}
+              <div className="flex items-center justify-center w-full">
+                <button
+                  onClick={handleBack}
+                  className="font-inter font-semibold text-[14px] leading-[22px] text-[#8e51ff] dark:text-[#a684ff] hover:underline"
+                >
+                  Back to login
+                </button>
+              </div>
+            </div>
+          </div>
+          <div aria-hidden="true" className="absolute border border-[#c4b4ff] dark:border-[#2a1e46] border-solid inset-0 pointer-events-none rounded-[12px]" />
         </div>
       </div>
     );

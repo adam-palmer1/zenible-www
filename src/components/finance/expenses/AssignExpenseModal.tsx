@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Receipt,
   Plus,
@@ -92,6 +92,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [assignedExpenses, setAssignedExpenses] = useState<any[]>([]);
   const [allExpenses, setAllExpenses] = useState<any[]>([]);
   const [expensesLoading, setExpensesLoading] = useState(true);
@@ -113,14 +114,37 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
     }
   }, [open, entityId]);
 
+  const fetchExpenses = useCallback(async (search: string) => {
+    setExpensesLoading(true);
+    try {
+      const params: Record<string, string> = { per_page: '50' };
+      if (search) params.search = search;
+      const result = await expensesAPI.list(params) as { items?: unknown[] };
+      setAllExpenses(result.items || []);
+    } catch (error) {
+      console.error('Failed to search expenses:', error);
+    } finally {
+      setExpensesLoading(false);
+    }
+  }, []);
+
+  // Debounced server-side search
+  useEffect(() => {
+    if (!open) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchExpenses(searchQuery);
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery, open, fetchExpenses]);
+
   const loadAllData = async () => {
     setLoading(true);
-    setExpensesLoading(true);
     setConvertedAmounts({});
     setOtherAllocatedTotal(0);
     try {
       const promises: Promise<any>[] = [
-        expensesAPI.list({ per_page: '500' }),
+        fetchExpenses(''),
         loadAssignments(),
       ];
       // Fetch capacity info for invoices
@@ -134,8 +158,6 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
       }
 
       const results = await Promise.all(promises);
-      const listResult = results[0] as { items?: unknown[] };
-      setAllExpenses(listResult.items || []);
 
       // Set other-allocated total from capacity endpoint
       if (results[2]) {
@@ -144,7 +166,6 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
-      setExpensesLoading(false);
       setLoading(false);
     }
   };
@@ -262,20 +283,8 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
   // Filter available expenses (not already assigned)
   const availableExpenses = useMemo(() => {
     const assignedIds = new Set(assignedExpenses.map((a: any) => a.expense_id));
-    let filtered = allExpenses.filter((exp: any) => !assignedIds.has(exp.id));
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (exp: any) =>
-          exp.description?.toLowerCase().includes(query) ||
-          exp.expense_number?.toLowerCase().includes(query) ||
-          exp.vendor?.name?.toLowerCase().includes(query)
-      );
-    }
-
-    return filtered;
-  }, [allExpenses, assignedExpenses, searchQuery]);
+    return allExpenses.filter((exp: any) => !assignedIds.has(exp.id));
+  }, [allExpenses, assignedExpenses]);
 
   const handleAddExpense = (expense: any) => {
     setAssignedExpenses([

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, ChevronDown, X } from 'lucide-react';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
+import { formatLocalDate } from '../../../utils/dateUtils';
 
 /**
  * Helper to get last 30 days date range
@@ -12,8 +13,8 @@ export const getLast30DaysRange = () => {
   const thirtyDaysAgo = new Date(today);
   thirtyDaysAgo.setDate(today.getDate() - 29);
   return {
-    start_date: thirtyDaysAgo.toISOString().split('T')[0],
-    end_date: today.toISOString().split('T')[0],
+    start_date: formatLocalDate(thirtyDaysAgo),
+    end_date: formatLocalDate(today),
   };
 };
 
@@ -26,13 +27,13 @@ const DATE_PRESETS: DatePreset[] = [
   { label: 'Last 30 Days', getValue: getLast30DaysRange },
   { label: 'Today', getValue: () => {
     const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(today);
     return { start_date: dateStr, end_date: dateStr };
   }},
   { label: 'Yesterday', getValue: () => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(yesterday);
     return { start_date: dateStr, end_date: dateStr };
   }},
   { label: 'Last 7 Days', getValue: () => {
@@ -40,8 +41,8 @@ const DATE_PRESETS: DatePreset[] = [
     const sevenDaysAgo = new Date(today);
     sevenDaysAgo.setDate(today.getDate() - 6);
     return {
-      start_date: sevenDaysAgo.toISOString().split('T')[0],
-      end_date: today.toISOString().split('T')[0],
+      start_date: formatLocalDate(sevenDaysAgo),
+      end_date: formatLocalDate(today),
     };
   }},
   { label: 'This Week', getValue: () => {
@@ -50,8 +51,8 @@ const DATE_PRESETS: DatePreset[] = [
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - dayOfWeek);
     return {
-      start_date: startOfWeek.toISOString().split('T')[0],
-      end_date: today.toISOString().split('T')[0],
+      start_date: formatLocalDate(startOfWeek),
+      end_date: formatLocalDate(today),
     };
   }},
   { label: 'Last Week', getValue: () => {
@@ -62,16 +63,16 @@ const DATE_PRESETS: DatePreset[] = [
     const startOfLastWeek = new Date(endOfLastWeek);
     startOfLastWeek.setDate(endOfLastWeek.getDate() - 6);
     return {
-      start_date: startOfLastWeek.toISOString().split('T')[0],
-      end_date: endOfLastWeek.toISOString().split('T')[0],
+      start_date: formatLocalDate(startOfLastWeek),
+      end_date: formatLocalDate(endOfLastWeek),
     };
   }},
   { label: 'This Month', getValue: () => {
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     return {
-      start_date: startOfMonth.toISOString().split('T')[0],
-      end_date: today.toISOString().split('T')[0],
+      start_date: formatLocalDate(startOfMonth),
+      end_date: formatLocalDate(today),
     };
   }},
   { label: 'Last Month', getValue: () => {
@@ -79,8 +80,8 @@ const DATE_PRESETS: DatePreset[] = [
     const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
     return {
-      start_date: startOfLastMonth.toISOString().split('T')[0],
-      end_date: endOfLastMonth.toISOString().split('T')[0],
+      start_date: formatLocalDate(startOfLastMonth),
+      end_date: formatLocalDate(endOfLastMonth),
     };
   }},
   { label: 'This Quarter', getValue: () => {
@@ -88,16 +89,16 @@ const DATE_PRESETS: DatePreset[] = [
     const quarter = Math.floor(today.getMonth() / 3);
     const startOfQuarter = new Date(today.getFullYear(), quarter * 3, 1);
     return {
-      start_date: startOfQuarter.toISOString().split('T')[0],
-      end_date: today.toISOString().split('T')[0],
+      start_date: formatLocalDate(startOfQuarter),
+      end_date: formatLocalDate(today),
     };
   }},
   { label: 'This Year', getValue: () => {
     const today = new Date();
     const startOfYear = new Date(today.getFullYear(), 0, 1);
     return {
-      start_date: startOfYear.toISOString().split('T')[0],
-      end_date: today.toISOString().split('T')[0],
+      start_date: formatLocalDate(startOfYear),
+      end_date: formatLocalDate(today),
     };
   }},
   { label: 'Last Year', getValue: () => {
@@ -105,8 +106,8 @@ const DATE_PRESETS: DatePreset[] = [
     const startOfLastYear = new Date(today.getFullYear() - 1, 0, 1);
     const endOfLastYear = new Date(today.getFullYear() - 1, 11, 31);
     return {
-      start_date: startOfLastYear.toISOString().split('T')[0],
-      end_date: endOfLastYear.toISOString().split('T')[0],
+      start_date: formatLocalDate(startOfLastYear),
+      end_date: formatLocalDate(endOfLastYear),
     };
   }},
 ];

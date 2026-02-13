@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Link2, Loader2, Search, CreditCard, AlertCircle } from 'lucide-react';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { formatCurrency } from '../../../utils/currency';
 import paymentsAPI from '../../../services/api/finance/payments';
 
@@ -42,6 +43,7 @@ interface LinkPaymentModalProps {
 
 const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, invoice, onSuccess }) => {
   const { showSuccess, showError } = useNotification();
+  useEscapeKey(onClose, isOpen);
 
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [loading, setLoading] = useState(false);

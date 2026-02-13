@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Mail, Send } from 'lucide-react';
 import { useInvoices } from '../../../contexts/InvoiceContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import invoicesAPI from '../../../services/api/finance/invoices';
 
 interface SendInvoiceModalProps {
@@ -13,6 +14,7 @@ interface SendInvoiceModalProps {
 const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, invoice }) => {
   const { refresh } = useInvoices();
   const { showSuccess, showError } = useNotification();
+  useEscapeKey(onClose, isOpen);
 
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');

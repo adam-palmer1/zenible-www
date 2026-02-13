@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Clock, Check, Loader2 } from 'lucide-react';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface MarkHoursBilledModalProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ const MarkHoursBilledModal: React.FC<MarkHoursBilledModalProps> = ({
   hoursCount = 0,
   loading = false,
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   if (!isOpen) return null;
 
   return (

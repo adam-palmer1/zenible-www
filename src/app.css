@@ -106,6 +106,17 @@ input[type="number"] {
   display: none;  /* Safari and Chrome */
 }
 
+/* Safe viewport height (fixes iOS Safari / Android Chrome address bar) */
+.h-screen-safe {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.min-h-screen-safe {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 /* Ensure drag and drop works properly with grid layouts */
 .grid > * {
   pointer-events: auto;

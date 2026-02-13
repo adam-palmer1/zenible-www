@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   FileText,
   Plus,
@@ -112,6 +112,8 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
   const [assignedItems, setAssignedItems] = useState<any[]>([]); // { item_id, percentage, item, existingAllocations }
   const [allItems, setAllItems] = useState<any[]>([]);
   const [showAddSection, setShowAddSection] = useState(false);
+  const [itemsLoading, setItemsLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Get config - use a fallback for when entityType is null/undefined
   const config = ENTITY_CONFIG[entityType] || null;
@@ -130,21 +132,8 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
   const availableItems = useMemo(() => {
     if (!config) return [];
     const assignedIds = new Set(assignedItems.map((a: any) => a.item_id));
-    let filtered = allItems.filter((item: any) => !assignedIds.has(item.id));
-
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((item: any) => {
-        const number = item[config.numberField]?.toLowerCase() || '';
-        const contactName = item.contact?.business_name?.toLowerCase() ||
-          `${item.contact?.first_name || ''} ${item.contact?.last_name || ''}`.toLowerCase();
-        return number.includes(query) || contactName.includes(query);
-      });
-    }
-
-    return filtered;
-  }, [allItems, assignedItems, searchQuery, config]);
+    return allItems.filter((item: any) => !assignedIds.has(item.id));
+  }, [allItems, assignedItems, config]);
 
   // Load all items and existing allocations when modal opens
   useEffect(() => {
@@ -152,6 +141,34 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
       loadAllData();
     }
   }, [open, projectId, entityType]);
+
+  const fetchItems = useCallback(async (search: string): Promise<any[]> => {
+    if (!config) return [];
+    setItemsLoading(true);
+    try {
+      const params: Record<string, string> = { per_page: '50' };
+      if (search) params.search = search;
+      const result = await config.api[config.listMethod](params);
+      const items = result.items || result || [];
+      setAllItems(items);
+      return items;
+    } catch (error) {
+      console.error('Failed to search items:', error);
+      return [];
+    } finally {
+      setItemsLoading(false);
+    }
+  }, [config]);
+
+  // Debounced server-side search
+  useEffect(() => {
+    if (!open) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchItems(searchQuery);
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery, open, fetchItems]);
 
   // Early return AFTER all hooks
   if (!config) {
@@ -161,10 +178,8 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // Fetch all items
-      const itemsResult = await config.api[config.listMethod]({ per_page: 500, limit: 500 });
-      const items = itemsResult.items || itemsResult || [];
-      setAllItems(items);
+      // Fetch items
+      const items = await fetchItems('');
 
       // Find items already allocated to this project
       const assignments: any[] = [];
@@ -477,7 +492,11 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
 
                   {/* Available Items */}
                   <div className="max-h-48 overflow-y-auto">
-                    {availableItems.length === 0 ? (
+                    {itemsLoading ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                      </div>
+                    ) : availableItems.length === 0 ? (
                       <p className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
                         {searchQuery ? `No matching ${config.pluralLabel.toLowerCase()} found.` : `No available ${config.pluralLabel.toLowerCase()} to allocate.`}
                       </p>

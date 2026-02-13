@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Check, Loader2, GripVertical } from 'lucide-react';
 import taxesAPI from '../../../services/api/crm/taxes';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface LineItemTaxModalProps {
   isOpen: boolean;
@@ -23,6 +24,8 @@ const LineItemTaxModal: React.FC<LineItemTaxModalProps> = ({
   initialTaxes = [],
   currency = 'USD'
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   // Company taxes from API
   const [companyTaxes, setCompanyTaxes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

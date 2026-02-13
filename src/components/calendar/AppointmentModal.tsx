@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import ContactSelectorModal from './ContactSelectorModal';
 import DatePickerCalendar from '../shared/DatePickerCalendar';
 import TimePickerInput from '../shared/TimePickerInput';
@@ -66,6 +67,8 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
     appointmentTypes,
     recurringTypes
   } = useCRMReferenceData();
+
+  useEscapeKey(onClose, isOpen);
 
   const [formData, setFormData] = useState({
     title: '',

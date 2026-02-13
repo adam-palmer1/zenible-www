@@ -83,10 +83,10 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
   // Get selected month's data from period data
   const displayMonthData = periodData.find((p: any) => p.period === displayPeriodKey) || {};
 
-  // Revenue = payments received
+  // Revenue = paid invoices (already reduced by credit notes on the backend)
   // Expenses = all expenses
   // Profit = revenue - expenses
-  const revenue = parseFloat(displayMonthData?.payments_total || 0);
+  const revenue = parseFloat(displayMonthData?.paid_invoices_total || 0);
   const expenses = parseFloat(displayMonthData?.expense_total || 0);
   const profit = revenue - expenses;
 
@@ -105,7 +105,7 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
     // Calculate max value considering total bars (paid + unpaid)
     const maxValue = Math.max(
       ...data.map((d: any) => {
-        const totalIncome = parseFloat(d.payments_total || d.paid_invoices_total || 0) +
+        const totalIncome = parseFloat(d.paid_invoices_total || 0) +
                            parseFloat(d.outstanding_invoices || 0);
         const totalExpenses = parseFloat(d.paid_expenses || d.expense_total || 0) +
                              parseFloat(d.unpaid_expenses || 0);
@@ -197,7 +197,7 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
 
           {/* Bars and X-axis labels */}
           {data.map((month: any, i: number) => {
-            const paidIncome = parseFloat(month.payments_total || month.paid_invoices_total || 0);
+            const paidIncome = parseFloat(month.paid_invoices_total || 0);
             const unpaidIncome = parseFloat(month.outstanding_invoices || 0);
             const paidExpenses = parseFloat(month.paid_expenses || month.expense_total || 0);
             const unpaidExpenses = parseFloat(month.unpaid_expenses || 0);

@@ -18,7 +18,11 @@ export default function AdminLayout() {
     <AdminRoute>
       <div className={`min-h-screen-safe font-inter ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
         {/* Desktop sidebar */}
-        {!isMobile && <AdminSidebar />}
+        {!isMobile && (
+          <div className="fixed left-0 top-0 h-full z-30">
+            <AdminSidebar />
+          </div>
+        )}
 
         {/* Mobile drawer */}
         {isMobile && mobileOpen && (

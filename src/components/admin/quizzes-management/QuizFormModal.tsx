@@ -4,6 +4,7 @@ import BulkQuestionUpload from '../BulkQuestionUpload';
 import { Quiz, QuizAnswer, QuizFormState, QuizQuestion, QuizTag } from './types';
 import { calculateTotalPoints } from './utils';
 import QuestionEditor from './QuestionEditor';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface QuizFormModalProps {
   darkMode: boolean;
@@ -46,6 +47,8 @@ export default function QuizFormModal({
   onDeleteAnswer,
   onBulkUploadSuccess,
 }: QuizFormModalProps) {
+  useEscapeKey(onClose);
+
   const isSaveDisabled =
     !quizForm.title ||
     quizForm.questions.length === 0 ||

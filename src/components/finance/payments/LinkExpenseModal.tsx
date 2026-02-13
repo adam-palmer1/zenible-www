@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Link2, Loader2, Search, Receipt, AlertCircle } from 'lucide-react';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { usePayments } from '../../../contexts/PaymentsContext';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { formatCurrency } from '../../../utils/currency';
 import { formatDate } from '../../../utils/dateUtils';
 import expensesAPI from '../../../services/api/finance/expenses';
@@ -30,6 +31,7 @@ interface LinkExpenseModalProps {
 const LinkExpenseModal: React.FC<LinkExpenseModalProps> = ({ isOpen, onClose, payment }) => {
   const { showSuccess, showError } = useNotification();
   const { refresh } = usePayments();
+  useEscapeKey(() => onClose(), isOpen);
 
   const [loading, setLoading] = useState(false);
   const [linking, setLinking] = useState(false);

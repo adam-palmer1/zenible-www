@@ -2,6 +2,7 @@ import { createContext, useState, useCallback, useMemo, useContext, useEffect, t
 import { useAuth } from './AuthContext';
 import { usePreferences } from './PreferencesContext';
 import paymentsAPI from '../services/api/finance/payments';
+import { formatLocalDate } from '../utils/dateUtils';
 
 interface PaymentFilters {
   status: string | null;
@@ -117,8 +118,8 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 29);
     return {
-      start_date: thirtyDaysAgo.toISOString().split('T')[0],
-      end_date: today.toISOString().split('T')[0],
+      start_date: formatLocalDate(thirtyDaysAgo),
+      end_date: formatLocalDate(today),
     };
   })();
 

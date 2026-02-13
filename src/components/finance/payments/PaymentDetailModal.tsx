@@ -12,6 +12,7 @@ import {
 import { formatCurrency } from '../../../utils/currency';
 import { formatDate } from '../../../utils/dateUtils';
 import { usePayments } from '../../../contexts/PaymentsContext';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import paymentsAPI from '../../../services/api/finance/payments';
 import AssignExpenseModal from '../expenses/AssignExpenseModal';
 import { AllocationSummaryBar, ProjectAllocationModal, ExpenseAllocationSummaryBar } from '../allocations';
@@ -25,6 +26,7 @@ interface PaymentDetailModalProps {
 
 const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, onClose, payment: paymentProp, refreshKey }) => {
   const { openRefundModal, refresh } = usePayments();
+  useEscapeKey(onClose, isOpen);
   const [payment, setPayment] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showAssignExpenseModal, setShowAssignExpenseModal] = useState(false);

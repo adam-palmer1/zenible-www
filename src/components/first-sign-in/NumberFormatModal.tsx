@@ -1,5 +1,6 @@
 import React from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface NumberFormatModalProps {
   darkMode: boolean;
@@ -16,6 +17,8 @@ export default function NumberFormatModal({
   onSelect,
   onClose,
 }: NumberFormatModalProps) {
+  useEscapeKey(onClose);
+
   return (
     <div className="fixed inset-0 z-[60] overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4">

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDownIcon, XMarkIcon, MagnifyingGlassIcon, CheckIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { useModalPortal } from '../../../contexts/ModalPortalContext';
 
 interface ComboboxOption {
   id: string;
@@ -68,6 +69,9 @@ const Combobox: React.FC<ComboboxProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const portalWrapperRef = useRef<HTMLDivElement>(null);
+  const modalPortal = useModalPortal();
+  const portalTarget = modalPortal || document.body;
 
   // Find selected option
   const selectedOption = options.find(opt => opt.id === value);
@@ -150,6 +154,22 @@ const Combobox: React.FC<ComboboxProps> = ({
     }
   }, [isOpen]);
 
+  // When inside a modal, stop native focusin/focusout propagation on the portal wrapper
+  // so Radix Dialog's FocusScope doesn't detect focus leaving Dialog.Content and yank it back.
+  useEffect(() => {
+    const wrapper = portalWrapperRef.current;
+    if (!wrapper || !isOpen || !modalPortal) return;
+
+    const stop = (e: Event) => e.stopPropagation();
+    wrapper.addEventListener('focusin', stop);
+    wrapper.addEventListener('focusout', stop);
+
+    return () => {
+      wrapper.removeEventListener('focusin', stop);
+      wrapper.removeEventListener('focusout', stop);
+    };
+  }, [isOpen, modalPortal]);
+
   const handleSelect = useCallback((optionId: string) => {
     onChange(optionId);
     setIsOpen(false);
@@ -204,6 +224,12 @@ const Combobox: React.FC<ComboboxProps> = ({
   }, [handleCreate]);
 
   const dropdownContent = (
+    <div
+      ref={portalWrapperRef}
+      style={{ pointerEvents: 'auto' }}
+      onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+    >
     <div
       ref={dropdownRef}
       style={dropdownStyle}
@@ -322,6 +348,7 @@ const Combobox: React.FC<ComboboxProps> = ({
         </>
       )}
     </div>
+    </div>
   );
 
   return (
@@ -367,7 +394,7 @@ const Combobox: React.FC<ComboboxProps> = ({
       </button>
 
       {/* Dropdown rendered via portal to escape overflow:hidden containers */}
-      {isOpen && createPortal(dropdownContent, document.body)}
+      {isOpen && createPortal(dropdownContent, portalTarget)}
     </div>
   );
 };

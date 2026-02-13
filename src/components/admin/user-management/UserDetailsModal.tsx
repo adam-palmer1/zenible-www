@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, User } from 'lucide-react';
 import { AdminUser } from './types';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface UserDetailsModalProps {
   user: AdminUser;
@@ -10,6 +11,8 @@ interface UserDetailsModalProps {
 }
 
 const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ user, onClose, getPlanName, formatDate }) => {
+  useEscapeKey(onClose);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />

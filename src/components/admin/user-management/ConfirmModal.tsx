@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { ConfirmModalState } from './types';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface ConfirmModalProps {
   confirmModal: ConfirmModalState;
@@ -10,6 +11,14 @@ interface ConfirmModalProps {
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({ confirmModal, confirmLoading, setConfirmModal, setConfirmLoading }) => {
+  const handleClose = useCallback(() => {
+    if (!confirmLoading) {
+      setConfirmModal({ ...confirmModal, open: false });
+    }
+  }, [confirmLoading, confirmModal, setConfirmModal]);
+
+  useEscapeKey(handleClose, confirmModal.open);
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={() => !confirmLoading && setConfirmModal({ ...confirmModal, open: false })} />

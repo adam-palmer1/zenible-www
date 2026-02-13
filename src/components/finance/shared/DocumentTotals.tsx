@@ -139,13 +139,15 @@ const DocumentTotals: React.FC<DocumentTotalsProps> = ({
 
       {/* Add buttons */}
       <div className="flex items-center gap-3 pt-2">
-        <button
-          onClick={onEditTax}
-          className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
-        >
-          <Plus className="h-4 w-4" />
-          {documentTaxes.length > 0 ? 'Edit Taxes' : 'Add Tax'}
-        </button>
+        {onEditTax && (
+          <button
+            onClick={onEditTax}
+            className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
+          >
+            <Plus className="h-4 w-4" />
+            {documentTaxes.length > 0 ? 'Edit Taxes' : 'Add Tax'}
+          </button>
+        )}
         {discountValue === 0 && onEditDiscount && (
           <button
             onClick={onEditDiscount}

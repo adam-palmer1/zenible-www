@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EventItem, EventHost, PlanItem, EventFormData } from './types';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface EventFormModalProps {
   darkMode: boolean;
@@ -24,6 +25,8 @@ export default function EventFormModal({
   onSave,
   onClose,
 }: EventFormModalProps) {
+  useEscapeKey(onClose);
+
   const [tagInput, setTagInput] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
 

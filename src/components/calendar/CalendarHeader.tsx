@@ -22,7 +22,7 @@ export default function CalendarHeader({
   onOpenSettings,
 }: CalendarHeaderProps) {
   return (
-    <div className="p-3 md:p-6 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+    <div className="p-3 md:px-6 md:py-4 border-b border-gray-200 flex flex-wrap md:flex-nowrap items-center justify-between gap-3">
       <div className="flex items-center gap-4">
         <button
           onClick={() => onNavigateDate('prev')}
@@ -49,7 +49,7 @@ export default function CalendarHeader({
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 md:gap-3">
+      <div className="flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3 flex-shrink-0">
         {/* View Mode Tabs */}
         <div className="flex bg-gray-100 rounded-lg p-1">
           <button

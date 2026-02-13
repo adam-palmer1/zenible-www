@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { X, Clock, Plus, Loader2 } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface UnbilledHoursModalProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ const UnbilledHoursModal: React.FC<UnbilledHoursModalProps> = ({
   defaultCurrency,
   loading = false,
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   // Get currency from the billable hours data (use first item's currency, fallback to company default)
   const currency = data?.items?.[0]?.currency?.code || defaultCurrency;
   // Group hours by project

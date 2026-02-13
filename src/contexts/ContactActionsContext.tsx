@@ -268,6 +268,12 @@ export const ContactActionsProvider = ({
     const displayName = getContactDisplayName(contact, 'Contact');
     const newClientState = !contact.is_client;
 
+    // Require email to add to client list
+    if (newClientState && !contact.email) {
+      showError('Contact must have an email address to be added to the client list.');
+      return { success: false };
+    }
+
     try {
       const result = await onUpdateStatus(contact.id, { is_client: newClientState });
 

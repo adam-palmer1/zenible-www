@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authAPI, tokenStorage } from '../utils/auth';
+import { authAPI, twoFactorAPI, tokenStorage } from '../utils/auth';
 import { useSessionGuard } from '../hooks/useSessionGuard';
 import logger from '../utils/logger';
 
@@ -23,6 +23,8 @@ interface AuthResult {
   user?: User;
   error?: string;
   data?: unknown;
+  requires2FA?: boolean;
+  challengeToken?: string;
 }
 
 interface AuthContextValue {
@@ -33,6 +35,7 @@ interface AuthContextValue {
   isAdmin: boolean;
   signup: (email: string, password: string, firstName: string, lastName?: string | null) => Promise<AuthResult>;
   login: (email: string, password: string) => Promise<AuthResult>;
+  verify2FA: (challengeToken: string, code: string, trustDevice?: boolean) => Promise<AuthResult>;
   logout: () => Promise<void>;
   verifyEmail: (code: string) => Promise<AuthResult>;
   forgotPassword: (email: string) => Promise<AuthResult>;
@@ -103,6 +106,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const response = await authAPI.login(email, password);
+
+      // Check if 2FA is required
+      if (response.requires_2fa && response.challenge_token) {
+        return {
+          success: false,
+          requires2FA: true,
+          challengeToken: response.challenge_token,
+        };
+      }
+
       // Store the access token (refresh_token may not be provided)
       tokenStorage.setTokens(response.access_token, response.refresh_token || null);
 
@@ -124,6 +137,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       return { success: true, user: userData || ({ email } as User) };
+    } catch (err) {
+      setError((err as Error).message);
+      return { success: false, error: (err as Error).message };
+    }
+  };
+
+  const verify2FA = async (challengeToken: string, code: string, trustDevice: boolean = false): Promise<AuthResult> => {
+    setError(null);
+    try {
+      const response = await twoFactorAPI.verify(challengeToken, code, trustDevice);
+      tokenStorage.setTokens(response.access_token, response.refresh_token || null);
+
+      // Fetch user data
+      let userData: User | undefined;
+      try {
+        userData = await authAPI.getCurrentUser() as User;
+        setUser(userData);
+      } catch (fetchErr) {
+        logger.error('Failed to fetch user data after 2FA:', fetchErr);
+        setUser({} as User);
+      }
+
+      return { success: true, user: userData };
     } catch (err) {
       setError((err as Error).message);
       return { success: false, error: (err as Error).message };
@@ -249,6 +285,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin: user?.role === 'ADMIN',
     signup,
     login,
+    verify2FA,
     logout,
     verifyEmail,
     forgotPassword,

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { adminSubscriptionsAPI } from '../../../services/adminAPI';
 import Combobox from '../../ui/combobox/Combobox';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface ChangePlanModalProps {
   subscription: {
@@ -22,6 +23,8 @@ const ChangePlanModal: React.FC<ChangePlanModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  useEscapeKey(onClose);
+
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

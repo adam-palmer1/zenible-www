@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, AlertTriangle } from 'lucide-react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -22,6 +23,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   cancelText = 'Cancel',
   variant = 'primary'
 }) => {
+  useEscapeKey(onClose, isOpen);
+
   if (!isOpen) return null;
 
   const handleConfirm = () => {

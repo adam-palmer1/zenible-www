@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { apiHelpers } from '../config/api';
 
 interface ImageUploadModalProps {
@@ -8,6 +9,7 @@ interface ImageUploadModalProps {
 }
 
 export default function ImageUploadModal({ collectionId, onClose, onSuccess }: ImageUploadModalProps) {
+  useEscapeKey(onClose);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);

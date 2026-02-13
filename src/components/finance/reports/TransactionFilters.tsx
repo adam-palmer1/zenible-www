@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Calendar, ChevronDown, X, Filter } from 'lucide-react';
 import { useReports } from '../../../contexts/ReportsContext';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
@@ -59,17 +60,16 @@ interface MultiSelectDropdownProps {
  */
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label: _label, options, value = [], onChange, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownContentRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+  }, [isOpen]);
 
   const toggleOption = (optionValue: string) => {
     const newValue = value.includes(optionValue)
@@ -84,8 +84,9 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label: _label
     .join(', ');
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -96,23 +97,35 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ label: _label
         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {isOpen && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-          {options.map((option) => (
-            <label
-              key={option.value}
-              className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={value.includes(option.value)}
-                onChange={() => toggleOption(option.value)}
-                className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-              />
-              <span className="text-sm text-[#09090b]">{option.label}</span>
-            </label>
-          ))}
-        </div>
+      {isOpen && createPortal(
+        <>
+          <div
+            className="fixed inset-0"
+            style={{ zIndex: 9998 }}
+            onClick={() => setIsOpen(false)}
+          />
+          <div
+            ref={dropdownContentRef}
+            style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
+            className="bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto"
+          >
+            {options.map((option) => (
+              <label
+                key={option.value}
+                className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={value.includes(option.value)}
+                  onChange={() => toggleOption(option.value)}
+                  className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-sm text-[#09090b]">{option.label}</span>
+              </label>
+            ))}
+          </div>
+        </>,
+        document.body
       )}
     </div>
   );
@@ -131,17 +144,15 @@ interface DateRangePickerProps {
 const DateRangePicker: React.FC<DateRangePickerProps> = ({ startDate, endDate, onPresetSelect, onCustomChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+    }
+  }, [isOpen]);
 
   const handlePresetClick = (presetValue: string) => {
     if (presetValue === 'custom') {
@@ -164,8 +175,9 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ startDate, endDate, o
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -177,49 +189,60 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ startDate, endDate, o
         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {isOpen && (
-        <div className="absolute z-20 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg">
-          <div className="p-2">
-            {DATE_PRESET_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => handlePresetClick(option.value)}
-                className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-50 ${
-                  option.value === 'custom' && showCustom ? 'bg-purple-50 text-purple-700' : 'text-[#09090b]'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          {showCustom && (
-            <div className="border-t border-gray-200 p-3 space-y-2">
-              <div>
-                <label className="block text-xs text-[#71717a] mb-1">Start Date</label>
-                <DatePickerCalendar
-                  value={startDate || ''}
-                  onChange={(date) => onCustomChange({ start_date: date })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-[#71717a] mb-1">End Date</label>
-                <DatePickerCalendar
-                  value={endDate || ''}
-                  onChange={(date) => onCustomChange({ end_date: date })}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="w-full px-3 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
-              >
-                Apply
-              </button>
+      {isOpen && createPortal(
+        <>
+          <div
+            className="fixed inset-0"
+            style={{ zIndex: 9998 }}
+            onClick={() => setIsOpen(false)}
+          />
+          <div
+            style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: 256, zIndex: 9999 }}
+            className="bg-white border border-gray-200 rounded-lg shadow-lg"
+          >
+            <div className="p-2">
+              {DATE_PRESET_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handlePresetClick(option.value)}
+                  className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-50 ${
+                    option.value === 'custom' && showCustom ? 'bg-purple-50 text-purple-700' : 'text-[#09090b]'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+
+            {showCustom && (
+              <div className="border-t border-gray-200 p-3 space-y-2">
+                <div>
+                  <label className="block text-xs text-[#71717a] mb-1">Start Date</label>
+                  <DatePickerCalendar
+                    value={startDate || ''}
+                    onChange={(date) => onCustomChange({ start_date: date })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-[#71717a] mb-1">End Date</label>
+                  <DatePickerCalendar
+                    value={endDate || ''}
+                    onChange={(date) => onCustomChange({ end_date: date })}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full px-3 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                >
+                  Apply
+                </button>
+              </div>
+            )}
+          </div>
+        </>,
+        document.body
       )}
     </div>
   );

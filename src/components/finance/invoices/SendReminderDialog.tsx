@@ -4,6 +4,7 @@ import { X, Mail, Eye, Plus, Users, Bell, AlertCircle } from 'lucide-react';
 import { useEffectiveTemplateQuery } from '../../../hooks/queries/useEmailTemplatesQuery';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useInvoices } from '../../../contexts/InvoiceContext';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import contactsAPI from '../../../services/api/crm/contacts';
 
 const contactsAPIAny = contactsAPI as unknown as Record<string, Function>;
@@ -25,6 +26,7 @@ const SendReminderDialog: React.FC<SendReminderDialogProps> = ({
 }) => {
   const { showSuccess, showError } = useNotification();
   const { sendReminder } = useInvoices();
+  useEscapeKey(onClose, isOpen);
 
   // Form state
   const [formData, setFormData] = useState({

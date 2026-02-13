@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useCRMReferenceData } from '../contexts/CRMReferenceDataContext';
 import { useCountries } from '../hooks/crm/useCountries';
 import { useCompanyCurrencies } from '../hooks/crm/useCompanyCurrencies';
@@ -27,6 +28,7 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
   const { darkMode, updatePreference, reloadPreferences } = usePreferences();
   const { numberFormats } = useCRMReferenceData();
   const navigate = useNavigate();
+  useEscapeKey(onClose, isOpen);
 
   // Countries and currencies hooks
   const {

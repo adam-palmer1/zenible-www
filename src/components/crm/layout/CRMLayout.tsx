@@ -35,7 +35,7 @@ const CRMLayout: React.FC<CRMLayoutProps> = ({ header, children, refreshKey, sav
 
   return (
     <AppLayout header={header} pageTitle="CRM" rawContent>
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-6">
+      <div ref={scrollContainerRef} className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden p-4 lg:p-6">
         {children}
       </div>
     </AppLayout>

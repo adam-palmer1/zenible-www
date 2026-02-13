@@ -222,7 +222,6 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
       setCreatingVendor(true);
       const vendorData = {
         business_name: name,
-        is_vendor: true,
       };
       const newVendor = await createVendorContact(vendorData as Parameters<typeof createVendorContact>[0]);
       showSuccess(`Vendor "${name}" created`);
@@ -321,6 +320,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
               setIncludeTax(true);
               setTaxRate(primaryTax.tax_rate);
               setTaxName(primaryTax.tax_name);
+              setTaxIncluded((primaryTax as any).tax_included || false);
             }
           } else if ((selectedVendor as Record<string, unknown>)?.tax_rate != null) {
             setIncludeTax(true);

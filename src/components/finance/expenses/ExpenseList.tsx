@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Filter, MoreVertical, Repeat, ArrowUpDown, ArrowUp, ArrowDown, PieChart, Users, X, Check, Receipt, Plus } from 'lucide-react';
 import { useExpenses } from '../../../contexts/ExpenseContext';
@@ -147,6 +148,26 @@ const ExpenseList: React.FC = () => {
   const [pendingVendorIds, setPendingVendorIds] = useState<string[]>([]); // Temporary state for dropdown
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
   const [vendorSearch, setVendorSearch] = useState('');
+
+  // Dropdown refs and positions for portal rendering
+  const vendorButtonRef = useRef<HTMLButtonElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const [vendorDropdownPos, setVendorDropdownPos] = useState({ top: 0, right: 0 });
+  const [filterDropdownPos, setFilterDropdownPos] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    if (showVendorDropdown && vendorButtonRef.current) {
+      const rect = vendorButtonRef.current.getBoundingClientRect();
+      setVendorDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+  }, [showVendorDropdown]);
+
+  useEffect(() => {
+    if (showFilterDropdown && filterButtonRef.current) {
+      const rect = filterButtonRef.current.getBoundingClientRect();
+      setFilterDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+  }, [showFilterDropdown]);
 
   // Handle expense query parameter - open expense edit modal
   useEffect(() => {
@@ -504,6 +525,7 @@ const ExpenseList: React.FC = () => {
           {/* Vendor Dropdown */}
           <div className="relative">
             <button
+              ref={vendorButtonRef}
               onClick={() => setShowVendorDropdown(!showVendorDropdown)}
               className={`inline-flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 border-[1.5px] ${selectedVendorIds.length > 0 ? 'border-purple-500' : 'border-[#e5e5e5] dark:border-gray-600'} rounded-xl text-sm font-normal text-[#09090b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500`}
             >
@@ -515,13 +537,17 @@ const ExpenseList: React.FC = () => {
                 </span>
               )}
             </button>
-            {showVendorDropdown && (
+            {showVendorDropdown && createPortal(
               <>
                 <div
-                  className="fixed inset-0 z-[5]"
+                  className="fixed inset-0"
+                  style={{ zIndex: 9998 }}
                   onClick={() => setShowVendorDropdown(false)}
                 />
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-[#e5e5e5] dark:border-gray-600 z-10">
+                <div
+                  style={{ position: 'fixed', top: vendorDropdownPos.top, right: vendorDropdownPos.right, width: 320, zIndex: 9999 }}
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-[#e5e5e5] dark:border-gray-600"
+                >
                   {/* Search Input */}
                   <div className="p-3 border-b border-[#e5e5e5] dark:border-gray-700">
                     <div className="relative">
@@ -602,13 +628,15 @@ const ExpenseList: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              </>
+              </>,
+              document.body
             )}
           </div>
 
           {/* Filter Dropdown */}
           <div className="relative">
             <button
+              ref={filterButtonRef}
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
               className={`inline-flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-gray-800 border-[1.5px] ${filters.status || filters.pricing_type === 'recurring' ? 'border-purple-500' : 'border-[#e5e5e5] dark:border-gray-600'} rounded-xl text-sm font-normal text-[#09090b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500`}
             >
@@ -620,13 +648,17 @@ const ExpenseList: React.FC = () => {
                 </span>
               )}
             </button>
-            {showFilterDropdown && (
+            {showFilterDropdown && createPortal(
               <>
                 <div
-                  className="fixed inset-0 z-[5]"
+                  className="fixed inset-0"
+                  style={{ zIndex: 9998 }}
                   onClick={() => setShowFilterDropdown(false)}
                 />
-                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-[#e5e5e5] dark:border-gray-600 z-10">
+                <div
+                  style={{ position: 'fixed', top: filterDropdownPos.top, right: filterDropdownPos.right, width: 256, zIndex: 9999 }}
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-[#e5e5e5] dark:border-gray-600"
+                >
                   {/* Status Section */}
                   <div className="p-3 border-b border-[#e5e5e5] dark:border-gray-700">
                     <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Status</h4>
@@ -691,7 +723,8 @@ const ExpenseList: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              </>
+              </>,
+              document.body
             )}
           </div>
         </div>

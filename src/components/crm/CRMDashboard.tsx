@@ -100,6 +100,7 @@ const CRMDashboard: React.FC = () => {
     showHidden,
     sortOrder,
     columnOrder,
+    filtersLoaded,
     contactFilters,
     filteredContacts: _statusFilteredContacts,
     activeFilterCount,
@@ -124,7 +125,7 @@ const CRMDashboard: React.FC = () => {
   const servicesFilters = useServicesFilters();
 
   // Load contacts with combined filters
-  const { contacts, loading: contactsLoading, updateContact } = useContacts(contactFilters, refreshKey);
+  const { contacts, loading: contactsLoading, updateContact } = useContacts(contactFilters, refreshKey, { skipInitialFetch: !filtersLoaded });
 
   // Apply remaining client-side status filters (hidden filtering is now server-side)
   const filteredContacts = (contacts || []).filter((contact: any) => {
@@ -325,7 +326,7 @@ const CRMDashboard: React.FC = () => {
       {/* Tab Content */}
       <CRMTabContent
         activeTab={activeTab}
-        contactsLoading={contactsLoading}
+        contactsLoading={contactsLoading || !filtersLoaded}
         viewMode={viewMode}
         filteredContacts={filteredContacts}
         allStatuses={allStatuses}

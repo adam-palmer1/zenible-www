@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
 import callTypesAPI from '../../../../../services/api/crm/callTypes';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 
@@ -63,6 +64,8 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
   const [showConferencingPicker, setShowConferencingPicker] = useState(false);
 
   const { showSuccess, showError } = useNotification();
+
+  useEscapeKey(onClose, isOpen);
 
   // Helper functions to get display labels
   const getDurationLabel = (value: number) => {

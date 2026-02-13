@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 import customizationAPI from '../services/customizationAPI';
 import DatePickerCalendar from './shared/DatePickerCalendar';
 
@@ -37,6 +38,7 @@ interface OnboardingModalProps {
 
 export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
   const { darkMode, updatePreference, reloadPreferences } = usePreferences();
+  useEscapeKey(onClose, isOpen);
   const [currentStep, setCurrentStep] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showCompletion, setShowCompletion] = useState(false);

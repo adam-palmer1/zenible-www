@@ -83,3 +83,92 @@ export const calculateAppointmentLayout = (dayAppointments: any[], parseISO: any
 
   return appointmentsWithLayout;
 };
+
+// Helper: Compute all-day/multi-day event layout with lane assignment for spanning display
+// Includes: all all-day events + timed events that span multiple calendar days
+// When multiDayOnly=true, only events spanning multiple days are included (for month view)
+// When multiDayOnly=false, all all-day events are included too (for week view)
+export const computeSpanningEventsLayout = (
+  appointments: any[],
+  visibleDays: Date[],
+  parseISO: (s: string) => Date,
+  isSameDay: (a: Date, b: Date) => boolean,
+  startOfDay: (d: Date) => Date,
+  multiDayOnly: boolean = false
+): { events: any[]; laneCount: number } => {
+  const numDays = visibleDays.length;
+  const firstDay = startOfDay(visibleDays[0]);
+  const lastDay = startOfDay(visibleDays[numDays - 1]);
+
+  const allDayAppts = appointments.filter((apt: any) => {
+    const aptStart = startOfDay(parseISO(apt.start_datetime));
+    const aptEnd = startOfDay(parseISO(apt.end_datetime));
+    const isMultiDay = aptEnd.getTime() > aptStart.getTime();
+    // Include all-day events OR timed events spanning multiple days
+    if (!apt.all_day && !isMultiDay) return false;
+    // In multiDayOnly mode, skip single-day all-day events
+    if (multiDayOnly && !isMultiDay) return false;
+    return aptStart <= lastDay && aptEnd >= firstDay;
+  });
+
+  if (allDayAppts.length === 0) return { events: [], laneCount: 0 };
+
+  const events = allDayAppts.map((apt: any) => {
+    const aptStart = startOfDay(parseISO(apt.start_datetime));
+    const aptEnd = startOfDay(parseISO(apt.end_datetime));
+
+    let startCol = 0;
+    let endCol = numDays - 1;
+
+    for (let i = 0; i < numDays; i++) {
+      if (isSameDay(visibleDays[i], aptStart)) startCol = i;
+      if (isSameDay(visibleDays[i], aptEnd)) endCol = i;
+    }
+
+    if (aptStart < firstDay) startCol = 0;
+    if (aptEnd > lastDay) endCol = numDays - 1;
+
+    return {
+      ...apt,
+      startCol,
+      endCol,
+      continuesBefore: aptStart < firstDay,
+      continuesAfter: aptEnd > lastDay,
+      lane: 0,
+    };
+  });
+
+  // Sort: wider spans first for better lane packing, then by start column
+  events.sort((a: any, b: any) => {
+    const spanA = a.endCol - a.startCol;
+    const spanB = b.endCol - b.startCol;
+    if (spanA !== spanB) return spanB - spanA;
+    return a.startCol - b.startCol;
+  });
+
+  // Assign lanes using greedy algorithm
+  const lanes: { startCol: number; endCol: number }[][] = [];
+
+  events.forEach((event: any) => {
+    let laneIdx = 0;
+    let placed = false;
+
+    while (!placed) {
+      if (!lanes[laneIdx]) lanes[laneIdx] = [];
+
+      const fits = lanes[laneIdx].every(
+        (existing) => event.startCol > existing.endCol || event.endCol < existing.startCol
+      );
+
+      if (fits) {
+        event.lane = laneIdx;
+        lanes[laneIdx].push({ startCol: event.startCol, endCol: event.endCol });
+        placed = true;
+      } else {
+        laneIdx++;
+      }
+    }
+  });
+
+  return { events, laneCount: lanes.length };
+};

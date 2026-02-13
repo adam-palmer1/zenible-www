@@ -8,8 +8,9 @@ import {
   parseISO,
   getHours,
   getMinutes,
+  startOfDay,
 } from 'date-fns';
-import { getAppointmentKey, formatHour, isWeekend, calculateAppointmentLayout } from './calendarUtils';
+import { getAppointmentKey, formatHour, isWeekend, calculateAppointmentLayout, computeSpanningEventsLayout } from './calendarUtils';
 
 interface CalendarWeekViewProps {
   currentDate: Date;
@@ -51,6 +52,10 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
     return result;
   }, [currentDate]);
 
+  const allDayLayout = useMemo(() => {
+    return computeSpanningEventsLayout(appointments, days, parseISO, isSameDay, startOfDay);
+  }, [appointments, days]);
+
   useEffect(() => {
     if (scrollContainerRef.current) {
       const previousHour = Math.max(0, new Date().getHours() - 1);
@@ -69,7 +74,13 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
 
       const weekAppointments = appointments.filter((apt: any) => {
         const aptDate = parseISO(apt.start_datetime);
-        return days.some((day: Date) => isSameDay(aptDate, day)) && !apt.all_day;
+        if (!days.some((day: Date) => isSameDay(aptDate, day))) return false;
+        if (apt.all_day) return false;
+        // Exclude multi-day timed events (they're in the spanning section)
+        const aptStartDay = startOfDay(parseISO(apt.start_datetime));
+        const aptEndDay = startOfDay(parseISO(apt.end_datetime));
+        if (aptEndDay.getTime() > aptStartDay.getTime()) return false;
+        return true;
       });
 
       const notAtBottom = visibleBottom < totalHeight - 10;
@@ -102,79 +113,97 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
   const getAppointmentsForDay = (day: Date) => {
     return appointments.filter((apt: any) => {
       const aptDate = parseISO(apt.start_datetime);
-      return isSameDay(aptDate, day) && !apt.all_day;
-    });
-  };
-
-  const getAllDayAppointmentsForDay = (day: Date) => {
-    return appointments.filter((apt: any) => {
-      const aptDate = parseISO(apt.start_datetime);
-      return isSameDay(aptDate, day) && apt.all_day;
+      if (!isSameDay(aptDate, day)) return false;
+      if (apt.all_day) return false;
+      // Exclude multi-day timed events (they're in the spanning section)
+      const aptStartDay = startOfDay(parseISO(apt.start_datetime));
+      const aptEndDay = startOfDay(parseISO(apt.end_datetime));
+      if (aptEndDay.getTime() > aptStartDay.getTime()) return false;
+      return true;
     });
   };
 
   return (
     <div className="h-full relative">
       <div ref={scrollContainerRef} className="h-full overflow-y-auto overflow-x-auto scrollbar-hide">
-        <div className="sticky top-0 z-10 bg-white flex border-b border-gray-200">
-          <div className="w-16 md:w-24 flex-shrink-0 border-r border-gray-200"></div>
-
-          <div className="flex-1 flex">
-          {days.map((day: Date, dayIndex: number) => {
-            const allDayAppts = getAllDayAppointmentsForDay(day);
-            const weekend = isWeekend(day);
-            return (
-              <div key={dayIndex} className={`flex-1 min-w-[60px] md:min-w-[100px] border-r border-gray-200 last:border-r-0 ${weekend ? 'bg-gray-50' : ''}`}>
-                  <div className={`min-h-16 flex flex-col items-center justify-start py-1 ${
-                    isSameDay(day, new Date()) ? 'bg-purple-100' : ''
-                  }`}>
-                    <div className="flex items-center gap-1">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+          {/* Day labels */}
+          <div className="flex">
+            <div className="w-16 md:w-24 flex-shrink-0 border-r border-gray-200"></div>
+            <div className="flex-1 flex">
+              {days.map((day: Date, dayIndex: number) => {
+                const weekend = isWeekend(day);
+                return (
+                  <div key={dayIndex} className={`flex-1 min-w-[60px] md:min-w-[100px] border-r border-gray-200 last:border-r-0 ${weekend ? 'bg-gray-50' : ''}`}>
+                    <div className={`py-2 flex items-center justify-center gap-1 ${
+                      isSameDay(day, new Date()) ? 'bg-purple-100' : ''
+                    }`}>
                       <span className="text-sm font-medium text-gray-600">{format(day, 'EEE')}</span>
                       <span className={`text-lg font-semibold ${
                         isSameDay(day, new Date()) ? 'text-purple-600' : 'text-gray-900'
                       }`}>{format(day, 'd')}</span>
                     </div>
-
-                    {allDayAppts.length > 0 && (
-                      <div className="w-full px-1 mt-1 space-y-1">
-                        {allDayAppts.map((apt: any) => {
-                          const color = getAppointmentColor(apt);
-                          const isRecurring = isRecurringAppointment(appointments, apt.id);
-                          const isReadOnly = isAppointmentReadOnly(apt);
-                          return (
-                            <div
-                              key={getAppointmentKey(apt)}
-                              onClick={() => onAppointmentClick(apt)}
-                              className={`text-white text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5 cursor-pointer ${
-                                isReadOnly
-                                  ? 'opacity-60'
-                                  : 'bg-opacity-90 hover:bg-opacity-100'
-                              }`}
-                              style={{ backgroundColor: color }}
-                              title={isReadOnly ? 'Read-only (imported from secondary calendar)' : undefined}
-                            >
-                              {isReadOnly && <LockClosedIcon className="w-3 h-3 flex-shrink-0" />}
-                              {isRecurring && <ArrowPathIcon className="w-3 h-3 flex-shrink-0" />}
-                              <span className="truncate">{apt.title}</span>
-                              {apt.status && apt.status !== 'scheduled' && (
-                                <span
-                                  className="text-[10px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
-                                  style={{ color: getStatusColor(apt.status) }}
-                                  title={getStatusLabel(apt.status)}
-                                >
-                                  {getStatusLabel(apt.status)}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
                   </div>
-                </div>
-            );
-          })}
+                );
+              })}
+            </div>
           </div>
+
+          {/* All-day / multi-day spanning events */}
+          {allDayLayout.laneCount > 0 && (
+            <div className="flex border-t border-gray-100">
+              <div className="w-16 md:w-24 flex-shrink-0 border-r border-gray-200"></div>
+              <div className="flex-1 relative flex" style={{ minHeight: `${allDayLayout.laneCount * 24 + 4}px` }}>
+                {/* Day column dividers to match the grid below */}
+                {days.map((_: Date, i: number) => {
+                  const weekend = isWeekend(days[i]);
+                  return (
+                    <div key={i} className={`flex-1 min-w-[60px] md:min-w-[100px] border-r border-gray-200 last:border-r-0 ${weekend ? 'bg-gray-50' : ''}`}></div>
+                  );
+                })}
+                {/* Spanning event bars overlaid on the column dividers */}
+                {allDayLayout.events.map((event: any) => {
+                  const color = getAppointmentColor(event);
+                  const isRecurring = isRecurringAppointment(appointments, event.id);
+                  const isReadOnly = isAppointmentReadOnly(event);
+                  return (
+                    <div
+                      key={getAppointmentKey(event)}
+                      onClick={() => onAppointmentClick(event)}
+                      className={`absolute text-white text-xs px-2 py-0.5 truncate flex items-center gap-0.5 cursor-pointer ${
+                        isReadOnly
+                          ? 'opacity-60'
+                          : 'bg-opacity-90 hover:bg-opacity-100 hover:brightness-110'
+                      }`}
+                      style={{
+                        backgroundColor: color,
+                        left: `calc(${(event.startCol / 7) * 100}% + 2px)`,
+                        width: `calc(${((event.endCol - event.startCol + 1) / 7) * 100}% - 4px)`,
+                        top: `${event.lane * 24 + 2}px`,
+                        height: '22px',
+                        lineHeight: '22px',
+                        borderRadius: `${event.continuesBefore ? '0' : '4px'} ${event.continuesAfter ? '0' : '4px'} ${event.continuesAfter ? '0' : '4px'} ${event.continuesBefore ? '0' : '4px'}`,
+                      }}
+                      title={isReadOnly ? 'Read-only (imported from secondary calendar)' : undefined}
+                    >
+                      {isReadOnly && <LockClosedIcon className="w-3 h-3 flex-shrink-0" />}
+                      {isRecurring && <ArrowPathIcon className="w-3 h-3 flex-shrink-0" />}
+                      <span className="truncate">{event.title}</span>
+                      {event.status && event.status !== 'scheduled' && (
+                        <span
+                          className="text-[10px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
+                          style={{ color: getStatusColor(event.status) }}
+                          title={getStatusLabel(event.status)}
+                        >
+                          {getStatusLabel(event.status)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex">

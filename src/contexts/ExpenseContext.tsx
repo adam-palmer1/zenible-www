@@ -2,6 +2,7 @@ import { createContext, useState, useCallback, useMemo, useContext, useEffect, t
 import { useAuth } from './AuthContext';
 import expensesAPI from '../services/api/finance/expenses';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
+import { formatLocalDate } from '../utils/dateUtils';
 
 interface ExpenseFilters {
   search: string;
@@ -114,8 +115,8 @@ const getDefaultDateRange = () => {
   const thirtyDaysAgo = new Date(today);
   thirtyDaysAgo.setDate(today.getDate() - 29); // 29 days ago + today = 30 days
   return {
-    start_date: thirtyDaysAgo.toISOString().split('T')[0],
-    end_date: today.toISOString().split('T')[0],
+    start_date: formatLocalDate(thirtyDaysAgo),
+    end_date: formatLocalDate(today),
   };
 };
 

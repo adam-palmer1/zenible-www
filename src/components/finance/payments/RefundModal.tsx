@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, RotateCcw, AlertTriangle, Loader2 } from 'lucide-react';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { formatCurrency } from '../../../utils/currency';
 
 interface RefundModalProps {
@@ -13,6 +14,7 @@ interface RefundModalProps {
 const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment }) => {
   const { refundPayment, refresh, loading } = usePayments();
   const { showSuccess, showError } = useNotification();
+  useEscapeKey(onClose, isOpen);
 
   const [refundType, setRefundType] = useState('full');
   const [refundAmount, setRefundAmount] = useState('');

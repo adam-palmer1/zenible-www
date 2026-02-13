@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Plus,
   Trash2,
@@ -75,6 +75,8 @@ interface SearchableDropdownProps {
   searchable?: boolean;
   icon?: any;
   disabled?: boolean;
+  onSearch?: (query: string) => void;
+  isLoading?: boolean;
 }
 
 const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
@@ -85,19 +87,23 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   searchable = false,
   icon: Icon,
   disabled = false,
+  onSearch,
+  isLoading = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedOption = options.find((opt: any) => opt.value === value);
 
   const filteredOptions = useMemo(() => {
+    if (onSearch) return options;
     if (!searchQuery) return options;
     const query = searchQuery.toLowerCase();
     return options.filter((opt: any) => opt.label.toLowerCase().includes(query));
-  }, [options, searchQuery]);
+  }, [options, searchQuery, onSearch]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -115,6 +121,16 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
       inputRef.current.focus();
     }
   }, [isOpen, searchable]);
+
+  // Debounced server-side search
+  useEffect(() => {
+    if (!onSearch || !isOpen) return;
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      onSearch(searchQuery);
+    }, 300);
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+  }, [searchQuery, isOpen, onSearch]);
 
   const handleSelect = (optionValue: string) => {
     onChange(optionValue);
@@ -160,7 +176,11 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
           )}
 
           <div className="max-h-60 overflow-y-auto">
-            {filteredOptions.length === 0 ? (
+            {isLoading ? (
+              <div className="px-3 py-4 text-center">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-400 mx-auto" />
+              </div>
+            ) : filteredOptions.length === 0 ? (
               <div className="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                 No options found
               </div>
@@ -212,6 +232,8 @@ const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, o
   const [allocations, setAllocations] = useState<AllocationEntry[]>([]);
   const [invoices, setInvoices] = useState<InvoiceListItemResponse[]>([]);
   const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
 
   useEffect(() => {
     if (open && expense) {
@@ -224,8 +246,8 @@ const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, o
     try {
       const [allocationsRes, invoicesRes, paymentsRes] = await Promise.all([
         expensesAPI.getAllocations(expense.id),
-        invoicesAPI.list({ per_page: '100' }).catch(() => ({ items: [] })),
-        paymentsAPI.list({ per_page: '100' }).catch(() => ({ items: [] })),
+        invoicesAPI.list({ per_page: '50' }).catch(() => ({ items: [] })),
+        paymentsAPI.list({ per_page: '50' }).catch(() => ({ items: [] })),
       ]);
 
       setAllocations(allocationsRes.allocations || []);
@@ -240,6 +262,34 @@ const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, o
       setLoading(false);
     }
   };
+
+  const searchInvoices = useCallback(async (query: string) => {
+    setInvoicesLoading(true);
+    try {
+      const params: Record<string, string> = { per_page: '50' };
+      if (query) params.search = query;
+      const result = await invoicesAPI.list(params) as InvoiceListResponse;
+      setInvoices(result.items || []);
+    } catch (error) {
+      console.error('Failed to search invoices:', error);
+    } finally {
+      setInvoicesLoading(false);
+    }
+  }, []);
+
+  const searchPayments = useCallback(async (query: string) => {
+    setPaymentsLoading(true);
+    try {
+      const params: Record<string, string> = { per_page: '50' };
+      if (query) params.search = query;
+      const result = await paymentsAPI.list(params) as { items?: Record<string, unknown>[] };
+      setPayments(result.items || []);
+    } catch (error) {
+      console.error('Failed to search payments:', error);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }, []);
 
   const totalPercentage = useMemo(() => {
     return allocations.reduce((sum: number, alloc: any) => sum + (parseFloat(alloc.percentage) || 0), 0);
@@ -475,6 +525,8 @@ const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, o
                                 placeholder={`Select ${config?.label?.toLowerCase()}...`}
                                 searchable={true}
                                 icon={config?.icon}
+                                onSearch={alloc.entity_type === 'invoice' ? searchInvoices : alloc.entity_type === 'payment' ? searchPayments : undefined}
+                                isLoading={alloc.entity_type === 'invoice' ? invoicesLoading : alloc.entity_type === 'payment' ? paymentsLoading : false}
                               />
                             </div>
 

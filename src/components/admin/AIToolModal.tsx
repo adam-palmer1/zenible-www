@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/adminAPI';
 import { getSchemaTemplates } from '../../utils/schemaValidation';
 import Combobox from '../ui/combobox/Combobox';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface AIToolModalProps {
   tool: any;
@@ -11,6 +12,8 @@ interface AIToolModalProps {
 }
 
 export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps) {
+  useEscapeKey(onClose);
+
   const [formData, setFormData] = useState<{
     name: string;
     description: string;

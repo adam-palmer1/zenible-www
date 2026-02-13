@@ -69,7 +69,8 @@ export default function Calendar() {
       const rect = el.getBoundingClientRect();
       const bottomPadding = window.innerWidth >= 768 ? 16 : 8;
       const height = window.innerHeight - rect.top - bottomPadding;
-      el.style.height = `${Math.max(200, height)}px`;
+      const minHeight = window.innerWidth >= 768 ? 300 : 200;
+      el.style.height = `${Math.max(minHeight, height)}px`;
     };
 
     updateHeight();
@@ -566,9 +567,9 @@ export default function Calendar() {
 
   return (
     <AppLayout pageTitle="Calendar">
-      <div className="flex-1 flex gap-2 p-2 md:gap-4 md:p-4 overflow-hidden max-w-[2000px] mx-auto w-full">
+      <div className="flex-1 flex gap-2 p-2 md:gap-4 md:p-4 overflow-x-auto overflow-y-hidden max-w-[2000px] mx-auto w-full">
           {/* Left: Calendar View */}
-          <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm overflow-hidden min-w-0">
+          <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm overflow-hidden min-w-0 md:min-w-[640px] min-h-[400px] md:min-h-[500px]">
             {/* Calendar Header */}
             <CalendarHeader
               currentDate={currentDate}
@@ -581,7 +582,7 @@ export default function Calendar() {
             />
 
             {/* Calendar View */}
-            <div ref={viewContainerRef} className="flex-1 overflow-hidden relative">
+            <div ref={viewContainerRef} className="flex-1 overflow-hidden relative min-h-[300px] md:min-h-[400px]">
               {viewMode === 'weekly' && <CalendarWeekView
                 currentDate={currentDate}
                 appointments={filteredAppointments}

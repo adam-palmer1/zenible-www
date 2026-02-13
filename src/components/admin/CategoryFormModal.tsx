@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import adminAPI from '../../services/adminAPI';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface CategoryFormModalProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ export default function CategoryFormModal({
   onSave,
   darkMode
 }: CategoryFormModalProps) {
+  useEscapeKey(onClose, isOpen);
+
   const [categoryForm, setCategoryForm] = useState({
     name: '',
     description: '',

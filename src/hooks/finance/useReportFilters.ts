@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { formatLocalDate } from '../../utils/dateUtils';
 
 /**
  * Get date for last N days
@@ -7,13 +8,13 @@ import { useSearchParams } from 'react-router-dom';
 const getDateDaysAgo = (days: number): string => {
   const date = new Date();
   date.setDate(date.getDate() - days);
-  return date.toISOString().split('T')[0];
+  return formatLocalDate(date);
 };
 
 /**
- * Get today's date in ISO format
+ * Get today's date in YYYY-MM-DD format (local timezone)
  */
-const getToday = (): string => new Date().toISOString().split('T')[0];
+const getToday = (): string => formatLocalDate(new Date());
 
 /**
  * Filter state shape parsed from URL search params
@@ -100,8 +101,8 @@ export const DATE_PRESETS: Record<string, () => DatePresetResult> = {
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
     return {
-      start_date: start.toISOString().split('T')[0],
-      end_date: end.toISOString().split('T')[0],
+      start_date: formatLocalDate(start),
+      end_date: formatLocalDate(end),
     };
   },
   thisMonth: () => {
@@ -109,8 +110,8 @@ export const DATE_PRESETS: Record<string, () => DatePresetResult> = {
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
     const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     return {
-      start_date: start.toISOString().split('T')[0],
-      end_date: end.toISOString().split('T')[0],
+      start_date: formatLocalDate(start),
+      end_date: formatLocalDate(end),
     };
   },
   last30Days: () => ({
@@ -123,8 +124,8 @@ export const DATE_PRESETS: Record<string, () => DatePresetResult> = {
     const start = new Date(now.getFullYear(), quarter * 3, 1);
     const end = new Date(now.getFullYear(), quarter * 3 + 3, 0);
     return {
-      start_date: start.toISOString().split('T')[0],
-      end_date: end.toISOString().split('T')[0],
+      start_date: formatLocalDate(start),
+      end_date: formatLocalDate(end),
     };
   },
   thisYear: () => {

@@ -3,6 +3,7 @@ import { X, Search, CheckCircle } from 'lucide-react';
 import { useContacts } from '../../../hooks/crm';
 import contactsAPI from '../../../services/api/crm/contacts';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface ConvertToClientModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ const ConvertToClientModal: React.FC<ConvertToClientModalProps> = ({ isOpen, onC
   const [selectedContact, setSelectedContact] = useState<any>(null);
   const [converting, setConverting] = useState(false);
   const { showError, showSuccess } = useNotification();
+  useEscapeKey(onClose, isOpen);
 
   // Fetch non-client contacts
   const { contacts, loading } = useContacts({ is_client: false });
@@ -31,7 +33,7 @@ const ConvertToClientModal: React.FC<ConvertToClientModalProps> = ({ isOpen, onC
   });
 
   const handleConvert = async () => {
-    if (!selectedContact) return;
+    if (!selectedContact || !selectedContact.email) return;
 
     setConverting(true);
     try {
@@ -111,12 +113,17 @@ const ConvertToClientModal: React.FC<ConvertToClientModalProps> = ({ isOpen, onC
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredContacts.map((contact: any) => (
+                {filteredContacts.map((contact: any) => {
+                  const hasEmail = !!contact.email;
+                  return (
                   <button
                     key={contact.id}
-                    onClick={() => setSelectedContact(contact)}
+                    onClick={() => hasEmail && setSelectedContact(contact)}
+                    disabled={!hasEmail}
                     className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all ${
-                      selectedContact?.id === contact.id
+                      !hasEmail
+                        ? 'border-design-border-light opacity-50 cursor-not-allowed'
+                        : selectedContact?.id === contact.id
                         ? 'border-zenible-primary bg-purple-50 dark:bg-purple-900/20'
                         : 'border-design-border-light hover:border-zenible-primary hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}
@@ -135,16 +142,19 @@ const ConvertToClientModal: React.FC<ConvertToClientModalProps> = ({ isOpen, onC
                         <p className="font-medium design-text-primary">
                           {contact.first_name} {contact.last_name}
                         </p>
-                        <p className="text-sm design-text-secondary">
-                          {contact.email || contact.business_name || 'No email'}
-                        </p>
+                        {hasEmail ? (
+                          <p className="text-sm design-text-secondary">{contact.email}</p>
+                        ) : (
+                          <p className="text-sm text-red-500">Email required to convert to client</p>
+                        )}
                       </div>
                     </div>
                     {selectedContact?.id === contact.id && (
                       <CheckCircle className="h-5 w-5 text-zenible-primary" />
                     )}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -165,7 +175,7 @@ const ConvertToClientModal: React.FC<ConvertToClientModalProps> = ({ isOpen, onC
               </button>
               <button
                 onClick={handleConvert}
-                disabled={!selectedContact || converting}
+                disabled={!selectedContact || !selectedContact.email || converting}
                 className="px-4 py-2 text-sm font-medium text-white bg-zenible-primary rounded-md hover:bg-zenible-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {converting ? 'Converting...' : 'Convert to Client'}

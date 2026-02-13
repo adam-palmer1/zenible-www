@@ -1,5 +1,6 @@
 import React from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { TIMEZONES } from './constants';
 
 interface TimezoneModalProps {
@@ -19,6 +20,8 @@ export default function TimezoneModal({
   onSelect,
   onClose,
 }: TimezoneModalProps) {
+  useEscapeKey(onClose);
+
   const filteredTimezones = TIMEZONES.filter(tz =>
     tz.label.toLowerCase().includes(timezoneSearch.toLowerCase()) ||
     tz.region.toLowerCase().includes(timezoneSearch.toLowerCase()) ||

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 
-const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -56,10 +56,10 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
       const lastDay = new Date(year, month + 1, 0);
 
       const startDate = new Date(firstDay);
-      startDate.setDate(startDate.getDate() - startDate.getDay());
+      startDate.setDate(startDate.getDate() - ((startDate.getDay() + 6) % 7));
 
       const endDate = new Date(lastDay);
-      endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+      endDate.setDate(endDate.getDate() + ((7 - endDate.getDay()) % 7));
 
       const formatDate = (d: Date): string => d.toISOString().split('T')[0];
       onMonthChange(formatDate(startDate), formatDate(endDate));
@@ -75,10 +75,10 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
     const lastDay = new Date(year, month + 1, 0);
 
     const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - startDate.getDay());
+    startDate.setDate(startDate.getDate() - ((startDate.getDay() + 6) % 7));
 
     const endDate = new Date(lastDay);
-    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+    endDate.setDate(endDate.getDate() + ((7 - endDate.getDay()) % 7));
 
     const days: Date[] = [];
     const current = new Date(startDate);

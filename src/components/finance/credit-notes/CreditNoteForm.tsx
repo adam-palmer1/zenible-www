@@ -11,13 +11,12 @@ import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
 import invoicesAPI from '../../../services/api/finance/invoices';
-import { DocumentLineItems, DocumentTotals, LineItemTaxModal } from '../shared';
+import { DocumentLineItems, DocumentTotals } from '../shared';
 import ClientSelectModal from '../invoices/ClientSelectModal';
 import CurrencySelectModal from '../invoices/CurrencySelectModal';
 import InvoiceSelectModal from '../invoices/InvoiceSelectModal';
 import SendCreditNoteModal from './SendCreditNoteModal';
 import FinanceLayout from '../layout/FinanceLayout';
-import TaxModal from '../invoices/TaxModal';
 
 interface CreditNotePrefill {
   contact_id?: string;
@@ -30,7 +29,6 @@ interface CreditNotePrefill {
     description?: string;
     quantity?: number | string;
     price?: number | string;
-    taxes?: unknown[];
   }>;
 }
 
@@ -76,11 +74,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
   const [reason, setReason] = useState('');
   const [linkedInvoiceId, setLinkedInvoiceId] = useState('');
   const [items, setItems] = useState<any[]>([]);
-  const [documentTaxes, setDocumentTaxes] = useState<any[]>([]);
   const [notes, setNotes] = useState('');
-  const [showTaxModal, setShowTaxModal] = useState(false);
-  const [showLineItemTaxModal, setShowLineItemTaxModal] = useState(false);
-  const [editingLineItemIndex, setEditingLineItemIndex] = useState<number | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
   const [savedCreditNote, setSavedCreditNote] = useState<any>(null);
   const [showClientModal, setShowClientModal] = useState(false);
@@ -133,8 +127,6 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
           quantity: parseFloat(String(item.quantity || 1)),
           price: parseFloat(String(item.price || 0)),
           amount: parseFloat(String(item.quantity || 1)) * parseFloat(String(item.price || 0)),
-          taxes: item.taxes || [],
-          tax_amount: 0,
         }));
         setItems(normalizedItems);
       }
@@ -164,8 +156,6 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
         quantity: parseFloat(item.quantity || 0),
         price: parseFloat(item.price || 0),
         amount: parseFloat(item.amount || 0) || (parseFloat(item.quantity || 0) * parseFloat(item.price || 0)),
-        taxes: item.taxes || [],
-        tax_amount: item.taxes?.reduce((sum: number, t: any) => sum + (parseFloat(t.tax_amount) || 0), 0) || 0,
       }));
       setItems(normalizedItems);
     }
@@ -230,7 +220,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
     loadLinkedInvoice();
   }, [creditNote]);
 
-  const totals = calculateInvoiceTotal(items, documentTaxes);
+  const totals = calculateInvoiceTotal(items, []);
 
   const getCurrencyCode = (): string => {
     if (!currency || !currencies.length) return 'USD';
@@ -240,7 +230,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
   const currencyCode = getCurrencyCode();
 
   const addLineItem = () => {
-    setItems([...items, { description: '', subtext: '', quantity: 1, price: 0, amount: 0, taxes: [], tax_amount: 0 }]);
+    setItems([...items, { description: '', subtext: '', quantity: 1, price: 0, amount: 0 }]);
   };
 
   const updateLineItem = (index: number, field: string, value: any) => {
@@ -251,16 +241,6 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
       const qty = parseFloat(newItems[index].quantity) || 0;
       const price = parseFloat(newItems[index].price) || 0;
       newItems[index].amount = qty * price;
-
-      if (newItems[index].taxes && newItems[index].taxes.length > 0) {
-        const itemAmount = qty * price;
-        newItems[index].taxes = newItems[index].taxes.map((tax: any, i: number) => ({
-          ...tax,
-          tax_amount: Math.round((itemAmount * tax.tax_rate / 100) * 100) / 100,
-          display_order: i
-        }));
-        newItems[index].tax_amount = newItems[index].taxes.reduce((sum: number, t: any) => sum + t.tax_amount, 0);
-      }
     }
 
     setItems(newItems);
@@ -270,32 +250,8 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
     setItems(items.filter((_: any, i: number) => i !== index));
   };
 
-  const openLineItemTaxModal = (index: number) => {
-    setEditingLineItemIndex(index);
-    setShowLineItemTaxModal(true);
-  };
-
-  const handleLineItemTaxSave = (taxes: any[]) => {
-    if (editingLineItemIndex === null) return;
-
-    const newItems = [...items];
-    const item = newItems[editingLineItemIndex];
-
-    newItems[editingLineItemIndex] = {
-      ...item,
-      taxes: taxes,
-      tax_amount: taxes.reduce((sum: number, t: any) => sum + t.tax_amount, 0)
-    };
-
-    setItems(newItems);
-    setShowLineItemTaxModal(false);
-    setEditingLineItemIndex(null);
-  };
-
   const calculateItemTotal = (item: any): number => {
-    const amount = parseFloat(item.amount || 0);
-    const taxAmount = item.taxes?.reduce((sum: number, t: any) => sum + (t.tax_amount || 0), 0) || 0;
-    return amount + taxAmount;
+    return parseFloat(item.amount || 0);
   };
 
   const handleClientSelect = (clientId: string) => {
@@ -313,7 +269,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
     }
   };
 
-  const handleSave = async (_saveStatus: string = CREDIT_NOTE_STATUS.DRAFT, openSendModal: boolean = false) => {
+  const handleSave = async (_saveStatus: string = CREDIT_NOTE_STATUS.DRAFT, openSendModal: boolean = false, issueAfterSave: boolean = false) => {
     if (!contactId) { showError('Please select a client'); return; }
     if (!issueDate) { showError('Please select an issue date'); return; }
     if (!currency) { showError('Please select a currency'); return; }
@@ -332,30 +288,16 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
         reason: reason || undefined,
         invoice_id: linkedInvoiceId || undefined,
         notes: notes || undefined,
-        items: items.map((item: any) => {
-          const itemData: any = {
-            ...(item.id && { id: item.id }),
-            name: item.description || item.name,
-            description: item.subtext || '',
-            quantity: parseFloat(item.quantity),
-            price: parseFloat(item.price),
-          };
-
-          if (item.taxes && item.taxes.length > 0) {
-            itemData.tax_rate = parseFloat(item.taxes[0].tax_rate) || 0;
-            itemData.tax_name = item.taxes[0].tax_name || '';
-            itemData.taxes = item.taxes.map((tax: any) => ({
-              tax_name: tax.tax_name,
-              tax_rate: parseFloat(tax.tax_rate),
-              tax_amount: parseFloat(tax.tax_amount),
-            }));
-          }
-
-          return itemData;
-        }),
+        items: items.map((item: any) => ({
+          ...(item.id && { id: item.id }),
+          name: item.description || item.name,
+          description: item.subtext || '',
+          quantity: parseFloat(item.quantity),
+          price: parseFloat(item.price),
+        })),
       };
 
-      let result;
+      let result: any;
       if (creditNote?.id) {
         result = await creditNotesAPI.update(creditNote.id, creditNoteData);
         showSuccess('Credit note updated successfully');
@@ -364,7 +306,19 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
         showSuccess('Credit note created successfully');
       }
 
-      if (openSendModal) {
+      if (issueAfterSave) {
+        try {
+          await creditNotesAPI.issue(result.id);
+          showSuccess('Credit note issued successfully');
+        } catch (issueError: any) {
+          showError(issueError.message || 'Credit note saved but failed to issue');
+        }
+        if (onSuccess) {
+          onSuccess(result);
+        } else {
+          navigate('/finance/credit-notes');
+        }
+      } else if (openSendModal) {
         setSavedCreditNote(result);
         setShowSendModal(true);
       } else {
@@ -514,9 +468,9 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
         </div>
       </div>
 
-      <DocumentLineItems items={items} currencyCode={currencyCode} numberFormat={numberFormat} onAddItem={addLineItem} onUpdateItem={updateLineItem} onRemoveItem={removeLineItem} onOpenTaxModal={openLineItemTaxModal} calculateItemTotal={calculateItemTotal} />
+      <DocumentLineItems items={items} currencyCode={currencyCode} numberFormat={numberFormat} onAddItem={addLineItem} onUpdateItem={updateLineItem} onRemoveItem={removeLineItem} calculateItemTotal={calculateItemTotal} />
 
-      <DocumentTotals totals={totals} currencyCode={currencyCode} numberFormat={numberFormat} documentTaxes={documentTaxes} onEditTax={() => setShowTaxModal(true)} onRemoveTax={() => setDocumentTaxes([])} />
+      <DocumentTotals totals={totals} currencyCode={currencyCode} numberFormat={numberFormat} />
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
@@ -529,15 +483,18 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
             {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
             {getSaveButtonText()}
           </button>
+          {(!creditNote?.status || creditNote.status === 'draft') && (
+            <button onClick={() => handleSave(CREDIT_NOTE_STATUS.DRAFT, false, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors">
+              {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
+              Save & Issue
+            </button>
+          )}
           <button onClick={() => handleSave(CREDIT_NOTE_STATUS.ISSUED, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
             {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
             Save & Send
           </button>
         </div>
       )}
-
-      <TaxModal isOpen={showTaxModal} onClose={() => setShowTaxModal(false)} onSave={(taxes: any) => setDocumentTaxes(taxes)} initialDocumentTaxes={documentTaxes} />
-      <LineItemTaxModal isOpen={showLineItemTaxModal} onClose={() => { setShowLineItemTaxModal(false); setEditingLineItemIndex(null); }} onSave={handleLineItemTaxSave} itemAmount={editingLineItemIndex !== null ? parseFloat(items[editingLineItemIndex]?.amount || 0) : 0} initialTaxes={editingLineItemIndex !== null ? (items[editingLineItemIndex]?.taxes || []) : []} currency={currencyCode} />
 
       {showSendModal && savedCreditNote && (
         <SendCreditNoteModal isOpen={showSendModal} onClose={() => setShowSendModal(false)} creditNote={savedCreditNote} contact={savedCreditNote && allContacts.find((c: any) => c.id === savedCreditNote.contact_id)} onSuccess={handleSendSuccess} />
@@ -568,6 +525,12 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
                 {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
                 {getSaveButtonText()}
               </button>
+              {(!creditNote?.status || creditNote.status === 'draft') && (
+                <button onClick={() => handleSave(CREDIT_NOTE_STATUS.DRAFT, false, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors">
+                  {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
+                  Save & Issue
+                </button>
+              )}
               <button onClick={() => handleSave(CREDIT_NOTE_STATUS.ISSUED, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
                 {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
                 Save & Send

@@ -1,6 +1,7 @@
 import React from 'react';
 import { getIconPath } from '../../../utils/iconUtils';
 import { QuizTag, Plan, BulkUpdateFormState, BulkUpdateResult } from './types';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 
 interface BulkUpdateModalProps {
   darkMode: boolean;
@@ -33,6 +34,8 @@ export default function BulkUpdateModal({
   onBulkUpdate,
   onClose,
 }: BulkUpdateModalProps) {
+  useEscapeKey(onClose);
+
   const getSelectedTags = () => {
     return tags.filter((tag: QuizTag) => selectedTagIds.includes(tag.id));
   };

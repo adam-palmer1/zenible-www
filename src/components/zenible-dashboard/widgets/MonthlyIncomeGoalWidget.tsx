@@ -55,7 +55,7 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
   }, [currencyLoading]);
 
   // Get values from summary
-  const paymentsCollected = parseFloat(summary?.payments_total || 0);
+  const paymentsCollected = parseFloat(summary?.income_total || 0);
   const outstandingInvoices = parseFloat(summary?.outstanding_invoices || 0);
   const totalWithOutstanding = paymentsCollected + outstandingInvoices;
 

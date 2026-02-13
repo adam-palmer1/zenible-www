@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import {
@@ -25,6 +26,7 @@ import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
+import { formatLocalDate } from '../../../utils/dateUtils';
 import AppLayout from '../../layout/AppLayout';
 import KPICard from '../shared/KPICard';
 import ActionMenu from '../../shared/ActionMenu';
@@ -137,51 +139,67 @@ const CreditNotesDashboard: React.FC = () => {
   const [itemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
 
+  // Dropdown refs and positions for portal rendering
+  const dateButtonRef = useRef<HTMLButtonElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const [dateDropdownPos, setDateDropdownPos] = useState({ top: 0, right: 0 });
+  const [filterDropdownPos, setFilterDropdownPos] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    if (showDateDropdown && dateButtonRef.current) {
+      const rect = dateButtonRef.current.getBoundingClientRect();
+      setDateDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+  }, [showDateDropdown]);
+
+  useEffect(() => {
+    if (showFilterDropdown && filterButtonRef.current) {
+      const rect = filterButtonRef.current.getBoundingClientRect();
+      setFilterDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+  }, [showFilterDropdown]);
+
   // Calculate date range from preset
   const getDateRangeFromPreset = (preset: string): { from: string | null; to: string | null } => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const formatDateStr = (date: Date): string => {
-      return date.toISOString().split('T')[0];
-    };
-
     switch (preset) {
       case 'last_30_days': {
         const thirtyDaysAgo = new Date(today);
         thirtyDaysAgo.setDate(today.getDate() - 29);
-        return { from: formatDateStr(thirtyDaysAgo), to: formatDateStr(today) };
+        return { from: formatLocalDate(thirtyDaysAgo), to: formatLocalDate(today) };
       }
       case 'today': {
-        return { from: formatDateStr(today), to: formatDateStr(today) };
+        return { from: formatLocalDate(today), to: formatLocalDate(today) };
       }
       case 'this_week': {
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
-        return { from: formatDateStr(startOfWeek), to: formatDateStr(endOfWeek) };
+        return { from: formatLocalDate(startOfWeek), to: formatLocalDate(endOfWeek) };
       }
       case 'this_month': {
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        return { from: formatDateStr(startOfMonth), to: formatDateStr(endOfMonth) };
+        return { from: formatLocalDate(startOfMonth), to: formatLocalDate(endOfMonth) };
       }
       case 'last_month': {
         const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-        return { from: formatDateStr(startOfLastMonth), to: formatDateStr(endOfLastMonth) };
+        return { from: formatLocalDate(startOfLastMonth), to: formatLocalDate(endOfLastMonth) };
       }
       case 'this_quarter': {
         const quarter = Math.floor(today.getMonth() / 3);
         const startOfQuarter = new Date(today.getFullYear(), quarter * 3, 1);
         const endOfQuarter = new Date(today.getFullYear(), (quarter + 1) * 3, 0);
-        return { from: formatDateStr(startOfQuarter), to: formatDateStr(endOfQuarter) };
+        return { from: formatLocalDate(startOfQuarter), to: formatLocalDate(endOfQuarter) };
       }
       case 'this_year': {
         const startOfYear = new Date(today.getFullYear(), 0, 1);
         const endOfYear = new Date(today.getFullYear(), 11, 31);
-        return { from: formatDateStr(startOfYear), to: formatDateStr(endOfYear) };
+        return { from: formatLocalDate(startOfYear), to: formatLocalDate(endOfYear) };
       }
       default:
         return { from: null, to: null };
@@ -539,6 +557,7 @@ const CreditNotesDashboard: React.FC = () => {
                   {/* Date Filter Dropdown */}
                   <div className="relative">
                     <button
+                      ref={dateButtonRef}
                       onClick={() => setShowDateDropdown(!showDateDropdown)}
                       className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                         datePreset !== 'all'
@@ -551,13 +570,17 @@ const CreditNotesDashboard: React.FC = () => {
                       <ChevronDown className={`h-4 w-4 transition-transform ${showDateDropdown ? 'rotate-180' : ''}`} />
                     </button>
 
-                    {showDateDropdown && (
+                    {showDateDropdown && createPortal(
                       <>
                         <div
-                          className="fixed inset-0 z-30"
+                          className="fixed inset-0"
+                          style={{ zIndex: 9998 }}
                           onClick={() => setShowDateDropdown(false)}
                         />
-                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-40">
+                        <div
+                          style={{ position: 'fixed', top: dateDropdownPos.top, right: dateDropdownPos.right, width: 320, zIndex: 9999 }}
+                          className="bg-white rounded-lg shadow-lg border border-gray-200"
+                        >
                           <div className="p-3 border-b border-gray-200">
                             {/* Preset Options */}
                             <div className="grid grid-cols-2 gap-2">
@@ -611,7 +634,8 @@ const CreditNotesDashboard: React.FC = () => {
                             </button>
                           </div>
                         </div>
-                      </>
+                      </>,
+                      document.body
                     )}
                   </div>
 
@@ -647,6 +671,7 @@ const CreditNotesDashboard: React.FC = () => {
                   {/* Filter Dropdown */}
                   <div className="relative">
                     <button
+                      ref={filterButtonRef}
                       onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                       className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                         filterStatus !== 'all' || selectedClientIds.length > 0
@@ -662,13 +687,17 @@ const CreditNotesDashboard: React.FC = () => {
                         </span>
                       )}
                     </button>
-                    {showFilterDropdown && (
+                    {showFilterDropdown && createPortal(
                       <>
                         <div
-                          className="fixed inset-0 z-30"
+                          className="fixed inset-0"
+                          style={{ zIndex: 9998 }}
                           onClick={() => setShowFilterDropdown(false)}
                         />
-                        <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-40">
+                        <div
+                          style={{ position: 'fixed', top: filterDropdownPos.top, right: filterDropdownPos.right, width: 288, zIndex: 9999 }}
+                          className="bg-white rounded-lg shadow-lg border border-gray-200"
+                        >
                           {/* Status Filter Section */}
                           <div className="p-3 border-b border-gray-200">
                             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Status</div>
@@ -778,7 +807,8 @@ const CreditNotesDashboard: React.FC = () => {
                             </button>
                           </div>
                         </div>
-                      </>
+                      </>,
+                      document.body
                     )}
                   </div>
                 </div>
@@ -892,9 +922,8 @@ const CreditNotesDashboard: React.FC = () => {
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900">
                               {creditNote.contact?.business_name ||
-                               (creditNote.contact?.first_name && creditNote.contact?.last_name
-                                 ? `${creditNote.contact.first_name} ${creditNote.contact.last_name}`
-                                 : '-')}
+                               `${creditNote.contact?.first_name || ''} ${creditNote.contact?.last_name || ''}`.trim() ||
+                               '-'}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-500">
                               {formatDate(creditNote.issue_date)}

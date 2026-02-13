@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface CancelSubscriptionModalProps {
   saving: boolean;
@@ -17,6 +18,7 @@ export default function CancelSubscriptionModal({
   onConfirm,
 }: CancelSubscriptionModalProps) {
   const { darkMode } = usePreferences();
+  useEscapeKey(onClose);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

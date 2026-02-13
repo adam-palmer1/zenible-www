@@ -1,4 +1,5 @@
 import React from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 
 interface QuitConfirmationModalProps {
   onConfirm: () => void;
@@ -6,6 +7,8 @@ interface QuitConfirmationModalProps {
 }
 
 export default function QuitConfirmationModal({ onConfirm, onCancel }: QuitConfirmationModalProps) {
+  useEscapeKey(onCancel);
+
   // Prevent clicks inside modal from closing it
   const handleModalClick = (e: React.MouseEvent) => {
     e.stopPropagation();
