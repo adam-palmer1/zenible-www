@@ -20,8 +20,8 @@ export const queryClient = new QueryClient({
       // Time to keep data in cache (10 minutes)
       gcTime: 10 * 60 * 1000,
 
-      // Refetch when window regains focus
-      refetchOnWindowFocus: true,
+      // Don't refetch on window focus - staleTime handles freshness
+      refetchOnWindowFocus: false,
 
       // Refetch when reconnecting to network
       refetchOnReconnect: true,

@@ -1,7 +1,9 @@
-import { createContext, useState, useCallback, useMemo, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, useCallback, useMemo, useContext, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import reportsAPI from '../services/api/finance/reports';
 import { useReportFilters, type ReportFilters, type FilterUpdates, type UpdateFilterOptions, type DatePresetName } from '../hooks/finance/useReportFilters';
+import { queryKeys } from '../lib/query-keys';
 
 export interface Transaction {
   id: string;
@@ -79,83 +81,47 @@ export const ReportsContext = createContext<ReportsContextValue | null>(null);
 
 export const ReportsProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const filterHook = useReportFilters();
   const { apiParams, filters, updateFilters, updateSearch, setPage, setSort, applyDatePreset, resetFilters } = filterHook;
 
-  // Transaction list state
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Summary state
-  const [summary, setSummary] = useState<ReportSummary | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState(false);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
-
-  // Fetch transactions
-  const fetchTransactions = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
+  // Transactions query
+  const transactionsQuery = useQuery({
+    queryKey: queryKeys.financeReports.transactions(apiParams),
+    queryFn: async () => {
       const response = await reportsAPI.listTransactions(apiParams) as { items?: Transaction[]; total?: number; total_pages?: number };
-
-      setTransactions(response.items || []);
-      setTotal(response.total || 0);
-      setTotalPages(response.total_pages || 0);
-    } catch (err) {
-      console.error('[ReportsContext] Error fetching transactions:', err);
-      setError((err as Error).message);
-      setTransactions([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, apiParams]);
-
-  // Fetch summary with period grouping for charts
-  const fetchSummary = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      setSummaryLoading(true);
-      setSummaryError(null);
-
-      // Include group_by_period for chart data
-      const summaryParams: Record<string, unknown> = {
-        ...apiParams,
-        group_by_period: 'month',
+      return {
+        items: response.items || [],
+        total: response.total || 0,
+        totalPages: response.total_pages || 0,
       };
+    },
+    enabled: !!user,
+  });
 
-      // Remove pagination params for summary
-      delete summaryParams.page;
-      delete summaryParams.per_page;
-      delete summaryParams.sort_by;
-      delete summaryParams.sort_direction;
+  // Summary query (separate from transactions - different params)
+  const summaryParams = useMemo(() => {
+    const params: Record<string, unknown> = {
+      ...apiParams,
+      group_by_period: 'month',
+    };
+    delete params.page;
+    delete params.per_page;
+    delete params.sort_by;
+    delete params.sort_direction;
+    return params;
+  }, [apiParams]);
 
+  const summaryQuery = useQuery({
+    queryKey: queryKeys.financeReports.summary(summaryParams),
+    queryFn: async () => {
       const response = await reportsAPI.getSummary(summaryParams);
-      setSummary(response as ReportSummary);
-    } catch (err) {
-      console.error('[ReportsContext] Error fetching summary:', err);
-      setSummaryError((err as Error).message);
-      setSummary(null);
-    } finally {
-      setSummaryLoading(false);
-    }
-  }, [user, apiParams]);
+      return response as ReportSummary;
+    },
+    enabled: !!user,
+  });
 
-  // Fetch both transactions and summary when filters change
-  useEffect(() => {
-    if (user) {
-      fetchTransactions();
-      fetchSummary();
-    }
-  }, [fetchTransactions, fetchSummary, user]);
-
-  // Export transactions
+  // Export transactions (imperative, not cached)
   const exportTransactions = useCallback(
     async (format = 'csv', includeSummary = true) => {
       try {
@@ -164,14 +130,11 @@ export const ReportsProvider = ({ children }: { children: ReactNode }) => {
           format,
           include_summary: includeSummary,
         };
-
-        // Remove pagination for export
         delete exportParams.page;
         delete exportParams.per_page;
 
         const blob = await reportsAPI.export(exportParams);
 
-        // Create download link
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -192,48 +155,36 @@ export const ReportsProvider = ({ children }: { children: ReactNode }) => {
 
   // Refresh data
   const refresh = useCallback(() => {
-    fetchTransactions();
-    fetchSummary();
-  }, [fetchTransactions, fetchSummary]);
+    queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all });
+  }, [queryClient]);
 
   const value = useMemo(
     () => ({
-      // Transaction data
-      transactions,
-      total,
-      totalPages,
-      loading,
-      error,
-
-      // Summary data
-      summary,
-      summaryLoading,
-      summaryError,
-
-      // Filter state
+      transactions: transactionsQuery.data?.items || [],
+      total: transactionsQuery.data?.total || 0,
+      totalPages: transactionsQuery.data?.totalPages || 0,
+      loading: transactionsQuery.isLoading,
+      error: transactionsQuery.error?.message || null,
+      summary: summaryQuery.data || null,
+      summaryLoading: summaryQuery.isLoading,
+      summaryError: summaryQuery.error?.message || null,
       filters,
-
-      // Filter actions
       updateFilters,
       updateSearch,
       setPage,
       setSort,
       applyDatePreset,
       resetFilters,
-
-      // Other actions
       exportTransactions,
       refresh,
     }),
     [
-      transactions,
-      total,
-      totalPages,
-      loading,
-      error,
-      summary,
-      summaryLoading,
-      summaryError,
+      transactionsQuery.data,
+      transactionsQuery.isLoading,
+      transactionsQuery.error,
+      summaryQuery.data,
+      summaryQuery.isLoading,
+      summaryQuery.error,
       filters,
       updateFilters,
       updateSearch,

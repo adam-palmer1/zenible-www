@@ -1,5 +1,7 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { contactServicesAPI } from '../../services/api/crm';
+import { queryKeys } from '../../lib/query-keys';
 import type { ContactServiceResponse } from '../../types';
 
 interface UseContactServicesOptions {
@@ -29,12 +31,9 @@ interface ContactServicesListResponse {
 /**
  * Custom hook for fetching and managing contact services (services assigned to contacts)
  * Uses dedicated server-side endpoint with search, filtering, sorting, and pagination
+ * Uses React Query for caching, deduplication, and background refetching
  */
-export function useContactServices(options: UseContactServicesOptions = {}, refreshKey: number = 0) {
-  const [contactServices, setContactServices] = useState<ContactServiceWithContact[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
+export function useContactServices(options: UseContactServicesOptions = {}, _refreshKey: number = 0) {
   const {
     searchQuery = '',
     statusFilters = [],
@@ -44,77 +43,51 @@ export function useContactServices(options: UseContactServicesOptions = {}, refr
   } = options;
 
   // Debounce search to avoid excessive API calls
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState<string>(searchQuery);
 
   useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    searchTimeoutRef.current = setTimeout(() => {
+    const timeout = setTimeout(() => {
       setDebouncedSearch(searchQuery);
     }, 300);
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
+    return () => clearTimeout(timeout);
   }, [searchQuery]);
 
-  // Fetch contact services from the dedicated endpoint
-  const fetchContactServices = useCallback(async (): Promise<ContactServiceWithContact[]> => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Build query params — only include non-empty filters
-      const params: Record<string, string> = {
-        per_page: '200',
-      };
-
-      if (debouncedSearch) {
-        params.search = debouncedSearch;
-      }
-
-      // Pass hidden/lost params to API
-      if (showHiddenContacts) {
-        params.include_hidden_contacts = 'true';
-      }
-      if (showLostContacts) {
-        params.include_lost_contacts = 'true';
-      }
-
-      const response = await contactServicesAPI.list(params) as ContactServicesListResponse;
-      const items = response?.items || [];
-
-      setContactServices(items);
-      return items;
-    } catch (err: unknown) {
-      console.error('[useContactServices] Failed to fetch contact services:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+  // Build query params
+  const queryParams = useMemo(() => {
+    const params: Record<string, string> = { per_page: '200' };
+    if (debouncedSearch) params.search = debouncedSearch;
+    if (showHiddenContacts) params.include_hidden_contacts = 'true';
+    if (showLostContacts) params.include_lost_contacts = 'true';
+    return params;
   }, [debouncedSearch, showHiddenContacts, showLostContacts]);
 
-  // Fetch when filters change or refreshKey changes
-  useEffect(() => {
-    fetchContactServices();
-  }, [fetchContactServices, refreshKey]);
+  // Contact services query
+  const contactServicesQuery = useQuery({
+    queryKey: queryKeys.contactServices.list(queryParams),
+    queryFn: async () => {
+      const response = await contactServicesAPI.list(queryParams) as ContactServicesListResponse;
+      return response?.items || [];
+    },
+  });
+
+  const contactServices = contactServicesQuery.data || [];
 
   // Client-side filtering for multi-select status and frequency
   const filteredServices = useMemo(() => {
     let result = contactServices;
 
-    // Filter by selected statuses (if any selected)
     if (statusFilters.length > 0) {
-      result = result.filter((s: any) => statusFilters.includes(s.status));
+      result = result.filter((s) => {
+        const status = (s as unknown as Record<string, string>).status;
+        return status && statusFilters.includes(status);
+      });
     }
 
-    // Filter by selected frequency types (if any selected)
     if (frequencyTypeFilters.length > 0) {
-      result = result.filter((s: any) => frequencyTypeFilters.includes(s.frequency_type));
+      result = result.filter((s) => {
+        const freqType = (s as unknown as Record<string, string>).frequency_type;
+        return freqType && frequencyTypeFilters.includes(freqType);
+      });
     }
 
     return result;
@@ -132,12 +105,12 @@ export function useContactServices(options: UseContactServicesOptions = {}, refr
     // Filtered services (with client-side multi-select filtering applied)
     filteredServices,
     // State
-    loading,
-    error,
+    loading: contactServicesQuery.isLoading,
+    error: contactServicesQuery.error?.message || null,
     // Filter options
     availableStatuses,
     availableFrequencyTypes,
     // Actions
-    refresh: fetchContactServices,
+    refresh: () => { contactServicesQuery.refetch(); },
   };
 }

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, ArrowRightIcon, ClockIcon } from '@heroicons/react/24/outline';
-import appointmentsAPI from '../../../services/api/crm/appointments';
 import { LoadingSpinner } from '../../shared';
+import { useDashboardWidget } from '../../../contexts/DashboardDataContext';
 
 interface UpcomingAppointmentsWidgetProps {
   settings?: Record<string, any>;
@@ -15,41 +15,9 @@ interface UpcomingAppointmentsWidgetProps {
  */
 const UpcomingAppointmentsWidget = ({ settings = {}, isHovered = false }: UpcomingAppointmentsWidgetProps) => {
   const navigate = useNavigate();
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: appointments, isLoading: loading } = useDashboardWidget('upcomingAppointments');
 
-  const days = settings.days || 7;
-  const limit = settings.limit || 5;
-
-  useEffect(() => {
-    const loadAppointments = async () => {
-      try {
-        setLoading(true);
-        const now = new Date();
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + days);
-
-        const response = await appointmentsAPI.list<{ items?: any[] }>({
-          start_date: now.toISOString(),
-          end_date: endDate.toISOString(),
-          per_page: String(limit),
-        });
-
-        // Sort by start_datetime
-        const sorted = (response.items || [])
-          .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())
-          .slice(0, limit);
-
-        setAppointments(sorted);
-      } catch (error) {
-        console.error('Failed to load appointments:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadAppointments();
-  }, [days, limit]);
+  const appointmentList = appointments || [];
 
   // Format date and time
   const formatDateTime = (dateString: string): string => {
@@ -89,7 +57,7 @@ const UpcomingAppointmentsWidget = ({ settings = {}, isHovered = false }: Upcomi
 
   return (
     <div className="flex flex-col h-full">
-      {appointments.length === 0 ? (
+      {appointmentList.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 text-center">
           <CalendarIcon className="w-12 h-12 text-gray-300 mb-2" />
           <p className="text-sm text-gray-500">No upcoming appointments</p>
@@ -111,7 +79,7 @@ const UpcomingAppointmentsWidget = ({ settings = {}, isHovered = false }: Upcomi
                 transition: 'width 0.2s ease, padding-right 0.2s ease'
               }}
             >
-            {appointments.map((appointment) => (
+            {appointmentList.map((appointment: any) => (
               <button
                 key={appointment.id}
                 onClick={() => handleAppointmentClick(appointment.id)}

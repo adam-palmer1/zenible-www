@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 
-import { ChartBarIcon, ArrowRightIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
-import reportsAPI from '../../../services/api/finance/reports';
+import { ChartBarIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { formatCurrency } from '../../../utils/currency';
 import { LoadingSpinner } from '../../shared';
+import { useDashboardWidget } from '../../../contexts/DashboardDataContext';
 
 interface ProfitAndLossWidgetProps {
   settings?: Record<string, any>;
@@ -24,11 +24,8 @@ interface HoveredBar {
  * Shows revenue vs expenses with net profit/loss chart
  */
 const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
-  const { defaultCurrency, loading: currencyLoading } = useCompanyCurrencies();
-  const [, setSummary] = useState<any>(null);
-  const [periodData, setPeriodData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { defaultCurrency } = useCompanyCurrencies();
+  const { data: summary, isLoading: loading, error } = useDashboardWidget('profitAndLoss');
   const [hoveredBar, setHoveredBar] = useState<HoveredBar | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -36,33 +33,7 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
   const periodMonths = settings.periodMonths || 12;
   const currency = defaultCurrency?.currency?.code || 'GBP';
 
-  useEffect(() => {
-    // Wait for company currency to load
-    if (currencyLoading) {
-      return;
-    }
-
-    const loadSummary = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const response = await reportsAPI.getSummary({
-          past_months: periodMonths,
-        }) as { by_period?: any[]; [key: string]: unknown };
-
-        setSummary(response);
-        setPeriodData(response.by_period || []);
-      } catch (err) {
-        console.error('Failed to load P&L summary:', err);
-        setError('Failed to load data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSummary();
-  }, [periodMonths, currencyLoading]);
+  const periodData = summary?.by_period || [];
 
   // Get current month name and period key
   const now = new Date();
@@ -83,10 +54,11 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
   // Get selected month's data from period data
   const displayMonthData = periodData.find((p: any) => p.period === displayPeriodKey) || {};
 
-  // Revenue = paid invoices (already reduced by credit notes on the backend)
+  // Revenue = paid invoices + unlinked payments (already reduced by credit notes on the backend)
   // Expenses = all expenses
   // Profit = revenue - expenses
-  const revenue = parseFloat(displayMonthData?.paid_invoices_total || 0);
+  const revenue = parseFloat(displayMonthData?.paid_invoices_total || 0)
+                + parseFloat(displayMonthData?.unlinked_payments_total || 0);
   const expenses = parseFloat(displayMonthData?.expense_total || 0);
   const profit = revenue - expenses;
 
@@ -106,6 +78,7 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
     const maxValue = Math.max(
       ...data.map((d: any) => {
         const totalIncome = parseFloat(d.paid_invoices_total || 0) +
+                           parseFloat(d.unlinked_payments_total || 0) +
                            parseFloat(d.outstanding_invoices || 0);
         const totalExpenses = parseFloat(d.paid_expenses || d.expense_total || 0) +
                              parseFloat(d.unpaid_expenses || 0);
@@ -197,7 +170,8 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
 
           {/* Bars and X-axis labels */}
           {data.map((month: any, i: number) => {
-            const paidIncome = parseFloat(month.paid_invoices_total || 0);
+            const paidIncome = parseFloat(month.paid_invoices_total || 0)
+                             + parseFloat(month.unlinked_payments_total || 0);
             const unpaidIncome = parseFloat(month.outstanding_invoices || 0);
             const paidExpenses = parseFloat(month.paid_expenses || month.expense_total || 0);
             const unpaidExpenses = parseFloat(month.unpaid_expenses || 0);
@@ -318,7 +292,7 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
     );
   };
 
-  if (loading || currencyLoading) {
+  if (loading) {
     return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 
@@ -326,7 +300,7 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[100px] text-center">
         <ChartBarIcon className="w-12 h-12 text-gray-300 mb-2" />
-        <p className="text-sm text-gray-500">{error}</p>
+        <p className="text-sm text-gray-500">Failed to load data</p>
       </div>
     );
   }

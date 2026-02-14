@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import countriesAPI from '../../services/api/crm/countries';
+import { queryKeys } from '../../lib/query-keys';
 
 export interface Country {
   id: string;
@@ -22,83 +24,85 @@ interface MutationResult {
 
 /**
  * Hook for managing countries and company-country associations
+ * Uses React Query for caching, deduplication, and automatic invalidation
  */
 export const useCountries = () => {
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [companyCountries, setCompanyCountries] = useState<CompanyCountry[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  // Fetch all countries
-  const fetchCountries = useCallback(async (): Promise<void> => {
-    try {
+  // All countries query
+  const countriesQuery = useQuery({
+    queryKey: queryKeys.countries.list(),
+    queryFn: async () => {
       const result = await countriesAPI.list();
-      setCountries(result as Country[]);
-    } catch (err: unknown) {
-      console.error('Failed to fetch countries:', err);
-      setError((err as Error).message);
-    }
-  }, []);
+      return (result as Country[]) || [];
+    },
+  });
 
-  // Fetch company-enabled countries
-  const fetchCompanyCountries = useCallback(async (): Promise<void> => {
-    try {
+  // Company-enabled countries query
+  const companyCountriesQuery = useQuery({
+    queryKey: queryKeys.countries.company(),
+    queryFn: async () => {
       const result = await countriesAPI.getCompanyCountries();
-      setCompanyCountries(result as CompanyCountry[]);
-    } catch (err: unknown) {
-      console.error('Failed to fetch company countries:', err);
-      setError((err as Error).message);
-    }
-  }, []);
+      return (result as CompanyCountry[]) || [];
+    },
+  });
 
-  // Initial load
-  useEffect(() => {
-    const loadData = async (): Promise<void> => {
-      setLoading(true);
-      await Promise.all([fetchCountries(), fetchCompanyCountries()]);
-      setLoading(false);
-    };
-    loadData();
-  }, [fetchCountries, fetchCompanyCountries]);
+  const countries = countriesQuery.data || [];
+  const companyCountries = companyCountriesQuery.data || [];
+  const loading = countriesQuery.isLoading || companyCountriesQuery.isLoading;
+  const error = countriesQuery.error?.message || companyCountriesQuery.error?.message || null;
 
   // Add country to company
-  const addCountry = useCallback(async (countryId: string): Promise<MutationResult> => {
-    setError(null);
-    try {
-      await countriesAPI.addCountryToCompany(countryId);
-      await fetchCompanyCountries();
-      return { success: true };
-    } catch (err: unknown) {
-      setError((err as Error).message);
-      return { success: false, error: (err as Error).message };
-    }
-  }, [fetchCompanyCountries]);
+  const addCountryMutation = useMutation({
+    mutationFn: (countryId: string) => countriesAPI.addCountryToCompany(countryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.countries.company() });
+    },
+  });
 
   // Remove country from company
-  const removeCountry = useCallback(async (associationId: string): Promise<MutationResult> => {
-    setError(null);
-    try {
-      await countriesAPI.removeCountryFromCompany(associationId);
-      await fetchCompanyCountries();
-      return { success: true };
-    } catch (err: unknown) {
-      setError((err as Error).message);
-      return { success: false, error: (err as Error).message };
-    }
-  }, [fetchCompanyCountries]);
+  const removeCountryMutation = useMutation({
+    mutationFn: (associationId: string) => countriesAPI.removeCountryFromCompany(associationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.countries.company() });
+    },
+  });
 
   // Set country as default
-  const setDefaultCountry = useCallback(async (associationId: string): Promise<MutationResult> => {
-    setError(null);
+  const setDefaultCountryMutation = useMutation({
+    mutationFn: (associationId: string) => countriesAPI.setDefaultCountry(associationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.countries.company() });
+    },
+  });
+
+  // Backwards-compatible wrapper functions
+  const addCountry = useCallback(async (countryId: string): Promise<MutationResult> => {
     try {
-      await countriesAPI.setDefaultCountry(associationId);
-      await fetchCompanyCountries();
+      await addCountryMutation.mutateAsync(countryId);
       return { success: true };
     } catch (err: unknown) {
-      setError((err as Error).message);
       return { success: false, error: (err as Error).message };
     }
-  }, [fetchCompanyCountries]);
+  }, [addCountryMutation]);
+
+  const removeCountry = useCallback(async (associationId: string): Promise<MutationResult> => {
+    try {
+      await removeCountryMutation.mutateAsync(associationId);
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message };
+    }
+  }, [removeCountryMutation]);
+
+  const setDefaultCountry = useCallback(async (associationId: string): Promise<MutationResult> => {
+    try {
+      await setDefaultCountryMutation.mutateAsync(associationId);
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message };
+    }
+  }, [setDefaultCountryMutation]);
 
   // Get default country
   const defaultCountry = companyCountries.find((cc) => cc.is_default);
@@ -113,8 +117,7 @@ export const useCountries = () => {
     removeCountry,
     setDefaultCountry,
     refresh: () => {
-      fetchCountries();
-      fetchCompanyCountries();
+      queryClient.invalidateQueries({ queryKey: queryKeys.countries.all });
     },
   };
 };

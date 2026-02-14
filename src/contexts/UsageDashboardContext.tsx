@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { createContext, useContext, useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import planAPI from '../services/planAPI';
 import { useAuth } from './AuthContext';
+import { queryKeys } from '../lib/query-keys';
 
 interface EntityLimit {
   entity_type: string;
@@ -115,44 +116,22 @@ export function useUsageDashboardOptional(): UsageDashboardContextValue | null {
 
 export function UsageDashboardProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const location = useLocation();
-  const [usageData, setUsageData] = useState<UsageData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchUsageDashboard = useCallback(async () => {
-    // Don't fetch if not authenticated
-    if (!user) {
-      setUsageData(null);
-      return;
-    }
+  const usageQuery = useQuery({
+    queryKey: queryKeys.usageDashboard.all,
+    queryFn: () => planAPI.getUsageDashboard() as Promise<UsageData>,
+    enabled: !!user,
+    // Refetch more frequently since usage data changes with user actions
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
 
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await planAPI.getUsageDashboard() as UsageData;
-      setUsageData(data);
-    } catch (err) {
-      console.error('Failed to fetch usage dashboard:', err);
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  // Fetch on mount, when user changes, and on each page navigation
-  useEffect(() => {
-    if (user) {
-      fetchUsageDashboard();
-    } else {
-      setUsageData(null);
-    }
-  }, [user, location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  const usageData = usageQuery.data || null;
 
   // Refresh function
-  const refresh = useCallback(() => {
-    return fetchUsageDashboard();
-  }, [fetchUsageDashboard]);
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
+  }, [queryClient]);
 
   // Helper functions to check limits
   const canCreate = useCallback((entityType: string) => {
@@ -194,13 +173,11 @@ export function UsageDashboardProvider({ children }: { children: React.ReactNode
     return tool.remaining > 0;
   }, [getToolUsage]);
 
-  const hasDowngradeWarnings = (usageData?.downgrade_warnings?.length ?? 0) > 0;
-
-  const value: UsageDashboardContextValue = {
+  const value = useMemo((): UsageDashboardContextValue => ({
     // Data
     usageData,
-    loading,
-    error,
+    loading: usageQuery.isLoading,
+    error: usageQuery.error ? (usageQuery.error as Error).message : null,
 
     // Actions
     refresh,
@@ -219,7 +196,7 @@ export function UsageDashboardProvider({ children }: { children: React.ReactNode
     canUseTool,
 
     // Helpers - Warnings
-    hasDowngradeWarnings,
+    hasDowngradeWarnings: (usageData?.downgrade_warnings?.length ?? 0) > 0,
     downgradeWarnings: usageData?.downgrade_warnings || [],
 
     // Helpers - AI Usage
@@ -232,7 +209,19 @@ export function UsageDashboardProvider({ children }: { children: React.ReactNode
 
     // Helpers - Integrations
     integrations: usageData?.integrations || {},
-  };
+  }), [
+    usageData,
+    usageQuery.isLoading,
+    usageQuery.error,
+    refresh,
+    canCreate,
+    getEntityLimit,
+    isOverLimit,
+    getFeature,
+    isFeatureEnabled,
+    getToolUsage,
+    canUseTool,
+  ]);
 
   return (
     <UsageDashboardContext.Provider value={value}>

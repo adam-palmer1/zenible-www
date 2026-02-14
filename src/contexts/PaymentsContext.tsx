@@ -1,8 +1,10 @@
 import { createContext, useState, useCallback, useMemo, useContext, useEffect, type Dispatch, type SetStateAction, type ReactNode } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { usePreferences } from './PreferencesContext';
 import paymentsAPI from '../services/api/finance/payments';
 import { formatLocalDate } from '../utils/dateUtils';
+import { queryKeys } from '../lib/query-keys';
 
 interface PaymentFilters {
   status: string | null;
@@ -70,14 +72,6 @@ interface PaymentListApiResponse {
   stats?: Record<string, unknown>;
 }
 
-interface PaymentRecord {
-  id: string;
-  amount: string;
-  refunded_amount?: string | number;
-  status?: string;
-  [key: string]: unknown;
-}
-
 interface RefundData {
   amount?: number;
   reason?: string;
@@ -93,17 +87,7 @@ export const PaymentsContext = createContext<PaymentsContextValue | null>(null);
 export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const { getPreference, updatePreference } = usePreferences();
-
-  // State
-  const [payments, setPayments] = useState<unknown[]>([]);
-  const [loading, setLoading] = useState(true); // Start true until initial fetch completes
-  const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // Stats from API (extracted from list response)
-  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
+  const queryClient = useQueryClient();
 
   // Modal state
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -111,6 +95,9 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<unknown>(null);
+
+  // Stats (extracted from list response)
+  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
 
   // Default to last 30 days
   const defaultRange = (() => {
@@ -123,7 +110,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     };
   })();
 
-  // Filters - these are sent to the server for server-side filtering
+  // Filters
   const [filters, setFilters] = useState<PaymentFilters>({
     status: null,
     contact_id: null,
@@ -143,223 +130,161 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     total_pages: 0,
   });
 
+  // Preferences loading
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+
   // Load filters from preferences
   useEffect(() => {
-    if (user) {
+    if (user && !preferencesLoaded) {
       const savedFilters = {
         status: getPreference('payment_filter_status', null) as string | null,
         sort_by: getPreference('payment_sort_by', 'payment_date') as string,
         sort_direction: getPreference('payment_sort_direction', 'desc') as string,
       };
-
       setFilters(prev => ({ ...prev, ...savedFilters }));
       setPreferencesLoaded(true);
-    } else {
-      // No user - not loading
-      setLoading(false);
     }
-  }, [user, getPreference]);
+  }, [user, getPreference, preferencesLoaded]);
 
-  // Fetch payments
-  const fetchPayments = useCallback(async () => {
-    if (!user) return;
+  // Build API params
+  const apiParams = useMemo(() => {
+    const params: Record<string, unknown> = {
+      page: pagination.page,
+      per_page: pagination.per_page,
+    };
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== '' && value !== false) {
+        params[key] = value;
+      }
+    });
+    return params;
+  }, [pagination.page, pagination.per_page, filters]);
 
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Build params, filtering out null/undefined values
-      const params: Record<string, unknown> = {
-        page: pagination.page,
-        per_page: pagination.per_page,
-      };
-
-      // Only add filter params if they have actual values
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '' && value !== false) {
-          params[key] = value;
-        }
-      });
-
-      const response = await paymentsAPI.list(params as Record<string, string>) as PaymentListApiResponse;
-
-      // Handle different response formats
+  // React Query: fetch payments
+  const paymentsQuery = useQuery({
+    queryKey: [...queryKeys.payments.all, 'list', { apiParams }],
+    queryFn: async () => {
+      const response = await paymentsAPI.list(apiParams as Record<string, string>) as PaymentListApiResponse;
       const rawItems = response.items || response.data || [];
       const items = Array.isArray(rawItems) ? rawItems : [];
-      setPayments(items);
+      return { items, total: response.total || items.length, total_pages: response.total_pages, stats: response.stats };
+    },
+    enabled: !!user && preferencesLoaded,
+  });
 
+  // Update pagination and stats when data changes
+  useEffect(() => {
+    if (paymentsQuery.data) {
       setPagination(prev => ({
         ...prev,
-        total: response.total || items.length,
-        total_pages: response.total_pages || Math.ceil((response.total || items.length) / prev.per_page),
+        total: paymentsQuery.data.total,
+        total_pages: paymentsQuery.data.total_pages || Math.ceil(paymentsQuery.data.total / prev.per_page),
       }));
-
-      // Extract stats from list response - single source of truth
-      if (response.stats) {
-        setStats(response.stats as Record<string, unknown>);
+      if (paymentsQuery.data.stats) {
+        setStats(paymentsQuery.data.stats);
       }
-
-      setInitialized(true);
-    } catch (err) {
-      console.error('[PaymentsContext] Error fetching payments:', err);
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
     }
-  }, [user, pagination.page, pagination.per_page, filters]);
+  }, [paymentsQuery.data]);
 
-  // Auto-fetch on dependencies change (only after preferences are loaded)
-  useEffect(() => {
-    if (preferencesLoaded) {
-      fetchPayments();
-    }
-  }, [fetchPayments, refreshKey, preferencesLoaded]);
+  const payments = paymentsQuery.data?.items || [];
 
-  // Create payment
+  // Create payment mutation
+  const createMutation = useMutation({
+    mutationFn: (paymentData: unknown) => paymentsAPI.create(paymentData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+    },
+  });
+
+  // Update payment mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ paymentId, paymentData }: { paymentId: string; paymentData: unknown }) =>
+      paymentsAPI.update(paymentId, paymentData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+    },
+  });
+
+  // Delete payment mutation
+  const deleteMutation = useMutation({
+    mutationFn: (paymentId: string) => paymentsAPI.delete(paymentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+    },
+  });
+
+  // Refund payment mutation
+  const refundMutation = useMutation({
+    mutationFn: ({ paymentId, refundData }: { paymentId: string; refundData: unknown }) =>
+      paymentsAPI.refund(paymentId, refundData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+    },
+  });
+
+  // Allocate payment mutation
+  const allocateMutation = useMutation({
+    mutationFn: ({ paymentId, allocations }: { paymentId: string; allocations: unknown }) =>
+      paymentsAPI.allocate(paymentId, { allocations }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+    },
+  });
+
+  // Auto-allocate payment mutation
+  const autoAllocateMutation = useMutation({
+    mutationFn: (paymentId: string) => paymentsAPI.autoAllocate(paymentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+    },
+  });
+
+  // Wrapper functions
+  const fetchPayments = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+  }, [queryClient]);
+
   const createPayment = useCallback(async (paymentData: unknown) => {
-    try {
-      setLoading(true);
-      const created = await paymentsAPI.create(paymentData);
-      setPayments(prev => [created, ...prev]);
-      return created;
-    } catch (err) {
-      console.error('[PaymentsContext] Error creating payment:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    return createMutation.mutateAsync(paymentData);
+  }, [createMutation]);
 
-  // Update payment
   const updatePayment = useCallback(async (paymentId: string, paymentData: unknown) => {
-    try {
-      setLoading(true);
-      const updated = await paymentsAPI.update(paymentId, paymentData);
-      setPayments(prev => prev.map((p: any) => p.id === paymentId ? updated : p));
-      return updated;
-    } catch (err) {
-      console.error('[PaymentsContext] Error updating payment:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    return updateMutation.mutateAsync({ paymentId, paymentData });
+  }, [updateMutation]);
 
-  // Delete payment
   const deletePayment = useCallback(async (paymentId: string) => {
-    try {
-      setLoading(true);
-      await paymentsAPI.delete(paymentId);
-      setPayments(prev => prev.filter((p: any) => p.id !== paymentId));
-      setRefreshKey(prev => prev + 1);
-    } catch (err) {
-      console.error('[PaymentsContext] Error deleting payment:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await deleteMutation.mutateAsync(paymentId);
+  }, [deleteMutation]);
 
-  // Refund payment
   const refundPayment = useCallback(async (paymentId: string, refundData: unknown) => {
-    try {
-      setLoading(true);
-      const result = await paymentsAPI.refund(paymentId, refundData);
+    return refundMutation.mutateAsync({ paymentId, refundData });
+  }, [refundMutation]);
 
-      // Update local state with refund info
-      setPayments(prev => prev.map((p: any) => {
-        if (p.id === paymentId) {
-          const refundAmount = (refundData as RefundData).amount || parseFloat(p.amount);
-          const currentRefunded = parseFloat(p.refunded_amount || 0);
-          const newRefunded = currentRefunded + refundAmount;
-          const originalAmount = parseFloat(p.amount);
-
-          return {
-            ...p,
-            refunded_amount: newRefunded,
-            status: newRefunded >= originalAmount ? 'refunded' : 'partially_refunded',
-          };
-        }
-        return p;
-      }));
-      setRefreshKey(prev => prev + 1);
-
-      return result;
-    } catch (err) {
-      console.error('[PaymentsContext] Error refunding payment:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Allocate payment to invoices
   const allocatePayment = useCallback(async (paymentId: string, allocations: unknown) => {
-    try {
-      setLoading(true);
-      const result = await paymentsAPI.allocate(paymentId, { allocations });
+    return allocateMutation.mutateAsync({ paymentId, allocations });
+  }, [allocateMutation]);
 
-      // Refresh to get updated payment data
-      await fetchPayments();
-
-      return result;
-    } catch (err) {
-      console.error('[PaymentsContext] Error allocating payment:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchPayments]);
-
-  // Auto-allocate payment
   const autoAllocatePayment = useCallback(async (paymentId: string) => {
-    try {
-      setLoading(true);
-      const result = await paymentsAPI.autoAllocate(paymentId);
+    return autoAllocateMutation.mutateAsync(paymentId);
+  }, [autoAllocateMutation]);
 
-      // Refresh to get updated payment data
-      await fetchPayments();
-
-      return result;
-    } catch (err) {
-      console.error('[PaymentsContext] Error auto-allocating payment:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchPayments]);
-
-  // Get unallocated amount
+  // Imperative API calls (not cached)
   const getUnallocatedAmount = useCallback(async (paymentId: string) => {
-    try {
-      const result = await paymentsAPI.getUnallocated(paymentId) as UnallocatedResponse;
-      return result.unallocated_amount;
-    } catch (err) {
-      console.error('[PaymentsContext] Error getting unallocated amount:', err);
-      throw err;
-    }
+    const result = await paymentsAPI.getUnallocated(paymentId) as UnallocatedResponse;
+    return result.unallocated_amount;
   }, []);
 
-  // Get payment history
   const getPaymentHistory = useCallback(async (paymentId: string) => {
-    try {
-      return await paymentsAPI.getHistory(paymentId);
-    } catch (err) {
-      console.error('[PaymentsContext] Error getting payment history:', err);
-      throw err;
-    }
+    return paymentsAPI.getHistory(paymentId);
   }, []);
 
   // Update filters
   const updateFilters = useCallback((newFilters: Partial<PaymentFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
-    // Reset to page 1 when filters change (except for sort which doesn't need reset)
     if (!('sort_by' in newFilters && Object.keys(newFilters).length === 1) &&
         !('sort_direction' in newFilters && Object.keys(newFilters).length === 1)) {
       setPagination(prev => ({ ...prev, page: 1 }));
     }
-
-    // Save to preferences
     if (newFilters.status !== undefined) {
       updatePreference('payment_filter_status', newFilters.status, 'finance');
     }
@@ -373,54 +298,24 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
 
   // Refresh
   const refresh = useCallback(() => {
-    setRefreshKey(prev => prev + 1);
-  }, []);
+    queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+  }, [queryClient]);
 
   // Modal helpers
-  const openDetailModal = useCallback((payment: unknown) => {
-    setSelectedPayment(payment);
-    setShowDetailModal(true);
-  }, []);
-
-  const closeDetailModal = useCallback(() => {
-    setShowDetailModal(false);
-    setSelectedPayment(null);
-  }, []);
-
-  const openRefundModal = useCallback((payment: unknown) => {
-    setSelectedPayment(payment);
-    setShowRefundModal(true);
-  }, []);
-
-  const closeRefundModal = useCallback(() => {
-    setShowRefundModal(false);
-    // Don't clear selectedPayment here as it might be used by detail modal
-  }, []);
-
-  const openCreateModal = useCallback(() => {
-    setShowCreateModal(true);
-  }, []);
-
-  const closeCreateModal = useCallback(() => {
-    setShowCreateModal(false);
-  }, []);
-
-  const openEditModal = useCallback((payment: unknown) => {
-    setSelectedPayment(payment);
-    setShowEditModal(true);
-  }, []);
-
-  const closeEditModal = useCallback(() => {
-    setShowEditModal(false);
-    setSelectedPayment(null);
-  }, []);
+  const openDetailModal = useCallback((payment: unknown) => { setSelectedPayment(payment); setShowDetailModal(true); }, []);
+  const closeDetailModal = useCallback(() => { setShowDetailModal(false); setSelectedPayment(null); }, []);
+  const openRefundModal = useCallback((payment: unknown) => { setSelectedPayment(payment); setShowRefundModal(true); }, []);
+  const closeRefundModal = useCallback(() => { setShowRefundModal(false); }, []);
+  const openCreateModal = useCallback(() => { setShowCreateModal(true); }, []);
+  const closeCreateModal = useCallback(() => { setShowCreateModal(false); }, []);
+  const openEditModal = useCallback((payment: unknown) => { setSelectedPayment(payment); setShowEditModal(true); }, []);
+  const closeEditModal = useCallback(() => { setShowEditModal(false); setSelectedPayment(null); }, []);
 
   const value = useMemo(() => ({
-    // State
     payments,
-    loading,
-    error,
-    initialized,
+    loading: paymentsQuery.isLoading,
+    error: paymentsQuery.error?.message || null,
+    initialized: paymentsQuery.isFetched,
     filters,
     pagination,
     stats,
@@ -429,8 +324,6 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     showCreateModal,
     showEditModal,
     selectedPayment,
-
-    // Methods
     fetchPayments,
     createPayment,
     updatePayment,
@@ -443,8 +336,6 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     updateFilters,
     setPagination,
     refresh,
-
-    // Modal helpers
     openDetailModal,
     closeDetailModal,
     openRefundModal,
@@ -453,17 +344,15 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     closeCreateModal,
     openEditModal,
     closeEditModal,
-
-    // Payment methods (stub implementation - payment methods not yet implemented)
     paymentMethods: [] as unknown[],
     methodsLoading: false,
     fetchPaymentMethods: async () => {},
     removePaymentMethod: async (_methodId: string) => {},
   }), [
     payments,
-    loading,
-    error,
-    initialized,
+    paymentsQuery.isLoading,
+    paymentsQuery.error,
+    paymentsQuery.isFetched,
     filters,
     pagination,
     stats,

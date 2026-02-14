@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocumentTextIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import { useInvoices } from '../../../contexts/InvoiceContext';
 import { formatCurrency } from '../../../utils/currency';
 import { LoadingSpinner } from '../../shared';
+import { useDashboardWidget } from '../../../contexts/DashboardDataContext';
 
 interface RecentInvoicesWidgetProps {
   settings?: Record<string, any>;
@@ -16,17 +16,9 @@ interface RecentInvoicesWidgetProps {
  */
 const RecentInvoicesWidget = ({ settings = {}, isHovered = false }: RecentInvoicesWidgetProps) => {
   const navigate = useNavigate();
-  const { invoices, loading, initialized, fetchInvoices } = useInvoices();
-  const limit = settings.limit || 5;
+  const { data: invoices, isLoading: loading } = useDashboardWidget('recentInvoices');
 
-  useEffect(() => {
-    if (!initialized) {
-      fetchInvoices();
-    }
-  }, [initialized, fetchInvoices]);
-
-  // Get recent invoices (already sorted by created_at desc from context)
-  const recentInvoices = invoices.slice(0, limit);
+  const recentInvoices = invoices || [];
 
   const getStatusColor = (status: string): string => {
     const colors: Record<string, string> = {
@@ -73,7 +65,7 @@ const RecentInvoicesWidget = ({ settings = {}, isHovered = false }: RecentInvoic
   const handleViewAll = () => navigate('/finance/invoices');
   const handleInvoiceClick = (id: string) => navigate(`/finance/invoices/${id}`);
 
-  if (loading && !initialized) {
+  if (loading) {
     return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 

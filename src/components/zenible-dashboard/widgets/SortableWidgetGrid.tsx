@@ -1,13 +1,13 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { DndProvider, useDrag, useDrop, type XYCoord } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { usePreferences } from '../../../contexts/PreferencesContext';
+import { DashboardDataProvider } from '../../../contexts/DashboardDataContext';
 import WidgetWrapper from './WidgetWrapper';
 import WidgetSettingsModal from './WidgetSettingsModal';
 import {
   WIDGET_REGISTRY,
   getWidgetDefaults,
-  getDefaultWidgetSettings,
 } from './WidgetRegistry';
 
 // Item type for drag and drop
@@ -159,23 +159,25 @@ const WidgetGrid = ({ onOpenCustomizer }: WidgetGridProps) => {
   }) as { widgets: any[]; version: number };
 
   // Get visible widgets
-  const visibleWidgets = (widgetLayout.widgets || [])
-    .filter((w: any) => w.visible && WIDGET_REGISTRY[w.id]);
+  const visibleWidgets = useMemo(
+    () => (widgetLayout.widgets || []).filter((w: any) => w.visible && WIDGET_REGISTRY[w.id]),
+    [widgetLayout.widgets]
+  );
 
-  // Get widget size from settings
+  // Memoize visible widget IDs for DashboardDataProvider
+  const visibleWidgetIds = useMemo(
+    () => visibleWidgets.map((w: any) => w.id),
+    [visibleWidgets]
+  );
+
+  // Get widget size from config (fixed sizes, not user-configurable)
   const getWidgetSize = useCallback((widgetId: string) => {
     const config = WIDGET_REGISTRY[widgetId];
-    const defaults = getDefaultWidgetSettings(widgetId);
-    const settings = getPreference(
-      `dashboard_widget_settings_${widgetId}`,
-      defaults
-    ) as { widgetWidth?: number; widgetHeight?: number; [key: string]: unknown };
-
     return {
-      width: settings.widgetWidth ?? config?.defaultSize?.w ?? 1,
-      height: settings.widgetHeight ?? config?.defaultSize?.h ?? 1,
+      width: config?.defaultSize?.w ?? 1,
+      height: config?.defaultSize?.h ?? 1,
     };
-  }, [getPreference]);
+  }, []);
 
   // Move widget to new position
   const moveWidget = useCallback((dragIndex: number, hoverIndex: number) => {
@@ -268,7 +270,7 @@ const WidgetGrid = ({ onOpenCustomizer }: WidgetGridProps) => {
   }
 
   return (
-    <>
+    <DashboardDataProvider visibleWidgetIds={visibleWidgetIds}>
       <div className="px-4 pb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[140px]">
           {visibleWidgets.map((widget: WidgetItem, index: number) => (
@@ -291,7 +293,7 @@ const WidgetGrid = ({ onOpenCustomizer }: WidgetGridProps) => {
         open={!!settingsWidgetId}
         onOpenChange={(open: boolean) => !open && setSettingsWidgetId(null)}
       />
-    </>
+    </DashboardDataProvider>
   );
 };
 

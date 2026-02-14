@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TrophyIcon } from '@heroicons/react/24/outline';
-import reportsAPI from '../../../services/api/finance/reports';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { formatCurrency } from '../../../utils/currency';
 import { LoadingSpinner } from '../../shared';
+import { useDashboardWidget } from '../../../contexts/DashboardDataContext';
 
 interface MonthlyIncomeGoalWidgetProps {
   settings?: Record<string, any>;
@@ -14,48 +14,16 @@ interface MonthlyIncomeGoalWidgetProps {
  * Shows progress toward monthly income target with two-segment ring
  */
 const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps) => {
-  const { defaultCurrency: companyDefaultCurrency, loading: currencyLoading } = useCompanyCurrencies();
-  const [summary, setSummary] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { defaultCurrency: companyDefaultCurrency } = useCompanyCurrencies();
+  const { data: summary, isLoading: loading, error } = useDashboardWidget('monthlyIncomeGoal');
   const [hoveringOutstanding, setHoveringOutstanding] = useState(false);
 
   const monthlyGoal = settings.monthlyGoal || 5000;
   const currency = settings.currency || companyDefaultCurrency?.currency?.code || 'GBP';
 
-  useEffect(() => {
-    if (currencyLoading) {
-      return;
-    }
-
-    const loadSummary = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-        const response = await reportsAPI.getSummary({
-          start_date: startOfMonth.toISOString().split('T')[0],
-          end_date: endOfMonth.toISOString().split('T')[0],
-        });
-
-        setSummary(response);
-      } catch (err: any) {
-        console.error('Failed to load income summary:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSummary();
-  }, [currencyLoading]);
-
-  // Get values from summary
-  const paymentsCollected = parseFloat(summary?.paid_invoices_total || 0);
+  // Get values from summary (revenue = paid invoices + unlinked payments)
+  const paymentsCollected = parseFloat(summary?.paid_invoices_total || 0)
+                          + parseFloat(summary?.unlinked_payments_total || 0);
   const outstandingInvoices = parseFloat(summary?.outstanding_invoices || 0);
   const totalWithOutstanding = paymentsCollected + outstandingInvoices;
 
@@ -93,7 +61,7 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
 
   const monthName = new Date().toLocaleDateString('en-US', { month: 'long' });
 
-  if (loading || currencyLoading) {
+  if (loading) {
     return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 

@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { contactsAPI } from '../../services/api/crm';
+import { queryKeys } from '../../lib/query-keys';
 import type { ContactTimelineResponse, ContactActivityResponse } from '../../types';
 
 interface Pagination {
@@ -11,12 +13,11 @@ interface Pagination {
 
 /**
  * Custom hook for managing contact activities/timeline
- * Handles loading contact activity history
+ * Uses React Query for caching and automatic refetching
  */
 export function useContactActivities(contactId: string | undefined) {
-  const [activities, setActivities] = useState<ContactActivityResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     per_page: 20,
@@ -24,51 +25,51 @@ export function useContactActivities(contactId: string | undefined) {
     total_pages: 0,
   });
 
-  // Fetch activities for contact
+  const queryParams = { page: String(pagination.page), per_page: String(pagination.per_page) };
+
+  // Activities query
+  const activitiesQuery = useQuery({
+    queryKey: [...queryKeys.contactActivities.byContact(contactId!), { queryParams }],
+    queryFn: () => contactsAPI.getTimeline(contactId!, queryParams),
+    enabled: !!contactId,
+  });
+
+  // Update pagination from response
+  const response = activitiesQuery.data;
+  if (response && (pagination.total !== response.total || pagination.total_pages !== response.total_pages)) {
+    setPagination(prev => ({
+      ...prev,
+      page: response.page,
+      per_page: response.per_page,
+      total: response.total,
+      total_pages: response.total_pages,
+    }));
+  }
+
+  const activities = response?.items || [];
+
+  // Fetch activities (backwards-compatible imperative call)
   const fetchActivities = useCallback(async (params: Record<string, string> = {}): Promise<ContactTimelineResponse | void> => {
     if (!contactId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const mergedParams: Record<string, string> = {
-        page: String(pagination.page),
-        per_page: String(pagination.per_page),
-        ...params,
-      };
-
-      const response = await contactsAPI.getTimeline(contactId, mergedParams);
-
-      setActivities(response.items || []);
-      setPagination({
-        page: response.page,
-        per_page: response.per_page,
-        total: response.total,
-        total_pages: response.total_pages,
-      });
-
-      return response;
-    } catch (err: unknown) {
-      console.error('[useContactActivities] Failed to fetch activities:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
+    if (params.page) {
+      setPagination(prev => ({ ...prev, page: parseInt(params.page, 10) }));
+    } else {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.contactActivities.byContact(contactId) });
     }
-  }, [contactId, pagination.page, pagination.per_page]);
+    return activitiesQuery.data;
+  }, [queryClient, contactId, activitiesQuery.data]);
 
   // Load more activities
   const loadMore = useCallback((): void => {
     if (pagination.page < pagination.total_pages) {
-      fetchActivities({ page: String(pagination.page + 1) });
+      setPagination(prev => ({ ...prev, page: prev.page + 1 }));
     }
-  }, [fetchActivities, pagination.page, pagination.total_pages]);
+  }, [pagination.page, pagination.total_pages]);
 
   return {
     activities,
-    loading,
-    error,
+    loading: activitiesQuery.isLoading,
+    error: activitiesQuery.error?.message || null,
     pagination,
     fetchActivities,
     loadMore,

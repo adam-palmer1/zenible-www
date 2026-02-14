@@ -1,111 +1,75 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { contactsAPI } from '../../services/api/crm';
+import { queryKeys } from '../../lib/query-keys';
+import type { ContactNoteCreate } from '../../types';
 
 /**
  * Custom hook for managing contact notes
- * Handles loading, creating, updating, and deleting notes
+ * Uses React Query for caching, deduplication, and automatic invalidation
  */
 export function useContactNotes(contactId: string | undefined) {
-  const [notes, setNotes] = useState<unknown[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  // Fetch notes for contact
+  // Notes list query
+  const notesQuery = useQuery({
+    queryKey: queryKeys.contactNotes.byContact(contactId!),
+    queryFn: () => contactsAPI.getNotes(contactId!),
+    enabled: !!contactId,
+  });
+
+  // Create note mutation
+  const createMutation = useMutation({
+    mutationFn: (data: ContactNoteCreate) => contactsAPI.createNote(contactId!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contactNotes.byContact(contactId!) });
+    },
+  });
+
+  // Update note mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ noteId, data }: { noteId: string; data: Record<string, unknown> }) =>
+      contactsAPI.updateNote(contactId!, noteId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contactNotes.byContact(contactId!) });
+    },
+  });
+
+  // Delete note mutation
+  const deleteMutation = useMutation({
+    mutationFn: (noteId: string) => contactsAPI.deleteNote(contactId!, noteId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contactNotes.byContact(contactId!) });
+    },
+  });
+
+  // Backwards-compatible wrapper functions
   const fetchNotes = useCallback(async (): Promise<unknown> => {
     if (!contactId) return;
+    await queryClient.invalidateQueries({ queryKey: queryKeys.contactNotes.byContact(contactId) });
+    return notesQuery.data;
+  }, [queryClient, contactId, notesQuery.data]);
 
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await contactsAPI.getNotes(contactId);
-      setNotes((response as unknown[]) || []);
-
-      return response;
-    } catch (err: unknown) {
-      console.error('[useContactNotes] Failed to fetch notes:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [contactId]);
-
-  // Create note
-  const createNote = useCallback(async (data: any): Promise<unknown> => {
+  const createNote = useCallback(async (data: ContactNoteCreate): Promise<unknown> => {
     if (!contactId) return;
+    return createMutation.mutateAsync(data);
+  }, [contactId, createMutation]);
 
-    try {
-      setLoading(true);
-      setError(null);
-
-      const newNote = await contactsAPI.createNote(contactId, data);
-
-      // Add to local state
-      setNotes((prev) => [newNote, ...prev]);
-
-      return newNote;
-    } catch (err: unknown) {
-      console.error('[useContactNotes] Failed to create note:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [contactId]);
-
-  // Update note
   const updateNote = useCallback(async (noteId: string, data: Record<string, unknown>): Promise<unknown> => {
     if (!contactId) return;
+    return updateMutation.mutateAsync({ noteId, data });
+  }, [contactId, updateMutation]);
 
-    try {
-      setLoading(true);
-      setError(null);
-
-      const updatedNote = await contactsAPI.updateNote(contactId, noteId, data);
-
-      // Update in local state
-      setNotes((prev) =>
-        prev.map((n: unknown) => ((n as Record<string, unknown>).id === noteId ? updatedNote : n))
-      );
-
-      return updatedNote;
-    } catch (err: unknown) {
-      console.error('[useContactNotes] Failed to update note:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [contactId]);
-
-  // Delete note
   const deleteNote = useCallback(async (noteId: string): Promise<boolean | undefined> => {
     if (!contactId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      await contactsAPI.deleteNote(contactId, noteId);
-
-      // Remove from local state
-      setNotes((prev) => prev.filter((n: unknown) => (n as Record<string, unknown>).id !== noteId));
-
-      return true;
-    } catch (err: unknown) {
-      console.error('[useContactNotes] Failed to delete note:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [contactId]);
+    await deleteMutation.mutateAsync(noteId);
+    return true;
+  }, [contactId, deleteMutation]);
 
   return {
-    notes,
-    loading,
-    error,
+    notes: (notesQuery.data as unknown[]) || [],
+    loading: notesQuery.isLoading,
+    error: notesQuery.error?.message || null,
     fetchNotes,
     createNote,
     updateNote,

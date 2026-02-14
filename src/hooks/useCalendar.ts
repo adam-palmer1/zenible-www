@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import appointmentsAPI from '../services/api/crm/appointments';
+import { queryKeys } from '../lib/query-keys';
 import type {
   CalendarAppointmentResponse,
   CalendarAppointmentsResponse,
   AppointmentListResponse,
-  AppointmentResponse,
   GoogleCalendarMultiAccountStatusResponse,
-  GoogleAccountInfo,
 } from '../types/crm';
 
 interface CalendarFilters {
@@ -58,18 +58,12 @@ interface SyncResult extends OperationResult {
 }
 
 export function useCalendar() {
+  const queryClient = useQueryClient();
+
+  // Appointments local state (populated by fetch methods)
   const [appointments, setAppointments] = useState<CalendarAppointmentResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [fetchLoading, setFetchLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Multi-account Google Calendar state
-  const [googleAccounts, setGoogleAccounts] = useState<GoogleAccountInfo[]>([]);
-  const [primaryAccount, setPrimaryAccount] = useState<GoogleAccountInfo | null>(null);
-
-  // Derived state for backward compatibility
-  const googleConnected = googleAccounts.length > 0;
-  const googleCalendarId = primaryAccount?.primary_calendar_id || null;
-  const lastSync = primaryAccount?.last_sync_at || null;
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -82,19 +76,32 @@ export function useCalendar() {
     end_date: null,
     appointment_type: null,
     contact_id: null,
-    status: 'scheduled', // Default to showing only scheduled appointments
+    status: 'scheduled',
   });
+
+  // Google Calendar status query (replaces useEffect + checkGoogleConnection on mount)
+  const googleStatusQuery = useQuery({
+    queryKey: queryKeys.calendar.googleStatus(),
+    queryFn: () => appointmentsAPI.getGoogleStatus<GoogleCalendarMultiAccountStatusResponse>(),
+  });
+
+  // Derived Google Calendar state
+  const googleAccounts = googleStatusQuery.data?.accounts || [];
+  const primaryAccount = googleStatusQuery.data?.primary_account || null;
+  const googleConnected = googleAccounts.length > 0;
+  const googleCalendarId = primaryAccount?.primary_calendar_id || null;
+  const lastSync = primaryAccount?.last_sync_at || null;
 
   // Fetch appointments with filters
   const fetchAppointments = useCallback(async (params: Record<string, unknown> = {}): Promise<AppointmentListResponse | null> => {
-    setLoading(true);
+    setFetchLoading(true);
     setError(null);
 
     try {
       const queryParams: Record<string, string> = {};
       const merged = {
         page: currentPage,
-        per_page: 100, // Fetch more for calendar view
+        per_page: 100,
         ...filters,
         ...params,
       };
@@ -114,13 +121,13 @@ export function useCalendar() {
       console.error('Failed to fetch appointments:', err);
       return null;
     } finally {
-      setLoading(false);
+      setFetchLoading(false);
     }
   }, [currentPage, filters]);
 
   // Fetch appointments for a specific date range (for calendar view)
   const fetchAppointmentsForDateRange = useCallback(async (startDate: Date, endDate: Date): Promise<CalendarAppointmentsResponse | null> => {
-    setLoading(true);
+    setFetchLoading(true);
     setError(null);
 
     try {
@@ -141,17 +148,57 @@ export function useCalendar() {
       console.error('Failed to fetch calendar appointments:', err);
       return null;
     } finally {
-      setLoading(false);
+      setFetchLoading(false);
     }
   }, [filters.status]);
 
-  // Create appointment
+  // Create appointment mutation
+  const createMutation = useMutation({
+    mutationFn: (data: unknown) => appointmentsAPI.create<CalendarAppointmentResponse>(data),
+    onSuccess: (newAppointment) => {
+      setAppointments(prev => [newAppointment, ...prev]);
+      setTotalAppointments(prev => prev + 1);
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all });
+    },
+  });
+
+  // Update appointment mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ appointmentId, data, queryParams }: {
+      appointmentId: string;
+      data: AppointmentUpdateData;
+      queryParams: Record<string, string>;
+    }) => appointmentsAPI.update<CalendarAppointmentResponse>(appointmentId, data, queryParams),
+    onSuccess: (updated, { data }) => {
+      if (!data.edit_scope && !data.recurrence) {
+        setAppointments(prev =>
+          prev.map(apt => apt.id === updated.id ? updated : apt)
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all });
+    },
+  });
+
+  // Delete appointment mutation
+  const deleteMutation = useMutation({
+    mutationFn: ({ appointmentId, stringParams }: {
+      appointmentId: string;
+      stringParams: Record<string, string>;
+    }) => appointmentsAPI.delete(appointmentId, stringParams),
+    onSuccess: (_, { appointmentId, stringParams }) => {
+      if (!stringParams.delete_scope) {
+        setAppointments(prev => prev.filter(apt => apt.id !== appointmentId));
+        setTotalAppointments(prev => prev - 1);
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all });
+    },
+  });
+
+  // Wrapper functions maintaining the original API surface
   const createAppointment = async (data: unknown): Promise<OperationResult> => {
     setError(null);
     try {
-      const newAppointment = await appointmentsAPI.create<CalendarAppointmentResponse>(data);
-      setAppointments(prev => [newAppointment, ...prev]);
-      setTotalAppointments(prev => prev + 1);
+      const newAppointment = await createMutation.mutateAsync(data);
       return { success: true, appointment: newAppointment };
     } catch (err: unknown) {
       setError((err as Error).message);
@@ -159,22 +206,10 @@ export function useCalendar() {
     }
   };
 
-  // Update appointment
   const updateAppointment = async (appointmentId: string, data: AppointmentUpdateData, queryParams: Record<string, string> = {}): Promise<OperationResult> => {
     setError(null);
     try {
-      const updated = await appointmentsAPI.update<CalendarAppointmentResponse>(appointmentId, data, queryParams);
-      // For recurring appointments, refetch to get the updated instances
-      // instead of trying to update in place, since the structure may have changed
-      if (data.edit_scope || data.recurrence) {
-        // Trigger a refetch of appointments to get the updated recurring instances
-        // We'll let the parent component handle the refetch via useEffect
-      } else {
-        // For non-recurring updates, update in place
-        setAppointments(prev =>
-          prev.map(apt => apt.id === appointmentId ? updated : apt)
-        );
-      }
+      const updated = await updateMutation.mutateAsync({ appointmentId, data, queryParams });
       return { success: true, appointment: updated };
     } catch (err: unknown) {
       setError((err as Error).message);
@@ -182,7 +217,6 @@ export function useCalendar() {
     }
   };
 
-  // Delete appointment
   const deleteAppointment = async (appointmentId: string, queryParams: DeleteQueryParams = {}): Promise<OperationResult> => {
     setError(null);
     try {
@@ -192,15 +226,7 @@ export function useCalendar() {
           stringParams[key] = String(value);
         }
       }
-      await appointmentsAPI.delete(appointmentId, stringParams);
-      // For recurring appointments with scope, refetch to get updated instances
-      if (queryParams.delete_scope) {
-        // Trigger refetch - parent component will handle via useEffect
-      } else {
-        // For non-recurring deletes, remove from state
-        setAppointments(prev => prev.filter(apt => apt.id !== appointmentId));
-        setTotalAppointments(prev => prev - 1);
-      }
+      await deleteMutation.mutateAsync({ appointmentId, stringParams });
       return { success: true };
     } catch (err: unknown) {
       setError((err as Error).message);
@@ -208,7 +234,7 @@ export function useCalendar() {
     }
   };
 
-  // Get single appointment
+  // Get single appointment (imperative)
   const getAppointment = async (appointmentId: string): Promise<OperationResult> => {
     setError(null);
     try {
@@ -225,10 +251,8 @@ export function useCalendar() {
   // Check Google Calendar connection status (multi-account)
   const checkGoogleConnection = async (): Promise<GoogleCalendarMultiAccountStatusResponse | null> => {
     try {
-      const status = await appointmentsAPI.getGoogleStatus<GoogleCalendarMultiAccountStatusResponse>();
-      setGoogleAccounts(status.accounts || []);
-      setPrimaryAccount(status.primary_account || null);
-      return status;
+      const result = await googleStatusQuery.refetch();
+      return result.data || null;
     } catch (err) {
       console.error('Failed to check Google connection:', err);
       return null;
@@ -256,7 +280,7 @@ export function useCalendar() {
     setError(null);
     try {
       await appointmentsAPI.disconnectGoogle();
-      await checkGoogleConnection();
+      await queryClient.refetchQueries({ queryKey: queryKeys.calendar.googleStatus() });
       return { success: true };
     } catch (err: unknown) {
       setError((err as Error).message);
@@ -269,8 +293,7 @@ export function useCalendar() {
     setError(null);
     try {
       const result = await appointmentsAPI.syncGoogleCalendar<GoogleSyncResponse>();
-      // Update last sync time
-      await checkGoogleConnection();
+      await queryClient.refetchQueries({ queryKey: queryKeys.calendar.googleStatus() });
       // Refresh appointments to show synced data
       await fetchAppointments();
       return {
@@ -292,7 +315,7 @@ export function useCalendar() {
     setError(null);
     try {
       const result = await appointmentsAPI.setAccountPrimary<OperationResult>(accountId);
-      await checkGoogleConnection();
+      await queryClient.refetchQueries({ queryKey: queryKeys.calendar.googleStatus() });
       return { ...result, success: true };
     } catch (err: unknown) {
       setError((err as Error).message);
@@ -305,7 +328,7 @@ export function useCalendar() {
     setError(null);
     try {
       const result = await appointmentsAPI.disconnectAccount<OperationResult>(accountId);
-      await checkGoogleConnection();
+      await queryClient.refetchQueries({ queryKey: queryKeys.calendar.googleStatus() });
       // Refresh appointments to remove any from disconnected account
       await fetchAppointments();
       return { ...result, success: true };
@@ -320,7 +343,7 @@ export function useCalendar() {
     setError(null);
     try {
       const result = await appointmentsAPI.updateAccount<OperationResult>(accountId, { name });
-      await checkGoogleConnection();
+      await queryClient.refetchQueries({ queryKey: queryKeys.calendar.googleStatus() });
       return { ...result, success: true };
     } catch (err: unknown) {
       setError((err as Error).message);
@@ -333,7 +356,7 @@ export function useCalendar() {
     setError(null);
     try {
       const result = await appointmentsAPI.updateAccount<OperationResult>(accountId, { color });
-      await checkGoogleConnection();
+      await queryClient.refetchQueries({ queryKey: queryKeys.calendar.googleStatus() });
       return { ...result, success: true };
     } catch (err: unknown) {
       setError((err as Error).message);
@@ -346,7 +369,7 @@ export function useCalendar() {
     setError(null);
     try {
       const result = await appointmentsAPI.updateAccount<OperationResult>(accountId, { is_read_only: isReadOnly });
-      await checkGoogleConnection();
+      await queryClient.refetchQueries({ queryKey: queryKeys.calendar.googleStatus() });
       await fetchAppointments();
       return { ...result, success: true };
     } catch (err: unknown) {
@@ -360,7 +383,7 @@ export function useCalendar() {
     setError(null);
     try {
       const result = await appointmentsAPI.syncAccount<GoogleSyncResponse>(accountId);
-      await checkGoogleConnection();
+      await queryClient.refetchQueries({ queryKey: queryKeys.calendar.googleStatus() });
       await fetchAppointments();
       return {
         success: true,
@@ -394,15 +417,10 @@ export function useCalendar() {
     setCurrentPage(1);
   };
 
-  // Check Google connection on mount
-  useEffect(() => {
-    checkGoogleConnection();
-  }, []);
-
   return {
     // State
     appointments,
-    loading,
+    loading: fetchLoading,
     error,
     googleConnected,
     googleCalendarId,

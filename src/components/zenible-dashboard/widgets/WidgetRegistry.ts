@@ -34,9 +34,7 @@ export interface WidgetConfig {
   settingsSchema?: Record<string, WidgetSettingsField>;
   category: string;
   fullWidth?: boolean;
-  defaultSize?: { w: number; h: number };
-  minSize?: { w: number; h: number };
-  maxSize?: { w: number; h: number };
+  defaultSize: { w: number; h: number };
 }
 
 export interface WidgetCategory {
@@ -58,16 +56,10 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     component: 'TipOfTheDayWidget',
     defaultVisible: true,
     defaultOrder: 0,
-    hasSettings: true,
-    settingsSchema: {
-      widgetWidth: { type: 'size', default: 1, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 1, min: 1, max: 3, label: 'Height (rows)' },
-    },
+    hasSettings: false,
     category: 'general',
     fullWidth: true,
     defaultSize: { w: 1, h: 1 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
   },
 
   currentProjects: {
@@ -80,13 +72,9 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     hasSettings: true,
     settingsSchema: {
       limit: { type: 'number', default: 3, min: 1, max: 10, label: 'Number of projects' },
-      widgetWidth: { type: 'size', default: 1, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 2, min: 1, max: 3, label: 'Height (rows)' },
     },
     category: 'crm',
     defaultSize: { w: 1, h: 2 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
   },
 
   monthlyIncomeGoal: {
@@ -100,13 +88,9 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     settingsSchema: {
       monthlyGoal: { type: 'number', default: 5000, min: 0, label: 'Monthly Goal' },
       currency: { type: 'currency', default: 'USD', label: 'Currency' },
-      widgetWidth: { type: 'size', default: 1, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 1, min: 1, max: 3, label: 'Height (rows)' },
     },
     category: 'finance',
-    defaultSize: { w: 1, h: 1 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
+    defaultSize: { w: 1, h: 2 },
   },
 
   profitAndLoss: {
@@ -119,13 +103,9 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     hasSettings: true,
     settingsSchema: {
       periodMonths: { type: 'select', default: 6, options: [3, 6, 12], label: 'Period (months)' },
-      widgetWidth: { type: 'size', default: 2, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 2, min: 1, max: 3, label: 'Height (rows)' },
     },
     category: 'finance',
-    defaultSize: { w: 2, h: 2 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
+    defaultSize: { w: 1, h: 2 },
   },
 
   outstandingInvoices: {
@@ -135,15 +115,9 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     component: 'OutstandingInvoicesWidget',
     defaultVisible: true,
     defaultOrder: 4,
-    hasSettings: true,
-    settingsSchema: {
-      widgetWidth: { type: 'size', default: 1, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 1, min: 1, max: 3, label: 'Height (rows)' },
-    },
+    hasSettings: false,
     category: 'finance',
     defaultSize: { w: 1, h: 1 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
   },
 
   recentInvoices: {
@@ -156,13 +130,9 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     hasSettings: true,
     settingsSchema: {
       limit: { type: 'number', default: 5, min: 3, max: 10, label: 'Number of invoices' },
-      widgetWidth: { type: 'size', default: 1, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 2, min: 1, max: 3, label: 'Height (rows)' },
     },
     category: 'finance',
     defaultSize: { w: 1, h: 2 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
   },
 
   recentPayments: {
@@ -175,13 +145,9 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     hasSettings: true,
     settingsSchema: {
       limit: { type: 'number', default: 5, min: 3, max: 10, label: 'Number of payments' },
-      widgetWidth: { type: 'size', default: 1, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 2, min: 1, max: 3, label: 'Height (rows)' },
     },
     category: 'finance',
     defaultSize: { w: 1, h: 2 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
   },
 
   recentExpenses: {
@@ -194,13 +160,9 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     hasSettings: true,
     settingsSchema: {
       limit: { type: 'number', default: 5, min: 3, max: 10, label: 'Number of expenses' },
-      widgetWidth: { type: 'size', default: 1, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 2, min: 1, max: 3, label: 'Height (rows)' },
     },
     category: 'finance',
     defaultSize: { w: 1, h: 2 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
   },
 
   currencyExchange: {
@@ -216,13 +178,9 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
       toCurrency: { type: 'currency', default: 'EUR', label: 'To Currency' },
       showGraph: { type: 'boolean', default: true, label: 'Show Historical Graph' },
       graphDays: { type: 'select', default: 7, options: [7, 14, 30, 90, 180, 365], label: 'Graph Period (days)' },
-      widgetWidth: { type: 'size', default: 1, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 2, min: 1, max: 3, label: 'Height (rows)' },
     },
     category: 'finance',
     defaultSize: { w: 1, h: 2 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
   },
 
   recentClients: {
@@ -235,13 +193,9 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     hasSettings: true,
     settingsSchema: {
       limit: { type: 'number', default: 5, min: 3, max: 10, label: 'Number of clients' },
-      widgetWidth: { type: 'size', default: 1, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 2, min: 1, max: 3, label: 'Height (rows)' },
     },
     category: 'crm',
     defaultSize: { w: 1, h: 2 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
   },
 
   upcomingAppointments: {
@@ -255,13 +209,9 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     settingsSchema: {
       days: { type: 'number', default: 7, min: 1, max: 30, label: 'Days ahead' },
       limit: { type: 'number', default: 5, min: 3, max: 10, label: 'Max appointments' },
-      widgetWidth: { type: 'size', default: 1, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 2, min: 1, max: 3, label: 'Height (rows)' },
     },
     category: 'calendar',
     defaultSize: { w: 1, h: 2 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
   },
 
   upcomingCalls: {
@@ -275,13 +225,9 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     settingsSchema: {
       days: { type: 'number', default: 7, min: 1, max: 30, label: 'Days ahead' },
       limit: { type: 'number', default: 5, min: 3, max: 10, label: 'Max calls' },
-      widgetWidth: { type: 'size', default: 1, min: 1, max: 3, label: 'Width (columns)' },
-      widgetHeight: { type: 'size', default: 2, min: 1, max: 3, label: 'Height (rows)' },
     },
     category: 'calendar',
     defaultSize: { w: 1, h: 2 },
-    minSize: { w: 1, h: 1 },
-    maxSize: { w: 3, h: 3 },
   },
 };
 

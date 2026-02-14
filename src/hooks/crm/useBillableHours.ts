@@ -1,5 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import billableHoursAPI from '../../services/api/crm/billableHours';
+import { queryKeys } from '../../lib/query-keys';
 
 interface BillableHourEntry {
   id: string;
@@ -37,179 +39,101 @@ interface BillableHoursSummary {
 
 /**
  * Custom hook for managing billable hours for a project
+ * Uses React Query for caching, deduplication, and automatic invalidation
  */
 export function useBillableHours(projectId: string | undefined) {
-  const [entries, setEntries] = useState<BillableHourEntry[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<BillableHoursSummary>({
-    total: 0,
-    total_hours: 0,
-    total_amount: 0,
-    uninvoiced_hours: 0,
-    uninvoiced_amount: 0,
+  const queryClient = useQueryClient();
+
+  const projectQueryKey = queryKeys.billableHours.byProject(projectId!);
+
+  // Billable hours query
+  const entriesQuery = useQuery({
+    queryKey: projectQueryKey,
+    queryFn: async () => {
+      const response = await billableHoursAPI.list(projectId!, {}) as BillableHourListResponse;
+      return response;
+    },
+    enabled: !!projectId,
   });
 
-  /**
-   * Fetch billable hour entries with optional filters
-   */
+  const entries = entriesQuery.data?.items || [];
+  const summary: BillableHoursSummary = entriesQuery.data ? {
+    total: entriesQuery.data.total || 0,
+    total_hours: parseFloat(entriesQuery.data.total_hours) || 0,
+    total_amount: parseFloat(entriesQuery.data.total_amount) || 0,
+    uninvoiced_hours: parseFloat(entriesQuery.data.uninvoiced_hours) || 0,
+    uninvoiced_amount: parseFloat(entriesQuery.data.uninvoiced_amount) || 0,
+  } : { total: 0, total_hours: 0, total_amount: 0, uninvoiced_hours: 0, uninvoiced_amount: 0 };
+
+  // Create entry mutation
+  const createMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) => {
+      if (!projectId) throw new Error('Project ID is required');
+      return billableHoursAPI.create(projectId, data) as Promise<BillableHourEntry>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: projectQueryKey });
+    },
+  });
+
+  // Update entry mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ entryId, data }: { entryId: string; data: Record<string, unknown> }) => {
+      if (!projectId) throw new Error('Project ID is required');
+      return billableHoursAPI.update(projectId, entryId, data) as Promise<BillableHourEntry>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: projectQueryKey });
+    },
+  });
+
+  // Delete entry mutation
+  const deleteMutation = useMutation({
+    mutationFn: (entryId: string) => {
+      if (!projectId) throw new Error('Project ID is required');
+      return billableHoursAPI.delete(projectId, entryId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: projectQueryKey });
+    },
+  });
+
+  // Backwards-compatible wrapper functions
   const fetchEntries = useCallback(async (filters: Record<string, unknown> = {}): Promise<unknown> => {
     if (!projectId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await billableHoursAPI.list(projectId, filters) as BillableHourListResponse;
-
-      setEntries(response.items || []);
-      // Parse all values to numbers to avoid mixing strings and numbers in arithmetic
-      setSummary({
-        total: response.total || 0,
-        total_hours: parseFloat(response.total_hours) || 0,
-        total_amount: parseFloat(response.total_amount) || 0,
-        uninvoiced_hours: parseFloat(response.uninvoiced_hours) || 0,
-        uninvoiced_amount: parseFloat(response.uninvoiced_amount) || 0,
-      });
-
-      return response;
-    } catch (err: unknown) {
-      console.error('[useBillableHours] Failed to fetch entries:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
+    if (Object.keys(filters).length > 0) {
+      // If specific filters provided, do a direct API call and return
+      return billableHoursAPI.list(projectId, filters) as Promise<BillableHourListResponse>;
     }
-  }, [projectId]);
+    await queryClient.invalidateQueries({ queryKey: projectQueryKey });
+    return entriesQuery.data;
+  }, [projectId, queryClient, projectQueryKey, entriesQuery.data]);
 
-  /**
-   * Create a new billable hour entry
-   */
   const createEntry = useCallback(async (data: Record<string, unknown>): Promise<unknown> => {
-    if (!projectId) throw new Error('Project ID is required');
+    return createMutation.mutateAsync(data);
+  }, [createMutation]);
 
-    try {
-      setError(null);
-      const newEntry = await billableHoursAPI.create(projectId, data) as BillableHourEntry;
-
-      // Add to local state
-      setEntries(prev => [newEntry, ...prev]);
-
-      // Update summary - ensure all values are numbers to avoid string concatenation
-      const hoursToAdd = parseFloat(newEntry.hours) || 0;
-      const amountToAdd = parseFloat(newEntry.amount ?? '') || 0;
-      setSummary(prev => ({
-        ...prev,
-        total: prev.total + 1,
-        total_hours: (parseFloat(prev.total_hours as unknown as string) || 0) + hoursToAdd,
-        total_amount: (parseFloat(prev.total_amount as unknown as string) || 0) + amountToAdd,
-        uninvoiced_hours: newEntry.invoice_id
-          ? (parseFloat(prev.uninvoiced_hours as unknown as string) || 0)
-          : (parseFloat(prev.uninvoiced_hours as unknown as string) || 0) + hoursToAdd,
-        uninvoiced_amount: newEntry.invoice_id
-          ? (parseFloat(prev.uninvoiced_amount as unknown as string) || 0)
-          : (parseFloat(prev.uninvoiced_amount as unknown as string) || 0) + amountToAdd,
-      }));
-
-      return newEntry;
-    } catch (err: unknown) {
-      console.error('[useBillableHours] Failed to create entry:', err);
-      setError((err as Error).message);
-      throw err;
-    }
-  }, [projectId]);
-
-  /**
-   * Update a billable hour entry
-   */
   const updateEntry = useCallback(async (entryId: string, data: Record<string, unknown>): Promise<unknown> => {
-    if (!projectId) throw new Error('Project ID is required');
+    return updateMutation.mutateAsync({ entryId, data });
+  }, [updateMutation]);
 
-    try {
-      setError(null);
-      const updatedEntry = await billableHoursAPI.update(projectId, entryId, data) as BillableHourEntry;
-
-      // Update in local state
-      setEntries(prev => prev.map((entry) =>
-        entry.id === entryId ? updatedEntry : entry
-      ));
-
-      // Refetch to get accurate summary
-      await fetchEntries();
-
-      return updatedEntry;
-    } catch (err: unknown) {
-      console.error('[useBillableHours] Failed to update entry:', err);
-      setError((err as Error).message);
-      throw err;
-    }
-  }, [projectId, fetchEntries]);
-
-  /**
-   * Delete a billable hour entry
-   */
   const deleteEntry = useCallback(async (entryId: string): Promise<boolean> => {
-    if (!projectId) throw new Error('Project ID is required');
+    await deleteMutation.mutateAsync(entryId);
+    return true;
+  }, [deleteMutation]);
 
-    try {
-      setError(null);
-
-      // Find entry for summary update
-      const entry = entries.find((e) => e.id === entryId);
-
-      await billableHoursAPI.delete(projectId, entryId);
-
-      // Remove from local state
-      setEntries(prev => prev.filter((e) => e.id !== entryId));
-
-      // Update summary - ensure all values are numbers to avoid string concatenation
-      if (entry) {
-        const hoursToRemove = parseFloat(entry.hours) || 0;
-        const amountToRemove = parseFloat(entry.amount ?? '') || 0;
-        setSummary(prev => ({
-          ...prev,
-          total: prev.total - 1,
-          total_hours: (parseFloat(prev.total_hours as unknown as string) || 0) - hoursToRemove,
-          total_amount: (parseFloat(prev.total_amount as unknown as string) || 0) - amountToRemove,
-          uninvoiced_hours: entry.invoice_id
-            ? (parseFloat(prev.uninvoiced_hours as unknown as string) || 0)
-            : (parseFloat(prev.uninvoiced_hours as unknown as string) || 0) - hoursToRemove,
-          uninvoiced_amount: entry.invoice_id
-            ? (parseFloat(prev.uninvoiced_amount as unknown as string) || 0)
-            : (parseFloat(prev.uninvoiced_amount as unknown as string) || 0) - amountToRemove,
-        }));
-      }
-
-      return true;
-    } catch (err: unknown) {
-      console.error('[useBillableHours] Failed to delete entry:', err);
-      setError((err as Error).message);
-      throw err;
-    }
-  }, [projectId, entries]);
-
-  /**
-   * Link entry to an invoice
-   */
   const linkToInvoice = useCallback(async (entryId: string, invoiceId: string): Promise<unknown> => {
     return updateEntry(entryId, { invoice_id: invoiceId });
   }, [updateEntry]);
 
-  /**
-   * Unlink entry from invoice
-   */
   const unlinkFromInvoice = useCallback(async (entryId: string): Promise<unknown> => {
     return updateEntry(entryId, { invoice_id: null });
   }, [updateEntry]);
 
-  /**
-   * Duplicate an entry (creates new entry with same data)
-   */
   const duplicateEntry = useCallback(async (entryId: string): Promise<unknown> => {
     const entry = entries.find((e) => e.id === entryId);
     if (!entry) throw new Error('Entry not found');
 
-    // Create new entry with same data (without id, invoice_id, created_at, etc.)
     const newData = {
       hours: entry.hours,
       description: entry.description,
@@ -226,8 +150,8 @@ export function useBillableHours(projectId: string | undefined) {
 
   return {
     entries,
-    loading,
-    error,
+    loading: entriesQuery.isLoading,
+    error: entriesQuery.error?.message || null,
     summary,
     fetchEntries,
     createEntry,

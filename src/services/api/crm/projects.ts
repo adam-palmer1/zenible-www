@@ -75,6 +75,28 @@ const projectsAPI = {
       body: JSON.stringify(data),
     });
   },
+
+  // Delete a project allocation (invoice, quote, payment, credit_note)
+  async deleteAllocation(projectId: string, allocationId: string): Promise<unknown> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${projectId}/allocations/${allocationId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Delete an expense allocation from a project
+  async deleteExpenseAllocation(projectId: string, allocationId: string): Promise<unknown> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${projectId}/expense-allocations/${allocationId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Link an invoice to a project service
+  async createServiceInvoiceLink(projectId: string, assignmentId: string, data: { invoice_id: string; amount: number; notes?: string }): Promise<unknown> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${projectId}/services/${assignmentId}/invoice-link`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 export { projectsAPI };

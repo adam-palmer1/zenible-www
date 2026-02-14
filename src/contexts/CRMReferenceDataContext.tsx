@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import countriesAPI from '../services/api/crm/countries';
 import industriesAPI from '../services/api/crm/industries';
@@ -6,6 +7,7 @@ import employeeRangesAPI from '../services/api/crm/employeeRanges';
 import vendorTypesAPI from '../services/api/crm/vendorTypes';
 import numberFormatsAPI from '../services/api/crm/numberFormats';
 import appointmentEnumsAPI from '../services/api/crm/appointmentEnums';
+import { queryKeys } from '../lib/query-keys';
 
 export interface ReferenceCountry {
   id: string;
@@ -102,128 +104,106 @@ interface CRMReferenceDataContextValue extends CRMReferenceDataState {
   refresh: () => Promise<void>;
 }
 
+const REFERENCE_STALE_TIME = 30 * 60 * 1000; // 30 minutes
+const REFERENCE_GC_TIME = 60 * 60 * 1000; // 1 hour
+
 const CRMReferenceDataContext = createContext<CRMReferenceDataContextValue | null>(null);
+
+async function fetchAllReferenceData() {
+  const failedSources: string[] = [];
+
+  const [
+    countriesData,
+    companyCountriesData,
+    industriesData,
+    employeeRangesData,
+    vendorTypesData,
+    numberFormatsData,
+    appointmentEnumsData
+  ] = await Promise.all([
+    countriesAPI.list().catch((err: unknown) => { console.error('Failed to load countries:', err); failedSources.push('countries'); return []; }),
+    countriesAPI.getCompanyCountries().catch((err: unknown) => { console.error('Failed to load company countries:', err); failedSources.push('companyCountries'); return []; }),
+    industriesAPI.list().catch((err: unknown) => { console.error('Failed to load industries:', err); failedSources.push('industries'); return []; }),
+    employeeRangesAPI.list().catch((err: unknown) => { console.error('Failed to load employee ranges:', err); failedSources.push('employeeRanges'); return []; }),
+    vendorTypesAPI.list().catch((err: unknown) => { console.error('Failed to load vendor types:', err); failedSources.push('vendorTypes'); return []; }),
+    numberFormatsAPI.list().catch((err: unknown) => { console.error('Failed to load number formats:', err); failedSources.push('numberFormats'); return []; }),
+    appointmentEnumsAPI.getEnums().catch((err: unknown) => { console.error('Failed to load appointment enums:', err); failedSources.push('appointmentEnums'); return {}; })
+  ]);
+
+  const enums = appointmentEnumsData as AppointmentEnumsData;
+
+  return {
+    countries: (countriesData as ReferenceCountry[]) || [],
+    companyEnabledCountries: (companyCountriesData as ReferenceCompanyCountry[]) || [],
+    industries: (industriesData as Industry[]) || [],
+    employeeRanges: (employeeRangesData as EmployeeRange[]) || [],
+    vendorTypes: (vendorTypesData as VendorType[]) || [],
+    numberFormats: (numberFormatsData as NumberFormat[]) || [],
+    appointmentTypes: enums?.appointment_types || [],
+    appointmentStatuses: enums?.appointment_statuses || [],
+    syncStatuses: enums?.sync_statuses || [],
+    recurringTypes: enums?.recurring_types || [],
+    recurringStatuses: enums?.recurring_statuses || [],
+    monthlyRecurringTypes: enums?.monthly_recurring_types || [],
+    editScopes: enums?.edit_scopes || [],
+    failedSources,
+  };
+}
 
 export const CRMReferenceDataProvider = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const queryClient = useQueryClient();
 
-  // State for all reference data
-  const [state, setState] = useState<CRMReferenceDataState>({
-    // Static reference data
-    countries: [],
-    companyEnabledCountries: [],
-    industries: [],
-    employeeRanges: [],
-    vendorTypes: [],
-    numberFormats: [],
-
-    // Appointment enums (migrated from EnumMetadataContext)
-    appointmentTypes: [],
-    appointmentStatuses: [],
-    syncStatuses: [],
-    recurringTypes: [],
-    recurringStatuses: [],
-    monthlyRecurringTypes: [],
-    editScopes: [],
-
-    // Meta
-    loading: true,
-    error: null,
-    lastFetch: null
+  const { data, isLoading, error, dataUpdatedAt } = useQuery({
+    queryKey: queryKeys.referenceData.all,
+    queryFn: fetchAllReferenceData,
+    staleTime: REFERENCE_STALE_TIME,
+    gcTime: REFERENCE_GC_TIME,
+    enabled: !authLoading && isAuthenticated,
   });
 
-  // Fetch all reference data on mount
-  const fetchAllReferenceData = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-
-    try {
-      const failedSources: string[] = [];
-      const [
-        countriesData,
-        companyCountriesData,
-        industriesData,
-        employeeRangesData,
-        vendorTypesData,
-        numberFormatsData,
-        appointmentEnumsData
-      ] = await Promise.all([
-        countriesAPI.list().catch((err: unknown) => { console.error('Failed to load countries:', err); failedSources.push('countries'); return []; }),
-        countriesAPI.getCompanyCountries().catch((err: unknown) => { console.error('Failed to load company countries:', err); failedSources.push('companyCountries'); return []; }),
-        industriesAPI.list().catch((err: unknown) => { console.error('Failed to load industries:', err); failedSources.push('industries'); return []; }),
-        employeeRangesAPI.list().catch((err: unknown) => { console.error('Failed to load employee ranges:', err); failedSources.push('employeeRanges'); return []; }),
-        vendorTypesAPI.list().catch((err: unknown) => { console.error('Failed to load vendor types:', err); failedSources.push('vendorTypes'); return []; }),
-        numberFormatsAPI.list().catch((err: unknown) => { console.error('Failed to load number formats:', err); failedSources.push('numberFormats'); return []; }),
-        appointmentEnumsAPI.getEnums().catch((err: unknown) => { console.error('Failed to load appointment enums:', err); failedSources.push('appointmentEnums'); return {}; })
-      ]);
-
-      setState({
-        countries: (countriesData as ReferenceCountry[]) || [],
-        companyEnabledCountries: (companyCountriesData as ReferenceCompanyCountry[]) || [],
-        industries: (industriesData as Industry[]) || [],
-        employeeRanges: (employeeRangesData as EmployeeRange[]) || [],
-        vendorTypes: (vendorTypesData as VendorType[]) || [],
-        numberFormats: (numberFormatsData as NumberFormat[]) || [],
-        appointmentTypes: (appointmentEnumsData as AppointmentEnumsData)?.appointment_types || [],
-        appointmentStatuses: (appointmentEnumsData as AppointmentEnumsData)?.appointment_statuses || [],
-        syncStatuses: (appointmentEnumsData as AppointmentEnumsData)?.sync_statuses || [],
-        recurringTypes: (appointmentEnumsData as AppointmentEnumsData)?.recurring_types || [],
-        recurringStatuses: (appointmentEnumsData as AppointmentEnumsData)?.recurring_statuses || [],
-        monthlyRecurringTypes: (appointmentEnumsData as AppointmentEnumsData)?.monthly_recurring_types || [],
-        editScopes: (appointmentEnumsData as AppointmentEnumsData)?.edit_scopes || [],
-        loading: false,
-        error: failedSources.length > 0 ? `Partially loaded. Failed sources: ${failedSources.join(', ')}` : null,
-        lastFetch: Date.now()
-      });
-    } catch (err) {
-      console.error('Failed to fetch CRM reference data:', err);
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: (err as Error).message
-      }));
-    }
-  }, []);
-
-  useEffect(() => {
-    // Only fetch reference data when user is authenticated
-    // This prevents unnecessary API calls on public pages (e.g., public invoice view)
-    if (!authLoading && isAuthenticated) {
-      fetchAllReferenceData();
-    } else if (!authLoading && !isAuthenticated) {
-      // Not authenticated - set loading to false so components don't wait forever
-      setState(prev => ({ ...prev, loading: false }));
-    }
-  }, [fetchAllReferenceData, authLoading, isAuthenticated]);
+  const state: CRMReferenceDataState = useMemo(() => ({
+    countries: data?.countries || [],
+    companyEnabledCountries: data?.companyEnabledCountries || [],
+    industries: data?.industries || [],
+    employeeRanges: data?.employeeRanges || [],
+    vendorTypes: data?.vendorTypes || [],
+    numberFormats: data?.numberFormats || [],
+    appointmentTypes: data?.appointmentTypes || [],
+    appointmentStatuses: data?.appointmentStatuses || [],
+    syncStatuses: data?.syncStatuses || [],
+    recurringTypes: data?.recurringTypes || [],
+    recurringStatuses: data?.recurringStatuses || [],
+    monthlyRecurringTypes: data?.monthlyRecurringTypes || [],
+    editScopes: data?.editScopes || [],
+    loading: isLoading,
+    error: error ? (error as Error).message
+      : (data?.failedSources?.length ? `Partially loaded. Failed sources: ${data.failedSources.join(', ')}` : null),
+    lastFetch: dataUpdatedAt || null,
+  }), [data, isLoading, error, dataUpdatedAt]);
 
   // Helper methods for quick lookups
   const helpers = useMemo(() => ({
-    // Country helpers
     getCountryByCode: (code: string) => state.countries.find(c => c.code === code),
     getCountryById: (id: string) => state.countries.find(c => c.id === id),
-
-    // Industry helpers
     getIndustryById: (id: string) => state.industries.find(i => i.id === id),
     getIndustryByName: (name: string) => state.industries.find(i => i.name === name),
-
-    // Employee range helpers
     getEmployeeRangeById: (id: string) => state.employeeRanges.find(e => e.id === id),
-
-    // Number format helpers
     getNumberFormatById: (id: string) => state.numberFormats.find(n => n.id === id),
-
-    // Vendor type helpers
     getVendorTypeById: (id: string) => state.vendorTypes.find(v => v.id === id),
-
-    // Appointment type helpers (migrated from EnumMetadataContext)
     getTypeLabel: (value: string) => state.appointmentTypes.find(t => t.value === value)?.label || value,
     getStatusLabel: (value: string) => state.appointmentStatuses.find(s => s.value === value)?.label || value,
     getStatusColor: (value: string) => state.appointmentStatuses.find(s => s.value === value)?.color || '#6B7280'
   }), [state]);
 
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.referenceData.all });
+  }, [queryClient]);
+
   const value: CRMReferenceDataContextValue = {
     ...state,
     ...helpers,
-    refresh: fetchAllReferenceData
+    refresh,
   };
 
   return (

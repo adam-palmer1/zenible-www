@@ -1,34 +1,24 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { currenciesAPI } from '../../services/api/crm';
+import { queryKeys } from '../../lib/query-keys';
 import type { CurrencyResponse } from '../../types/common';
 
 /**
  * Custom hook for managing currencies
- * Handles loading active currencies
+ * Uses React Query for caching and deduplication across components
  */
 export function useCurrencies() {
-  const [currencies, setCurrencies] = useState<CurrencyResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch currencies
-  const fetchCurrencies = useCallback(async (): Promise<CurrencyResponse[]> => {
-    try {
-      setLoading(true);
-      setError(null);
-
+  // Currencies list query - auto-fetches on mount
+  const currenciesQuery = useQuery({
+    queryKey: queryKeys.currencies.list(),
+    queryFn: async () => {
       const response = await currenciesAPI.list() as CurrencyResponse[];
-      setCurrencies(response || []);
+      return response || [];
+    },
+  });
 
-      return response;
-    } catch (err: unknown) {
-      console.error('[useCurrencies] Failed to fetch currencies:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const currencies = currenciesQuery.data || [];
 
   // Get currency by code
   const getCurrencyByCode = useCallback((code: string): CurrencyResponse | undefined => {
@@ -43,17 +33,17 @@ export function useCurrencies() {
   // Get default currency (GBP by default, or first in list)
   const defaultCurrency = currencies.find((c: CurrencyResponse) => c.code === 'GBP') || currencies[0];
 
-  // Load currencies on mount
-  useEffect(() => {
-    fetchCurrencies();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Backwards-compatible fetch function
+  const fetchCurrencies = useCallback(async (): Promise<CurrencyResponse[]> => {
+    const result = await currenciesQuery.refetch();
+    return result.data || [];
+  }, [currenciesQuery]);
 
   return {
     currencies,
     defaultCurrency,
-    loading,
-    error,
+    loading: currenciesQuery.isLoading,
+    error: currenciesQuery.error?.message || null,
     fetchCurrencies,
     getCurrencyByCode,
     getCurrencyById,

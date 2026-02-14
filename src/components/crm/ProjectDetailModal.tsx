@@ -53,6 +53,7 @@ interface ExpenseEntity {
 /** Allocation record as returned by the project detail API */
 interface ProjectFinanceAllocation {
   id?: string;
+  entity_id?: string;
   allocated_amount: string;
   percentage?: number;
   entity_number?: string;
@@ -117,6 +118,7 @@ interface ProjectServiceAssignment {
     status?: string | null;
     currency_id?: string | null;
     currency?: { code?: string } | null;
+    frequency_type?: string | null;
     template_service?: {
       name?: string;
       description?: string | null;
@@ -160,6 +162,8 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
   // Finance allocation modals
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [financeModal, setFinanceModal] = useState<{ open: boolean; type: string | null }>({ open: false, type: null });
+  const [deleteAllocConfirm, setDeleteAllocConfirm] = useState<{ isOpen: boolean; allocationId: string | null; entityType: string | null; label: string }>({ isOpen: false, allocationId: null, entityType: null, label: '' });
+  const [deletingAlloc, setDeletingAlloc] = useState(false);
 
   // Fetch project details
   const fetchProjectDetails = async (showLoading = true) => {
@@ -260,6 +264,22 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
     }), { count: 0, total: 0 });
   }, [expenseAllocations]);
 
+  const serviceTotals = useMemo(() => {
+    return services.reduce((acc, s) => {
+      const price = parseFloat(String(s.contact_service?.price ?? s.price ?? 0)) || 0;
+      const freq = s.contact_service?.frequency_type || 'one_off';
+      if (freq === 'recurring') {
+        acc.recurring += price;
+        acc.recurringCount += 1;
+      } else {
+        acc.oneOff += price;
+        acc.oneOffCount += 1;
+      }
+      acc.total += price;
+      return acc;
+    }, { total: 0, oneOff: 0, recurring: 0, oneOffCount: 0, recurringCount: 0 });
+  }, [services]);
+
   // Fetch data when modal opens
   useEffect(() => {
     if (isOpen && projectProp?.id) {
@@ -350,6 +370,20 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
           Financial Summary
         </h4>
         <div className="flex gap-3.5">
+          {/* Services Card */}
+          <div className="flex-1 bg-white dark:bg-gray-800 border border-[#8b5cf6] rounded-xl p-4">
+            <p className="text-sm text-[#8b5cf6] leading-[22px]">Services</p>
+            <div className="mt-2 space-y-1">
+              <p className="text-lg font-semibold text-[#09090b] dark:text-white leading-[26px]">
+                {formatCurrency(serviceTotals.total, project.currency || 'USD')}
+              </p>
+              <div className="flex items-center gap-2 text-xs text-[#71717a] dark:text-gray-400">
+                <span>{formatCurrency(serviceTotals.oneOff, project.currency || 'USD')} one-off</span>
+                <span>&middot;</span>
+                <span>{formatCurrency(serviceTotals.recurring, project.currency || 'USD')} recurring</span>
+              </div>
+            </div>
+          </div>
           {/* Invoice Card */}
           <div className="flex-1 bg-white dark:bg-gray-800 border border-[#00a6f4] rounded-xl p-4">
             <p className="text-sm text-[#00a6f4] leading-[22px]">Invoice</p>
@@ -631,6 +665,28 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
     fetchProjectDetails(false);
   };
 
+  // Handle deleting an allocation from the finance tab
+  const handleDeleteAllocation = async () => {
+    if (!project?.id || !deleteAllocConfirm.allocationId || !deleteAllocConfirm.entityType) return;
+
+    try {
+      setDeletingAlloc(true);
+      if (deleteAllocConfirm.entityType === 'expense') {
+        await projectsAPI.deleteExpenseAllocation(project.id, deleteAllocConfirm.allocationId);
+      } else {
+        await projectsAPI.deleteAllocation(project.id, deleteAllocConfirm.allocationId);
+      }
+      showSuccess('Allocation removed');
+      fetchProjectDetails(false);
+    } catch (err: unknown) {
+      console.error('Error deleting allocation:', err);
+      showError((err instanceof Error ? err.message : null) || 'Failed to remove allocation');
+    } finally {
+      setDeletingAlloc(false);
+      setDeleteAllocConfirm({ isOpen: false, allocationId: null, entityType: null, label: '' });
+    }
+  };
+
   // Render Finance Tab (combined view of all financial allocations)
   const renderFinanceTab = () => {
     const sections = [
@@ -810,6 +866,18 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
                           {alloc.percentage}% of {formatCurrency(total, currency)}
                         </div>
                       </div>
+                      <button
+                        onClick={() => setDeleteAllocConfirm({
+                          isOpen: true,
+                          allocationId: alloc.id || null,
+                          entityType: section.entityType,
+                          label: number
+                        })}
+                        className="ml-2 p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        title="Remove allocation"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   );
                 })}
@@ -916,6 +984,18 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
         confirmColor="red"
       />
 
+      {/* Delete Allocation Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteAllocConfirm.isOpen}
+        onClose={() => setDeleteAllocConfirm({ isOpen: false, allocationId: null, entityType: null, label: '' })}
+        onConfirm={handleDeleteAllocation}
+        title="Remove Allocation"
+        message={`Are you sure you want to remove the allocation for "${deleteAllocConfirm.label}"? This will unlink it from the project.`}
+        confirmText={deletingAlloc ? 'Removing...' : 'Remove'}
+        cancelText="Cancel"
+        confirmColor="red"
+      />
+
       {/* Expense Allocation Modal */}
       <AssignExpenseModal
         open={showExpenseModal}
@@ -925,6 +1005,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
         entityName={project.name}
         currency={project.currency || 'USD'}
         onUpdate={handleAllocationUpdate}
+        contactId={project.contact_id}
       />
 
       {/* Finance Item Allocation Modal (Invoice, Quote, Payment, Credit Note) */}
@@ -936,6 +1017,15 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
         projectName={project.name}
         currency={project.currency || 'USD'}
         onUpdate={handleAllocationUpdate}
+        projectServices={financeModal.type === 'invoice' ? services : undefined}
+        contactId={project.contact_id}
+        existingEntityIds={
+          financeModal.type === 'invoice' ? invoiceAllocations.map(a => a.entity_id).filter(Boolean) as string[] :
+          financeModal.type === 'quote' ? quoteAllocations.map(a => a.entity_id).filter(Boolean) as string[] :
+          financeModal.type === 'payment' ? paymentAllocations.map(a => a.entity_id).filter(Boolean) as string[] :
+          financeModal.type === 'credit_note' ? creditNoteAllocations.map(a => a.entity_id).filter(Boolean) as string[] :
+          []
+        }
       />
 
     </div>

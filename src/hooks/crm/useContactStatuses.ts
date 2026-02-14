@@ -1,17 +1,12 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { statusesAPI } from '../../services/api/crm';
-import { removeItem, updateItem, addItem } from '../../utils/stateHelpers';
+import { queryKeys } from '../../lib/query-keys';
 import type { AvailableStatuses, SimpleStatusResponse } from '../../types';
-
-// Module-level cache for statuses (shared across all hook instances)
-let statusesCache: AvailableStatuses | null = null;
-let cacheTimestamp: number | null = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-let pendingFetch: Promise<unknown> | null = null; // Prevent duplicate concurrent fetches
 
 /**
  * Custom hook for managing contact statuses
- * Handles loading global and custom statuses with caching
+ * Uses React Query for caching, deduplication, and background refetching
  */
 interface StatusRoles {
   lead_status_id?: string | null;
@@ -21,194 +16,101 @@ interface StatusRoles {
 }
 
 export function useContactStatuses() {
-  const [globalStatuses, setGlobalStatuses] = useState<SimpleStatusResponse[]>([]);
-  const [customStatuses, setCustomStatuses] = useState<SimpleStatusResponse[]>([]);
-  const [allStatuses, setAllStatuses] = useState<SimpleStatusResponse[]>([]);
-  const [statusRoles, setStatusRoles] = useState<StatusRoles>({});
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  // Check if cache is valid
-  const isCacheValid = (): boolean => {
-    return statusesCache !== null &&
-           cacheTimestamp !== null &&
-           (Date.now() - cacheTimestamp) < CACHE_TTL;
-  };
+  // Query for all available statuses
+  const statusesQuery = useQuery({
+    queryKey: queryKeys.statuses.all,
+    queryFn: async () => {
+      const response = await statusesAPI.getAvailable();
+      return response as AvailableStatuses;
+    },
+  });
 
-  // Fetch all available statuses with caching
+  // Derived state from query data
+  const globalStatuses = useMemo(
+    () => statusesQuery.data?.global_statuses || [],
+    [statusesQuery.data]
+  );
+  const customStatuses = useMemo(
+    () => statusesQuery.data?.custom_statuses || [],
+    [statusesQuery.data]
+  );
+  const allStatuses = useMemo(
+    () => [...globalStatuses, ...customStatuses],
+    [globalStatuses, customStatuses]
+  );
+  const statusRoles = useMemo(
+    () => (statusesQuery.data as (AvailableStatuses & { roles?: StatusRoles }) | undefined)?.roles || {},
+    [statusesQuery.data]
+  );
+
+  // Create custom status mutation
+  const createCustomMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) => statusesAPI.createCustom(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.statuses.all });
+    },
+  });
+
+  // Update global status mutation
+  const updateGlobalMutation = useMutation({
+    mutationFn: ({ statusId, data }: { statusId: string; data: Record<string, unknown> }) =>
+      statusesAPI.updateGlobal(statusId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.statuses.all });
+    },
+  });
+
+  // Update custom status mutation
+  const updateCustomMutation = useMutation({
+    mutationFn: ({ statusId, data }: { statusId: string; data: Record<string, unknown> }) =>
+      statusesAPI.updateCustom(statusId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.statuses.all });
+    },
+  });
+
+  // Delete custom status mutation
+  const deleteCustomMutation = useMutation({
+    mutationFn: (statusId: string) => statusesAPI.deleteCustom(statusId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.statuses.all });
+    },
+  });
+
+  // Wrapper functions to maintain the same API interface
   const fetchStatuses = useCallback(async (forceRefresh: boolean = false): Promise<AvailableStatuses | unknown> => {
-    try {
-      // Return cached data if valid and not forcing refresh
-      if (!forceRefresh && isCacheValid()) {
-        setGlobalStatuses(statusesCache!.global_statuses || []);
-        setCustomStatuses(statusesCache!.custom_statuses || []);
-        setAllStatuses([
-          ...(statusesCache!.global_statuses || []),
-          ...(statusesCache!.custom_statuses || []),
-        ]);
-        setStatusRoles((statusesCache as any)?.roles || {});
-        return statusesCache;
-      }
-
-      // If there's already a fetch in progress, wait for it
-      if (pendingFetch) {
-        const response = await pendingFetch;
-        const typed = response as AvailableStatuses;
-        setGlobalStatuses(typed.global_statuses || []);
-        setCustomStatuses(typed.custom_statuses || []);
-        setAllStatuses([
-          ...(typed.global_statuses || []),
-          ...(typed.custom_statuses || []),
-        ]);
-        setStatusRoles((typed as any)?.roles || {});
-        return response;
-      }
-
-      setLoading(true);
-      setError(null);
-
-      // Create new fetch promise
-      pendingFetch = statusesAPI.getAvailable();
-      const response = await pendingFetch;
-      pendingFetch = null;
-
-      // Update cache
-      const typed = response as AvailableStatuses;
-      statusesCache = typed;
-      cacheTimestamp = Date.now();
-
-      setGlobalStatuses(typed.global_statuses || []);
-      setCustomStatuses(typed.custom_statuses || []);
-      setAllStatuses([
-        ...(typed.global_statuses || []),
-        ...(typed.custom_statuses || []),
-      ]);
-      setStatusRoles((typed as any)?.roles || {});
-
-      return response;
-    } catch (err: unknown) {
-      pendingFetch = null;
-      console.error('[useContactStatuses] Failed to fetch statuses:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
+    if (forceRefresh) {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.statuses.all });
     }
-  }, []);
+    return statusesQuery.data;
+  }, [queryClient, statusesQuery.data]);
 
-  // Create custom status
   const createCustomStatus = useCallback(async (data: Record<string, unknown>): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const newStatus = await statusesAPI.createCustom(data);
+    return createCustomMutation.mutateAsync(data);
+  }, [createCustomMutation]);
 
-      // Invalidate cache
-      statusesCache = null;
-      cacheTimestamp = null;
-
-      // Add to local state
-      setCustomStatuses(prev => addItem(prev, newStatus as SimpleStatusResponse));
-      setAllStatuses(prev => addItem(prev, newStatus as SimpleStatusResponse));
-
-      return newStatus;
-    } catch (err: unknown) {
-      console.error('[useContactStatuses] Failed to create custom status:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Update global status
   const updateGlobalStatus = useCallback(async (statusId: string, data: Record<string, unknown>): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const updatedStatus = await statusesAPI.updateGlobal(statusId, data);
+    return updateGlobalMutation.mutateAsync({ statusId, data });
+  }, [updateGlobalMutation]);
 
-      // Invalidate cache
-      statusesCache = null;
-      cacheTimestamp = null;
-
-      // Update in local state
-      setGlobalStatuses(prev => updateItem(prev, statusId, updatedStatus as SimpleStatusResponse));
-      setAllStatuses(prev => updateItem(prev, statusId, updatedStatus as SimpleStatusResponse));
-
-      return updatedStatus;
-    } catch (err: unknown) {
-      console.error('[useContactStatuses] Failed to update global status:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Update custom status
   const updateCustomStatus = useCallback(async (statusId: string, data: Record<string, unknown>): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const updatedStatus = await statusesAPI.updateCustom(statusId, data);
+    return updateCustomMutation.mutateAsync({ statusId, data });
+  }, [updateCustomMutation]);
 
-      // Invalidate cache
-      statusesCache = null;
-      cacheTimestamp = null;
-
-      // Update in local state
-      setCustomStatuses(prev => updateItem(prev, statusId, updatedStatus as SimpleStatusResponse));
-      setAllStatuses(prev => updateItem(prev, statusId, updatedStatus as SimpleStatusResponse));
-
-      return updatedStatus;
-    } catch (err: unknown) {
-      console.error('[useContactStatuses] Failed to update custom status:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Delete custom status
   const deleteCustomStatus = useCallback(async (statusId: string): Promise<boolean> => {
-    try {
-      setLoading(true);
-      setError(null);
-      await statusesAPI.deleteCustom(statusId);
-
-      // Invalidate cache
-      statusesCache = null;
-      cacheTimestamp = null;
-
-      // Remove from local state
-      setCustomStatuses(prev => removeItem(prev, statusId));
-      setAllStatuses(prev => removeItem(prev, statusId));
-
-      return true;
-    } catch (err: unknown) {
-      console.error('[useContactStatuses] Failed to delete custom status:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Load statuses on mount
-  useEffect(() => {
-    fetchStatuses();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    await deleteCustomMutation.mutateAsync(statusId);
+    return true;
+  }, [deleteCustomMutation]);
 
   return {
     globalStatuses,
     customStatuses,
     allStatuses,
     statusRoles,
-    loading,
-    error,
+    loading: statusesQuery.isLoading,
+    error: statusesQuery.error?.message || null,
     fetchStatuses,
     updateGlobalStatus,
     createCustomStatus,

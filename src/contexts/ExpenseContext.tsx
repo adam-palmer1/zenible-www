@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import expensesAPI from '../services/api/finance/expenses';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
 import { formatLocalDate } from '../utils/dateUtils';
+import { queryKeys } from '../lib/query-keys';
 
 interface ExpenseFilters {
   search: string;
@@ -178,6 +179,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
   // -------------------------------------------------------------------------
   const doc = useDocumentState<ExpenseFilters>({
     name: 'Expense',
+    queryKeyBase: queryKeys.expenses.all,
     apiService: expensesAPI as unknown as DocumentStateConfig<ExpenseFilters>['apiService'],
     paginationStyle: 'page-perpage',
     defaultSort: 'expense_date',

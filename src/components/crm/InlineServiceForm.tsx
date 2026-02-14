@@ -55,7 +55,8 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
     status: service.status || 'active',
     // Track if service is linked to an invoice (locks pricing fields)
     // Check: is_locked flag, linked_invoice_id, or has been invoiced
-    isLinkedToInvoice: service.is_locked || service.linked_invoice_id || parseFloat(service.total_invoiced || 0) > 0
+    isLinkedToInvoice: service.is_locked || service.linked_invoice_id || parseFloat(service.total_invoiced || 0) > 0,
+    isPartiallyInvoiced: parseFloat(service.total_invoiced || 0) > 0 && parseFloat(service.amount_remaining || 0) > 0
   }), [defaultCurrency]);
 
   // Tooltip for locked fields
@@ -304,8 +305,8 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
                   </span>
                 )}
                 {!isExpanded && serviceItem.isLinkedToInvoice && (
-                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full flex-shrink-0">
-                    Invoiced
+                  <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${serviceItem.isPartiallyInvoiced ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>
+                    {serviceItem.isPartiallyInvoiced ? 'Partially Invoiced' : 'Invoiced'}
                   </span>
                 )}
               </div>

@@ -1,20 +1,21 @@
 /**
  * useDocumentState - Shared hook for finance document context providers.
  *
- * Extracts the ~250 lines of boilerplate that is nearly identical across
- * InvoiceContext, QuoteContext, and ExpenseContext:
+ * Uses React Query for data fetching, caching, deduplication, and
+ * background refetching. Manages:
  *   - Filter / search / sort / pagination state
  *   - Preferences persistence (load on mount, save on change)
- *   - Fetch list with duplicate-request guard
- *   - Generic CRUD helpers (create, update, delete)
+ *   - Fetch list via useQuery (automatic dedup + cache)
+ *   - Generic CRUD helpers via useMutation
  *   - Modal state (show/editing/selected)
- *   - Refresh mechanism (refreshKey)
+ *   - Refresh via queryClient.invalidateQueries()
  *
  * Each concrete context calls this hook and then layers on its
  * domain-specific state and methods (e.g. sendInvoice, bulkDelete, etc.).
  */
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { usePreferences } from './PreferencesContext';
 import { DEFAULT_PAGE_SIZE } from '../constants/pagination';
@@ -60,6 +61,9 @@ export type PaginationStyle = 'skip-limit' | 'page-perpage';
 export interface DocumentStateConfig<TFilters extends object> {
   /** Human-readable name used for logging, e.g. "Invoice" */
   name: string;
+
+  /** The query key base, e.g. queryKeys.invoices.all */
+  queryKeyBase: readonly unknown[];
 
   /** The API service object – must have a `.list(params)` method */
   apiService: {
@@ -184,6 +188,7 @@ export function useDocumentState<TFilters extends object>(
 ): DocumentState<TFilters> {
   const {
     name,
+    queryKeyBase,
     apiService,
     paginationStyle = 'page-perpage',
     sortParamName,
@@ -200,25 +205,16 @@ export function useDocumentState<TFilters extends object>(
 
   const { user } = useAuth();
   const { getPreference, updatePreference } = usePreferences();
+  const queryClient = useQueryClient();
 
-  // Duplicate-request guard
-  const fetchingRef = useRef(false);
-
-  // Core list state
-  const [items, setItems] = useState<unknown[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // Modal state
+  // Modal state (purely UI, not related to data fetching)
   const [showModal, setShowModal] = useState(false);
   const [editingEntity, setEditingEntity] = useState<unknown>(null);
   const [selectedEntity, setSelectedEntity] = useState<unknown>(null);
 
   // Filters
   const [filters, setFilters] = useState<TFilters>(defaultFilters);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   // Pagination
   const [pagination, setPagination] = useState<Pagination>({
@@ -230,6 +226,11 @@ export function useDocumentState<TFilters extends object>(
   // Sort
   const [sortBy, setSortBy] = useState(defaultSort);
   const [sortOrder, setSortOrder] = useState(defaultSortOrder);
+
+  // For mutation-based optimistic local items overlay
+  const [localItems, setLocalItems] = useState<unknown[] | null>(null);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   // -------------------------------------------------------------------------
   // Load preferences on mount
@@ -257,126 +258,163 @@ export function useDocumentState<TFilters extends object>(
   }, [user, preferencesLoaded]);
 
   // -------------------------------------------------------------------------
-  // Fetch
+  // Build API params from current state
   // -------------------------------------------------------------------------
-  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
+  const apiParams = useMemo(() => {
+    const params: Record<string, unknown> = {};
 
-  const fetchItems = useCallback(async () => {
-    if (!user) return;
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
+    if (paginationStyle === 'skip-limit') {
+      params.skip = (pagination.page - 1) * pagination.limit;
+      params.limit = pagination.limit;
+      params.sort_by = sortBy;
+      params.sort_order = sortOrder;
+    } else {
+      params.page = pagination.page;
+      params.per_page = pagination.limit;
+      params.sort_by = sortBy;
+      params[sortParamName ?? 'sort_direction'] = sortOrder;
+    }
 
-    try {
-      setLoading(true);
-      setError(null);
+    // Add filter params
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === '') return;
 
-      // Build pagination / sort params
-      const params: Record<string, unknown> = {};
-
-      if (paginationStyle === 'skip-limit') {
-        params.skip = (pagination.page - 1) * pagination.limit;
-        params.limit = pagination.limit;
-        params.sort_by = sortBy;
-        params.sort_order = sortOrder;
+      if (transformFilterParam) {
+        const result = transformFilterParam(key, value, filters as TFilters);
+        if (result === null || result === undefined) return;
+        params[result.key] = result.value;
       } else {
-        params.page = pagination.page;
-        params.per_page = pagination.limit;
-        params.sort_by = sortBy;
-        params[sortParamName ?? 'sort_direction'] = sortOrder;
+        params[key] = value;
       }
+    });
 
-      // Add filter params
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value === null || value === undefined || value === '') return;
+    return params;
+  }, [pagination.page, pagination.limit, sortBy, sortOrder, filters, paginationStyle, sortParamName, transformFilterParam]);
 
-        if (transformFilterParam) {
-          const result = transformFilterParam(key, value, filters as TFilters);
-          if (result === null || result === undefined) return;
-          params[result.key] = result.value;
-        } else {
-          params[key] = value;
-        }
-      });
-
-      const raw = await apiService.list(params as Record<string, string>);
+  // -------------------------------------------------------------------------
+  // React Query: fetch list
+  // -------------------------------------------------------------------------
+  const listQuery = useQuery({
+    queryKey: [...queryKeyBase, 'list', { apiParams }],
+    queryFn: async () => {
+      const raw = await apiService.list(apiParams as Record<string, string>);
       const response = (Array.isArray(raw) ? { items: raw, total: raw.length } : raw) as ListResponse;
-      setItems(response.items || []);
+      return response;
+    },
+    enabled: !!user && preferencesLoaded,
+  });
+
+  // When query data changes, update pagination total and call onFetchSuccess
+  useEffect(() => {
+    if (listQuery.data) {
+      const response = listQuery.data;
       setPagination(prev => ({
         ...prev,
         total: response.total || 0,
       }));
-
       if (onFetchSuccess) {
         onFetchSuccess(response);
       }
-
-      setInitialized(true);
-    } catch (err) {
-      console.error(`[${name}Context] Error fetching ${name.toLowerCase()}s:`, err);
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-      fetchingRef.current = false;
+      // Clear local items overlay when fresh data arrives
+      setLocalItems(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, pagination.page, pagination.limit, sortBy, sortOrder, filtersKey]);
+  }, [listQuery.data]);
 
-  // Auto-fetch when dependencies change (only after preferences loaded)
-  useEffect(() => {
-    if (preferencesLoaded) {
-      fetchItems();
-    }
-  }, [fetchItems, refreshKey, preferencesLoaded]);
+  // Compute effective items: local overlay or query data
+  const items = localItems ?? (listQuery.data?.items || []);
+  const loading = localLoading || listQuery.isLoading;
+  const error = localError || (listQuery.error ? (listQuery.error as Error).message : null);
+  const initialized = listQuery.isFetched;
 
   // -------------------------------------------------------------------------
-  // CRUD
+  // CRUD mutations
   // -------------------------------------------------------------------------
-  const createItem = useCallback(async (data: unknown) => {
-    try {
-      setLoading(true);
+  const createMutation = useMutation({
+    mutationFn: (data: unknown) => {
       if (!apiService.create) throw new Error(`[${name}Context] apiService.create is not defined`);
-      const created = await apiService.create(data);
-      setItems(prev => [created, ...prev]);
-      return created;
+      return apiService.create(data);
+    },
+    onSuccess: (created) => {
+      // Optimistic: prepend to local items
+      setLocalItems(prev => [created, ...(prev ?? items)]);
+      // Invalidate to get fresh data
+      queryClient.invalidateQueries({ queryKey: queryKeyBase });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => {
+      if (!apiService.update) throw new Error(`[${name}Context] apiService.update is not defined`);
+      return apiService.update(id, data);
+    },
+    onSuccess: (updated, { id }) => {
+      // Optimistic: update in local items
+      const currentItems = localItems ?? items;
+      setLocalItems(currentItems.map((item) => (item as Identifiable).id === id ? updated : item));
+      queryClient.invalidateQueries({ queryKey: queryKeyBase });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => {
+      if (!apiService.delete) throw new Error(`[${name}Context] apiService.delete is not defined`);
+      return apiService.delete(id);
+    },
+    onSuccess: (_result, id) => {
+      // Optimistic: remove from local items
+      const currentItems = localItems ?? items;
+      setLocalItems(currentItems.filter((item) => (item as Identifiable).id !== id));
+      queryClient.invalidateQueries({ queryKey: queryKeyBase });
+    },
+  });
+
+  // Wrapper functions to maintain the same API interface
+  const createItem = useCallback(async (data: unknown) => {
+    setLocalLoading(true);
+    try {
+      const result = await createMutation.mutateAsync(data);
+      return result;
     } catch (err) {
       console.error(`[${name}Context] Error creating ${name.toLowerCase()}:`, err);
       throw err;
     } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [createMutation]);
 
   const updateItem = useCallback(async (id: string, data: unknown) => {
+    setLocalLoading(true);
     try {
-      setLoading(true);
-      if (!apiService.update) throw new Error(`[${name}Context] apiService.update is not defined`);
-      const updated = await apiService.update(id, data);
-      setItems(prev => prev.map((item) => (item as Identifiable).id === id ? updated : item));
-      return updated;
+      const result = await updateMutation.mutateAsync({ id, data });
+      return result;
     } catch (err) {
       console.error(`[${name}Context] Error updating ${name.toLowerCase()}:`, err);
       throw err;
     } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [updateMutation]);
 
   const deleteItem = useCallback(async (id: string) => {
+    setLocalLoading(true);
     try {
-      setLoading(true);
-      if (!apiService.delete) throw new Error(`[${name}Context] apiService.delete is not defined`);
-      await apiService.delete(id);
-      setItems(prev => prev.filter((item) => (item as Identifiable).id !== id));
+      await deleteMutation.mutateAsync(id);
     } catch (err) {
       console.error(`[${name}Context] Error deleting ${name.toLowerCase()}:`, err);
       throw err;
     } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [deleteMutation]);
+
+  const fetchItems = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeyBase });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient]);
 
   // -------------------------------------------------------------------------
   // Filters / Sort / Refresh
@@ -410,8 +448,9 @@ export function useDocumentState<TFilters extends object>(
   }, [updatePreference]);
 
   const refresh = useCallback(() => {
-    setRefreshKey(prev => prev + 1);
-  }, []);
+    queryClient.invalidateQueries({ queryKey: queryKeyBase });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient]);
 
   // -------------------------------------------------------------------------
   // Modal helpers
@@ -429,6 +468,22 @@ export function useDocumentState<TFilters extends object>(
   const selectEntity = useCallback((entity: unknown) => {
     setSelectedEntity(entity);
   }, []);
+
+  // -------------------------------------------------------------------------
+  // setItems / setLoading / setError for backwards compatibility
+  // These allow consuming contexts to do optimistic updates
+  // -------------------------------------------------------------------------
+  const setItems: React.Dispatch<React.SetStateAction<unknown[]>> = useCallback((action: React.SetStateAction<unknown[]>) => {
+    if (typeof action === 'function') {
+      setLocalItems(prev => (action as (prev: unknown[]) => unknown[])(prev ?? items));
+    } else {
+      setLocalItems(action);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
+  const setLoading: React.Dispatch<React.SetStateAction<boolean>> = setLocalLoading;
+  const setError: React.Dispatch<React.SetStateAction<string | null>> = setLocalError;
 
   // -------------------------------------------------------------------------
   // Return

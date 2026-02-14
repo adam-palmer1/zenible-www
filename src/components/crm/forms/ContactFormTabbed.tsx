@@ -93,7 +93,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
       const basicFields = ['first_name', 'last_name', 'business_name', 'email', 'country_code', 'phone'];
       const addressFields = ['address_line_1', 'address_line_2', 'city', 'state', 'postcode', 'country'];
       const additionalFields = ['is_client', 'is_vendor', 'current_global_status_id', 'current_custom_status_id', 'notes'];
-      const financeFields = ['currency_id', 'preferred_currency_id', 'invoice_payment_terms', 'invoice_notes', 'hourly_rate', 'registration_number', 'tax_number', 'tax_id', 'vendor_type', 'default_payment_terms'];
+      const financeFields = ['currency_id', 'preferred_currency_id', 'invoice_payment_terms', 'invoice_notes', 'hourly_rate', 'registration_number', 'tax_number', 'tax_id', 'vendor_type', 'default_payment_terms', 'invoice_reminders_enabled', 'invoice_reminder_frequency_days', 'max_invoice_reminders'];
 
       if (errorFields.some(field => basicFields.includes(field))) {
         setActiveTab('basic');
@@ -639,6 +639,73 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Invoice Notes</label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Default notes to include on invoices for this contact</p>
               <FormTextarea name="invoice_notes" rows={4} placeholder="e.g., Please pay within 30 days to:&#10;Bank: ABC Bank&#10;Account: 12345678&#10;Sort Code: 12-34-56" />
+            </div>
+            {/* Invoice Reminders */}
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Invoice Reminders</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Override company default reminder settings for this contact</p>
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: 'inherit', label: 'Use company default' },
+                    { value: 'true', label: 'Enable reminders' },
+                    { value: 'false', label: 'Disable reminders' },
+                  ].map((option) => {
+                    const current = watch('invoice_reminders_enabled');
+                    const isSelected =
+                      (option.value === 'inherit' && current === null) ||
+                      (option.value === 'true' && current === true) ||
+                      (option.value === 'false' && current === false);
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          const newVal = option.value === 'inherit' ? null : option.value === 'true' ? true : false;
+                          setValue('invoice_reminders_enabled', newVal);
+                          if (newVal !== true) {
+                            setValue('invoice_reminder_frequency_days', null);
+                            setValue('max_invoice_reminders', null);
+                          }
+                        }}
+                        className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                          isSelected
+                            ? 'border-zenible-primary bg-zenible-primary/10 text-zenible-primary font-medium'
+                            : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {watch('invoice_reminders_enabled') === true && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-1">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency (days)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="60"
+                        {...methods.register('invoice_reminder_frequency_days')}
+                        placeholder="e.g., 7"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Maximum Reminders</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="5"
+                        {...methods.register('max_invoice_reminders')}
+                        placeholder="e.g., 3"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tax Rates</label>

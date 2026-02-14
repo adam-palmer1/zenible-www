@@ -18,6 +18,8 @@ interface Tip {
 interface AICharacter {
   id: string;
   name: string;
+  avatar_url?: string;
+  description?: string;
   is_active?: boolean;
 }
 
@@ -338,10 +340,9 @@ export default function TipsManagement() {
     }
   };
 
-  const getCharacterName = (characterId: string): string => {
-    if (!characterId) return 'Unassigned';
-    const character = characters.find((c: AICharacter) => c.id === characterId);
-    return character ? character.name : 'Unknown';
+  const getCharacter = (characterId: string): AICharacter | null => {
+    if (!characterId) return null;
+    return characters.find((c: AICharacter) => c.id === characterId) || null;
   };
 
   const formatDate = (dateString: string): string => {
@@ -531,9 +532,34 @@ export default function TipsManagement() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                                {getCharacterName(tip.ai_character_id ?? '')}
-                              </span>
+                              {(() => {
+                                const char = getCharacter(tip.ai_character_id ?? '');
+                                if (!char) {
+                                  return (
+                                    <span className={`text-sm italic ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-400'}`}>
+                                      Unassigned
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <div className="flex items-center gap-2" title={char.description || ''}>
+                                    {char.avatar_url ? (
+                                      <img
+                                        src={char.avatar_url}
+                                        alt={char.name}
+                                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                      />
+                                    ) : (
+                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${darkMode ? 'bg-zenible-dark-border' : 'bg-gray-200'}`}>
+                                        <span className="text-xs font-medium">{char.name.charAt(0)}</span>
+                                      </div>
+                                    )}
+                                    <span className={`text-sm font-medium truncate ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                                      {char.name}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">

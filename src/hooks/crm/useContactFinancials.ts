@@ -1,5 +1,7 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { contactsAPI } from '../../services/api/crm';
+import { queryKeys } from '../../lib/query-keys';
 import type { ContactResponse } from '../../types';
 
 interface ExtractedValue {
@@ -43,73 +45,48 @@ interface ContactWithFinancials extends ContactResponse {
 
 /**
  * Custom hook for managing contact financial data
- * Fetches contact with include_financial_details=true from contacts API
+ * Uses React Query for caching and automatic refetching
  */
 export function useContactFinancials(contactId: string | undefined) {
-  const [contact, setContact] = useState<ContactWithFinancials | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Fetch contact with financial details
-  const fetchContact = useCallback(async (): Promise<void> => {
-    if (!contactId) return;
+  const contactQuery = useQuery({
+    queryKey: queryKeys.contactFinancials.detail(contactId!),
+    queryFn: () => contactsAPI.get(contactId!, {
+      include_financial_details: 'true',
+      preserve_currencies: 'true',
+    }),
+    enabled: !!contactId,
+  });
 
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch single contact with financial details and original currencies
-      // Backend endpoint: GET /crm/contacts/{id}?include_financial_details=true&preserve_currencies=true
-      const contactData = await contactsAPI.get(contactId, {
-        include_financial_details: 'true',
-        preserve_currencies: 'true',
-      });
-      setContact(contactData as ContactWithFinancials);
-    } catch (err: unknown) {
-      console.error('[useContactFinancials] Failed to fetch contact:', err);
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [contactId]);
-
-  // Initial fetch
-  useEffect(() => {
-    if (contactId) {
-      fetchContact();
-    }
-  }, [contactId, fetchContact]);
+  const contact = (contactQuery.data as ContactWithFinancials) || null;
 
   // Refresh data
   const refresh = useCallback((): void => {
-    fetchContact();
-  }, [fetchContact]);
+    if (contactId) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contactFinancials.detail(contactId) });
+    }
+  }, [queryClient, contactId]);
 
   // Helper to extract value and currency from a field
-  // Handles both array format (preserve_currencies=true) and single value format
   const extractValue = useCallback((field: string | CurrencyAmountEntry[] | undefined): ExtractedValue => {
     if (Array.isArray(field)) {
-      // Array format: [{ currency_code: "GBP", amount: "5000.00" }, ...]
       if (field.length === 0) return { amount: 0, currency: null };
-      // Sum all amounts (in case of multiple currencies, we'll use the first currency)
       const total = field.reduce((sum: number, item: CurrencyAmountEntry) => sum + (parseFloat(item.amount) || 0), 0);
       return { amount: total, currency: field[0]?.currency_code || null };
     }
-    // Single value format
     return { amount: parseFloat(field as string) || 0, currency: null };
   }, []);
 
   // Get the currency codes for different financial categories
-  // Falls back to contact's default currency for null fields
   const summaryCurrencies = useMemo((): SummaryCurrencies => {
     if (!contact) {
       return { income: null, outstanding: null, expenses: null };
     }
 
-    // Contact's default currency as fallback
     const contactCurrency = contact.currency?.code || null;
 
-    // Extract currencies from the financial fields (array format has currency_code)
     const invoicedData = extractValue(contact.invoiced_total);
     const outstandingData = extractValue(contact.total_outstanding);
     const expensesData = extractValue(contact.total_expenses_paid);
@@ -138,10 +115,7 @@ export function useContactFinancials(contactId: string | undefined) {
     const outstanding = outstandingData.amount;
     const expenses = expensesData.amount;
 
-    // Calculate paid from payments, or derive from invoiced - outstanding
     const paid = payments > 0 ? payments : (invoiced - outstanding);
-
-    // Net = paid - expenses
     const net = paid - expenses;
 
     return {
@@ -157,19 +131,12 @@ export function useContactFinancials(contactId: string | undefined) {
   }, [contact, extractValue]);
 
   return {
-    // Contact data
     contact,
-
-    // Summary data
     summaryByCurrency,
     summaryCurrency,
     summaryCurrencies,
-
-    // State
-    loading,
-    error,
-
-    // Actions
+    loading: contactQuery.isLoading,
+    error: contactQuery.error?.message || null,
     refresh,
   };
 }

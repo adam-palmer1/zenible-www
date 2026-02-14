@@ -18,6 +18,7 @@ import invoicesAPI from '../../../services/api/finance/invoices';
 import quotesAPI from '../../../services/api/finance/quotes';
 import paymentsAPI from '../../../services/api/finance/payments';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
+import projectsAPI from '../../../services/api/crm/projects';
 
 /**
  * Entity type configuration
@@ -27,9 +28,6 @@ const ENTITY_CONFIG: Record<string, any> = {
     label: 'Invoice',
     pluralLabel: 'Invoices',
     icon: FileText,
-    color: '#00a6f4',
-    headerColor: 'from-[#e0f2fe] to-[#bae6fd]',
-    iconBg: 'from-[#00a6f4] to-[#0284c7]',
     api: invoicesAPI,
     listMethod: 'list',
     getAllocationsMethod: 'getAllocations',
@@ -42,9 +40,6 @@ const ENTITY_CONFIG: Record<string, any> = {
     label: 'Quote',
     pluralLabel: 'Quotes',
     icon: FileText,
-    color: '#8b5cf6',
-    headerColor: 'from-[#f5f0ff] to-[#ede5ff]',
-    iconBg: 'from-[#8b5cf6] to-[#7c3aed]',
     api: quotesAPI,
     listMethod: 'list',
     getAllocationsMethod: 'getAllocations',
@@ -57,9 +52,6 @@ const ENTITY_CONFIG: Record<string, any> = {
     label: 'Payment',
     pluralLabel: 'Payments',
     icon: CreditCard,
-    color: '#00a63e',
-    headerColor: 'from-[#dcfce7] to-[#bbf7d0]',
-    iconBg: 'from-[#00a63e] to-[#16a34a]',
     api: paymentsAPI,
     listMethod: 'list',
     getAllocationsMethod: 'getProjectAllocations',
@@ -72,9 +64,6 @@ const ENTITY_CONFIG: Record<string, any> = {
     label: 'Credit Note',
     pluralLabel: 'Credit Notes',
     icon: FileMinus,
-    color: '#f97316',
-    headerColor: 'from-[#ffedd5] to-[#fed7aa]',
-    iconBg: 'from-[#f97316] to-[#ea580c]',
     api: creditNotesAPI,
     listMethod: 'list',
     getAllocationsMethod: 'getAllocations',
@@ -85,6 +74,17 @@ const ENTITY_CONFIG: Record<string, any> = {
   },
 };
 
+interface ProjectServiceAssignment {
+  id: string;
+  contact_service_id?: string;
+  contact_service?: {
+    template_service?: { name?: string } | null;
+    name?: string;
+    price?: string | number | null;
+  } | null;
+  [key: string]: unknown;
+}
+
 interface AssignFinanceItemModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -93,6 +93,9 @@ interface AssignFinanceItemModalProps {
   projectName: string;
   currency?: string;
   onUpdate?: () => void;
+  projectServices?: ProjectServiceAssignment[];
+  contactId?: string;
+  existingEntityIds?: string[];
 }
 
 const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
@@ -103,6 +106,9 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
   projectName,
   currency = 'USD',
   onUpdate,
+  projectServices,
+  contactId,
+  existingEntityIds,
 }) => {
   const { showSuccess, showError } = useNotification();
 
@@ -114,6 +120,12 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
   const [showAddSection, setShowAddSection] = useState(false);
   const [itemsLoading, setItemsLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Service allocation step (shown after saving invoice allocations)
+  const [showServiceStep, setShowServiceStep] = useState(false);
+  const [serviceLinks, setServiceLinks] = useState<Record<string, string>>({}); // invoice_id -> assignment_id
+  const [savingServiceLinks, setSavingServiceLinks] = useState(false);
+  const [newlyAddedInvoices, setNewlyAddedInvoices] = useState<any[]>([]);
 
   // Get config - use a fallback for when entityType is null/undefined
   const config = ENTITY_CONFIG[entityType] || null;
@@ -138,6 +150,9 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
   // Load all items and existing allocations when modal opens
   useEffect(() => {
     if (open && projectId && config) {
+      setShowServiceStep(false);
+      setServiceLinks({});
+      setNewlyAddedInvoices([]);
       loadAllData();
     }
   }, [open, projectId, entityType]);
@@ -148,6 +163,7 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
     try {
       const params: Record<string, string> = { per_page: '50' };
       if (search) params.search = search;
+      if (contactId) params.contact_id = contactId;
       const result = await config.api[config.listMethod](params);
       const items = result.items || result || [];
       setAllItems(items);
@@ -158,7 +174,7 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
     } finally {
       setItemsLoading(false);
     }
-  }, [config]);
+  }, [config, contactId]);
 
   // Debounced server-side search
   useEffect(() => {
@@ -178,12 +194,19 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // Fetch items
+      // Fetch items filtered by contact
       const items = await fetchItems('');
 
-      // Find items already allocated to this project
+      // Use existingEntityIds from project detail to identify pre-assigned items
+      // This avoids N+1 queries (fetching allocations for every single item)
+      const preAssignedIds = new Set(existingEntityIds || []);
+      const preAssignedItems = preAssignedIds.size > 0
+        ? items.filter((item: any) => preAssignedIds.has(item.id))
+        : [];
+
+      // Only fetch per-item allocations for pre-assigned items (typically 0-5, not 50+)
       const assignments: any[] = [];
-      for (const item of items) {
+      for (const item of preAssignedItems) {
         try {
           const allocResult = await config.api[config.getAllocationsMethod](item.id);
           const allocations = allocResult.allocations || [];
@@ -197,7 +220,6 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
             });
           }
         } catch (err) {
-          // Item might not have allocations endpoint or other error
           console.debug(`Could not fetch allocations for ${entityType} ${item.id}:`, err);
         }
       }
@@ -255,6 +277,9 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Track which items are newly added
+      const newItems = assignedItems.filter((a: any) => a.isNew);
+
       // For each assigned item, update its allocations to include this project
       const updatePromises = assignedItems.map((assignment: any) => {
         // Start with existing allocations (excluding this project)
@@ -275,13 +300,65 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
 
       showSuccess(`${config.label} allocations saved successfully`);
       onUpdate?.();
-      onOpenChange(false);
+
+      // For invoices: if project has services and there are new invoices, show service prompt
+      if (entityType === 'invoice' && projectServices && projectServices.length > 0 && newItems.length > 0) {
+        setNewlyAddedInvoices(newItems);
+        setShowServiceStep(true);
+      } else {
+        onOpenChange(false);
+      }
     } catch (error: any) {
       console.error('Failed to save allocations:', error);
       showError(error.message || `Failed to save ${config.label.toLowerCase()} allocations`);
     } finally {
       setSaving(false);
     }
+  };
+
+  // Handle saving service invoice links
+  const handleSaveServiceLinks = async () => {
+    const linksToCreate = Object.entries(serviceLinks).filter(([, assignmentId]) => assignmentId);
+    if (linksToCreate.length === 0) {
+      onOpenChange(false);
+      return;
+    }
+
+    setSavingServiceLinks(true);
+    try {
+      const promises = linksToCreate.map(([invoiceId, assignmentId]) => {
+        const invoice = newlyAddedInvoices.find((a: any) => a.item_id === invoiceId);
+        const amount = invoice ? (parseFloat(invoice.item?.[config.amountField]) || 0) * (invoice.percentage / 100) : 0;
+        return projectsAPI.createServiceInvoiceLink(projectId, assignmentId, {
+          invoice_id: invoiceId,
+          amount,
+        });
+      });
+      await Promise.all(promises);
+      showSuccess('Service links created');
+    } catch (err: any) {
+      console.error('Failed to create service links:', err);
+      showError(err.message || 'Failed to link invoices to services');
+    } finally {
+      setSavingServiceLinks(false);
+      setShowServiceStep(false);
+      setServiceLinks({});
+      setNewlyAddedInvoices([]);
+      onOpenChange(false);
+    }
+  };
+
+  // Skip service allocation step
+  const handleSkipServiceStep = () => {
+    setShowServiceStep(false);
+    setServiceLinks({});
+    setNewlyAddedInvoices([]);
+    onOpenChange(false);
+  };
+
+  // Helper to get service name from assignment
+  const getServiceNameFromAssignment = (svc: ProjectServiceAssignment): string => {
+    return svc.contact_service?.template_service?.name || svc.contact_service?.name || 'Service';
   };
 
   // Format date for display
@@ -312,54 +389,124 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
     >
       <div className="-m-6 mb-0">
         {/* Header */}
-        <div className={`px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r ${config.headerColor} dark:from-gray-800 dark:to-gray-800`}>
+        <div className="px-6 py-5 border-b border-[#e5e5e5] dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className={`flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${config.iconBg} shadow-lg`}>
-                <IconComponent className="h-6 w-6 text-white" />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#fafafa] dark:bg-gray-700 border border-[#e5e5e5] dark:border-gray-600">
+                <IconComponent className="h-5 w-5 text-[#71717a] dark:text-gray-400" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-lg font-semibold text-[#09090b] dark:text-white">
                   Allocate {config.pluralLabel}
                 </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                <p className="text-sm text-[#71717a] dark:text-gray-400 mt-0.5">
                   {projectName}
                 </p>
               </div>
             </div>
             <button
               onClick={() => onOpenChange(false)}
-              className="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-1 rounded transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
-              <X className="h-5 w-5" />
+              <X className="h-[18px] w-[18px]" />
             </button>
           </div>
         </div>
 
+        {/* Service Allocation Step */}
+        {showServiceStep && (
+          <div className="p-6">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-[#09090b] dark:text-white">Link Invoices to Services</h3>
+              <p className="text-xs text-[#71717a] dark:text-gray-400 mt-1">
+                Optionally link each invoice to a project service.
+              </p>
+            </div>
+
+            <div className="space-y-2 mb-6">
+              {newlyAddedInvoices.map((assignment: any) => {
+                const item = assignment.item;
+                const itemNumber = item[config.numberField] || `#${item.id?.slice(0, 8)}`;
+                const itemAmount = (parseFloat(item[config.amountField]) || 0) * (assignment.percentage / 100);
+                const itemCurrency = item.currency?.code || currency;
+
+                return (
+                  <div
+                    key={assignment.item_id}
+                    className="flex items-center gap-4 p-3 bg-[#fafafa] dark:bg-gray-900 border border-[#e5e5e5] dark:border-gray-700 rounded-lg"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-[#09090b] dark:text-white">{itemNumber}</span>
+                      <span className="text-xs text-[#71717a] dark:text-gray-400 ml-2">
+                        {formatCurrency(itemAmount, itemCurrency)}
+                      </span>
+                    </div>
+                    <select
+                      value={serviceLinks[assignment.item_id] || ''}
+                      onChange={(e) => setServiceLinks(prev => ({ ...prev, [assignment.item_id]: e.target.value }))}
+                      className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-[#e5e5e5] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#8e51ff] focus:border-transparent"
+                    >
+                      <option value="">No service</option>
+                      {projectServices?.map((svc) => (
+                        <option key={svc.id} value={svc.id}>
+                          {getServiceNameFromAssignment(svc)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={handleSkipServiceStep}
+                className="px-4 py-2 text-sm font-medium text-[#71717a] dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleSaveServiceLinks}
+                disabled={savingServiceLinks}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#8e51ff] rounded-lg hover:bg-[#7c3aed] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingServiceLinks ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Linking...
+                  </>
+                ) : (
+                  'Allocate'
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
-        <div className="p-6">
+        {!showServiceStep && (<><div className="p-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin" style={{ color: config.color }} />
+              <Loader2 className="h-8 w-8 animate-spin text-[#8e51ff]" />
             </div>
           ) : (
             <>
               {/* Summary */}
-              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+              <div className="mb-6 p-4 bg-[#fafafa] dark:bg-gray-900 border border-[#e5e5e5] dark:border-gray-700 rounded-xl">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    <span className="text-sm text-[#71717a] dark:text-gray-400">
                       Total Allocated
                     </span>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    <p className="text-lg font-semibold text-[#09090b] dark:text-white mt-1">
                       {formatCurrency(totalAssigned, currency)}
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    <span className="text-sm text-[#71717a] dark:text-gray-400">
                       {config.pluralLabel}
                     </span>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    <p className="text-lg font-semibold text-[#09090b] dark:text-white mt-1">
                       {assignedItems.length}
                     </p>
                   </div>
@@ -368,17 +515,17 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
 
               {/* Assigned Items List */}
               <div className="mb-6">
-                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                <h3 className="text-sm font-semibold text-[#09090b] dark:text-white mb-3">
                   Allocated {config.pluralLabel}
                 </h3>
 
                 {assignedItems.length === 0 ? (
-                  <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
-                    <IconComponent className="h-12 w-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
-                    <p className="text-gray-500 dark:text-gray-400">
+                  <div className="text-center py-8 border border-dashed border-[#e5e5e5] dark:border-gray-700 rounded-lg">
+                    <IconComponent className="h-8 w-8 mx-auto mb-2 text-[#71717a]/30 dark:text-gray-600" />
+                    <p className="text-sm text-[#71717a] dark:text-gray-400">
                       No {config.pluralLabel.toLowerCase()} allocated to this project yet.
                     </p>
-                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                    <p className="text-xs text-[#71717a] dark:text-gray-500 mt-1">
                       Click the button below to add {config.pluralLabel.toLowerCase()}.
                     </p>
                   </div>
@@ -394,21 +541,21 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
                       return (
                         <div
                           key={assignment.item_id}
-                          className="flex items-center gap-4 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+                          className="flex items-center gap-4 p-3 bg-[#fafafa] dark:bg-gray-900 border border-[#e5e5e5] dark:border-gray-700 rounded-lg"
                         >
                           {/* Item Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-900 dark:text-white truncate">
+                              <span className="text-sm font-medium text-[#09090b] dark:text-white truncate">
                                 {itemNumber}
                               </span>
                               {assignment.isNew && (
-                                <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full">
+                                <span className="px-1.5 py-0.5 text-xs font-medium bg-[#8e51ff]/10 text-[#8e51ff] dark:bg-purple-900/30 dark:text-purple-400 rounded">
                                   New
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center gap-3 mt-0.5 text-xs text-[#71717a] dark:text-gray-400">
                               <span>{getContactName(item)}</span>
                               {itemDate && (
                                 <span className="flex items-center gap-1">
@@ -421,10 +568,10 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
 
                           {/* Amount */}
                           <div className="text-right">
-                            <div className="font-medium text-gray-900 dark:text-white">
+                            <div className="text-sm font-semibold text-[#09090b] dark:text-white">
                               {formatCurrency(itemAmount, itemCurrency)}
                             </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                            <div className="text-xs text-[#71717a] dark:text-gray-400">
                               Full amount
                             </div>
                           </div>
@@ -438,11 +585,11 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
                                 max="100"
                                 value={assignment.percentage}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleUpdatePercentage(assignment.item_id, e.target.value)}
-                                className="w-full px-2 py-1.5 text-sm text-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                className="w-full px-2 py-1.5 text-sm text-center bg-white dark:bg-gray-900 border border-[#e5e5e5] dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#8e51ff] focus:border-transparent"
                               />
-                              <span className="text-sm text-gray-500 dark:text-gray-400">%</span>
+                              <span className="text-xs text-[#71717a] dark:text-gray-400">%</span>
                             </div>
-                            <div className="text-xs text-gray-400 dark:text-gray-500 text-center mt-1">
+                            <div className="text-xs text-[#71717a] dark:text-gray-500 text-center mt-1">
                               {formatCurrency(
                                 itemAmount * (assignment.percentage / 100),
                                 itemCurrency
@@ -453,9 +600,9 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
                           {/* Remove Button */}
                           <button
                             onClick={() => handleRemoveItem(assignment.item_id)}
-                            className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       );
@@ -466,9 +613,9 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
 
               {/* Add Item Section */}
               {showAddSection ? (
-                <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="p-4 bg-[#fafafa] dark:bg-gray-900 rounded-lg border border-[#e5e5e5] dark:border-gray-700">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-gray-900 dark:text-white">Add {config.label}</h4>
+                    <h4 className="text-sm font-semibold text-[#09090b] dark:text-white">Add {config.label}</h4>
                     <button
                       onClick={() => setShowAddSection(false)}
                       className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -479,13 +626,13 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
 
                   {/* Search */}
                   <div className="relative mb-3">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#71717a]" />
                     <input
                       type="text"
                       placeholder={`Search ${config.pluralLabel.toLowerCase()}...`}
                       value={searchQuery}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-[#e5e5e5] dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-[#8e51ff] focus:border-transparent"
                       autoFocus
                     />
                   </div>
@@ -497,7 +644,7 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
                         <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
                       </div>
                     ) : availableItems.length === 0 ? (
-                      <p className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                      <p className="text-center py-4 text-[#71717a] dark:text-gray-400 text-sm">
                         {searchQuery ? `No matching ${config.pluralLabel.toLowerCase()} found.` : `No available ${config.pluralLabel.toLowerCase()} to allocate.`}
                       </p>
                     ) : (
@@ -512,33 +659,33 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
                             <button
                               key={item.id}
                               onClick={() => handleAddItem(item)}
-                              className="w-full flex items-center justify-between p-3 text-left bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
+                              className="w-full flex items-center justify-between p-3 text-left bg-white dark:bg-gray-800 rounded-lg hover:bg-[#fafafa] dark:hover:bg-gray-700 transition-colors group"
                             >
                               <div className="min-w-0 flex-1">
-                                <div className="font-medium text-gray-900 dark:text-white truncate">
+                                <div className="text-sm font-medium text-[#09090b] dark:text-white truncate">
                                   {itemNumber}
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                <div className="flex items-center gap-2 text-xs text-[#71717a] dark:text-gray-400">
                                   <span>{getContactName(item)}</span>
                                   {itemDate && (
                                     <>
-                                      <span>•</span>
+                                      <span>&middot;</span>
                                       <span>{formatDate(itemDate)}</span>
                                     </>
                                   )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-3">
-                                <span className="font-medium text-gray-900 dark:text-white">
+                                <span className="text-sm font-medium text-[#09090b] dark:text-white">
                                   {formatCurrency(itemAmount, itemCurrency)}
                                 </span>
-                                <Plus className="h-4 w-4 text-gray-400 group-hover:text-purple-600 dark:group-hover:text-purple-400" />
+                                <Plus className="h-4 w-4 text-[#71717a] group-hover:text-[#8e51ff]" />
                               </div>
                             </button>
                           );
                         })}
                         {availableItems.length > 10 && (
-                          <p className="text-center py-2 text-sm text-gray-500 dark:text-gray-400">
+                          <p className="text-center py-2 text-xs text-[#71717a] dark:text-gray-400">
                             Showing 10 of {availableItems.length} {config.pluralLabel.toLowerCase()}. Use search to narrow results.
                           </p>
                         )}
@@ -549,11 +696,11 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
               ) : (
                 <button
                   onClick={() => setShowAddSection(true)}
-                  className="w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-gray-500 dark:text-gray-400 hover:border-purple-500 hover:text-purple-600 dark:hover:border-purple-500 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-all"
+                  className="w-full px-4 py-3 border border-dashed border-[#e5e5e5] dark:border-gray-600 rounded-lg text-[#71717a] dark:text-gray-400 hover:border-[#8e51ff] hover:text-[#8e51ff] dark:hover:border-purple-500 dark:hover:text-purple-400 transition-colors"
                 >
                   <div className="flex items-center justify-center gap-2">
-                    <Plus className="h-5 w-5" />
-                    <span className="font-medium">Add {config.label}</span>
+                    <Plus className="h-4 w-4" />
+                    <span className="text-sm font-medium">Add {config.label}</span>
                   </div>
                 </button>
               )}
@@ -562,18 +709,18 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-          <div className="flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-[#e5e5e5] dark:border-gray-700">
+          <div className="flex items-center justify-end gap-3">
             <button
               onClick={() => onOpenChange(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-[#71717a] dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#8e51ff] rounded-lg hover:bg-[#7c3aed] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#8e51ff] rounded-lg hover:bg-[#7c3aed] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? (
                 <>
@@ -581,14 +728,11 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
                   Saving...
                 </>
               ) : (
-                <>
-                  <Check className="h-4 w-4" />
-                  Save Allocations
-                </>
+                'Save Allocations'
               )}
             </button>
           </div>
-        </div>
+        </div></>)}
       </div>
     </Modal>
   );

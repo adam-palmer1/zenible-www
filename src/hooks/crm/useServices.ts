@@ -1,177 +1,85 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { servicesAPI } from '../../services/api/crm';
-import { removeItem, updateItem, addItem } from '../../utils/stateHelpers';
-
-// Module-level cache for services (shared across all hook instances)
-let servicesCache: unknown[] | null = null;
-let cacheTimestamp: number | null = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-let pendingFetch: Promise<unknown> | null = null; // Prevent duplicate concurrent fetches
+import { queryKeys } from '../../lib/query-keys';
 
 /**
  * Custom hook for managing services
- * Handles loading, creating, updating, and deleting services with caching
+ * Uses React Query for caching, deduplication, and background refetching
  */
 export function useServices(options: Record<string, unknown> = {}, refreshKey: number = 0) {
-  const [services, setServices] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const hasOptions = Object.keys(options).length > 0;
 
-  // Check if cache is valid
-  const isCacheValid = (): boolean => {
-    return servicesCache !== null &&
-           cacheTimestamp !== null &&
-           (Date.now() - cacheTimestamp) < CACHE_TTL;
-  };
+  // Query for services list
+  const servicesQuery = useQuery({
+    queryKey: hasOptions
+      ? queryKeys.services.list(options)
+      : queryKeys.services.lists(),
+    queryFn: async () => {
+      const response = await servicesAPI.list(options as Record<string, string>);
+      return (response as unknown[]) || [];
+    },
+  });
 
-  // Fetch services with caching
-  const fetchServices = useCallback(async (params: Record<string, unknown> = {}, forceRefresh: boolean = false): Promise<unknown> => {
-    try {
-      // Return cached data if valid and not forcing refresh (only for default params)
-      const isDefaultParams = Object.keys(params).length === 0 && Object.keys(options).length === 0;
-      if (!forceRefresh && isDefaultParams && isCacheValid()) {
-        setServices(servicesCache || []);
-        return servicesCache;
-      }
+  // Force refetch when refreshKey changes (> 0 means explicit refresh)
+  // This is handled by queryKey stability + invalidation instead
 
-      // If there's already a fetch in progress, wait for it
-      if (isDefaultParams && pendingFetch) {
-        const response = await pendingFetch as unknown[];
-        setServices(response || []);
-        return response;
-      }
-
-      setLoading(true);
-      setError(null);
-
-      const mergedParams = { ...options, ...params };
-
-      // Create new fetch promise (only cache default params)
-      if (isDefaultParams) {
-        pendingFetch = servicesAPI.list(mergedParams);
-        const response = await pendingFetch as unknown[];
-        pendingFetch = null;
-
-        // Update cache
-        servicesCache = response;
-        cacheTimestamp = Date.now();
-
-        setServices(response || []);
-        return response;
-      } else {
-        // Don't cache filtered requests
-        const response = await servicesAPI.list(mergedParams) as unknown[];
-        setServices(response || []);
-        return response;
-      }
-    } catch (err: unknown) {
-      pendingFetch = null;
-      console.error('[useServices] Failed to fetch services:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [options]);
-
-  // Get single service
+  // Get single service (imperative, not cached)
   const getService = useCallback(async (serviceId: string): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const service = await servicesAPI.get(serviceId);
-      return service;
-    } catch (err: unknown) {
-      console.error('[useServices] Failed to get service:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+    return servicesAPI.get(serviceId);
   }, []);
 
-  // Create service
+  // Create service mutation
+  const createMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) => servicesAPI.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
+    },
+  });
+
+  // Update service mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ serviceId, data }: { serviceId: string; data: Record<string, unknown> }) =>
+      servicesAPI.update(serviceId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
+    },
+  });
+
+  // Delete service mutation
+  const deleteMutation = useMutation({
+    mutationFn: (serviceId: string) => servicesAPI.delete(serviceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
+    },
+  });
+
+  // Wrapper functions to maintain the same API interface
   const createService = useCallback(async (data: Record<string, unknown>): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const newService = await servicesAPI.create(data);
+    return createMutation.mutateAsync(data);
+  }, [createMutation]);
 
-      // Invalidate cache
-      servicesCache = null;
-      cacheTimestamp = null;
-
-      // Add to local state
-      setServices(prev => addItem(prev, newService));
-
-      return newService;
-    } catch (err: unknown) {
-      console.error('[useServices] Failed to create service:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Update service
   const updateService = useCallback(async (serviceId: string, data: Record<string, unknown>): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const updatedService = await servicesAPI.update(serviceId, data);
+    return updateMutation.mutateAsync({ serviceId, data });
+  }, [updateMutation]);
 
-      // Invalidate cache
-      servicesCache = null;
-      cacheTimestamp = null;
-
-      // Update in local state
-      setServices(prev => updateItem(prev, serviceId, updatedService));
-
-      return updatedService;
-    } catch (err: unknown) {
-      console.error('[useServices] Failed to update service:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Delete service
   const deleteService = useCallback(async (serviceId: string): Promise<boolean> => {
-    try {
-      setLoading(true);
-      setError(null);
-      await servicesAPI.delete(serviceId);
+    await deleteMutation.mutateAsync(serviceId);
+    return true;
+  }, [deleteMutation]);
 
-      // Invalidate cache
-      servicesCache = null;
-      cacheTimestamp = null;
-
-      // Remove from local state
-      setServices(prev => removeItem(prev, serviceId));
-
-      return true;
-    } catch (err: unknown) {
-      console.error('[useServices] Failed to delete service:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
+  const fetchServices = useCallback(async (params: Record<string, unknown> = {}, forceRefresh: boolean = false): Promise<unknown> => {
+    if (forceRefresh || refreshKey > 0) {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
     }
-  }, []);
-
-  // Load services on mount and when refreshKey changes
-  useEffect(() => {
-    fetchServices({}, refreshKey > 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey]);
+    return servicesQuery.data;
+  }, [queryClient, servicesQuery.data, refreshKey]);
 
   return {
-    services,
-    loading,
-    error,
+    services: (servicesQuery.data || []) as unknown[],
+    loading: servicesQuery.isLoading,
+    error: servicesQuery.error?.message || null,
     fetchServices,
     getService,
     createService,

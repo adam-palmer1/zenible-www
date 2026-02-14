@@ -4,6 +4,7 @@ import quotesAPI from '../services/api/finance/quotes';
 import type { QuoteCreate } from '../types';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
 import { formatLocalDate } from '../utils/dateUtils';
+import { queryKeys } from '../lib/query-keys';
 
 interface QuoteFilters {
   search: string;
@@ -132,6 +133,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   // -------------------------------------------------------------------------
   const doc = useDocumentState<QuoteFilters>({
     name: 'Quote',
+    queryKeyBase: queryKeys.quotes.all,
     apiService: quotesAPI as unknown as DocumentStateConfig<QuoteFilters>['apiService'],
     paginationStyle: 'page-perpage',
     defaultSort: 'created_at',

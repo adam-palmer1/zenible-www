@@ -1,6 +1,8 @@
-import React, { createContext, useState, useCallback, useMemo, useContext } from 'react';
+import React, { createContext, useCallback, useMemo, useContext } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import paymentIntegrationsAPI from '../services/api/finance/paymentIntegrations';
+import { queryKeys } from '../lib/query-keys';
 
 export interface PaymentIntegration {
   id: string;
@@ -34,168 +36,82 @@ interface PaymentIntegrationsContextValue {
 
 export const PaymentIntegrationsContext = createContext<PaymentIntegrationsContextValue | null>(null);
 
-/**
- * Payment Integrations Provider
- * Manages payment gateway integrations (Stripe, PayPal)
- */
 export const PaymentIntegrationsProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  // State
-  const [integrations, setIntegrations] = useState<PaymentIntegration[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
-
-  /**
-   * Load payment integrations
-   */
-  const loadIntegrations = useCallback(async () => {
-    if (!user) {
-      setIntegrations([]);
-      setInitialized(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
+  const integrationsQuery = useQuery({
+    queryKey: queryKeys.paymentIntegrations.all,
+    queryFn: async () => {
       const data = await paymentIntegrationsAPI.list();
-      setIntegrations((data as PaymentIntegration[]) || []);
-      setInitialized(true);
-    } catch (err) {
-      console.error('[PaymentIntegrationsContext] Error loading integrations:', err);
-      setError((err as Error).message);
-      setIntegrations([]);
-      setInitialized(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  /**
-   * Get integration by type (stripe or paypal)
-   */
-  const getIntegration = useCallback(
-    (type: string) => {
-      return integrations.find(
-        (int) => int.type === type && int.is_active
-      );
+      return (data as PaymentIntegration[]) || [];
     },
+    enabled: !!user,
+  });
+
+  const integrations = integrationsQuery.data || [];
+
+  const getIntegration = useCallback(
+    (type: string) => integrations.find((int) => int.type === type && int.is_active),
     [integrations]
   );
 
-  /**
-   * Check if a gateway is connected
-   */
   const isConnected = useCallback(
     (type: string) => {
       const integration = getIntegration(type);
-      return integration && integration.is_active;
+      return !!integration && !!integration.is_active;
     },
     [getIntegration]
   );
 
-  /**
-   * Get Stripe integration
-   */
-  const stripeIntegration = useMemo(() => {
-    return getIntegration('stripe');
-  }, [getIntegration]);
+  const stripeIntegration = useMemo(() => getIntegration('stripe'), [getIntegration]);
+  const paypalIntegration = useMemo(() => getIntegration('paypal'), [getIntegration]);
+  const isStripeConnected = useMemo(() => isConnected('stripe'), [isConnected]);
+  const isPayPalConnected = useMemo(() => isConnected('paypal'), [isConnected]);
+  const hasAnyGateway = useMemo(() => isStripeConnected || isPayPalConnected, [isStripeConnected, isPayPalConnected]);
 
-  /**
-   * Get PayPal integration
-   */
-  const paypalIntegration = useMemo(() => {
-    return getIntegration('paypal');
-  }, [getIntegration]);
+  // Disconnect mutation
+  const disconnectMutation = useMutation({
+    mutationFn: (integrationId: string) => paymentIntegrationsAPI.disconnect(integrationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.paymentIntegrations.all });
+    },
+  });
 
-  /**
-   * Check if Stripe is connected
-   */
-  const isStripeConnected = useMemo(() => {
-    return !!isConnected('stripe');
-  }, [isConnected]);
-
-  /**
-   * Check if PayPal is connected
-   */
-  const isPayPalConnected = useMemo(() => {
-    return !!isConnected('paypal');
-  }, [isConnected]);
-
-  /**
-   * Check if any payment gateway is connected
-   */
-  const hasAnyGateway = useMemo(() => {
-    return isStripeConnected || isPayPalConnected;
-  }, [isStripeConnected, isPayPalConnected]);
-
-  /**
-   * Disconnect an integration
-   */
   const disconnectIntegration = useCallback(async (integrationId: string) => {
-    try {
-      setLoading(true);
-      setError(null);
+    await disconnectMutation.mutateAsync(integrationId);
+    return true;
+  }, [disconnectMutation]);
 
-      await paymentIntegrationsAPI.disconnect(integrationId);
+  const loadIntegrations = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.paymentIntegrations.all });
+  }, [queryClient]);
 
-      // Remove from local state
-      setIntegrations((prev) =>
-        prev.filter((int) => int.id !== integrationId)
-      );
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.paymentIntegrations.all });
+  }, [queryClient]);
 
-      return true;
-    } catch (err) {
-      console.error('[PaymentIntegrationsContext] Error disconnecting integration:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  /**
-   * Refresh integrations
-   */
-  const refresh = useCallback(() => {
-    return loadIntegrations();
-  }, [loadIntegrations]);
-
-  // Load integrations when user changes
-  React.useEffect(() => {
-    loadIntegrations();
-  }, [loadIntegrations]);
-
-  // Context value
   const value = useMemo(
     () => ({
-      // State
       integrations,
-      loading,
-      error,
-      initialized,
-
-      // Getters
+      loading: integrationsQuery.isLoading,
+      error: integrationsQuery.error?.message || null,
+      initialized: !integrationsQuery.isLoading && integrationsQuery.isFetched,
       getIntegration,
       stripeIntegration,
       paypalIntegration,
       isStripeConnected,
       isPayPalConnected,
       hasAnyGateway,
-
-      // Methods
       loadIntegrations,
       disconnectIntegration,
       refresh,
     }),
     [
       integrations,
-      loading,
-      error,
-      initialized,
+      integrationsQuery.isLoading,
+      integrationsQuery.error,
+      integrationsQuery.isFetched,
       getIntegration,
       stripeIntegration,
       paypalIntegration,
@@ -215,9 +131,6 @@ export const PaymentIntegrationsProvider = ({ children }: { children: React.Reac
   );
 };
 
-/**
- * Hook to use payment integrations context
- */
 export const usePaymentIntegrations = (): PaymentIntegrationsContextValue => {
   const context = useContext(PaymentIntegrationsContext);
   if (!context) {

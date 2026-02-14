@@ -84,6 +84,66 @@ export const queryKeys = {
     effective: (templateType: string) => [...queryKeys.emailTemplates.all, 'effective', templateType] as const,
   },
 
+  // Finance Reports
+  financeReports: {
+    all: ['financeReports'] as const,
+    transactions: (params: unknown) => [...queryKeys.financeReports.all, 'transactions', { params }] as const,
+    summary: (params: unknown) => [...queryKeys.financeReports.all, 'summary', { params }] as const,
+  },
+
+  // Invoices
+  invoices: {
+    all: ['invoices'] as const,
+    lists: () => [...queryKeys.invoices.all, 'list'] as const,
+    list: (filters: unknown) => [...queryKeys.invoices.lists(), { filters }] as const,
+    stats: () => [...queryKeys.invoices.all, 'stats'] as const,
+    detail: (id: string) => [...queryKeys.invoices.all, 'detail', id] as const,
+  },
+
+  // Expenses
+  expenses: {
+    all: ['expenses'] as const,
+    lists: () => [...queryKeys.expenses.all, 'list'] as const,
+    list: (filters: unknown) => [...queryKeys.expenses.lists(), { filters }] as const,
+    detail: (id: string) => [...queryKeys.expenses.all, 'detail', id] as const,
+    categories: () => [...queryKeys.expenses.all, 'categories'] as const,
+  },
+
+  // Quotes
+  quotes: {
+    all: ['quotes'] as const,
+    lists: () => [...queryKeys.quotes.all, 'list'] as const,
+    list: (filters: unknown) => [...queryKeys.quotes.lists(), { filters }] as const,
+    detail: (id: string) => [...queryKeys.quotes.all, 'detail', id] as const,
+    stats: () => [...queryKeys.quotes.all, 'stats'] as const,
+    templates: () => [...queryKeys.quotes.all, 'templates'] as const,
+  },
+
+  // Payments
+  payments: {
+    all: ['payments'] as const,
+    lists: () => [...queryKeys.payments.all, 'list'] as const,
+    list: (filters: unknown) => [...queryKeys.payments.lists(), { filters }] as const,
+    detail: (id: string) => [...queryKeys.payments.all, 'detail', id] as const,
+  },
+
+  // Tips
+  tips: {
+    all: ['tips'] as const,
+    random: () => [...queryKeys.tips.all, 'random'] as const,
+  },
+
+  // Dashboard
+  dashboard: {
+    all: ['dashboard'] as const,
+    widgets: (visibleIds: string[]) => [...queryKeys.dashboard.all, 'widgets', { visibleIds }] as const,
+  },
+
+  // Reference data (countries, industries, etc.)
+  referenceData: {
+    all: ['referenceData'] as const,
+  },
+
   // Currencies
   currencies: {
     all: ['currencies'] as const,
@@ -91,6 +151,78 @@ export const queryKeys = {
     company: () => [...queryKeys.currencies.all, 'company'] as const,
     numberFormat: () => [...queryKeys.currencies.all, 'numberFormat'] as const,
     numberFormatDetails: (formatId: string) => [...queryKeys.currencies.all, 'numberFormatDetails', formatId] as const,
+    rates: (params: unknown) => [...queryKeys.currencies.all, 'rates', { params }] as const,
+  },
+
+  // Contact Fields
+  contactFields: {
+    all: ['contactFields'] as const,
+  },
+
+  // Company Attributes
+  companyAttributes: {
+    all: ['companyAttributes'] as const,
+  },
+
+  // Service Enums
+  serviceEnums: {
+    all: ['serviceEnums'] as const,
+  },
+
+  // Contact Services (services assigned to contacts)
+  contactServices: {
+    all: ['contactServices'] as const,
+    list: (filters: unknown) => [...queryKeys.contactServices.all, 'list', { filters }] as const,
+  },
+
+  // Contact Financials
+  contactFinancials: {
+    all: ['contactFinancials'] as const,
+    detail: (contactId: string) => [...queryKeys.contactFinancials.all, contactId] as const,
+  },
+
+  // Contact Notes
+  contactNotes: {
+    all: ['contactNotes'] as const,
+    byContact: (contactId: string) => [...queryKeys.contactNotes.all, contactId] as const,
+  },
+
+  // Contact Activities
+  contactActivities: {
+    all: ['contactActivities'] as const,
+    byContact: (contactId: string) => [...queryKeys.contactActivities.all, contactId] as const,
+  },
+
+  // Usage Dashboard
+  usageDashboard: {
+    all: ['usageDashboard'] as const,
+  },
+
+  // Payment Integrations
+  paymentIntegrations: {
+    all: ['paymentIntegrations'] as const,
+  },
+
+  // Billable Hours
+  billableHours: {
+    all: ['billableHours'] as const,
+    byProject: (projectId: string) => [...queryKeys.billableHours.all, 'project', projectId] as const,
+    list: (filters: unknown) => [...queryKeys.billableHours.all, 'list', { filters }] as const,
+    byContact: (contactId: string) => [...queryKeys.billableHours.all, 'contact', contactId] as const,
+  },
+
+  // Calendar
+  calendar: {
+    all: ['calendar'] as const,
+    appointments: (filters: unknown) => [...queryKeys.calendar.all, 'appointments', { filters }] as const,
+    googleStatus: () => [...queryKeys.calendar.all, 'googleStatus'] as const,
+  },
+
+  // Countries
+  countries: {
+    all: ['countries'] as const,
+    list: () => [...queryKeys.countries.all, 'list'] as const,
+    company: () => [...queryKeys.countries.all, 'company'] as const,
   },
 };
 
@@ -105,6 +237,9 @@ export const invalidateCRMQueries = (queryClient: QueryClient): Promise<void[]> 
     queryClient.invalidateQueries({ queryKey: queryKeys.services.all }),
     queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all }),
     queryClient.invalidateQueries({ queryKey: queryKeys.projects.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.contactServices.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.contactFields.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.companyAttributes.all }),
   ]);
 };
 
@@ -112,6 +247,19 @@ export const invalidateCRMQueries = (queryClient: QueryClient): Promise<void[]> 
  * Helper to invalidate contact-specific queries
  * Use after updating a single contact
  */
+/**
+ * Helper to invalidate all finance-related queries
+ */
+export const invalidateFinanceQueries = (queryClient: QueryClient): Promise<void[]> => {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.payments.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all }),
+  ]);
+};
+
 export const invalidateContactQueries = (queryClient: QueryClient, contactId: string): Promise<void[]> => {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.contacts.detail(contactId) }),

@@ -388,40 +388,6 @@ const SettingsField = ({ name: _name, schema, value, onChange }: SettingsFieldPr
         </div>
       );
 
-    case 'size': {
-      // Generate size options based on min/max
-      const sizeOptions: number[] = [];
-      for (let i = (min || 1); i <= (max || 3); i++) {
-        sizeOptions.push(i);
-      }
-
-      return (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {label}
-          </label>
-          <div className="flex gap-2">
-            {sizeOptions.map((size) => (
-              <button
-                key={size}
-                type="button"
-                onClick={() => onChange(size)}
-                className={`
-                  w-10 h-10 rounded-lg border-2 text-sm font-medium transition-all
-                  ${value === size
-                    ? 'border-[#8e51ff] bg-purple-50 text-[#8e51ff]'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                  }
-                `}
-              >
-                {size}
-              </button>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
     default:
       return (
         <div>

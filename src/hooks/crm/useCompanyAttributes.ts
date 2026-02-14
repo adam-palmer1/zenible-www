@@ -1,10 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import companyAttributesAPI from '../../services/api/crm/companyAttributes';
-
-// Module-level cache (shared across all hook instances)
-let attributesCache: Record<string, string> | null = null;
-let cacheTimestamp: number | null = null;
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes (attributes rarely change)
+import { queryKeys } from '../../lib/query-keys';
 
 interface CompanyAttribute {
   attribute_name: string;
@@ -16,53 +13,30 @@ interface SetResult {
   error?: string;
 }
 
+const ATTRIBUTES_STALE_TIME = 10 * 60 * 1000; // 10 minutes (attributes rarely change)
+
 /**
  * Hook for managing company attributes (key-value settings)
- * Uses module-level caching to prevent duplicate API calls
+ * Uses React Query for caching and deduplication
  */
 export const useCompanyAttributes = () => {
-  const [attributes, setAttributes] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  // Fetch all attributes
-  const fetchAttributes = useCallback(async (): Promise<void> => {
-    // Check cache first
-    const now = Date.now();
-    if (attributesCache && cacheTimestamp && (now - cacheTimestamp < CACHE_TTL)) {
-      setAttributes(attributesCache);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
+  // Query for all attributes
+  const attributesQuery = useQuery({
+    queryKey: queryKeys.companyAttributes.all,
+    queryFn: async () => {
       const result = await companyAttributesAPI.getAll();
       // Convert array to object for easier access
-      const attributesObj = (result as CompanyAttribute[]).reduce((acc: Record<string, string>, attr: CompanyAttribute) => {
+      return (result as CompanyAttribute[]).reduce((acc: Record<string, string>, attr: CompanyAttribute) => {
         acc[attr.attribute_name] = attr.attribute_value;
         return acc;
       }, {} as Record<string, string>);
+    },
+    staleTime: ATTRIBUTES_STALE_TIME,
+  });
 
-      // Update cache
-      attributesCache = attributesObj;
-      cacheTimestamp = now;
-
-      setAttributes(attributesObj);
-    } catch (err: unknown) {
-      setError((err as Error).message);
-      console.error('Failed to fetch company attributes:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Initial load
-  useEffect(() => {
-    fetchAttributes();
-  }, [fetchAttributes]);
+  const attributes = attributesQuery.data || {};
 
   // Get specific attribute value
   const getAttribute = useCallback(
@@ -72,123 +46,96 @@ export const useCompanyAttributes = () => {
     [attributes]
   );
 
-  // Set or update attribute
+  // Set or update attribute mutation
+  const setMutation = useMutation({
+    mutationFn: ({ name, value, description }: { name: string; value: string; description: string | null }) =>
+      companyAttributesAPI.set(name, value, description),
+    onSuccess: (_data, { name, value }) => {
+      // Optimistically update cache
+      queryClient.setQueryData(queryKeys.companyAttributes.all, (old: Record<string, string> | undefined) => ({
+        ...old,
+        [name]: value,
+      }));
+    },
+  });
+
   const setAttribute = useCallback(
     async (name: string, value: string, description: string | null = null): Promise<SetResult> => {
-      setError(null);
       try {
-        await companyAttributesAPI.set(name, value, description);
-        // Invalidate cache
-        attributesCache = null;
-        cacheTimestamp = null;
-        // Update local state
-        setAttributes((prev) => ({
-          ...prev,
-          [name]: value,
-        }));
+        await setMutation.mutateAsync({ name, value, description });
         return { success: true };
       } catch (err: unknown) {
-        setError((err as Error).message);
         return { success: false, error: (err as Error).message };
       }
     },
-    []
+    [setMutation]
   );
 
-  // Batch update attributes
+  // Batch update mutation
+  const batchMutation = useMutation({
+    mutationFn: (attributesArray: unknown[]) => companyAttributesAPI.batchUpdate(attributesArray),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.companyAttributes.all });
+    },
+  });
+
   const batchUpdate = useCallback(async (attributesArray: unknown[]): Promise<SetResult> => {
-    setError(null);
     try {
-      await companyAttributesAPI.batchUpdate(attributesArray);
-      // Invalidate cache before refresh
-      attributesCache = null;
-      cacheTimestamp = null;
-      await fetchAttributes(); // Refresh all
+      await batchMutation.mutateAsync(attributesArray);
       return { success: true };
     } catch (err: unknown) {
-      setError((err as Error).message);
       return { success: false, error: (err as Error).message };
     }
-  }, [fetchAttributes]);
+  }, [batchMutation]);
 
-  // Delete attribute
+  // Delete attribute mutation
+  const deleteMutation = useMutation({
+    mutationFn: (name: string) => companyAttributesAPI.delete(name),
+    onSuccess: (_data, name) => {
+      // Optimistically update cache
+      queryClient.setQueryData(queryKeys.companyAttributes.all, (old: Record<string, string> | undefined) => {
+        if (!old) return {};
+        const newAttributes = { ...old };
+        delete newAttributes[name];
+        return newAttributes;
+      });
+    },
+  });
+
   const deleteAttribute = useCallback(
     async (name: string): Promise<SetResult> => {
-      setError(null);
       try {
-        await companyAttributesAPI.delete(name);
-        // Invalidate cache
-        attributesCache = null;
-        cacheTimestamp = null;
-        // Remove from local state
-        setAttributes((prev) => {
-          const newAttributes = { ...prev };
-          delete newAttributes[name];
-          return newAttributes;
-        });
+        await deleteMutation.mutateAsync(name);
         return { success: true };
       } catch (err: unknown) {
-        setError((err as Error).message);
         return { success: false, error: (err as Error).message };
       }
     },
-    []
+    [deleteMutation]
   );
 
   // Convenience methods for specific attributes
-  const getIndustry = useCallback((): string | null => {
-    return getAttribute('industry');
-  }, [getAttribute]);
+  const getIndustry = useCallback((): string | null => getAttribute('industry'), [getAttribute]);
+  const setIndustry = useCallback(async (industryId: string): Promise<SetResult> => setAttribute('industry', industryId), [setAttribute]);
+  const getEmployeeCount = useCallback((): string | null => getAttribute('employee_count'), [getAttribute]);
+  const setEmployeeCount = useCallback(async (employeeRangeId: string): Promise<SetResult> => setAttribute('employee_count', employeeRangeId), [setAttribute]);
+  const getNumberFormat = useCallback((): string | null => getAttribute('number_format'), [getAttribute]);
+  const setNumberFormat = useCallback(async (formatId: string): Promise<SetResult> => setAttribute('number_format', formatId), [setAttribute]);
+  const getTimezone = useCallback((): string | null => getAttribute('timezone'), [getAttribute]);
+  const setTimezone = useCallback(async (timezone: string): Promise<SetResult> => setAttribute('timezone', timezone), [setAttribute]);
 
-  const setIndustry = useCallback(
-    async (industryId: string): Promise<SetResult> => {
-      return await setAttribute('industry', industryId);
-    },
-    [setAttribute]
-  );
-
-  const getEmployeeCount = useCallback((): string | null => {
-    return getAttribute('employee_count');
-  }, [getAttribute]);
-
-  const setEmployeeCount = useCallback(
-    async (employeeRangeId: string): Promise<SetResult> => {
-      return await setAttribute('employee_count', employeeRangeId);
-    },
-    [setAttribute]
-  );
-
-  const getNumberFormat = useCallback((): string | null => {
-    return getAttribute('number_format');
-  }, [getAttribute]);
-
-  const setNumberFormat = useCallback(
-    async (formatId: string): Promise<SetResult> => {
-      return await setAttribute('number_format', formatId);
-    },
-    [setAttribute]
-  );
-
-  const getTimezone = useCallback((): string | null => {
-    return getAttribute('timezone');
-  }, [getAttribute]);
-
-  const setTimezone = useCallback(
-    async (timezone: string): Promise<SetResult> => {
-      return await setAttribute('timezone', timezone);
-    },
-    [setAttribute]
-  );
+  const refresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.companyAttributes.all });
+  }, [queryClient]);
 
   return {
     attributes,
-    loading,
-    error,
+    loading: attributesQuery.isLoading,
+    error: attributesQuery.error?.message || null,
     getAttribute,
     setAttribute,
     batchUpdate,
     deleteAttribute,
-    // Convenience methods
     getIndustry,
     setIndustry,
     getEmployeeCount,
@@ -197,15 +144,13 @@ export const useCompanyAttributes = () => {
     setNumberFormat,
     getTimezone,
     setTimezone,
-    refresh: fetchAttributes,
+    refresh,
   };
 };
 
 /**
  * Manually invalidate the company attributes cache
- * Useful for external updates or testing
  */
 export const invalidateCompanyAttributesCache = (): void => {
-  attributesCache = null;
-  cacheTimestamp = null;
+  // This is now a no-op; use queryClient.invalidateQueries() instead
 };

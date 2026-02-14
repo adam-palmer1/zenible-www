@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import invoicesAPI from '../services/api/finance/invoices';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
 import { formatLocalDate } from '../utils/dateUtils';
+import { queryKeys } from '../lib/query-keys';
 
 interface InvoiceFilters {
   search: string;
@@ -100,6 +101,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
   // -------------------------------------------------------------------------
   const doc = useDocumentState<InvoiceFilters>({
     name: 'Invoice',
+    queryKeyBase: queryKeys.invoices.all,
     apiService: invoicesAPI as unknown as DocumentStateConfig<InvoiceFilters>['apiService'],
     paginationStyle: 'page-perpage',
     sortParamName: 'sort_order',

@@ -100,15 +100,21 @@ const Modal: React.FC<ModalProps> = ({
         >
           {/* Provide portal context to all children */}
           <ModalPortalContext.Provider value={portalContainer}>
+            {/* Accessibility: sr-only fallbacks when header is hidden */}
+            {!(title || showCloseButton) && (
+              <>
+                <Dialog.Title className="sr-only">Modal dialog</Dialog.Title>
+                <Dialog.Description className="sr-only">Modal dialog</Dialog.Description>
+              </>
+            )}
+
             {/* Header */}
             {(title || showCloseButton) && (
               <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                 <div>
-                  {title && (
-                    <Dialog.Title className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
-                      {title}
-                    </Dialog.Title>
-                  )}
+                  <Dialog.Title className={title ? "text-lg sm:text-xl font-semibold text-gray-900 dark:text-white" : "sr-only"}>
+                    {title || 'Modal dialog'}
+                  </Dialog.Title>
                   {description ? (
                     <Dialog.Description className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                       {description}

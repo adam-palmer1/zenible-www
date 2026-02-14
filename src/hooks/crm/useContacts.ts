@@ -1,13 +1,13 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { contactsAPI } from '../../services/api/crm';
-import { removeItem, updateItem, prependItem } from '../../utils/stateHelpers';
+import { queryKeys } from '../../lib/query-keys';
 import type {
   ContactResponse,
   ContactCreate,
   ContactServiceCreate,
   ContactServiceAttributionCreate,
   ContactServiceInvoiceCreate,
-  PaginatedResponse,
 } from '../../types';
 
 interface Pagination {
@@ -23,17 +23,16 @@ interface UseContactsOptions {
 
 /**
  * Custom hook for managing contacts
- * Handles loading, creating, updating, and deleting contacts
+ * Uses React Query for caching, deduplication, and background refetching
  */
 export function useContacts(
   filters: Record<string, unknown> = {},
-  refreshKey: number = 0,
+  _refreshKey: number = 0,
   options: UseContactsOptions = {}
 ) {
   const { skipInitialFetch = false } = options;
-  const [contacts, setContacts] = useState<ContactResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     per_page: 20,
@@ -41,475 +40,226 @@ export function useContacts(
     total_pages: 0,
   });
 
-  // Fetch contacts
-  const fetchContacts = useCallback(async (params: Record<string, unknown> = {}): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
+  // Build query params
+  const queryParams = useMemo(() => ({
+    page: pagination.page,
+    per_page: pagination.per_page,
+    sort_by: 'last_used',
+    sort_order: 'desc',
+    ...filters,
+  }), [pagination.page, pagination.per_page, filters]);
 
-      const mergedParams = {
-        page: pagination.page,
-        per_page: pagination.per_page,
-        sort_by: 'last_used',
-        sort_order: 'desc',
-        ...filters,
-        ...params,
-      } as unknown as Record<string, string>;
-
-      const response = await contactsAPI.list(mergedParams);
-
-      setContacts(response.items || []);
-      setPagination({
-        page: response.page,
-        per_page: response.per_page,
-        total: response.total,
-        total_pages: response.total_pages,
-      });
-
+  // Contacts list query
+  const contactsQuery = useQuery({
+    queryKey: queryKeys.contacts.list(queryParams),
+    queryFn: async () => {
+      const response = await contactsAPI.list(queryParams as unknown as Record<string, string>);
       return response;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to fetch contacts:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, pagination.page, pagination.per_page]);
+    },
+    enabled: !skipInitialFetch,
+  });
 
-  // Get single contact
+  // Update pagination when data changes
+  const contacts = contactsQuery.data?.items || [];
+  if (contactsQuery.data && (
+    pagination.total !== contactsQuery.data.total ||
+    pagination.total_pages !== contactsQuery.data.total_pages
+  )) {
+    // Use state setter directly to avoid effect loops
+    setPagination(prev => ({
+      ...prev,
+      page: contactsQuery.data.page,
+      per_page: contactsQuery.data.per_page,
+      total: contactsQuery.data.total,
+      total_pages: contactsQuery.data.total_pages,
+    }));
+  }
+
+  // Fetch contacts - if params are provided, makes a direct API call (e.g. for search);
+  // otherwise invalidates the cached query to trigger a refetch.
+  const fetchContacts = useCallback(async (params: Record<string, unknown> = {}): Promise<unknown> => {
+    if (Object.keys(params).length > 0) {
+      const stringParams = Object.entries(params).reduce<Record<string, string>>((acc, [key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          acc[key] = String(value);
+        }
+        return acc;
+      }, {});
+      return contactsAPI.list(stringParams);
+    }
+    await queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
+    return contactsQuery.data;
+  }, [queryClient, contactsQuery.data]);
+
+  // Get single contact (imperative)
   const getContact = useCallback(async (contactId: string): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const contact = await contactsAPI.get(contactId);
-      return contact;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to get contact:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+    return contactsAPI.get(contactId);
   }, []);
 
-  // Create contact
+  // Create contact mutation
+  const createMutation = useMutation({
+    mutationFn: (data: ContactCreate) => contactsAPI.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    },
+  });
+
   const createContact = useCallback(async (data: ContactCreate): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const newContact = await contactsAPI.create(data);
+    return createMutation.mutateAsync(data);
+  }, [createMutation]);
 
-      // Add to local state
-      setContacts(prev => prependItem(prev, newContact));
-      setPagination((prev) => ({ ...prev, total: prev.total + 1 }));
+  // Update contact mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ contactId, data }: { contactId: string; data: Record<string, unknown> }) =>
+      contactsAPI.update(contactId, data),
+    onSuccess: (_result, { contactId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.detail(contactId) });
+    },
+  });
 
-      return newContact;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to create contact:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Update contact
   const updateContact = useCallback(async (
     contactId: string,
     data: Record<string, unknown>,
-    options: { skipLoading?: boolean } = {}
+    _options: { skipLoading?: boolean } = {}
   ): Promise<unknown> => {
-    try {
-      // Skip loading state for optimistic updates (e.g., drag-and-drop)
-      // Only show loading for explicit user actions
-      if (!options.skipLoading) {
-        setLoading(true);
-      }
-      setError(null);
-      const updatedContact = await contactsAPI.update(contactId, data);
+    const result = await updateMutation.mutateAsync({ contactId, data });
+    return { success: true, ...(result as ContactResponse) };
+  }, [updateMutation]);
 
-      // Update in local state - merge with existing contact to preserve fields
-      // that may not be returned by the PATCH API (like service counts, totals, etc.)
-      setContacts(prev => updateItem(prev, contactId, (existingContact: ContactResponse) => ({
-        ...existingContact,
-        ...(updatedContact as ContactResponse),
-      })));
+  // Delete contact mutation
+  const deleteMutation = useMutation({
+    mutationFn: (contactId: string) => contactsAPI.delete(contactId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    },
+  });
 
-      return { success: true, ...(updatedContact as ContactResponse) };
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to update contact:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      if (!options.skipLoading) {
-        setLoading(false);
-      }
-    }
-  }, []);
-
-  // Delete contact
   const deleteContact = useCallback(async (contactId: string): Promise<boolean> => {
-    try {
-      setLoading(true);
-      setError(null);
-      await contactsAPI.delete(contactId);
+    await deleteMutation.mutateAsync(contactId);
+    return true;
+  }, [deleteMutation]);
 
-      // Remove from local state
-      setContacts(prev => removeItem(prev, contactId));
-      setPagination((prev) => ({ ...prev, total: prev.total - 1 }));
+  // Change status mutation
+  const changeStatusMutation = useMutation({
+    mutationFn: ({ contactId, statusData }: { contactId: string; statusData: Record<string, unknown> }) =>
+      contactsAPI.changeStatus(contactId, statusData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    },
+  });
 
-      return true;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to delete contact:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Change contact status
   const changeStatus = useCallback(async (contactId: string, statusData: Record<string, unknown>): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const updatedContact = await contactsAPI.changeStatus(contactId, statusData);
+    return changeStatusMutation.mutateAsync({ contactId, statusData });
+  }, [changeStatusMutation]);
 
-      // Update in local state
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
+  // Service operations - all invalidate contacts after success
+  const contactServiceMutation = useMutation({
+    mutationFn: ({ contactId, serviceData }: { contactId: string; serviceData: ContactServiceCreate }) =>
+      contactsAPI.createContactService(contactId, serviceData),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all }); },
+  });
 
-      return updatedContact;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to change status:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Create contact-specific service
   const createContactService = useCallback(async (contactId: string, serviceData: ContactServiceCreate): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const updatedContact = await contactsAPI.createContactService(contactId, serviceData);
+    return contactServiceMutation.mutateAsync({ contactId, serviceData });
+  }, [contactServiceMutation]);
 
-      // Update in local state - service response used to update contact entry
-      setContacts(prev => updateItem(prev, contactId, updatedContact as unknown as ContactResponse));
+  const assignServiceMutation = useMutation({
+    mutationFn: ({ contactId, serviceId }: { contactId: string; serviceId: string }) =>
+      contactsAPI.assignService(contactId, serviceId),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all }); },
+  });
 
-      return updatedContact;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to create contact service:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Assign service
   const assignService = useCallback(async (contactId: string, serviceId: string): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const updatedContact = await contactsAPI.assignService(contactId, serviceId);
+    return assignServiceMutation.mutateAsync({ contactId, serviceId });
+  }, [assignServiceMutation]);
 
-      // Update in local state - service response used to update contact entry
-      setContacts(prev => updateItem(prev, contactId, updatedContact as unknown as ContactResponse));
-
-      return updatedContact;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to assign service:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Update contact service
-  const updateContactService = useCallback(async (
-    contactId: string,
-    serviceId: string,
-    serviceData: Record<string, unknown>
-  ): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const updatedService = await contactsAPI.updateContactService(contactId, serviceId, serviceData);
-
-      // Refresh contact to get updated services
-      const updatedContact = await contactsAPI.get(contactId);
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
-
-      return updatedService;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to update contact service:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Unassign service
-  const unassignService = useCallback(async (contactId: string, serviceId: string): Promise<boolean> => {
-    try {
-      setLoading(true);
-      setError(null);
-      await contactsAPI.unassignService(contactId, serviceId);
-
-      // Refresh contact to get updated services
-      const updatedContact = await contactsAPI.get(contactId);
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
-
-      return true;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to unassign service:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // =====================
-  // Service Attributions
-  // =====================
-
-  // List attributions for a service
-  const listAttributions = useCallback(async (contactId: string, serviceId: string): Promise<unknown> => {
-    try {
-      setError(null);
-      return await contactsAPI.listAttributions(contactId, serviceId);
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to list attributions:', err);
-      setError((err as Error).message);
-      throw err;
-    }
-  }, []);
-
-  // Create attribution for a service
-  const createAttribution = useCallback(async (
-    contactId: string,
-    serviceId: string,
-    data: ContactServiceAttributionCreate
-  ): Promise<unknown> => {
-    try {
-      setError(null);
-      const attribution = await contactsAPI.createAttribution(contactId, serviceId, data);
-
-      // Refresh contact to get updated service amounts
-      const updatedContact = await contactsAPI.get(contactId);
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
-
-      return attribution;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to create attribution:', err);
-      setError((err as Error).message);
-      throw err;
-    }
-  }, []);
-
-  // Delete attribution
-  const deleteAttribution = useCallback(async (
-    contactId: string,
-    serviceId: string,
-    attributionId: string
-  ): Promise<boolean> => {
-    try {
-      setError(null);
-      await contactsAPI.deleteAttribution(contactId, serviceId, attributionId);
-
-      // Refresh contact to get updated service amounts
-      const updatedContact = await contactsAPI.get(contactId);
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
-
-      return true;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to delete attribution:', err);
-      setError((err as Error).message);
-      throw err;
-    }
-  }, []);
-
-  // =====================
-  // Service Invoice Links
-  // =====================
-
-  // List invoice links for a service
-  const listInvoiceLinks = useCallback(async (contactId: string, serviceId: string): Promise<unknown> => {
-    try {
-      setError(null);
-      return await contactsAPI.listInvoiceLinks(contactId, serviceId);
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to list invoice links:', err);
-      setError((err as Error).message);
-      throw err;
-    }
-  }, []);
-
-  // Create invoice link for a service
-  const createInvoiceLink = useCallback(async (
-    contactId: string,
-    serviceId: string,
-    data: ContactServiceInvoiceCreate
-  ): Promise<unknown> => {
-    try {
-      setError(null);
-      const invoiceLink = await contactsAPI.createInvoiceLink(contactId, serviceId, data);
-
-      // Refresh contact to get updated service amounts
-      const updatedContact = await contactsAPI.get(contactId);
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
-
-      return invoiceLink;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to create invoice link:', err);
-      setError((err as Error).message);
-      throw err;
-    }
-  }, []);
-
-  // Delete invoice link
-  const deleteInvoiceLink = useCallback(async (
-    contactId: string,
-    serviceId: string,
-    invoiceLinkId: string
-  ): Promise<boolean> => {
-    try {
-      setError(null);
-      await contactsAPI.deleteInvoiceLink(contactId, serviceId, invoiceLinkId);
-
-      // Refresh contact to get updated service amounts
-      const updatedContact = await contactsAPI.get(contactId);
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
-
-      return true;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to delete invoice link:', err);
-      setError((err as Error).message);
-      throw err;
-    }
-  }, []);
-
-  // =====================
-  // Service Invoice Actions
-  // =====================
-
-  // Create one-off invoice from service
-  const createInvoiceFromService = useCallback(async (
-    contactId: string,
-    serviceId: string,
-    data: Record<string, unknown>
-  ): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const result = await contactsAPI.createInvoiceFromService(contactId, serviceId, data);
-
-      // Refresh contact to get updated service amounts
-      const updatedContact = await contactsAPI.get(contactId);
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
-
-      return result; // Returns created invoice
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to create invoice from service:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Link recurring service to invoice template
-  const linkServiceToTemplate = useCallback(async (
-    contactId: string,
-    serviceId: string,
-    templateId: string
-  ): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const result = await contactsAPI.linkServiceToTemplate(contactId, serviceId, templateId);
-
-      // Refresh contact to get updated service state (is_locked, linked_invoice_template)
-      const updatedContact = await contactsAPI.get(contactId);
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
-
+  const updateContactServiceMutation = useMutation({
+    mutationFn: async ({ contactId, serviceId, serviceData }: { contactId: string; serviceId: string; serviceData: Record<string, unknown> }) => {
+      const result = await contactsAPI.updateContactService(contactId, serviceId, serviceData);
       return result;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to link service to template:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all }); },
+  });
+
+  const updateContactService = useCallback(async (contactId: string, serviceId: string, serviceData: Record<string, unknown>): Promise<unknown> => {
+    return updateContactServiceMutation.mutateAsync({ contactId, serviceId, serviceData });
+  }, [updateContactServiceMutation]);
+
+  const unassignServiceMutation = useMutation({
+    mutationFn: ({ contactId, serviceId }: { contactId: string; serviceId: string }) =>
+      contactsAPI.unassignService(contactId, serviceId),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all }); },
+  });
+
+  const unassignService = useCallback(async (contactId: string, serviceId: string): Promise<boolean> => {
+    await unassignServiceMutation.mutateAsync({ contactId, serviceId });
+    return true;
+  }, [unassignServiceMutation]);
+
+  // Attribution operations (imperative + invalidation)
+  const listAttributions = useCallback(async (contactId: string, serviceId: string): Promise<unknown> => {
+    return contactsAPI.listAttributions(contactId, serviceId);
   }, []);
 
-  // Unlink service from invoice template
+  const createAttribution = useCallback(async (contactId: string, serviceId: string, data: ContactServiceAttributionCreate): Promise<unknown> => {
+    const result = await contactsAPI.createAttribution(contactId, serviceId, data);
+    queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    return result;
+  }, [queryClient]);
+
+  const deleteAttribution = useCallback(async (contactId: string, serviceId: string, attributionId: string): Promise<boolean> => {
+    await contactsAPI.deleteAttribution(contactId, serviceId, attributionId);
+    queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    return true;
+  }, [queryClient]);
+
+  // Invoice link operations (imperative + invalidation)
+  const listInvoiceLinks = useCallback(async (contactId: string, serviceId: string): Promise<unknown> => {
+    return contactsAPI.listInvoiceLinks(contactId, serviceId);
+  }, []);
+
+  const createInvoiceLink = useCallback(async (contactId: string, serviceId: string, data: ContactServiceInvoiceCreate): Promise<unknown> => {
+    const result = await contactsAPI.createInvoiceLink(contactId, serviceId, data);
+    queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    return result;
+  }, [queryClient]);
+
+  const deleteInvoiceLink = useCallback(async (contactId: string, serviceId: string, invoiceLinkId: string): Promise<boolean> => {
+    await contactsAPI.deleteInvoiceLink(contactId, serviceId, invoiceLinkId);
+    queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    return true;
+  }, [queryClient]);
+
+  // Service invoice actions (imperative + invalidation)
+  const createInvoiceFromService = useCallback(async (contactId: string, serviceId: string, data: Record<string, unknown>): Promise<unknown> => {
+    const result = await contactsAPI.createInvoiceFromService(contactId, serviceId, data);
+    queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    return result;
+  }, [queryClient]);
+
+  const linkServiceToTemplate = useCallback(async (contactId: string, serviceId: string, templateId: string): Promise<unknown> => {
+    const result = await contactsAPI.linkServiceToTemplate(contactId, serviceId, templateId);
+    queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    return result;
+  }, [queryClient]);
+
   const unlinkServiceFromTemplate = useCallback(async (contactId: string, serviceId: string): Promise<boolean> => {
-    try {
-      setLoading(true);
-      setError(null);
-      await contactsAPI.unlinkServiceFromTemplate(contactId, serviceId);
+    await contactsAPI.unlinkServiceFromTemplate(contactId, serviceId);
+    queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    return true;
+  }, [queryClient]);
 
-      // Refresh contact to get updated service state
-      const updatedContact = await contactsAPI.get(contactId);
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
-
-      return true;
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to unlink service from template:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Create recurring invoice template from service
-  const createRecurringTemplateFromService = useCallback(async (
-    contactId: string,
-    serviceId: string,
-    data: Record<string, unknown> = {}
-  ): Promise<unknown> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const result = await contactsAPI.createRecurringTemplateFromService(contactId, serviceId, data);
-
-      // Refresh contact to get updated service state (now linked to the new template)
-      const updatedContact = await contactsAPI.get(contactId);
-      setContacts(prev => updateItem(prev, contactId, updatedContact));
-
-      return result; // Returns created template
-    } catch (err: unknown) {
-      console.error('[useContacts] Failed to create recurring template from service:', err);
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Create a stable filter key to avoid infinite loops
-  const filterKey = JSON.stringify(filters);
-
-  // Load contacts on mount, when refreshKey changes, or when filters change
-  // Skip if skipInitialFetch is true (for components that only need mutation methods)
-  useEffect(() => {
-    if (!skipInitialFetch) {
-      fetchContacts();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey, filterKey, skipInitialFetch]);
+  const createRecurringTemplateFromService = useCallback(async (contactId: string, serviceId: string, data: Record<string, unknown> = {}): Promise<unknown> => {
+    const result = await contactsAPI.createRecurringTemplateFromService(contactId, serviceId, data);
+    queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    return result;
+  }, [queryClient]);
 
   return {
     contacts,
-    loading,
-    error,
+    loading: contactsQuery.isLoading,
+    error: contactsQuery.error?.message || null,
     pagination,
     fetchContacts,
     getContact,

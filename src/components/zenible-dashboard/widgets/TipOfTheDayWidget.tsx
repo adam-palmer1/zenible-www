@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { LightBulbIcon } from '@heroicons/react/24/outline';
-import tipAPI from '../../../services/tipAPI';
+import { useDashboardWidget } from '../../../contexts/DashboardDataContext';
 
 interface TipData {
   content: string;
@@ -22,36 +22,12 @@ interface TipOfTheDayWidgetProps {
  * Shows a daily tip with optional character avatar
  */
 const TipOfTheDayWidget = ({ settings: _settings = {} }: TipOfTheDayWidgetProps) => {
-  const [tipData, setTipData] = useState<TipData | null>(null);
-  const [character, setCharacter] = useState<Character | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [, setError] = useState<string | null>(null);
+  const { data, isLoading } = useDashboardWidget('tipOfTheDay');
 
-  useEffect(() => {
-    const loadTip = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await tipAPI.getRandomTipWithCharacter() as { tip: TipData; character?: Character };
-        setTipData(response.tip);
-        setCharacter(response.character ?? null);
-      } catch (err: any) {
-        console.error('Failed to load tip:', err);
-        setError(err.message);
-        // Fallback to a static tip
-        setTipData({
-          content: "Focus on understanding your client's needs before presenting solutions. The best proposals address specific pain points.",
-          category: 'Proposal Writing'
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+  const tipData: TipData | null = data?.tip || null;
+  const character: Character | null = data?.character || null;
 
-    loadTip();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center gap-4 animate-pulse">
         <div className="w-12 h-12 bg-gray-200 rounded-lg flex-shrink-0" />
@@ -61,6 +37,10 @@ const TipOfTheDayWidget = ({ settings: _settings = {} }: TipOfTheDayWidgetProps)
         </div>
       </div>
     );
+  }
+
+  if (!tipData) {
+    return null;
   }
 
   return (
@@ -83,18 +63,18 @@ const TipOfTheDayWidget = ({ settings: _settings = {} }: TipOfTheDayWidgetProps)
             {character.name}
           </span>
         )}
-        {character?.description && (
-          <div className="px-2 py-1.5 rounded-lg text-xs max-w-[140px] bg-gray-100 text-gray-600 mt-1 text-center">
-            {character.description}
-          </div>
-        )}
       </div>
 
       {/* Tip Content */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-700 leading-relaxed">
-          {tipData?.content}
-        </p>
+        <blockquote className="text-sm text-gray-700 leading-relaxed italic border-l-2 border-gray-300 pl-3">
+          &ldquo;{tipData?.content}&rdquo;
+        </blockquote>
+        {character?.description && (
+          <p className="mt-2 text-xs text-gray-400 leading-relaxed ml-[14px]">
+            {character.description}
+          </p>
+        )}
         {tipData?.category && (
           <span className="inline-block mt-2 px-2 py-0.5 text-xs font-medium text-purple-600 bg-purple-50 rounded">
             {tipData.category}

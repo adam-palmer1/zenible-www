@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ExclamationTriangleIcon, ArrowRightIcon, BanknotesIcon } from '@heroicons/react/24/outline';
-import invoicesAPI from '../../../services/api/finance/invoices';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { formatCurrency } from '../../../utils/currency';
 import { LoadingSpinner } from '../../shared';
+import { useDashboardWidget } from '../../../contexts/DashboardDataContext';
 
 interface OutstandingInvoicesWidgetProps {
   settings?: Record<string, any>;
@@ -16,40 +15,15 @@ interface OutstandingInvoicesWidgetProps {
  */
 const OutstandingInvoicesWidget = ({ settings: _settings = {} }: OutstandingInvoicesWidgetProps) => {
   const navigate = useNavigate();
-  const { defaultCurrency, loading: currencyLoading } = useCompanyCurrencies();
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { defaultCurrency } = useCompanyCurrencies();
+  const { data: stats, isLoading: loading, error } = useDashboardWidget('outstandingInvoices');
 
   const currency = defaultCurrency?.currency?.code || 'GBP';
-
-  useEffect(() => {
-    // Wait for company currency to load
-    if (currencyLoading) {
-      return;
-    }
-
-    const fetchStats = async () => {
-      try {
-        setLoading(true);
-        const data = await invoicesAPI.getStats();
-        setStats(data);
-        setError(null);
-      } catch (err: any) {
-        console.error('Failed to fetch invoice stats:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, [currencyLoading]);
 
   const handleViewOutstanding = () => navigate('/finance/invoices?status=outstanding');
   const handleViewOverdue = () => navigate('/finance/invoices?status=overdue');
 
-  if (loading || currencyLoading) {
+  if (loading) {
     return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 

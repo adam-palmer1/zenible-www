@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserGroupIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import contactsAPI from '../../../services/api/crm/contacts';
 import { LoadingSpinner } from '../../shared';
+import { useDashboardWidget } from '../../../contexts/DashboardDataContext';
 
 interface RecentClientsWidgetProps {
   settings?: Record<string, any>;
@@ -15,30 +15,9 @@ interface RecentClientsWidgetProps {
  */
 const RecentClientsWidget = ({ settings = {}, isHovered = false }: RecentClientsWidgetProps) => {
   const navigate = useNavigate();
-  const [clients, setClients] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const limit = settings.limit || 5;
+  const { data: clients, isLoading: loading } = useDashboardWidget('recentClients');
 
-  useEffect(() => {
-    const loadClients = async () => {
-      try {
-        setLoading(true);
-        const response = await contactsAPI.list({
-          is_client: 'true',
-          sort_by: 'last_used',
-          sort_order: 'desc',
-          limit: String(limit),
-        });
-        setClients(response.items || []);
-      } catch (error) {
-        console.error('Failed to load clients:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadClients();
-  }, [limit]);
+  const clientList = clients || [];
 
   // Get initials for avatar
   const getInitials = (client: any): string => {
@@ -78,7 +57,7 @@ const RecentClientsWidget = ({ settings = {}, isHovered = false }: RecentClients
 
   return (
     <div className="flex flex-col h-full">
-      {clients.length === 0 ? (
+      {clientList.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 text-center">
           <UserGroupIcon className="w-12 h-12 text-gray-300 mb-2" />
           <p className="text-sm text-gray-500">No clients yet</p>
@@ -100,7 +79,7 @@ const RecentClientsWidget = ({ settings = {}, isHovered = false }: RecentClients
                 transition: 'width 0.2s ease, padding-right 0.2s ease'
               }}
             >
-            {clients.map((client) => (
+            {clientList.map((client: any) => (
               <button
                 key={client.id}
                 onClick={() => handleClientClick(client.id)}

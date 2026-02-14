@@ -81,6 +81,24 @@ export const contactSchema = z.object({
     if (isNaN(num)) return null;
     return Math.max(num, 0);
   }),
+  invoice_reminders_enabled: z.any().optional().transform((val: any) => {
+    if (val === null || val === undefined || val === '' || val === 'inherit') return null;
+    if (val === true || val === 'true') return true;
+    if (val === false || val === 'false') return false;
+    return null;
+  }),
+  invoice_reminder_frequency_days: z.any().optional().transform((val: any) => {
+    if (val === null || val === undefined || val === '' || val === 'null') return null;
+    const num = typeof val === 'string' ? parseInt(val, 10) : val;
+    if (isNaN(num)) return null;
+    return Math.min(Math.max(num, 1), 60);
+  }),
+  max_invoice_reminders: z.any().optional().transform((val: any) => {
+    if (val === null || val === undefined || val === '' || val === 'null') return null;
+    const num = typeof val === 'string' ? parseInt(val, 10) : val;
+    if (isNaN(num)) return null;
+    return Math.min(Math.max(num, 0), 5);
+  }),
 
   // Other
   notes: z.string().optional(),
@@ -147,6 +165,9 @@ export const getContactDefaultValues = (
       invoice_payment_terms: contact.invoice_payment_terms || null,
       invoice_notes: contact.invoice_notes || '',
       hourly_rate: contact.hourly_rate || null,
+      invoice_reminders_enabled: contact.invoice_reminders_enabled ?? null,
+      invoice_reminder_frequency_days: contact.invoice_reminder_frequency_days ?? null,
+      max_invoice_reminders: contact.max_invoice_reminders ?? null,
     };
   }
 
@@ -173,6 +194,9 @@ export const getContactDefaultValues = (
     invoice_payment_terms: null,
     invoice_notes: '',
     hourly_rate: null,
+    invoice_reminders_enabled: null,
+    invoice_reminder_frequency_days: null,
+    max_invoice_reminders: null,
     current_global_status_id: initialStatus || null,
     current_custom_status_id: null,
     // Company/Tax information

@@ -29,24 +29,38 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
+  // Filter actions based on condition
+  const visibleActions = actions.filter(action =>
+    action.condition === undefined || action.condition
+  );
+
   useEffect(() => {
     // Get the button position to place the menu
     const button = document.getElementById(`${buttonIdPrefix}-${itemId}`);
     if (button) {
       const rect = button.getBoundingClientRect();
 
-      // Position below the button, aligned to the right
-      setPosition({
-        top: rect.bottom + 4,
-        left: Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 16),
-      });
-    }
-  }, [itemId, buttonIdPrefix, menuWidth]);
+      // Estimate menu height: ~40px per item + 8px padding
+      const estimatedHeight = visibleActions.length * 40 + 8;
 
-  // Filter actions based on condition
-  const visibleActions = actions.filter(action =>
-    action.condition === undefined || action.condition
-  );
+      // Bottom-edge detection: if menu would overflow viewport, position above
+      const top = rect.bottom + 4 + estimatedHeight > window.innerHeight
+        ? rect.top - estimatedHeight - 4
+        : rect.bottom + 4;
+
+      // Right-edge and left-edge safety
+      const left = Math.max(16, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 16));
+
+      setPosition({ top, left });
+    }
+  }, [itemId, buttonIdPrefix, menuWidth, visibleActions.length]);
+
+  // Close menu on scroll (capture phase to catch scrollable containers)
+  useEffect(() => {
+    const handleScroll = () => onClose();
+    window.addEventListener('scroll', handleScroll, { capture: true });
+    return () => window.removeEventListener('scroll', handleScroll, { capture: true });
+  }, [onClose]);
 
   if (visibleActions.length === 0) return null;
 

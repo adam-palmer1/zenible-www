@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { RectangleStackIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import { PROJECT_STATUS, PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, type ProjectStatus } from '../../../constants/crm';
-import projectsAPI from '../../../services/api/crm/projects';
+import { PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, type ProjectStatus } from '../../../constants/crm';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '../../shared';
+import { useDashboardWidget } from '../../../contexts/DashboardDataContext';
 
 interface CurrentProjectsWidgetProps {
   settings?: Record<string, any>;
@@ -15,38 +15,8 @@ interface CurrentProjectsWidgetProps {
  * Shows active and upcoming projects
  */
 const CurrentProjectsWidget = ({ settings = {}, isHovered = false }: CurrentProjectsWidgetProps) => {
-  const [projects, setProjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: projects, isLoading: loading } = useDashboardWidget('currentProjects');
   const navigate = useNavigate();
-
-  const limit = settings.limit || 3;
-
-  useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        setLoading(true);
-        // Fetch active, planning, and on_hold projects
-        const response = await projectsAPI.list({
-          statuses: [PROJECT_STATUS.ACTIVE, PROJECT_STATUS.PLANNING, PROJECT_STATUS.ON_HOLD]
-        }) as { items?: { id: string; name: string; status: string; start_date?: string; services_count?: number }[] };
-        // Sort by start_date (most recent first) and limit
-        const sortedProjects = (response.items || [])
-          .sort((a: any, b: any) => {
-            if (!a.start_date) return 1;
-            if (!b.start_date) return -1;
-            return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
-          })
-          .slice(0, limit);
-        setProjects(sortedProjects);
-      } catch (error) {
-        console.error('Failed to load projects:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProjects();
-  }, [limit]);
 
   const handleViewAll = () => {
     navigate('/crm?tab=projects');
@@ -60,11 +30,13 @@ const CurrentProjectsWidget = ({ settings = {}, isHovered = false }: CurrentProj
     return <LoadingSpinner size="h-8 w-8" height="h-full min-h-[100px]" />;
   }
 
+  const projectList = projects || [];
+
   return (
     <div className="flex flex-col h-full">
       {/* Projects List */}
       <div className="flex-1 overflow-hidden">
-        {projects.length === 0 ? (
+        {projectList.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <RectangleStackIcon className="w-12 h-12 text-gray-300 mb-2" />
             <p className="text-sm text-gray-500">No active projects</p>
@@ -84,7 +56,7 @@ const CurrentProjectsWidget = ({ settings = {}, isHovered = false }: CurrentProj
               transition: 'width 0.2s ease, padding-right 0.2s ease'
             }}
           >
-          {projects.map((project) => (
+          {projectList.map((project: any) => (
             <button
               key={project.id}
               onClick={() => handleProjectClick(project.id)}
@@ -118,7 +90,7 @@ const CurrentProjectsWidget = ({ settings = {}, isHovered = false }: CurrentProj
       </div>
 
       {/* Footer */}
-      {projects.length > 0 && (
+      {projectList.length > 0 && (
         <div className="mt-3 pt-3 border-t border-gray-100">
           <button
             onClick={handleViewAll}
