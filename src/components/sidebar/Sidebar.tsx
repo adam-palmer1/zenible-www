@@ -37,7 +37,7 @@ interface NavItem {
   onClick?: () => void;
 }
 
-export default function NewSidebar() {
+export default function Sidebar() {
   const location = useLocation();
   const { isCollapsed, toggleCollapse, isMobile, isMobileOpen, closeMobile } = useSidebar();
   const [isHovered, setIsHovered] = useState(false);

@@ -176,7 +176,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
                       {contact.email || '-'}
                     </td>
                     <td className="px-2 lg:px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer hidden lg:table-cell" onClick={() => onContactClick && onContactClick(contact)}>
-                      {contact.phone || '-'}
+                      {contact.phone ? `${contact.country_code || ''} ${contact.phone}`.trim() : '-'}
                     </td>
                     <td className="px-2 lg:px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer hidden lg:table-cell" onClick={() => onContactClick && onContactClick(contact)}>
                       {contact.business_name || '-'}

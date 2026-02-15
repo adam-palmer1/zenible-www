@@ -32,7 +32,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 // Finance context providers (eager - lightweight, needed by finance routes)
 import { PaymentsProvider } from './contexts/PaymentsContext';
-import { ReportsProvider } from './contexts/ReportsContext';
 import { UsageDashboardProvider } from './contexts/UsageDashboardContext';
 import { SidebarProvider } from './contexts/SidebarContext';
 
@@ -465,9 +464,7 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ErrorBoundary level="section">
-              <ReportsProvider>
-                <Suspense fallback={<PageLoadingFallback />}><ReportsDashboard /></Suspense>
-              </ReportsProvider>
+              <Suspense fallback={<PageLoadingFallback />}><ReportsDashboard /></Suspense>
             </ErrorBoundary>
           </ProtectedRoute>
         )

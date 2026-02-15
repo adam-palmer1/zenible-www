@@ -19,6 +19,17 @@ export const formatHour = (hour: number) => {
   return `${hour} AM`;
 };
 
+// Helper: Get the effective end date for display purposes.
+// Appointments ending exactly at midnight (00:00:00) should display only on the previous day,
+// not span into the next day. E.g., 11 PM Mon → 12 AM Tue should only show on Monday.
+export const getEffectiveEndDate = (endDatetime: string, parseISO: (s: string) => Date): Date => {
+  const end = parseISO(endDatetime);
+  if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0) {
+    return new Date(end.getTime() - 1);
+  }
+  return end;
+};
+
 // Helper: Check if a day is a weekend
 export const isWeekend = (day: Date) => {
   const dayOfWeek = day.getDay();
@@ -32,10 +43,13 @@ export const calculateAppointmentLayout = (dayAppointments: any[], parseISO: any
   const appointmentsWithLayout = dayAppointments.map((apt: any) => {
     const startDate = parseISO(apt.start_datetime);
     const endDate = parseISO(apt.end_datetime);
+    const endMinutes = getHours(endDate) * 60 + getMinutes(endDate);
     return {
       ...apt,
       startTime: getHours(startDate) * 60 + getMinutes(startDate),
-      endTime: getHours(endDate) * 60 + getMinutes(endDate),
+      // Treat midnight (00:00) as end-of-day (1440) so appointments ending at
+      // midnight display correctly and overlap detection works
+      endTime: endMinutes === 0 ? 24 * 60 : endMinutes,
     };
   });
 
@@ -102,7 +116,8 @@ export const computeSpanningEventsLayout = (
 
   const allDayAppts = appointments.filter((apt: any) => {
     const aptStart = startOfDay(parseISO(apt.start_datetime));
-    const aptEnd = startOfDay(parseISO(apt.end_datetime));
+    const effectiveEnd = getEffectiveEndDate(apt.end_datetime, parseISO);
+    const aptEnd = startOfDay(effectiveEnd);
     const isMultiDay = aptEnd.getTime() > aptStart.getTime();
     // Include all-day events OR timed events spanning multiple days
     if (!apt.all_day && !isMultiDay) return false;
@@ -115,7 +130,8 @@ export const computeSpanningEventsLayout = (
 
   const events = allDayAppts.map((apt: any) => {
     const aptStart = startOfDay(parseISO(apt.start_datetime));
-    const aptEnd = startOfDay(parseISO(apt.end_datetime));
+    const effectiveEnd = getEffectiveEndDate(apt.end_datetime, parseISO);
+    const aptEnd = startOfDay(effectiveEnd);
 
     let startCol = 0;
     let endCol = numDays - 1;

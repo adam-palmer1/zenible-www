@@ -17,14 +17,7 @@ interface AppointmentLike {
 export const calculateEndDateTime = (startDateTime: string, durationMinutes = 60): string => {
   const startDate = new Date(startDateTime);
   const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
-  // Format as local time to match start_datetime format (not UTC via toISOString)
-  const year = endDate.getFullYear();
-  const month = String(endDate.getMonth() + 1).padStart(2, '0');
-  const day = String(endDate.getDate()).padStart(2, '0');
-  const hours = String(endDate.getHours()).padStart(2, '0');
-  const minutes = String(endDate.getMinutes()).padStart(2, '0');
-  const seconds = String(endDate.getSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  return endDate.toISOString();
 };
 
 export const formatAppointmentTitle = (contact: ContactLike | null | undefined, appointmentType: string): string => {
@@ -45,8 +38,8 @@ export const prepareAppointmentData = (
     title: customTitle || formatAppointmentTitle(contact, appointmentType),
     start_datetime: startDateTime,
     end_datetime: calculateEndDateTime(startDateTime, durationMinutes),
-    appointment_type: appointmentType
-    // Note: status is auto-set by backend to 'scheduled' on create
+    appointment_type: appointmentType,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
   };
 };
 
@@ -57,27 +50,18 @@ export const isAppointmentOverdue = (startDateTime: string | null | undefined): 
 
 export const parseAppointmentDateTime = (datetimeString: string | null | undefined): { date: string; time: string } => {
   if (!datetimeString) {
-    return {
-      date: new Date().toISOString().split('T')[0],
-      time: getNextHour()
-    };
+    return { date: new Date().toISOString().split('T')[0], time: getNextHour() };
   }
-
-  // Handle ISO format with time (YYYY-MM-DDTHH:MM:SS)
-  if (datetimeString.includes('T')) {
-    const [datePart, timePart] = datetimeString.split('T');
-    const timeOnly = timePart ? timePart.split(':').slice(0, 2).join(':') : getNextHour();
-    return {
-      date: datePart,
-      time: timeOnly
-    };
+  const date = new Date(datetimeString);
+  if (isNaN(date.getTime())) {
+    return { date: datetimeString, time: getNextHour() };
   }
-
-  // Handle date-only format
-  return {
-    date: datetimeString,
-    time: getNextHour()
-  };
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return { date: `${year}-${month}-${day}`, time: `${hours}:${minutes}` };
 };
 
 export const getNextHour = (): string => {

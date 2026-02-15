@@ -112,20 +112,16 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
     setMode('edit');
     setEditingAppointment(appointment);
 
-    // Parse datetime
+    // Convert UTC datetime from API to local date/time for form fields
     if (appointment.start_datetime) {
-      const dateStr = appointment.start_datetime;
-      if (dateStr.includes('T')) {
-        const [datePart, timePart] = dateStr.split('T');
-        setAppointmentDate(datePart);
-        if (timePart) {
-          const timeOnly = timePart.split(':').slice(0, 2).join(':');
-          setAppointmentTime(timeOnly);
-        }
-      } else {
-        setAppointmentDate(dateStr);
-        setAppointmentTime(getNextHour());
-      }
+      const date = new Date(appointment.start_datetime);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      setAppointmentDate(`${year}-${month}-${day}`);
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      setAppointmentTime(`${hours}:${minutes}`);
     }
     setAppointmentType(appointment.appointment_type || 'call');
     setDuration(60);
@@ -133,7 +129,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
 
   // Handle creating new appointment
   const handleSaveNew = async () => {
-    const dateTimeValue = `${appointmentDate}T${appointmentTime}:00`;
+    const dateTimeValue = new Date(`${appointmentDate}T${appointmentTime}:00`).toISOString();
     await setFollowUp(contact, dateTimeValue, appointmentType, duration);
     await fetchAppointments();
     setMode('list');
@@ -144,13 +140,12 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
     if (!editingAppointment) return;
 
     try {
-      const dateTimeValue = `${appointmentDate}T${appointmentTime}:00`;
-
-      const endDateTime = calculateEndDateTime(dateTimeValue, duration);
+      const startISO = new Date(`${appointmentDate}T${appointmentTime}:00`).toISOString();
+      const endISO = calculateEndDateTime(startISO, duration);
 
       await appointmentsAPI.update(editingAppointment.id, {
-        start_datetime: dateTimeValue,
-        end_datetime: endDateTime,
+        start_datetime: startISO,
+        end_datetime: endISO,
         appointment_type: appointmentType
       });
 

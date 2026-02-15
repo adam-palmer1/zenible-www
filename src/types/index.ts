@@ -17,6 +17,7 @@ export * from './crm';
 export * from './finance';
 export * from './ai';
 export * from './websocket';
+export * from './customReport';
 
 // Existing manually-created types
 export {

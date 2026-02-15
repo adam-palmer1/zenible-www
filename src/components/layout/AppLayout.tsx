@@ -1,5 +1,5 @@
 import React from 'react';
-import NewSidebar from '../sidebar/NewSidebar';
+import Sidebar from '../sidebar/Sidebar';
 import MobileHeader from './MobileHeader';
 
 interface AppLayoutProps {
@@ -30,7 +30,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   return (
     <div className="min-h-screen-safe bg-gray-50 dark:bg-gray-900">
       {/* Sidebar (fixed on desktop, drawer on mobile) */}
-      <NewSidebar />
+      <Sidebar />
 
       {/* Main content area */}
       <div

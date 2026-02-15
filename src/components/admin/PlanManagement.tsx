@@ -287,9 +287,9 @@ export default function PlanManagement() {
                 key={plan.id}
                 className={`rounded-xl border p-6 ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'} ${!plan.is_active ? 'opacity-70' : ''}`}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h3 className={`text-lg font-semibold truncate ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`} title={plan.name}>
                       {plan.name}
                     </h3>
                     <div className="flex gap-2 mt-1">
@@ -305,7 +305,7 @@ export default function PlanManagement() {
                       )}
                     </div>
                   </div>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
+                  <span className={`px-2 py-1 text-xs rounded-full shrink-0 whitespace-nowrap ${
                     plan.is_active
                       ? 'bg-purple-100 text-purple-800'
                       : darkMode
@@ -316,7 +316,7 @@ export default function PlanManagement() {
                   </span>
                 </div>
 
-                <p className={`mt-2 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
+                <p className={`mt-2 text-sm line-clamp-2 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`} title={plan.description || 'No description'}>
                   {plan.description || 'No description'}
                 </p>
 

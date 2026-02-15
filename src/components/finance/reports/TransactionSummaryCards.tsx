@@ -1,7 +1,7 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Clock } from 'lucide-react';
 import KPICard from '../shared/KPICard';
-import { useReports } from '../../../contexts/ReportsContext';
+import { useReportsSummaryContext } from '../../../contexts/ReportsSummaryContext';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 
 /**
@@ -41,7 +41,7 @@ const formatCurrencyBreakdown = (currencyArray: any[]): string | null => {
  * Shows main total in default currency with breakdown subtitle when multiple currencies exist
  */
 const TransactionSummaryCards: React.FC = () => {
-  const { summary, summaryLoading } = useReports();
+  const { summary, summaryLoading } = useReportsSummaryContext();
   const { defaultCurrency } = useCompanyCurrencies();
 
   if (summaryLoading) {

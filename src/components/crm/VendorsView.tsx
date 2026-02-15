@@ -305,7 +305,7 @@ const VendorsView: React.FC<VendorsViewProps> = ({
                     )}
                     {columns.phone && (
                       <td className={`px-4 py-4 text-sm text-gray-600 dark:text-gray-400 ${hiddenClass}`}>
-                        {vendor.phone || '-'}
+                        {vendor.phone ? `${vendor.country_code || ''} ${vendor.phone}`.trim() : '-'}
                       </td>
                     )}
                     {columns.business_name && (

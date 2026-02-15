@@ -309,7 +309,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
             {/* Client */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Client
+                Contact
               </label>
               <button
                 ref={contactButtonRef}
@@ -329,7 +329,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
                     )}
                   </div>
                 ) : (
-                  <span className="text-gray-400">Select a client...</span>
+                  <span className="text-gray-400">Select a contact...</span>
                 )}
               </button>
 
@@ -340,7 +340,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
                 onSelect={handleContactSelect}
                 selectedContactId={formData.contact_id}
                 anchorRef={contactButtonRef as React.RefObject<HTMLElement>}
-                filterParams={{ is_client: true }}
+                filterParams={{ for_project_selector: 'true' }}
               />
 
               {errors.contact_id && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.contact_id}</p>}

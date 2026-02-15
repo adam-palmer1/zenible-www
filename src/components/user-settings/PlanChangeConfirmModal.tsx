@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 
@@ -187,6 +188,35 @@ export default function PlanChangeConfirmModal({
                   )}
                 </button>
               </div>
+            </div>
+          ) : error?.includes('assigned by an administrator') ? (
+            <div className="space-y-4">
+              <div className="flex flex-col items-center text-center py-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${
+                  darkMode ? 'bg-zenible-dark-bg' : 'bg-amber-50'
+                }`}>
+                  <svg className={`w-6 h-6 ${darkMode ? 'text-amber-400' : 'text-amber-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                  Your plan has been assigned by an administrator. Please{' '}
+                  <Link to="/support" className="text-zenible-primary hover:underline font-medium">
+                    contact support
+                  </Link>{' '}
+                  for any changes.
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className={`w-full px-4 py-2 border rounded-lg font-medium ${
+                  darkMode
+                    ? 'border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-bg'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Close
+              </button>
             </div>
           ) : error ? (
             <div className="space-y-4">

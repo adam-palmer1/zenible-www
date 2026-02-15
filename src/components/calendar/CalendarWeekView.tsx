@@ -10,7 +10,7 @@ import {
   getMinutes,
   startOfDay,
 } from 'date-fns';
-import { getAppointmentKey, formatHour, isWeekend, calculateAppointmentLayout, computeSpanningEventsLayout } from './calendarUtils';
+import { getAppointmentKey, formatHour, isWeekend, calculateAppointmentLayout, computeSpanningEventsLayout, getEffectiveEndDate } from './calendarUtils';
 
 interface CalendarWeekViewProps {
   currentDate: Date;
@@ -116,8 +116,10 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
       if (!isSameDay(aptDate, day)) return false;
       if (apt.all_day) return false;
       // Exclude multi-day timed events (they're in the spanning section)
+      // Appointments ending exactly at midnight are NOT multi-day
       const aptStartDay = startOfDay(parseISO(apt.start_datetime));
-      const aptEndDay = startOfDay(parseISO(apt.end_datetime));
+      const effectiveEnd = getEffectiveEndDate(apt.end_datetime, parseISO);
+      const aptEndDay = startOfDay(effectiveEnd);
       if (aptEndDay.getTime() > aptStartDay.getTime()) return false;
       return true;
     });
@@ -247,7 +249,9 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
                       const startMinute = getMinutes(startDate);
                       const endHour = getHours(endDate);
                       const endMinute = getMinutes(endDate);
-                      const duration = (endHour - startHour) + (endMinute - startMinute) / 60;
+                      // Treat midnight (00:00) as 24:00 so appointments ending at midnight render correctly
+                      const effectiveEndHour = (endHour === 0 && endMinute === 0) ? 24 : endHour;
+                      const duration = (effectiveEndHour - startHour) + (endMinute - startMinute) / 60;
                       const startIndex = timeSlots.findIndex((t: number) => t === startHour);
 
                       if (startIndex === -1) return null;

@@ -224,6 +224,16 @@ export const queryKeys = {
     list: () => [...queryKeys.countries.all, 'list'] as const,
     company: () => [...queryKeys.countries.all, 'company'] as const,
   },
+
+  // Custom Reports
+  customReports: {
+    all: ['customReports'] as const,
+    columns: () => [...queryKeys.customReports.all, 'columns'] as const,
+    list: (page?: number) => [...queryKeys.customReports.all, 'list', { page }] as const,
+    detail: (id: string) => [...queryKeys.customReports.all, 'detail', id] as const,
+    execution: (params: unknown) => [...queryKeys.customReports.all, 'execution', { params }] as const,
+    savedExecution: (id: string, params: unknown) => [...queryKeys.customReports.all, 'savedExecution', id, { params }] as const,
+  },
 };
 
 /**
@@ -257,6 +267,7 @@ export const invalidateFinanceQueries = (queryClient: QueryClient): Promise<void
     queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all }),
     queryClient.invalidateQueries({ queryKey: queryKeys.payments.all }),
     queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.customReports.all }),
   ]);
 };
 

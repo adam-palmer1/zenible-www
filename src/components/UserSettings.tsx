@@ -39,6 +39,21 @@ export default function UserSettings() {
   const [activeTab, setActiveTab] = useState(() => {
     return searchParams.get('tab') || 'profile';
   });
+
+  // Sync activeTab to URL search params so refresh preserves the current tab
+  useEffect(() => {
+    const currentTab = searchParams.get('tab');
+    if (activeTab !== currentTab) {
+      const newParams = new URLSearchParams(searchParams);
+      if (activeTab === 'profile') {
+        newParams.delete('tab');
+      } else {
+        newParams.set('tab', activeTab);
+      }
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [activeTab]);
+
   const [showUpdatePaymentModal, setShowUpdatePaymentModal] = useState(false);
 
   // Company admin state

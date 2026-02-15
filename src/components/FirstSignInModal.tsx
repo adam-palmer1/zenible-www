@@ -28,7 +28,6 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
   const { darkMode, updatePreference, reloadPreferences } = usePreferences();
   const { numberFormats } = useCRMReferenceData();
   const navigate = useNavigate();
-  useEscapeKey(onClose, isOpen);
 
   // Countries and currencies hooks
   const {
@@ -329,6 +328,8 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
     await reloadPreferences();
     onClose();
   };
+
+  useEscapeKey(handleSkip, isOpen);
 
   if (!isOpen) return null;
 

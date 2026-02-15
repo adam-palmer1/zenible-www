@@ -178,7 +178,9 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
               const startMinute = getMinutes(startDate);
               const endHour = getHours(endDate);
               const endMinute = getMinutes(endDate);
-              const duration = (endHour - startHour) + (endMinute - startMinute) / 60;
+              // Treat midnight (00:00) as 24:00 so appointments ending at midnight render correctly
+              const effectiveEndHour = (endHour === 0 && endMinute === 0) ? 24 : endHour;
+              const duration = (effectiveEndHour - startHour) + (endMinute - startMinute) / 60;
               const startIndex = timeSlots.findIndex((t: number) => t === startHour);
 
               if (startIndex === -1) return null;

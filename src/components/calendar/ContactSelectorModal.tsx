@@ -66,7 +66,8 @@ const ContactSelectorModal: React.FC<ContactSelectorModalProps> = ({ isOpen, onC
       };
 
       // Show clients by default (includes contacts that are both client and vendor)
-      if (clientsOnly) {
+      // Skip when for_project_selector is active — backend handles the compound filter
+      if (clientsOnly && !filterParams?.for_project_selector) {
         params.is_client = true;
       }
 
@@ -248,22 +249,24 @@ const ContactSelectorModal: React.FC<ContactSelectorModalProps> = ({ isOpen, onC
                   className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
-              {/* Clients Only Checkbox */}
-              <div className="mt-2 flex items-center">
-                <input
-                  type="checkbox"
-                  id="clients-only"
-                  checked={clientsOnly}
-                  onChange={(e) => {
-                    setClientsOnly(e.target.checked);
-                    setPage(1);
-                  }}
-                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                />
-                <label htmlFor="clients-only" className="ml-2 text-xs text-gray-600">
-                  Clients only
-                </label>
-              </div>
+              {/* Clients Only Checkbox — hidden when for_project_selector handles filtering */}
+              {!filterParams?.for_project_selector && (
+                <div className="mt-2 flex items-center">
+                  <input
+                    type="checkbox"
+                    id="clients-only"
+                    checked={clientsOnly}
+                    onChange={(e) => {
+                      setClientsOnly(e.target.checked);
+                      setPage(1);
+                    }}
+                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <label htmlFor="clients-only" className="ml-2 text-xs text-gray-600">
+                    Clients only
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* Add Contact Button */}

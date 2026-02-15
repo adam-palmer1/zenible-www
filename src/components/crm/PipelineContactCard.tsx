@@ -129,7 +129,7 @@ const PipelineContactCardContentInner: React.FC<PipelineContactCardContentProps>
 
           {contact.phone && (
             <p className="text-xs text-gray-600 dark:text-gray-400 truncate w-full">
-              {contact.phone}
+              {`${contact.country_code || ''} ${contact.phone}`.trim()}
             </p>
           )}
         </div>

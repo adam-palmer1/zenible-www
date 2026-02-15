@@ -75,6 +75,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
       'display_name',
       'email',
       'phone',
+      'country_code',
       'is_hidden_client',
       'created_at',
     ];
@@ -392,7 +393,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
                     )}
                     {visibleColumns.phone && (
                       <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
-                        {client.phone || '-'}
+                        {client.phone ? `${client.country_code || ''} ${client.phone}`.trim() : '-'}
                       </td>
                     )}
                     {visibleColumns.business_name && (

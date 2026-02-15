@@ -12,7 +12,7 @@ import {
 } from 'chart.js';
 import type { ChartOptions } from 'chart.js';
 import { BarChart3, PieChart } from 'lucide-react';
-import { useReports } from '../../../contexts/ReportsContext';
+import { useReportsSummaryContext } from '../../../contexts/ReportsSummaryContext';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
@@ -262,7 +262,7 @@ const TypeBreakdownChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
  * Displays income/expense bar chart and type breakdown pie chart
  */
 const TransactionCharts: React.FC = () => {
-  const { summary, summaryLoading } = useReports();
+  const { summary, summaryLoading } = useReportsSummaryContext();
 
   // Get default currency symbol from summary
   const currencySymbol = summary?.default_currency?.symbol || '$';

@@ -518,15 +518,15 @@ export default function PricingNew() {
               {/* Header */}
               <div className="flex flex-col gap-4 mb-6">
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <h3 className="text-xl font-medium text-zinc-950">{plan.name}</h3>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <h3 className="text-xl font-medium text-zinc-950 truncate" title={plan.name}>{plan.name}</h3>
                     {isPopular && (
-                      <span className="bg-zenible-primary text-white px-2 py-0.5 rounded-md text-sm font-medium">
+                      <span className="bg-zenible-primary text-white px-2 py-0.5 rounded-md text-sm font-medium shrink-0">
                         Popular
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-zinc-500">{plan.description || 'Perfect for getting started'}</p>
+                  <p className="text-sm text-zinc-500 line-clamp-2">{plan.description || 'Perfect for getting started'}</p>
                 </div>
 
                 {/* Price */}
