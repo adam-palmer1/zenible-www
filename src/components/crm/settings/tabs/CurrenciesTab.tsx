@@ -102,13 +102,15 @@ const CurrenciesTab: React.FC = () => {
               {cc.is_default && <CheckIcon className="h-3.5 w-3.5" />}
               <span className="font-semibold">{cc.currency.code}</span>
               <span className="opacity-60">{cc.currency.symbol}</span>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleRemoveCurrency(cc.id); }}
-                className={`ml-1 p-0.5 rounded-full transition-colors ${cc.is_default ? 'hover:bg-white/20' : 'hover:bg-gray-300 dark:hover:bg-gray-500'}`}
-                title="Remove currency"
-              >
-                <XMarkIcon className="h-3.5 w-3.5" />
-              </button>
+              {!cc.has_entities && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleRemoveCurrency(cc.id); }}
+                  className={`ml-1 p-0.5 rounded-full transition-colors ${cc.is_default ? 'hover:bg-white/20' : 'hover:bg-gray-300 dark:hover:bg-gray-500'}`}
+                  title="Remove currency"
+                >
+                  <XMarkIcon className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           ))}
 

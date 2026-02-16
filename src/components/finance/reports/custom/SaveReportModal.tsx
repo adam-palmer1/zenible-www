@@ -5,10 +5,9 @@ import { X, Loader2 } from 'lucide-react';
 interface SaveReportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: { name: string; description: string; is_shared: boolean }) => Promise<void>;
+  onSave: (data: { name: string; description: string }) => Promise<void>;
   initialName?: string;
   initialDescription?: string;
-  initialShared?: boolean;
   isUpdate?: boolean;
 }
 
@@ -18,12 +17,10 @@ const SaveReportModal: React.FC<SaveReportModalProps> = ({
   onSave,
   initialName = '',
   initialDescription = '',
-  initialShared = false,
   isUpdate = false,
 }) => {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
-  const [isShared, setIsShared] = useState(initialShared);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,10 +28,9 @@ const SaveReportModal: React.FC<SaveReportModalProps> = ({
     if (isOpen) {
       setName(initialName);
       setDescription(initialDescription);
-      setIsShared(initialShared);
       setError(null);
     }
-  }, [isOpen, initialName, initialDescription, initialShared]);
+  }, [isOpen, initialName, initialDescription]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +42,7 @@ const SaveReportModal: React.FC<SaveReportModalProps> = ({
     try {
       setSaving(true);
       setError(null);
-      await onSave({ name: name.trim(), description: description.trim(), is_shared: isShared });
+      await onSave({ name: name.trim(), description: description.trim() });
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save report');
@@ -103,25 +99,6 @@ const SaveReportModal: React.FC<SaveReportModalProps> = ({
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
               />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isShared}
-                onClick={() => setIsShared(!isShared)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                  isShared ? 'bg-purple-600' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                    isShared ? 'translate-x-4.5' : 'translate-x-0.5'
-                  }`}
-                />
-              </button>
-              <span className="text-sm text-gray-700">Share with team</span>
             </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}

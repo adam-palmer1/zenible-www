@@ -115,8 +115,8 @@ export default function PaymentTracking() {
       if (userIdFilter) params.user_id = userIdFilter;
 
       const response = await adminPaymentsAPI.getAllPayments(params) as any;
-      setPayments(response.items || response.payments || []);
-      setTotalPages(response.total_pages || response.pages || 1);
+      setPayments(response.items || []);
+      setTotalPages(response.total_pages || 1);
       setTotalPayments(response.total || 0);
     } catch (err: any) {
       console.error('Failed to fetch payments:', err);

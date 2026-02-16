@@ -45,6 +45,8 @@ export interface ReportSummary {
   income_by_currency?: CurrencyBreakdown[];
   expense_by_currency?: CurrencyBreakdown[];
   outstanding_by_currency?: CurrencyBreakdown[];
+  paid_invoices_by_currency?: CurrencyBreakdown[];
+  unlinked_payments_by_currency?: CurrencyBreakdown[];
   by_period?: PeriodData[];
   by_type?: TypeBreakdown[];
   [key: string]: unknown;
@@ -68,8 +70,10 @@ export interface ReportsSummaryParams {
   start_date?: string;
   end_date?: string;
   contact_id?: string;
+  contact_ids?: string[];
   transaction_types?: string[];
   group_by_period?: string;
+  past_months?: number;
 }
 
 /**
@@ -80,12 +84,25 @@ export interface ReportsSummaryParams {
 export function useReportsSummary(params?: ReportsSummaryParams): UseReportsSummaryReturn {
   const { user } = useAuth();
 
-  const summaryParams = useMemo(() => ({
-    start_date: getDateDaysAgo(30),
-    end_date: getToday(),
-    group_by_period: 'month',
-    ...params,
-  }), [params]);
+  const summaryParams = useMemo(() => {
+    // When past_months is provided, the backend auto-sets date range and grouping
+    if (params?.past_months) {
+      return { ...params };
+    }
+    // If caller explicitly provided params (even without dates), respect that — no date defaults.
+    // Only apply last-30-days default when no params are given at all.
+    if (params) {
+      return {
+        group_by_period: 'month',
+        ...params,
+      };
+    }
+    return {
+      start_date: getDateDaysAgo(30),
+      end_date: getToday(),
+      group_by_period: 'month',
+    };
+  }, [params]);
 
   const summaryQuery = useQuery({
     queryKey: queryKeys.financeReports.summary(summaryParams),

@@ -66,8 +66,8 @@ export default function ConversationManagement() {
       if (maxMessages) params.max_messages = maxMessages;
 
       const response = await adminAPI.getConversations(params) as { conversations?: unknown[]; items?: unknown[]; total_pages?: number; total?: number };
-      setConversations(response.conversations || response.items || []);
-      setTotalPages(response.total_pages || Math.ceil((response.total || 0) / perPage) || 1);
+      setConversations(response.items || []);
+      setTotalPages(response.total_pages || 1);
     } catch (err) {
       setError((err as Error).message);
       console.error('Error fetching conversations:', err);

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Pencil, Loader2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Save, Loader2 } from 'lucide-react';
 import { useCustomReports } from '@/contexts/CustomReportsContext';
+import { useNotification } from '@/contexts/NotificationContext';
 import { ENTITY_TYPE_LABELS, ENTITY_TYPE_COLORS, type ReportEntityType } from '@/types/customReport';
 import ResultsEntityTab from './ResultsEntityTab';
 import CustomReportExportButton from './CustomReportExportButton';
+import SaveReportModal from './SaveReportModal';
 
 const ReportResults: React.FC = () => {
   const {
@@ -12,10 +14,14 @@ const ReportResults: React.FC = () => {
     executionError,
     activeReportId,
     activeReportName,
+    configuration,
+    saveReport,
+    updateReport,
     setMode,
     executeReport,
     executeSavedReport,
   } = useCustomReports();
+  const { showSuccess, showError } = useNotification();
 
   const entityTypes = executionResult
     ? (Object.keys(executionResult.results) as ReportEntityType[])
@@ -24,6 +30,29 @@ const ReportResults: React.FC = () => {
   const [activeEntity, setActiveEntity] = useState<ReportEntityType | null>(
     entityTypes[0] || null
   );
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+
+  const handleSave = async (data: { name: string; description: string }) => {
+    try {
+      if (activeReportId) {
+        await updateReport(activeReportId, {
+          name: data.name,
+          description: data.description || undefined,
+          configuration,
+        });
+        showSuccess('Report updated');
+      } else {
+        await saveReport({
+          name: data.name,
+          description: data.description || undefined,
+          configuration,
+        });
+        showSuccess('Report saved');
+      }
+    } catch {
+      showError('Failed to save report');
+    }
+  };
 
   // Keep activeEntity in sync if results change
   if (activeEntity && !entityTypes.includes(activeEntity) && entityTypes.length > 0) {
@@ -77,7 +106,7 @@ const ReportResults: React.FC = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setMode('build')}
+            onClick={() => setMode('list')}
             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -102,6 +131,13 @@ const ReportResults: React.FC = () => {
           >
             <Pencil className="w-4 h-4" />
             Edit
+          </button>
+          <button
+            onClick={() => setSaveModalOpen(true)}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Save className="w-4 h-4" />
+            Save
           </button>
           <CustomReportExportButton />
         </div>
@@ -138,6 +174,14 @@ const ReportResults: React.FC = () => {
           onPageChange={handlePageChange}
         />
       )}
+
+      <SaveReportModal
+        isOpen={saveModalOpen}
+        onClose={() => setSaveModalOpen(false)}
+        onSave={handleSave}
+        initialName={activeReportName || ''}
+        isUpdate={!!activeReportId}
+      />
     </div>
   );
 };

@@ -102,7 +102,7 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
 
   // Helper to get currency code
   const getCurrencyCode = (): string => {
-    return creditNote.currency?.code || creditNote.currency_code || 'USD';
+    return creditNote.currency?.code || 'USD';
   };
 
   const handleIssue = async () => {

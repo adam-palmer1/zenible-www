@@ -1,21 +1,21 @@
 import React from 'react';
 import { formatCurrency } from '@/utils/currency';
 import type { EntityQueryResultResponse, ColumnDataType } from '@/types/customReport';
-import AggregationBar from './AggregationBar';
+
 
 interface ResultsEntityTabProps {
   result: EntityQueryResultResponse;
   onPageChange: (page: number) => void;
 }
 
-function formatCellValue(value: unknown, dataType: ColumnDataType): React.ReactNode {
+function formatCellValue(value: unknown, dataType: ColumnDataType, row?: Record<string, unknown>): React.ReactNode {
   if (value === null || value === undefined) {
     return <span className="text-gray-400">--</span>;
   }
 
   switch (dataType) {
     case 'currency':
-      return formatCurrency(value as number);
+      return formatCurrency(value as number, (row?.currency_code as string) || 'USD');
 
     case 'date':
       return new Date(value as string).toLocaleDateString('en-US', {
@@ -64,16 +64,8 @@ const ResultsEntityTab: React.FC<ResultsEntityTabProps> = ({ result, onPageChang
 
   return (
     <div>
-      {/* Aggregations */}
-      {result.aggregations && <AggregationBar aggregations={result.aggregations} />}
-
-      {/* Results count */}
-      <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-        <span className="text-sm text-[#71717a]">{result.total} records found</span>
-      </div>
-
       {/* Table */}
-      <div className="overflow-x-auto border border-gray-200 rounded-b-lg">
+      <div className="overflow-x-auto border border-gray-200 rounded-lg">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -105,7 +97,7 @@ const ResultsEntityTab: React.FC<ResultsEntityTabProps> = ({ result, onPageChang
                       key={col.key}
                       className="px-4 py-3 text-sm text-[#09090b] whitespace-nowrap"
                     >
-                      {formatCellValue(row[col.key], col.data_type)}
+                      {formatCellValue(row[col.key], col.data_type, row)}
                     </td>
                   ))}
                 </tr>

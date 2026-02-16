@@ -20,8 +20,8 @@ export default function QuizHistoryPage() {
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      const data = await quizAPI.getAttemptHistory(page, PER_PAGE) as { attempts?: unknown[]; total?: number };
-      setAttempts((data.attempts || []) as typeof attempts);
+      const data = await quizAPI.getAttemptHistory(page, PER_PAGE) as { items?: unknown[]; total?: number };
+      setAttempts((data.items || []) as typeof attempts);
       setTotal(data.total || 0);
     } catch (err: any) {
       console.error('[QuizHistoryPage] Error fetching history:', err);

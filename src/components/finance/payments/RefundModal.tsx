@@ -33,7 +33,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment }) =
   if (!isOpen || !payment) return null;
 
   const maxRefundable = parseFloat(payment.amount) - parseFloat(payment.refunded_amount || 0);
-  const currency = payment.currency?.code || payment.currency_code || 'USD';
+  const currency = payment.currency?.code || 'USD';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

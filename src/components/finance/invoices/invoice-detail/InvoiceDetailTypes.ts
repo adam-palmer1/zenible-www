@@ -1,4 +1,4 @@
-import type { InvoiceResponse, InvoiceItemResponse } from '../../../../types';
+import type { InvoiceResponse } from '../../../../types';
 
 /**
  * Extended InvoiceResponse including extra runtime fields the backend may return
@@ -7,8 +7,6 @@ import type { InvoiceResponse, InvoiceItemResponse } from '../../../../types';
 export interface InvoiceDetailData extends InvoiceResponse {
   /** Legacy alias for issue_date */
   invoice_date?: string;
-  /** Legacy alias for invoice_items */
-  items?: InvoiceItemResponse[];
   /** Whether invoice is recurring (computed from pricing_type) */
   is_recurring?: boolean;
   /** Parent invoice ID for auto-generated child invoices */

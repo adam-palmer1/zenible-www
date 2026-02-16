@@ -266,7 +266,7 @@ const CreditNotesDashboard: React.FC = () => {
         stats?: CreditNoteListStats;
       };
       setCreditNotes(response.items || []);
-      setTotalItems(response.total || response.items?.length || 0);
+      setTotalItems(response.total || 0);
       if (response.stats) {
         setStats(response.stats);
       }

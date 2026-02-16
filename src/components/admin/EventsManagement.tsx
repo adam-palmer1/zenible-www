@@ -124,12 +124,12 @@ export default function EventsManagement() {
         }
       }
       const response = await eventsAPI.getAdminEvents(params_str) as EventsResponse;
-      setEvents(response.events || []);
+      setEvents(response.items || []);
       setTotal(response.total || 0);
       setTotalPages(response.total_pages || 1);
 
       // Extract unique tags from events
-      const tags = eventsAPI.extractUniqueTags(response.events || []);
+      const tags = eventsAPI.extractUniqueTags(response.items || []);
       setAvailableTags(tags);
     } catch (err: any) {
       setError(err.message);
@@ -151,7 +151,7 @@ export default function EventsManagement() {
   const fetchPlans = async () => {
     try {
       const response = await adminAPI.getPlans({ is_active: 'true' }) as PlansResponse;
-      setPlans(response.plans || response.items || []);
+      setPlans(response.items || []);
     } catch (err: any) {
       console.error('Error fetching plans:', err);
     }

@@ -13,6 +13,7 @@ interface RecurringExpenseSettingsProps {
   onChange: (changes: Record<string, any>) => void;
   readOnly?: boolean;
   isEditMode?: boolean;
+  parentExpenseNumber?: string | null;
 }
 
 const RecurringExpenseSettings: React.FC<RecurringExpenseSettingsProps> = ({
@@ -26,6 +27,7 @@ const RecurringExpenseSettings: React.FC<RecurringExpenseSettingsProps> = ({
   onChange,
   readOnly = false,
   isEditMode = false,
+  parentExpenseNumber = null,
 }) => {
   const handleChange = (field: string, value: any) => {
     onChange({ [field]: value });
@@ -62,7 +64,14 @@ const RecurringExpenseSettings: React.FC<RecurringExpenseSettingsProps> = ({
   return (
     <div className="space-y-4 design-bg-secondary rounded-lg p-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold design-text-primary">Recurring Expense</h3>
+        <div>
+          <h3 className="text-lg font-semibold design-text-primary">Recurring Expense</h3>
+          {parentExpenseNumber && (
+            <p className="text-sm design-text-secondary mt-1">
+              Child Expense of: <span className="font-medium design-text-primary">{parentExpenseNumber}</span>
+            </p>
+          )}
+        </div>
         {!readOnly && (
           <label className="relative inline-flex items-center cursor-pointer">
             <input

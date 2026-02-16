@@ -13,6 +13,7 @@ import {
 import type { ChartOptions } from 'chart.js';
 import { BarChart3, PieChart } from 'lucide-react';
 import { useReportsSummaryContext } from '../../../contexts/ReportsSummaryContext';
+import { useReportsSummary } from '../../../hooks/finance/useReportsSummary';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
@@ -20,10 +21,10 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tool
  * Pie chart segment colors for the 6 categories
  */
 const PIE_COLORS: Record<string, { bg: string; border: string }> = {
-  paid_invoices:   { bg: 'rgba(59, 130, 246, 0.8)',  border: '#3b82f6' },  // blue
+  paid_invoices:   { bg: 'rgba(139, 92, 246, 0.8)',  border: '#8b5cf6' },  // purple (zenible)
   other_payments:  { bg: 'rgba(34, 197, 94, 0.8)',   border: '#22c55e' },  // green
-  unpaid_invoices: { bg: 'rgba(251, 191, 36, 0.8)',  border: '#f59e0b' },  // amber
-  quotes:          { bg: 'rgba(139, 92, 246, 0.8)',  border: '#8b5cf6' },  // purple
+  unpaid_invoices: { bg: 'rgba(156, 163, 175, 0.8)', border: '#9ca3af' },  // grey
+  quotes:          { bg: 'rgba(59, 130, 246, 0.8)',  border: '#3b82f6' },  // blue
   paid_expenses:   { bg: 'rgba(239, 68, 68, 0.8)',   border: '#ef4444' },  // red
   unpaid_expenses: { bg: 'rgba(249, 115, 22, 0.8)',  border: '#f97316' },  // orange
 };
@@ -84,8 +85,10 @@ const IncomeExpenseChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
     datasets: [
       {
         label: 'Income',
-        data: data.map((item: any) => parseFloat(item.income_total || 0)),
-        backgroundColor: 'rgba(34, 197, 94, 0.8)',
+        data: data.map((item: any) =>
+          parseFloat(item.paid_invoices_total || 0) + parseFloat(item.unlinked_payments_total || 0)
+        ),
+        backgroundColor: '#bbf7d0',
         borderColor: '#22c55e',
         borderWidth: 1,
         borderRadius: 4,
@@ -93,7 +96,7 @@ const IncomeExpenseChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
       {
         label: 'Expenses',
         data: data.map((item: any) => parseFloat(item.expense_total || 0)),
-        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+        backgroundColor: '#fecaca',
         borderColor: '#ef4444',
         borderWidth: 1,
         borderRadius: 4,
@@ -278,14 +281,17 @@ const FinancialBreakdownChart: React.FC<{ loading: boolean; currencySymbol?: str
 const TransactionCharts: React.FC = () => {
   const { summary, summaryLoading } = useReportsSummaryContext();
 
+  // Separate 12-month query for the bar chart (independent of date filter)
+  const { summary: chartSummary, summaryLoading: chartLoading } = useReportsSummary({ past_months: 12 });
+
   // Get default currency symbol from summary
-  const currencySymbol = summary?.default_currency?.symbol || '$';
+  const currencySymbol = summary?.default_currency?.symbol || chartSummary?.default_currency?.symbol || '$';
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <IncomeExpenseChart
-        data={summary?.by_period || []}
-        loading={summaryLoading}
+        data={chartSummary?.by_period || []}
+        loading={chartLoading}
         currencySymbol={currencySymbol}
       />
       <FinancialBreakdownChart

@@ -32,7 +32,7 @@ const InvoiceSelectModal: React.FC<InvoiceSelectModalProps> = ({
       if (search) params.search = search;
       if (contactId) params.contact_id = contactId;
       const data = await invoicesAPI.list(params);
-      const items = (data as any)?.items || (data as any)?.data || (Array.isArray(data) ? data : []);
+      const items = data?.items || [];
       setInvoices(items);
     } catch (error) {
       console.error('Failed to search invoices:', error);

@@ -39,7 +39,7 @@ export interface EventRegistration {
 }
 
 export interface EventsResponse {
-  events: EventItem[];
+  items: EventItem[];
   total: number;
   total_pages: number;
 }

@@ -50,8 +50,8 @@ export default function LiveQA() {
     try {
       setLoading(true);
       setError(null);
-      const data = await eventsAPI.listEvents() as { events?: unknown[] };
-      setEvents((data.events || []) as typeof events);
+      const data = await eventsAPI.listEvents() as { items?: unknown[] };
+      setEvents((data.items || []) as typeof events);
     } catch (err: any) {
       console.error('[LiveQA] Error fetching events:', err);
       setError(err.message || 'Failed to load events');
@@ -64,8 +64,8 @@ export default function LiveQA() {
     try {
       setLoading(true);
       setError(null);
-      const data = await eventsAPI.getMyRegistrations() as { events?: unknown[]; registrations?: unknown[] };
-      setMyEvents((data.events || data.registrations || []) as typeof myEvents);
+      const data = await eventsAPI.getMyRegistrations() as unknown[];
+      setMyEvents((Array.isArray(data) ? data : []) as typeof myEvents);
     } catch (err: any) {
       console.error('[LiveQA] Error fetching my events:', err);
       setError(err.message || 'Failed to load your registered events');

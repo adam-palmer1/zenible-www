@@ -233,8 +233,6 @@ export default function AICharacterManagement() {
         | (AICharacterList & { items?: AICharacterResponse[] });
       if (Array.isArray(response)) {
         setCharacters(response);
-      } else if (response && Array.isArray(response.characters)) {
-        setCharacters(response.characters);
       } else if (response && Array.isArray(response.items)) {
         setCharacters(response.items);
       } else {

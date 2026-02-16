@@ -275,7 +275,7 @@ const PublicInvoiceView: React.FC = () => {
   const canPayStripe = invoice.allow_stripe_payments && invoice.stripe_connected;
   const canPayPayPal = invoice.allow_paypal_payments && invoice.paypal_connected;
   const canPay = !isPaid && !isCancelled && amountDue > 0 && (canPayStripe || canPayPayPal);
-  const items = invoice.invoice_items || invoice.items || [];
+  const items = invoice.invoice_items || [];
 
   // Recurring invoice detection
   const isRecurring = invoice.pricing_type === 'Recurring' || invoice.recurring_type;

@@ -78,8 +78,8 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
       // Convert answers array to object keyed by question_id
       const answersMap: Record<string, AnswerValue> = {};
-      // Handle both array directly or object with answers property
-      const answersArray: OnboardingAnswer[] = Array.isArray(answersData) ? answersData : ((answersData as Record<string, unknown>).answers as OnboardingAnswer[]) || [];
+      // Backend returns a plain array of answers
+      const answersArray: OnboardingAnswer[] = Array.isArray(answersData) ? answersData : [];
 
       if (answersArray.length > 0) {
         answersArray.forEach(item => {

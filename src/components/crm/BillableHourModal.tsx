@@ -16,6 +16,7 @@ interface BillableHourModalProps {
   contactCurrencyCode?: string | null;
   projectCurrencyCode?: string | null;
   projectCurrencyId?: string | null;
+  services?: any[];
   onSuccess: (data: any) => Promise<void>;
 }
 
@@ -32,6 +33,7 @@ const BillableHourModal: React.FC<BillableHourModalProps> = ({
   contactCurrencyCode = null,
   projectCurrencyCode = null,
   projectCurrencyId = null,
+  services = [],
   onSuccess,
 }) => {
   const isEditing = !!entry;
@@ -45,6 +47,7 @@ const BillableHourModal: React.FC<BillableHourModalProps> = ({
     is_billable: true,
     hourly_rate: '',
     currency_id: '',
+    contact_service_id: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -92,6 +95,7 @@ const BillableHourModal: React.FC<BillableHourModalProps> = ({
           is_billable: entry.is_billable ?? true,
           hourly_rate: entry.hourly_rate || '',
           currency_id: entry.currency_id || effectiveDefaultCurrency?.currency_id || '',
+          contact_service_id: entry.contact_service_id || '',
         });
       } else {
         setFormData({
@@ -103,6 +107,7 @@ const BillableHourModal: React.FC<BillableHourModalProps> = ({
           is_billable: true,
           hourly_rate: '',
           currency_id: effectiveDefaultCurrency?.currency_id || '',
+          contact_service_id: '',
         });
       }
     }
@@ -186,6 +191,7 @@ const BillableHourModal: React.FC<BillableHourModalProps> = ({
       if (formData.currency_id) {
         payload.currency_id = formData.currency_id;
       }
+      payload.contact_service_id = formData.contact_service_id || null;
 
       await onSuccess(payload);
       onClose();
@@ -211,6 +217,17 @@ const BillableHourModal: React.FC<BillableHourModalProps> = ({
     })),
     [companyCurrencies]
   );
+
+  // Service options for dropdown
+  const serviceOptions = useMemo(() => {
+    if (!services || services.length === 0) return [];
+    return services
+      .filter((s: any) => s.contact_service?.id)
+      .map((s: any) => ({
+        value: s.contact_service.id,
+        label: s.contact_service.name || s.contact_service.template_service?.name || 'Unnamed Service',
+      }));
+  }, [services]);
 
   return (
     <Modal
@@ -270,6 +287,22 @@ const BillableHourModal: React.FC<BillableHourModalProps> = ({
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-zenible-primary focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800"
           />
         </div>
+
+        {/* Service */}
+        {serviceOptions.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Service
+            </label>
+            <GenericDropdown
+              value={formData.contact_service_id}
+              onChange={(value: any) => handleInputChange('contact_service_id', value)}
+              options={[{ value: '', label: 'No service' }, ...serviceOptions]}
+              placeholder="Select a service..."
+              disabled={isInvoiced}
+            />
+          </div>
+        )}
 
         {/* Time Range */}
         <div className="grid grid-cols-2 gap-4">

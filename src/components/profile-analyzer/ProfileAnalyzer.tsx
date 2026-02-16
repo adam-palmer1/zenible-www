@@ -32,7 +32,7 @@ interface UserFeatures {
 }
 
 interface ConversationListResponse {
-  conversations?: ConversationSummary[];
+  items?: ConversationSummary[];
   total_pages?: number;
   [key: string]: unknown;
 }
@@ -45,7 +45,7 @@ interface ConversationSummary {
 }
 
 interface ConversationMessagesResponse {
-  messages?: RawConversationMessage[];
+  items?: RawConversationMessage[];
   total_pages?: number;
   [key: string]: unknown;
 }
@@ -462,7 +462,7 @@ export default function ProfileAnalyzer() {
         page: String(page),
         per_page: '10'
       }) as ConversationListResponse;
-      setConversations(response.conversations || []);
+      setConversations(response.items || []);
       setTotalConversationPages(response.total_pages || 1);
       setConversationPage(page);
     } catch (error) {
@@ -482,7 +482,7 @@ export default function ProfileAnalyzer() {
       ) as ConversationMessagesResponse;
 
       // Transform messages to match expected format
-      const transformedMessages = (response.messages || []).map((msg: RawConversationMessage) => {
+      const transformedMessages = (response.items || []).map((msg: RawConversationMessage) => {
         let content = msg.content;
 
         // Parse AI message content if it's wrapped in JSON

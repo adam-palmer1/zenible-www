@@ -37,9 +37,8 @@ const EmbedSettings = ({ username }: { username: string }) => {
   useEffect(() => {
     const loadCallTypes = async () => {
       try {
-        const data = await callTypesAPI.list({ is_active: true }) as { call_types?: any[] } | any[];
-        // Handle response format: { call_types: [...], total: n }
-        const items = Array.isArray(data) ? data : (data?.call_types || []);
+        const data = await callTypesAPI.list({ is_active: true }) as { items?: any[] } | any[];
+        const items = Array.isArray(data) ? data : (data?.items || []);
         setCallTypes(items);
         // Auto-select first call type
         if (items.length > 0) {

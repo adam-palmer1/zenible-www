@@ -138,7 +138,7 @@ export default function HostsManagement() {
     setHostEventsLoading(true);
     try {
       const response = await eventsAPI.getHostEvents(hostId, { page: '1', per_page: '100' }) as Record<string, unknown>;
-      setHostEvents((response.events as HostEvent[]) || []);
+      setHostEvents((response.items as HostEvent[]) || []);
     } catch (err: unknown) {
       console.error('Error fetching host events:', err);
       alert(`Error fetching host events: ${err instanceof Error ? err.message : String(err)}`);

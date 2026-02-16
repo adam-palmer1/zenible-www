@@ -77,7 +77,7 @@ export default function QuizzesManagement() {
 
       const response = await quizAPI.getQuizzes(params) as Record<string, unknown>;
       // Handle both direct array response and paginated object response
-      const quizzesArray = Array.isArray(response) ? response : ((response.quizzes || response.items || []) as Quiz[]);
+      const quizzesArray = Array.isArray(response) ? response : ((response.items || []) as Quiz[]);
       setQuizzes(quizzesArray);
       setTotal(Array.isArray(response) ? response.length : ((response.total as number) || 0));
       setTotalPages(Array.isArray(response) ? 1 : ((response.total_pages as number) || 1));
@@ -93,7 +93,7 @@ export default function QuizzesManagement() {
     try {
       const response = await quizAPI.getQuizTags({ is_active: 'true' }) as Record<string, unknown>;
       // Handle both direct array response and paginated object response
-      const tagsArray = Array.isArray(response) ? response : ((response.tags || response.items || []) as QuizTag[]);
+      const tagsArray = Array.isArray(response) ? response : ((response.items || []) as QuizTag[]);
       setQuizTags(tagsArray);
     } catch (err: unknown) {
       console.error('Error fetching quiz tags:', err);

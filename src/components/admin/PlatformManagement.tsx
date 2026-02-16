@@ -26,7 +26,7 @@ interface PlatformFormData {
 }
 
 interface PlatformsResponse {
-  platforms: Platform[];
+  items: Platform[];
   total_pages: number;
 }
 
@@ -118,7 +118,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
         per_page: '10',
         ...(searchQuery && { search: searchQuery }),
       }) as PlatformsResponse;
-      setPlatforms(response.platforms || []);
+      setPlatforms(response.items || []);
       setTotalPages(response.total_pages || 1);
     } catch (error) {
       console.error('Failed to fetch platforms:', error);

@@ -18,10 +18,16 @@ const formatCurrency = (value: any, currencySymbol: string = '$'): string => {
 /**
  * Format currency breakdown array into a subtitle string
  * e.g., "£507.00 + $246.00"
- * Only returns a string if there are 2+ currencies
+ * Shows when 2+ currencies exist, or when a single currency differs from the default
  */
-const formatCurrencyBreakdown = (currencyArray: any[]): string | null => {
-  if (!currencyArray || currencyArray.length <= 1) return null;
+const formatCurrencyBreakdown = (currencyArray: any[], defaultCurrencyCode?: string): string | null => {
+  if (!currencyArray || currencyArray.length === 0) return null;
+
+  // Show breakdown if 2+ currencies, or if single currency differs from default
+  if (currencyArray.length === 1) {
+    const onlyCode = currencyArray[0]?.currency_code;
+    if (!defaultCurrencyCode || onlyCode === defaultCurrencyCode) return null;
+  }
 
   return currencyArray
     .map((item: any) => {
@@ -31,6 +37,66 @@ const formatCurrencyBreakdown = (currencyArray: any[]): string | null => {
         maximumFractionDigits: 2,
       });
       return `${symbol}${amount}`;
+    })
+    .join(' + ');
+};
+
+/**
+ * Combine two currency breakdown arrays by currency_code, summing total_amount.
+ */
+const combineByC = (a: any[], b: any[]): any[] => {
+  const map: Record<string, { total_amount: number; currency_symbol: string; currency_code: string }> = {};
+
+  for (const item of (a || [])) {
+    const code = item.currency_code;
+    if (!code) continue;
+    if (!map[code]) map[code] = { total_amount: 0, currency_symbol: item.currency_symbol || '$', currency_code: code };
+    map[code].total_amount += parseFloat(item.total_amount || 0);
+  }
+
+  for (const item of (b || [])) {
+    const code = item.currency_code;
+    if (!code) continue;
+    if (!map[code]) map[code] = { total_amount: 0, currency_symbol: item.currency_symbol || '$', currency_code: code };
+    map[code].total_amount += parseFloat(item.total_amount || 0);
+  }
+
+  return Object.values(map);
+};
+
+/**
+ * Compute net amount breakdown per currency from income and expense breakdowns.
+ * For each currency: net = income - expense. Only shows if 2+ currencies exist.
+ */
+const computeNetBreakdown = (incomeByC: any[], expenseByC: any[], defaultCurrencyCode?: string): string | null => {
+  const currencyMap: Record<string, { net: number; symbol: string; code: string }> = {};
+
+  for (const item of (incomeByC || [])) {
+    const code = item.currency_code;
+    if (!code) continue;
+    if (!currencyMap[code]) currencyMap[code] = { net: 0, symbol: item.currency_symbol || '$', code };
+    currencyMap[code].net += parseFloat(item.total_amount || 0);
+  }
+
+  for (const item of (expenseByC || [])) {
+    const code = item.currency_code;
+    if (!code) continue;
+    if (!currencyMap[code]) currencyMap[code] = { net: 0, symbol: item.currency_symbol || '$', code };
+    currencyMap[code].net -= parseFloat(item.total_amount || 0);
+  }
+
+  const entries = Object.values(currencyMap);
+  // Show if 2+ currencies, or single currency differs from default
+  if (entries.length === 0) return null;
+  if (entries.length === 1 && (!defaultCurrencyCode || entries[0].code === defaultCurrencyCode)) return null;
+
+  return entries
+    .map(({ net, symbol }) => {
+      const formatted = Math.abs(net).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      return net < 0 ? `-${symbol}${formatted}` : `${symbol}${formatted}`;
     })
     .join(' + ');
 };
@@ -60,20 +126,30 @@ const TransactionSummaryCards: React.FC = () => {
     );
   }
 
-  // Get default currency symbol from backend summary or company settings
+  // Get default currency info from backend summary or company settings
   const defaultSymbol = summary?.default_currency?.symbol || defaultCurrency?.currency?.symbol || '$';
+  const defaultCode = summary?.default_currency?.code || defaultCurrency?.currency?.code || '';
 
   // Main totals (in default currency)
-  const incomeTotal = summary?.income_total || '0';
+  // Total Income = paid_invoices_total + unlinked_payments_total (matches P&L widget formula)
+  const paidInvoicesTotal = parseFloat(String(summary?.paid_invoices_total || '0'));
+  const unlinkedPaymentsTotal = parseFloat(String(summary?.unlinked_payments_total || '0'));
+  const incomeTotal = paidInvoicesTotal + unlinkedPaymentsTotal;
   const expenseTotal = summary?.expense_total || '0';
-  const netAmount = summary?.net_amount || '0';
+  const netAmount = incomeTotal - parseFloat(String(expenseTotal) || '0');
   const outstanding = summary?.outstanding_invoices || '0';
   const overdueCount = summary?.overdue_count || 0;
 
   // Currency breakdowns (for subtitle display)
-  const incomeBreakdown = formatCurrencyBreakdown(summary?.income_by_currency || []);
-  const expenseBreakdown = formatCurrencyBreakdown(summary?.expense_by_currency || []);
-  const outstandingBreakdown = formatCurrencyBreakdown(summary?.outstanding_by_currency || []);
+  // Show breakdown when 2+ currencies, or single currency differs from default
+  const combinedIncomeByC = combineByC(
+    summary?.paid_invoices_by_currency || [],
+    summary?.unlinked_payments_by_currency || []
+  );
+  const incomeBreakdown = formatCurrencyBreakdown(combinedIncomeByC, defaultCode);
+  const expenseBreakdown = formatCurrencyBreakdown(summary?.expense_by_currency || [], defaultCode);
+  const netBreakdown = computeNetBreakdown(combinedIncomeByC, summary?.expense_by_currency || [], defaultCode);
+  const outstandingBreakdown = formatCurrencyBreakdown(summary?.outstanding_by_currency || [], defaultCode);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -94,6 +170,7 @@ const TransactionSummaryCards: React.FC = () => {
       <KPICard
         title="Net Amount"
         value={formatCurrency(netAmount, defaultSymbol)}
+        subtitle={netBreakdown}
         icon={DollarSign}
         iconColor={parseFloat(String(netAmount)) >= 0 ? 'green' : 'red'}
       />

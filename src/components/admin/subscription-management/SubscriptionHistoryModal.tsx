@@ -38,8 +38,8 @@ const SubscriptionHistoryModal: React.FC<SubscriptionHistoryModalProps> = ({
         page: String(page),
         per_page: '10',
       }) as any;
-      setSubscriptions(response.subscriptions || response.items || []);
-      setTotalPages(response.pages || response.total_pages || 1);
+      setSubscriptions(response.items || []);
+      setTotalPages(response.total_pages || 1);
       setTotal(response.total || 0);
     } catch (err) {
       console.error('Failed to fetch subscription history:', err);

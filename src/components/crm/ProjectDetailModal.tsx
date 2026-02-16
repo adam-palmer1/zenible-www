@@ -905,6 +905,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
             currency={project.default_currency?.code || project.currency || 'USD'}
             contactCurrencyId={project.contact?.currency_id}
             contactCurrencyCode={project.contact?.currency?.code}
+            services={services}
           />
         );
       case 'finance':

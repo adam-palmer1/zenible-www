@@ -311,7 +311,7 @@ const InvoiceDetail: React.FC = () => {
   }
 
   const status = invoice.status;
-  const items = invoice.invoice_items || invoice.items || [];
+  const items = invoice.invoice_items || [];
   const totals = calculateInvoiceTotal(items, Number(invoice.tax_rate || 0), invoice.discount_type ?? 'percentage', String(invoice.discount_value || 0));
   const hasOutstandingBalance = parseFloat(String(invoice.outstanding_balance || 0)) > 0 && status !== INVOICE_STATUS.CANCELLED;
   const hasSavedCard = invoice.has_saved_payment_method === true;

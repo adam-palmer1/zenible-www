@@ -120,8 +120,8 @@ const ReportsDashboard: React.FC = () => {
   const [customDateTo, setCustomDateTo] = useState(() =>
     (getPreference('reports_custom_date_to', '') as string)
   );
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(() =>
-    (getPreference('reports_client_id', null) as string | null)
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>(() =>
+    (getPreference('reports_client_ids', []) as string[])
   );
   const [selectedTransactionTypes, setSelectedTransactionTypes] = useState<string[]>(() =>
     (getPreference('reports_transaction_types', []) as string[])
@@ -135,7 +135,7 @@ const ReportsDashboard: React.FC = () => {
       setDatePreset(getPreference('reports_date_preset', 'last30') as string);
       setCustomDateFrom(getPreference('reports_custom_date_from', '') as string);
       setCustomDateTo(getPreference('reports_custom_date_to', '') as string);
-      setSelectedClientId(getPreference('reports_client_id', null) as string | null);
+      setSelectedClientIds(getPreference('reports_client_ids', []) as string[]);
       setSelectedTransactionTypes(getPreference('reports_transaction_types', []) as string[]);
     }
   }, [prefsInitialized, prefsLoaded, getPreference]);
@@ -182,13 +182,15 @@ const ReportsDashboard: React.FC = () => {
     if (!clientSearchQuery) return allClients;
     const q = clientSearchQuery.toLowerCase();
     return allClients.filter((c: any) => {
-      const name = c.company_name || `${c.first_name || ''} ${c.last_name || ''}`.trim();
+      const fullName = `${c.first_name || ''} ${c.last_name || ''}`.trim();
+      const name = fullName || c.business_name || '';
       return name.toLowerCase().includes(q);
     });
   }, [allClients, clientSearchQuery]);
 
   const getClientDisplayName = useCallback((client: any): string => {
-    return client.company_name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || 'Unnamed';
+    const fullName = `${client.first_name || ''} ${client.last_name || ''}`.trim();
+    return fullName || client.business_name || 'Unnamed';
   }, []);
 
   /* ── Date preset logic ────────────────────────────────────── */
@@ -247,7 +249,8 @@ const ReportsDashboard: React.FC = () => {
     });
   }, [updatePreference]);
 
-  /* ── Build summary params from filter state ───────────────── */
+  /* ── Build params from filter state ───────────────────────── */
+  // Summary params: date + contact filters only (cards + charts)
   const summaryParams = useMemo((): ReportsSummaryParams => {
     const params: ReportsSummaryParams = {};
 
@@ -256,16 +259,23 @@ const ReportsDashboard: React.FC = () => {
       params.end_date = dateRange.end;
     }
 
-    if (selectedClientId) {
-      params.contact_id = selectedClientId;
+    if (selectedClientIds.length > 0) {
+      params.contact_ids = selectedClientIds;
     }
+
+    return params;
+  }, [dateRange, selectedClientIds]);
+
+  // Table params: summary params + transaction type filter
+  const tableParams = useMemo((): ReportsSummaryParams => {
+    const params = { ...summaryParams };
 
     if (selectedTransactionTypes.length > 0) {
       params.transaction_types = selectedTransactionTypes;
     }
 
     return params;
-  }, [dateRange, selectedClientId, selectedTransactionTypes]);
+  }, [summaryParams, selectedTransactionTypes]);
 
   return (
     <AppLayout pageTitle="Reports">
@@ -405,16 +415,16 @@ const ReportsDashboard: React.FC = () => {
                       ref={clientButtonRef}
                       onClick={() => setShowClientDropdown((v) => !v)}
                       className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                        selectedClientId
+                        selectedClientIds.length > 0
                           ? 'border-purple-500 bg-purple-50 text-purple-700'
                           : 'border-gray-300 text-gray-700'
                       }`}
                     >
                       <Users className="h-4 w-4" />
-                      Clients
-                      {selectedClientId && (
+                      Contacts
+                      {selectedClientIds.length > 0 && (
                         <span className="px-1.5 py-0.5 text-xs font-medium bg-purple-600 text-white rounded-full">
-                          1
+                          {selectedClientIds.length}
                         </span>
                       )}
                     </button>
@@ -436,7 +446,7 @@ const ReportsDashboard: React.FC = () => {
                               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                               <input
                                 type="text"
-                                placeholder="Search clients..."
+                                placeholder="Search contacts..."
                                 value={clientSearchQuery}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClientSearchQuery(e.target.value)}
                                 className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -446,45 +456,56 @@ const ReportsDashboard: React.FC = () => {
                           </div>
 
                           {/* Clear selection */}
-                          {selectedClientId && (
+                          {selectedClientIds.length > 0 && (
                             <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-end">
                               <button
-                                onClick={() => { setSelectedClientId(null); updatePreference('reports_client_id', null, 'finance'); }}
+                                onClick={() => { setSelectedClientIds([]); updatePreference('reports_client_ids', [], 'finance'); }}
                                 className="text-xs font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1"
                               >
                                 <X className="h-3 w-3" />
-                                Clear
+                                Clear all
                               </button>
                             </div>
                           )}
 
-                          {/* Client List */}
+                          {/* Contact List */}
                           <div className="max-h-64 overflow-y-auto p-2">
                             {clientsLoading ? (
-                              <p className="text-sm text-gray-500 py-4 text-center">Loading clients...</p>
+                              <p className="text-sm text-gray-500 py-4 text-center">Loading contacts...</p>
                             ) : filteredClients.length === 0 ? (
                               <p className="text-sm text-gray-500 py-4 text-center">
-                                {allClients.length === 0 ? 'No clients found' : 'No matching clients'}
+                                {allClients.length === 0 ? 'No contacts found' : 'No matching contacts'}
                               </p>
                             ) : (
-                              filteredClients.map((client: any) => (
-                                <button
-                                  key={client.id}
-                                  onClick={() => { const next = selectedClientId === client.id ? null : client.id; setSelectedClientId(next); updatePreference('reports_client_id', next, 'finance'); }}
-                                  className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer w-full text-left"
-                                >
-                                  <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                                    selectedClientId === client.id
-                                      ? 'border-purple-600 bg-purple-600'
-                                      : 'border-gray-300'
-                                  }`}>
-                                    {selectedClientId === client.id && (
-                                      <div className="h-1.5 w-1.5 rounded-full bg-white" />
-                                    )}
-                                  </div>
-                                  <span className="truncate flex-1">{getClientDisplayName(client)}</span>
-                                </button>
-                              ))
+                              filteredClients.map((client: any) => {
+                                const isSelected = selectedClientIds.includes(client.id);
+                                return (
+                                  <button
+                                    key={client.id}
+                                    onClick={() => {
+                                      const next = isSelected
+                                        ? selectedClientIds.filter((id: string) => id !== client.id)
+                                        : [...selectedClientIds, client.id];
+                                      setSelectedClientIds(next);
+                                      updatePreference('reports_client_ids', next, 'finance');
+                                    }}
+                                    className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer w-full text-left"
+                                  >
+                                    <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                                      isSelected
+                                        ? 'border-purple-600 bg-purple-600'
+                                        : 'border-gray-300'
+                                    }`}>
+                                      {isSelected && (
+                                        <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      )}
+                                    </div>
+                                    <span className="truncate flex-1">{getClientDisplayName(client)}</span>
+                                  </button>
+                                );
+                              })
                             )}
                           </div>
 
@@ -582,7 +603,7 @@ const ReportsDashboard: React.FC = () => {
               <TransactionCharts />
 
               {/* ── Transactions Table ──────────────────────────── */}
-              <ReportsTransactionTable filterParams={summaryParams} />
+              <ReportsTransactionTable filterParams={tableParams} />
             </div>
           </ReportsSummaryProvider>
         )}

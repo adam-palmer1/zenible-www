@@ -2,63 +2,37 @@ import React from 'react';
 import { useContactFinancials, useCompanyCurrencies } from '../../hooks/crm';
 import { formatCurrencyWithCommas } from '../../utils/currency';
 import { LoadingSpinner } from '../shared';
+import type { FinancialField } from '../../hooks/crm/useContactFinancials';
 
-interface FinancialSummaryProps {
-  data: any;
-  currencies: { income: string; outstanding: string; expenses: string };
+interface FinancialBoxProps {
+  label: string;
+  field: FinancialField;
+  defaultCurrency: string;
   numberFormat: any;
+  bgClass: string;
+  textClass: string;
 }
 
-/**
- * Financial Summary Card Component
- */
-const FinancialSummary: React.FC<FinancialSummaryProps> = ({ data, currencies, numberFormat }) => {
-  // Format value with the appropriate currency
-  const formatValue = (value: any, currencyCode: string) => formatCurrencyWithCommas(value, currencyCode, numberFormat);
+const FinancialBox: React.FC<FinancialBoxProps> = ({
+  label, field, defaultCurrency, numberFormat, bgClass, textClass,
+}) => {
+  const showBreakdown = field.currencies.length > 0;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <h4 className="text-sm font-medium text-gray-700 mb-3">Financial Summary</h4>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-        {/* Income/Billed */}
-        <div className="text-center p-3 bg-green-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Income</p>
-          <p className="text-sm font-semibold text-green-700">
-            {formatValue(data.billed, currencies.income)}
-          </p>
+    <div className={`text-center p-3 ${bgClass} rounded-lg`}>
+      <p className="text-xs text-gray-500 mb-1">{label}</p>
+      <p className={`text-sm font-semibold ${textClass}`}>
+        {formatCurrencyWithCommas(field.total, defaultCurrency, numberFormat)}
+      </p>
+      {showBreakdown && (
+        <div className="mt-1 space-y-0.5">
+          {field.currencies.map(c => (
+            <p key={c.code} className="text-[10px] text-gray-400">
+              {formatCurrencyWithCommas(c.amount, c.code, numberFormat)}
+            </p>
+          ))}
         </div>
-        {/* Paid */}
-        <div className="text-center p-3 bg-blue-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Paid</p>
-          <p className="text-sm font-semibold text-blue-700">
-            {formatValue(data.paid, currencies.income)}
-          </p>
-        </div>
-        {/* Outstanding */}
-        <div className="text-center p-3 bg-orange-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Outstanding</p>
-          <p className="text-sm font-semibold text-orange-700">
-            {formatValue(data.outstanding, currencies.outstanding)}
-          </p>
-          {data.overdueCount > 0 && (
-            <p className="text-xs text-red-600 mt-0.5">{data.overdueCount} overdue</p>
-          )}
-        </div>
-        {/* Expenses */}
-        <div className="text-center p-3 bg-red-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Expenses</p>
-          <p className="text-sm font-semibold text-red-700">
-            {formatValue(data.expenses, currencies.expenses)}
-          </p>
-        </div>
-        {/* Net */}
-        <div className="text-center p-3 bg-purple-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Net</p>
-          <p className={`text-sm font-semibold ${data.total >= 0 ? 'text-purple-700' : 'text-red-700'}`}>
-            {formatValue(data.total, currencies.income)}
-          </p>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -67,31 +41,25 @@ interface ContactFinancialsTabProps {
   contactId: string;
 }
 
-/**
- * Contact Financials Tab Component
- * Displays financial summary for a contact
- */
 const ContactFinancialsTab: React.FC<ContactFinancialsTabProps> = ({ contactId }) => {
   const {
-    summaryByCurrency,
-    summaryCurrencies,
+    summary,
+    defaultCurrency,
     loading,
     error,
     refresh,
   } = useContactFinancials(contactId);
 
-  const { defaultCurrency, numberFormat } = useCompanyCurrencies();
-  const defaultCurrencyCode = defaultCurrency?.currency?.code || 'GBP';
+  const { defaultCurrency: companyCurrency, numberFormat } = useCompanyCurrencies();
+  const currencyCode = defaultCurrency || companyCurrency?.currency?.code || 'GBP';
 
-  // Get per-category currencies with fallback to default
-  const currencies = {
-    income: summaryCurrencies?.income || defaultCurrencyCode,
-    outstanding: summaryCurrencies?.outstanding || defaultCurrencyCode,
-    expenses: summaryCurrencies?.expenses || defaultCurrencyCode,
-  };
-
-  const summaryData = summaryByCurrency?.ALL;
-  const hasData = summaryData && (summaryData.billed > 0 || summaryData.outstanding > 0 || summaryData.expenses > 0);
+  const hasData = summary && (
+    summary.billed.total > 0 ||
+    summary.outstanding.total > 0 ||
+    summary.expenses.total > 0 ||
+    summary.attributedOut.total > 0 ||
+    summary.attributedIn.total > 0
+  );
 
   if (loading) {
     return <LoadingSpinner size="h-8 w-8" height="py-8" />;
@@ -111,7 +79,7 @@ const ContactFinancialsTab: React.FC<ContactFinancialsTabProps> = ({ contactId }
     );
   }
 
-  if (!hasData) {
+  if (!hasData || !summary) {
     return (
       <div className="text-center py-8">
         <svg
@@ -137,12 +105,22 @@ const ContactFinancialsTab: React.FC<ContactFinancialsTabProps> = ({ contactId }
 
   return (
     <div className="space-y-6">
-      {/* Summary */}
-      <FinancialSummary
-        data={summaryData}
-        currencies={currencies}
-        numberFormat={numberFormat}
-      />
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <h4 className="text-sm font-medium text-gray-700 mb-3">Financial Summary</h4>
+        {/* Row 1: Invoice-based figures */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+          <FinancialBox label="Direct Income" field={summary.billed} defaultCurrency={currencyCode} numberFormat={numberFormat} bgClass="bg-green-50" textClass="text-green-700" />
+          <FinancialBox label="Paid" field={summary.paid} defaultCurrency={currencyCode} numberFormat={numberFormat} bgClass="bg-blue-50" textClass="text-blue-700" />
+          <FinancialBox label="Outstanding" field={summary.outstanding} defaultCurrency={currencyCode} numberFormat={numberFormat} bgClass="bg-orange-50" textClass="text-orange-700" />
+          <FinancialBox label="Expenses" field={summary.expenses} defaultCurrency={currencyCode} numberFormat={numberFormat} bgClass="bg-red-50" textClass="text-red-700" />
+        </div>
+        {/* Row 2: Attribution & Net */}
+        <div className="grid grid-cols-3 gap-2">
+          <FinancialBox label="Attributed Out" field={summary.attributedOut} defaultCurrency={currencyCode} numberFormat={numberFormat} bgClass="bg-indigo-50" textClass="text-indigo-700" />
+          <FinancialBox label="Attributed In" field={summary.attributedIn} defaultCurrency={currencyCode} numberFormat={numberFormat} bgClass="bg-violet-50" textClass="text-violet-700" />
+          <FinancialBox label="Net" field={summary.net} defaultCurrency={currencyCode} numberFormat={numberFormat} bgClass="bg-purple-50" textClass={summary.net.total >= 0 ? 'text-purple-700' : 'text-red-700'} />
+        </div>
+      </div>
     </div>
   );
 };

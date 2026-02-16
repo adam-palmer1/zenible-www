@@ -205,7 +205,7 @@ const PaymentList: React.FC = () => {
 
   // Helper to get currency code
   const getCurrencyCode = (payment: PaymentItem) => {
-    return payment.currency?.code || payment.currency_code || 'USD';
+    return payment.currency?.code || 'USD';
   };
 
   // Filter payments locally for search
@@ -334,7 +334,7 @@ const PaymentList: React.FC = () => {
     </span>
   );
 
-  const totalPages = pagination.total_pages || Math.ceil(filteredPayments.length / pagination.per_page);
+  const totalPages = pagination.total_pages || 1;
   const currentPage = pagination.page;
 
   return (

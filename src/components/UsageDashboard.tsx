@@ -328,8 +328,8 @@ export default function UsageDashboard() {
                               </span>
                             </div>
                             <UsageProgressBar
-                              current={char.usage ?? char.current ?? char.messages_used ?? 0}
-                              limit={char.limit ?? char.message_limit ?? -1}
+                              current={char.usage ?? 0}
+                              limit={char.limit ?? -1}
                               darkMode={darkMode}
                               showPercentage={true}
                             />

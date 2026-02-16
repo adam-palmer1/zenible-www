@@ -66,7 +66,6 @@ interface PaymentsContextValue {
 
 interface PaymentListApiResponse {
   items?: unknown[];
-  data?: unknown[];
   total?: number;
   total_pages?: number;
   stats?: Record<string, unknown>;
@@ -165,9 +164,8 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     queryKey: [...queryKeys.payments.all, 'list', { apiParams }],
     queryFn: async () => {
       const response = await paymentsAPI.list(apiParams as Record<string, string>) as PaymentListApiResponse;
-      const rawItems = response.items || response.data || [];
-      const items = Array.isArray(rawItems) ? rawItems : [];
-      return { items, total: response.total || items.length, total_pages: response.total_pages, stats: response.stats };
+      const items = response.items || [];
+      return { items, total: response.total ?? 0, total_pages: response.total_pages, stats: response.stats };
     },
     enabled: !!user && preferencesLoaded,
   });
@@ -178,7 +176,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
       setPagination(prev => ({
         ...prev,
         total: paymentsQuery.data.total,
-        total_pages: paymentsQuery.data.total_pages || Math.ceil(paymentsQuery.data.total / prev.per_page),
+        total_pages: paymentsQuery.data.total_pages || 1,
       }));
       if (paymentsQuery.data.stats) {
         setStats(paymentsQuery.data.stats);

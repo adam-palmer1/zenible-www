@@ -1,4 +1,4 @@
-import type { InvoiceResponse, InvoiceItemResponse } from '../../../../types';
+import type { InvoiceResponse } from '../../../../types';
 
 /**
  * Extended InvoiceResponse including extra runtime fields the backend may return
@@ -11,8 +11,6 @@ import type { InvoiceResponse, InvoiceItemResponse } from '../../../../types';
 export interface InvoiceFormData extends InvoiceResponse {
   /** Legacy alias for issue_date */
   invoice_date?: string;
-  /** Legacy alias for invoice_items */
-  items?: InvoiceItemResponse[];
   /** Whether invoice is recurring (computed from pricing_type) */
   is_recurring?: boolean;
   /** End date for recurring invoices */
@@ -81,6 +79,8 @@ export interface BillableHourEntry {
   currency_id?: string;
   quantity?: number;
   project?: { name: string } | null;
+  contact_service_id?: string | null;
+  contact_service?: { id: string; name: string } | null;
   [key: string]: unknown;
 }
 

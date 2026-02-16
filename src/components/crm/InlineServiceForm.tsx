@@ -42,7 +42,7 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
     name: service.name || '',
     description: service.description || '',
     price: service.price?.toString() || '',
-    currency: service.currency_code || service.currency?.code || service.currency || defaultCurrency,
+    currency: service.currency?.code || defaultCurrency,
     pricingType: service.frequency_type === 'one_off' ? 'Fixed' : 'Recurring',
     recurringType: service.time_period === 'weekly' ? 'Weekly' :
                   service.time_period === 'monthly' ? 'Monthly' :
@@ -180,7 +180,7 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
     handleServiceChange(serviceId, 'name', service.name);
     handleServiceChange(serviceId, 'description', service.description || '');
     handleServiceChange(serviceId, 'price', service.price?.toString() || '');
-    handleServiceChange(serviceId, 'currency', service.currency_code || service.currency?.code || service.currency || defaultCurrency);
+    handleServiceChange(serviceId, 'currency', service.currency?.code || defaultCurrency);
 
     // Set pricing type and recurring details
     const pricingType = service.frequency_type === 'one_off' ? 'Fixed' : 'Recurring';

@@ -85,12 +85,9 @@ export default function ThreadManagement() {
         order_dir: orderDir,
       };
 
-      const response = await adminAPI.getThreads(params) as { threads?: AdminThread[]; items?: AdminThread[]; total?: number; total_pages?: number };
-      setThreads(response.threads || response.items || []);
-      // Calculate total pages from total and per_page
-      const totalCount = response.total || 0;
-      const calculatedPages = Math.ceil(totalCount / perPage);
-      setTotalPages(response.total_pages || calculatedPages || 1);
+      const response = await adminAPI.getThreads(params) as { items?: AdminThread[]; total?: number; total_pages?: number };
+      setThreads(response.items || []);
+      setTotalPages(response.total_pages || 1);
     } catch (err: any) {
       setError(err.message);
       console.error('Error fetching threads:', err);
@@ -122,8 +119,8 @@ export default function ThreadManagement() {
       const messages = await adminAPI.getThreadMessages(thread.id, {
         limit: '100',
         order: 'asc',
-      }) as { data?: ThreadMessage[] };
-      setThreadMessages(messages.data || []);
+      }) as { items?: ThreadMessage[] };
+      setThreadMessages(messages.items || []);
     } catch (err: any) {
       console.error('Error fetching thread messages:', err);
       setThreadMessages([]);

@@ -95,8 +95,8 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
 
       // Filter to only show payments with matching currency
       const currencyFilteredPayments = rawPayments.filter((payment: PaymentItem) => {
-        const paymentCurrencyId = payment.currency_id || payment.currency?.id;
-        const invoiceCurrencyId = invoice.currency_id || invoice.currency?.id;
+        const paymentCurrencyId = payment.currency?.id || payment.currency_id;
+        const invoiceCurrencyId = invoice.currency?.id || invoice.currency_id;
         return paymentCurrencyId === invoiceCurrencyId;
       });
 

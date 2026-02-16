@@ -53,6 +53,7 @@ export interface EntityExtraFilters {
   vendor_ids?: string[];
   payment_method?: string;
   frequency_type?: string;
+  currency_ids?: string[];
 }
 
 export interface EntitySelectionConfig {
@@ -86,14 +87,12 @@ export interface ReportConfiguration {
 export interface CustomReportCreate {
   name: string;
   description?: string;
-  is_shared?: boolean;
   configuration: ReportConfiguration;
 }
 
 export interface CustomReportUpdate {
   name?: string;
   description?: string;
-  is_shared?: boolean;
   configuration?: ReportConfiguration;
 }
 
@@ -103,7 +102,6 @@ export interface CustomReportResponse {
   created_by_user_id: string;
   name: string;
   description: string | null;
-  is_shared: boolean;
   configuration: ReportConfiguration;
   created_at: string;
   updated_at: string;
@@ -113,7 +111,6 @@ export interface CustomReportListItem {
   id: string;
   name: string;
   description: string | null;
-  is_shared: boolean;
   is_owner: boolean;
   entity_types: ReportEntityType[];
   created_at: string;

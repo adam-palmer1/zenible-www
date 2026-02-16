@@ -872,6 +872,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
                   recurringStatus={recurringStatus}
                   startDate={expenseDate}
                   isEditMode={!!expense?.id}
+                  readOnly={!!expense?.generated_from_template}
+                  parentExpenseNumber={expense?.parent_expense_number}
                   onChange={(updates: any) => {
                     if ('isRecurring' in updates) setIsRecurring(updates.isRecurring);
                     if ('recurringType' in updates) setRecurringType(updates.recurringType);

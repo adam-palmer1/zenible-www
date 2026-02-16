@@ -108,7 +108,7 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, onClose
 
   // Helper to get currency code
   const getCurrencyCode = () => {
-    return payment.currency?.code || payment.currency_code || 'USD';
+    return payment.currency?.code || 'USD';
   };
 
   const canRefund = payment.status === 'completed' || payment.status === 'succeeded';

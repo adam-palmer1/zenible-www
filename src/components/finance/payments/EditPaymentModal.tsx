@@ -122,7 +122,7 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
       const customerEmail = payment.contact?.email || payment.customer_email || '';
 
       // Get currency code from nested object or direct field
-      const currencyCode = payment.currency?.code || payment.currency_code || 'USD';
+      const currencyCode = payment.currency?.code || 'USD';
 
       // Format payment date
       let paymentDate = '';
@@ -197,7 +197,7 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
   };
 
   const getCurrencyCode = () => {
-    return payment.currency?.code || payment.currency_code || formData.currency || 'USD';
+    return payment.currency?.code || formData.currency || 'USD';
   };
 
   const selectedMethod = PAYMENT_METHODS.find(m => m.value === formData.payment_method);

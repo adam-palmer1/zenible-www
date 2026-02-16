@@ -183,8 +183,8 @@ export default function SubscriptionManagement() {
         sort_dir: sortDir,
       };
       const response = await adminSubscriptionsAPI.getSubscriptions(params) as SubscriptionList & { items?: any[]; total_pages?: number };
-      setSubscriptions(response.subscriptions || response.items || []);
-      setTotalPages(response.pages || response.total_pages || 1);
+      setSubscriptions(response.items || []);
+      setTotalPages(response.total_pages || 1);
       setTotalSubscriptions(response.total || 0);
     } catch (err: any) {
       setError(err.message);
@@ -196,7 +196,7 @@ export default function SubscriptionManagement() {
   const fetchPlans = async () => {
     try {
       const response = await adminPlansAPI.getPlans({ is_active: 'true' }) as PlanList & { items?: PlanResponse[] };
-      setPlans(response.plans || response.items || []);
+      setPlans(response.items || []);
     } catch (err: any) {
       console.error('Error fetching plans:', err);
     }

@@ -118,12 +118,12 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
     setLoadingCreditNotes(true);
     try {
       const data = await creditNotesAPI.listByContact(invoice.contact_id) as any;
-      const items = data?.items || data?.data || (Array.isArray(data) ? data : []);
+      const items = data?.items || [];
       // Filter: same currency, has remaining balance
-      const invoiceCurrencyId = invoice.currency_id || invoice.currency?.id;
+      const invoiceCurrencyId = invoice.currency?.id;
       setAvailableCreditNotes(
         items.filter((cn: any) => {
-          const cnCurrencyId = cn.currency_id || cn.currency?.id;
+          const cnCurrencyId = cn.currency?.id || cn.currency_id;
           return !invoiceCurrencyId || !cnCurrencyId || cnCurrencyId === invoiceCurrencyId;
         })
       );
@@ -208,7 +208,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
         amount: parseFloat(formData.amount),
         payment_method: formData.payment_method,
         payment_date: formData.payment_date,
-        currency_id: invoice.currency_id || invoice.currency?.id,
+        currency_id: invoice.currency?.id || invoice.currency_id,
         reference_number: formData.reference_number || undefined,
         notes: formData.notes || undefined,
         invoice_allocations: [

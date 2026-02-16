@@ -149,32 +149,35 @@ const EntityConfigPanel: React.FC<EntityConfigPanelProps> = ({ selection }) => {
           )}
 
           {/* Extra Filters */}
-          {entityMeta.filters.extra_filters.length > 0 && (
+          {entityMeta.filters.extra_filters.filter((f) => f !== 'currency_ids').length > 0 && (
             <div>
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
                 Additional Filters
               </label>
               <div className="flex flex-wrap gap-1.5">
-                {entityMeta.filters.extra_filters.map((filterKey) => {
-                  const isActive = !!(selection.extra_filters as Record<string, unknown> | undefined)?.[filterKey];
-                  return (
-                    <button
-                      key={filterKey}
-                      type="button"
-                      onClick={() => handleExtraFilterToggle(filterKey)}
-                      className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                        isActive
-                          ? 'bg-purple-100 text-purple-700 border border-purple-300'
-                          : 'bg-gray-100 text-gray-600 border border-transparent hover:bg-gray-200'
-                      }`}
-                    >
-                      {filterKey.replace(/^is_|^has_/, '').replace(/_/g, ' ')}
-                    </button>
-                  );
-                })}
+                {entityMeta.filters.extra_filters
+                  .filter((f) => f !== 'currency_ids')
+                  .map((filterKey) => {
+                    const isActive = !!(selection.extra_filters as Record<string, unknown> | undefined)?.[filterKey];
+                    return (
+                      <button
+                        key={filterKey}
+                        type="button"
+                        onClick={() => handleExtraFilterToggle(filterKey)}
+                        className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                          isActive
+                            ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                            : 'bg-gray-100 text-gray-600 border border-transparent hover:bg-gray-200'
+                        }`}
+                      >
+                        {filterKey.replace(/^is_|^has_/, '').replace(/_/g, ' ')}
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           )}
+
         </div>
       )}
     </div>

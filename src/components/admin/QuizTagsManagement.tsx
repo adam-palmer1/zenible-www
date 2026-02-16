@@ -112,7 +112,7 @@ export default function QuizTagsManagement() {
   const fetchPlans = async () => {
     try {
       const response = await adminAPI.getPlans() as Record<string, unknown>;
-      setPlans((response.plans as Plan[]) || (response.items as Plan[]) || []);
+      setPlans((response.items as Plan[]) || []);
     } catch (err: unknown) {
       console.error('Error fetching plans:', err);
     }

@@ -42,7 +42,7 @@ export const platformAPI = {
       const data = await response.json();
 
       // Sort by display_order
-      const sortedPlatforms = ((data.platforms || []) as Record<string, unknown>[]).sort((a, b) =>
+      const sortedPlatforms = ((data.items || []) as Record<string, unknown>[]).sort((a, b) =>
         ((a.display_order as number) || 0) - ((b.display_order as number) || 0)
       );
 

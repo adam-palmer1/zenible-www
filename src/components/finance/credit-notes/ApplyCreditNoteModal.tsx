@@ -29,8 +29,8 @@ const ApplyCreditNoteModal: React.FC<ApplyCreditNoteModalProps> = ({ isOpen, onC
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const currencyCode = creditNote?.currency?.code || creditNote?.currency_code || 'USD';
-  const remainingAmount = parseFloat(creditNote?.remaining_amount ?? creditNote?.total ?? '0');
+  const currencyCode = creditNote?.currency?.code || 'USD';
+  const remainingAmount = parseFloat(creditNote?.remaining_amount ?? '0');
 
   useEffect(() => {
     if (isOpen && creditNote?.contact_id) {
@@ -43,7 +43,7 @@ const ApplyCreditNoteModal: React.FC<ApplyCreditNoteModalProps> = ({ isOpen, onC
   const fetchInvoices = async () => {
     setLoading(true);
     try {
-      const contactId = creditNote.contact_id || creditNote.contact?.id;
+      const contactId = creditNote.contact?.id;
       if (!contactId) return;
 
       const data = await invoicesAPI.list({
@@ -52,7 +52,7 @@ const ApplyCreditNoteModal: React.FC<ApplyCreditNoteModalProps> = ({ isOpen, onC
         per_page: '100',
       }) as any;
 
-      const items = data?.items || data?.data || (Array.isArray(data) ? data : []);
+      const items = data?.items || [];
       const eligible = items
         .filter((inv: any) => parseFloat(inv.outstanding_balance || '0') > 0)
         .map((inv: any) => ({

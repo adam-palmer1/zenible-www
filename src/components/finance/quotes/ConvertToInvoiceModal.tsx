@@ -82,7 +82,7 @@ const ConvertToInvoiceModal: React.FC<ConvertToInvoiceModalProps> = ({ isOpen, o
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Total:</span>
                   <span className="text-gray-900 dark:text-white font-semibold">
-                    {formatCurrency(quote.total, quote.currency_code || quote.currency?.code)}
+                    {formatCurrency(quote.total, quote.currency?.code)}
                   </span>
                 </div>
               </div>

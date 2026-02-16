@@ -155,12 +155,6 @@ class CustomReportsAPI {
     });
   }
 
-  async toggleShare(id: string): Promise<CustomReportResponse> {
-    return request<CustomReportResponse>(`${this.baseEndpoint}/${id}/share`, {
-      method: 'PATCH',
-    });
-  }
-
   // --- Saved Report Execution ---
 
   async executeSavedReport(

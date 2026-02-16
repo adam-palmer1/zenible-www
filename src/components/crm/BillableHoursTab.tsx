@@ -18,6 +18,7 @@ interface BillableHoursTabProps {
   currency?: string;
   contactCurrencyId?: string | null;
   contactCurrencyCode?: string | null;
+  services?: any[];
 }
 
 /**
@@ -30,6 +31,7 @@ const BillableHoursTab: React.FC<BillableHoursTabProps> = ({
   currency = 'USD',
   contactCurrencyId = null,
   contactCurrencyCode = null,
+  services = [],
 }) => {
   const entryModal = useModalState();
   const [editingEntry, setEditingEntry] = useState<any>(null);
@@ -289,6 +291,7 @@ const BillableHoursTab: React.FC<BillableHoursTabProps> = ({
         contactCurrencyCode={contactCurrencyCode}
         projectCurrencyCode={currency}
         projectCurrencyId={defaultCurrencyId}
+        services={services}
         onSuccess={handleSave}
       />
 

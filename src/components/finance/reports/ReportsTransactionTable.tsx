@@ -81,9 +81,10 @@ const ReportsTransactionTable: React.FC<ReportsTransactionTableProps> = ({ filte
     enabled: !!user,
   });
 
-  const items: any[] = (data as any)?.items || [];
-  const total: number = (data as any)?.total || 0;
-  const totalPages: number = (data as any)?.total_pages || 0;
+  const typedData = data as { items?: any[]; total?: number; total_pages?: number } | undefined;
+  const items: any[] = typedData?.items || [];
+  const total: number = typedData?.total || 0;
+  const totalPages: number = typedData?.total_pages || 0;
 
   const getContactName = (item: any): string => {
     if (!item.contact) return '-';
@@ -154,7 +155,7 @@ const ReportsTransactionTable: React.FC<ReportsTransactionTableProps> = ({ filte
                 Number
               </th>
               <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Client
+                Contact
               </th>
               <th scope="col" className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Date

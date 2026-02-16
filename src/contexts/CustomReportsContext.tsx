@@ -64,7 +64,6 @@ interface CustomReportsContextValue {
   updateReport: (id: string, data: CustomReportUpdate) => Promise<CustomReportResponse>;
   deleteReport: (id: string) => Promise<void>;
   cloneReport: (id: string, name?: string) => Promise<CustomReportResponse>;
-  toggleShare: (id: string) => Promise<CustomReportResponse>;
   exportReport: (format: 'csv' | 'pdf', savedReportId?: string) => Promise<boolean>;
   loadSavedReport: (report: CustomReportResponse) => void;
   startNewReport: () => void;
@@ -157,13 +156,6 @@ export const CustomReportsProvider: React.FC<{ children: React.ReactNode }> = ({
     },
   });
 
-  const shareMutation = useMutation({
-    mutationFn: (id: string) => customReportsAPI.toggleShare(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.customReports.list() });
-    },
-  });
-
   // --- Operations ---
 
   const executeReport = useCallback(
@@ -178,9 +170,13 @@ export const CustomReportsProvider: React.FC<{ children: React.ReactNode }> = ({
     async (id: string, page = 1) => {
       setActiveReportId(id);
       setExecutionError(null);
+      // Fetch full report so configuration is available for editing
+      const report = await customReportsAPI.getReport(id);
+      builder.loadConfig(report.configuration);
+      setActiveReportName(report.name);
       await executeSavedMutation.mutateAsync({ id, page });
     },
-    [executeSavedMutation]
+    [executeSavedMutation, builder]
   );
 
   const saveReport = useCallback(
@@ -221,13 +217,6 @@ export const CustomReportsProvider: React.FC<{ children: React.ReactNode }> = ({
       return cloneMutation.mutateAsync({ id, name });
     },
     [cloneMutation]
-  );
-
-  const toggleShare = useCallback(
-    async (id: string) => {
-      return shareMutation.mutateAsync(id);
-    },
-    [shareMutation]
   );
 
   const exportReport = useCallback(
@@ -322,7 +311,6 @@ export const CustomReportsProvider: React.FC<{ children: React.ReactNode }> = ({
       updateReport,
       deleteReport,
       cloneReport,
-      toggleShare,
       exportReport,
       loadSavedReport,
       startNewReport,
@@ -347,7 +335,6 @@ export const CustomReportsProvider: React.FC<{ children: React.ReactNode }> = ({
       updateReport,
       deleteReport,
       cloneReport,
-      toggleShare,
       exportReport,
       loadSavedReport,
       startNewReport,

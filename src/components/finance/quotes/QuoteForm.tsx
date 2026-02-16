@@ -154,7 +154,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
       setStatus(quote.status || QUOTE_STATUS.DRAFT);
 
       // Normalize items to have description field
-      const quoteItems = quote.quote_items || quote.items || [];
+      const quoteItems = quote.quote_items || [];
       const normalizedItems = quoteItems.map((item: any) => ({
         ...item,
         description: item.name || item.description || '',

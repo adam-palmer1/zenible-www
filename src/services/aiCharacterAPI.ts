@@ -70,58 +70,16 @@ class AICharacterAPI {
       per_page: '50' // Get more characters to find suitable ones
     }) as unknown;
 
-    // Handle paginated response structure
-    if (Array.isArray(response)) {
-      return response;
-    }
-
     const resp = response as Record<string, unknown>;
-
-    // Check for common paginated response structures
-    if (resp?.data && Array.isArray(resp.data)) {
-      return resp.data;
-    }
-    if (resp?.items && Array.isArray(resp.items)) {
-      return resp.items;
-    }
-    if (resp?.characters && Array.isArray(resp.characters)) {
-      return resp.characters;
-    }
-    if (resp?.results && Array.isArray(resp.results)) {
-      return resp.results;
-    }
-
-    logger.warn('Unexpected response structure from getProposalAnalysisCharacters:', response);
-    return [];
+    return (resp.items || []) as unknown[];
   }
 
   // Get user's available characters (alias for getCharacters)
   async getUserCharacters(params: Record<string, string> = {}): Promise<unknown[]> {
     const response = await this.getCharacters(params) as unknown;
 
-    // Handle paginated response structure
-    if (Array.isArray(response)) {
-      return response;
-    }
-
     const resp = response as Record<string, unknown>;
-
-    // Check for common paginated response structures
-    if (resp?.data && Array.isArray(resp.data)) {
-      return resp.data;
-    }
-    if (resp?.items && Array.isArray(resp.items)) {
-      return resp.items;
-    }
-    if (resp?.characters && Array.isArray(resp.characters)) {
-      return resp.characters;
-    }
-    if (resp?.results && Array.isArray(resp.results)) {
-      return resp.results;
-    }
-
-    logger.warn('Unexpected response structure from getUserCharacters:', response);
-    return [];
+    return (resp.items || []) as unknown[];
   }
 }
 

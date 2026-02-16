@@ -16,6 +16,7 @@ export interface CompanyCurrency {
   id: string;
   currency: Currency;
   is_default: boolean;
+  has_entities?: boolean;
   [key: string]: unknown;
 }
 

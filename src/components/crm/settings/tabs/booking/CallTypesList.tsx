@@ -34,8 +34,8 @@ const CallTypesList = () => {
 
   const loadCallTypes = async () => {
     try {
-      const data = await callTypesAPI.list({ include_inactive: true }) as { call_types?: any[]; [key: string]: unknown };
-      setCallTypes(data.call_types || []);
+      const data = await callTypesAPI.list({ include_inactive: true }) as { items?: any[]; [key: string]: unknown };
+      setCallTypes(data.items || []);
     } catch (error) {
       showError('Failed to load call types');
       console.error('Failed to load call types:', error);

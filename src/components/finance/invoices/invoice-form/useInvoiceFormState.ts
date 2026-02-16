@@ -12,7 +12,6 @@ import companiesAPI from '../../../../services/api/crm/companies';
 import contactsAPI from '../../../../services/api/crm/contacts';
 import invoicesAPI from '../../../../services/api/finance/invoices';
 import billableHoursAPI from '../../../../services/api/crm/billableHours';
-import projectsAPI from '../../../../services/api/crm/projects';
 import type { InvoiceItemResponse, NumberFormatResponse, CompanyResponse } from '../../../../types';
 import type { CompanyCurrency } from '../../../../hooks/crm/useCompanyCurrencies';
 import type { InvoiceStatus } from '../../../../constants/finance';
@@ -188,7 +187,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
       );
       setCurrency(invoice.currency_id || '');
       // Normalize items to have description field
-      const rawItems = invoice.invoice_items || invoice.items || [];
+      const rawItems = invoice.invoice_items || [];
       const normalizedItems: FormLineItem[] = rawItems.map((item: InvoiceItemResponse) => ({
         id: item.id,
         description: item.description || item.name || '',
@@ -204,6 +203,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
           tax_rate: parseFloat(String(t.tax_rate)),
           tax_amount: parseFloat(String(t.tax_amount)),
         })),
+        _contact_service_id: (item as Record<string, unknown>).contact_service_id as string | undefined,
       }));
       setItems(normalizedItems);
 
@@ -486,38 +486,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
           }) as BillableHoursListResponse;
 
           if (response && response.items && response.items.length > 0) {
-            // Get unique project IDs from the billable hours
-            const projectIds = [...new Set(
-              response.items
-                .map((item: BillableHourEntry) => item.project_id)
-                .filter(Boolean)
-            )] as string[];
-
-            // Fetch project names for all unique project IDs
-            const projectNames: Record<string, string> = {};
-            if (projectIds.length > 0) {
-              const projectPromises = projectIds.map(async (projectId: string) => {
-                try {
-                  const project = await projectsAPI.get(projectId) as { name: string; id: string };
-                  return { id: projectId, name: project.name };
-                } catch (err) {
-                  console.warn(`Failed to fetch project ${projectId}:`, err);
-                  return { id: projectId, name: null };
-                }
-              });
-              const projects = await Promise.all(projectPromises);
-              projects.forEach((p: { id: string; name: string | null }) => {
-                if (p.name) projectNames[p.id] = p.name;
-              });
-            }
-
-            // Enrich items with project names
-            const enrichedItems = response.items.map((item: BillableHourEntry) => ({
-              ...item,
-              project: item.project_id ? { name: projectNames[item.project_id] || 'Unnamed Project' } : null,
-            }));
-
-            setUnbilledHoursData({ ...response, items: enrichedItems });
+            setUnbilledHoursData(response);
             setShowUnbilledHoursModal(true);
           }
         } catch (error) {
@@ -536,14 +505,22 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
     const allBillableHourIds = lineItems.flatMap((item: FormLineItem) => item._billable_hour_ids || []);
     setPendingBillableHourIds(allBillableHourIds);
 
-    // Calculate project allocations based on hours proportion
-    const totalHours = lineItems.reduce((sum: number, item: FormLineItem) => sum + (item.quantity || 0), 0);
-    const projectAllocations: ProjectAllocation[] = lineItems
-      .filter((item: FormLineItem) => item._project_id != null)
-      .map((item: FormLineItem) => ({
-        project_id: item._project_id!,
-        percentage: totalHours > 0 ? Math.round((item.quantity / totalHours) * 100) : 0,
-      }));
+    // Aggregate hours per project (multiple service groups may share the same project)
+    const projectHoursMap: Record<string, number> = {};
+    let totalHours = 0;
+    lineItems.forEach((item: FormLineItem) => {
+      if (item._project_id) {
+        projectHoursMap[item._project_id] = (projectHoursMap[item._project_id] || 0) + (item.quantity || 0);
+      }
+      totalHours += item.quantity || 0;
+    });
+
+    const projectAllocations: ProjectAllocation[] = Object.entries(projectHoursMap).map(
+      ([projectId, hours]) => ({
+        project_id: projectId,
+        percentage: totalHours > 0 ? Math.round((hours / totalHours) * 100) : 0,
+      })
+    );
 
     // Ensure percentages sum to 100 (adjust the largest allocation for rounding errors)
     const totalPercentage = projectAllocations.reduce((sum: number, a: ProjectAllocation) => sum + a.percentage, 0);
@@ -561,7 +538,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
       setCurrency(hoursCurrencyId);
     }
 
-    // Add the new line items to existing items (strip internal tracking fields)
+    // Add the new line items to existing items (strip internal tracking fields, keep _contact_service_id)
     const cleanedItems = lineItems.map((item: FormLineItem) => {
       const cleanItem = { ...item };
       delete cleanItem._billable_hour_ids;
@@ -690,6 +667,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
           amount: Number(item.amount),
           tax_rate: Number(item.tax_rate || 0), // Always send 0 instead of null
           taxes: item.taxes || [], // Include item-level taxes
+          contact_service_id: item._contact_service_id || null,
         })),
         // Always send document_taxes array (empty if none)
         document_taxes: documentTaxes || [],

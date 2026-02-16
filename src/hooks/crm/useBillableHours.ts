@@ -15,7 +15,9 @@ interface BillableHourEntry {
   hourly_rate?: string | null;
   currency_id?: string | null;
   invoice_id?: string | null;
+  contact_service_id?: string | null;
   amount?: string | null;
+  contact_service?: { id: string; name: string } | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -143,6 +145,7 @@ export function useBillableHours(projectId: string | undefined) {
       is_billable: entry.is_billable,
       hourly_rate: entry.hourly_rate,
       currency_id: entry.currency_id,
+      contact_service_id: entry.contact_service_id,
     };
 
     return createEntry(newData);

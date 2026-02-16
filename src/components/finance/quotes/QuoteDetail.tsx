@@ -208,7 +208,7 @@ const QuoteDetail: React.FC = () => {
   if (!quote) return null;
 
   const status = quote.status;
-  const items = quote.quote_items || quote.items || [];
+  const items = quote.quote_items || [];
   const totals = calculateInvoiceTotal(items, quote.tax_rate || 0, quote.discount_type, quote.discount_value || 0);
 
   // Check if quote has any tax (item-level or document-level)

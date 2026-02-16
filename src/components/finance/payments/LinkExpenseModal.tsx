@@ -88,7 +88,7 @@ const LinkExpenseModal: React.FC<LinkExpenseModalProps> = ({ isOpen, onClose, pa
   if (!isOpen || !payment) return null;
 
   const getCurrencyCode = () => {
-    return payment.currency?.code || payment.currency_code || 'USD';
+    return payment.currency?.code || 'USD';
   };
 
   const handleLink = async () => {
@@ -187,7 +187,7 @@ const LinkExpenseModal: React.FC<LinkExpenseModalProps> = ({ isOpen, onClose, pa
             <div className="space-y-2">
               {filteredExpenses.map((expense: ExpenseItem) => {
                 const expenseCurrency =
-                  expense.currency?.code || expense.currency_code || 'USD';
+                  expense.currency?.code || 'USD';
                 return (
                   <label
                     key={expense.id}

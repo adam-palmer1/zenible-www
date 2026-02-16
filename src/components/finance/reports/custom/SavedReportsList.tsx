@@ -19,7 +19,6 @@ const SavedReportsList: React.FC = () => {
     executeSavedReport,
     loadSavedReport,
     cloneReport,
-    toggleShare,
     deleteReport,
   } = useCustomReports();
   const { showSuccess, showError } = useNotification();
@@ -52,15 +51,6 @@ const SavedReportsList: React.FC = () => {
       showSuccess('Report cloned successfully');
     } catch {
       showError('Failed to clone report');
-    }
-  };
-
-  const handleToggleShare = async (id: string) => {
-    try {
-      const result = await toggleShare(id);
-      showSuccess(result.is_shared ? 'Report shared with team' : 'Report is now private');
-    } catch {
-      showError('Failed to update sharing');
     }
   };
 
@@ -132,9 +122,6 @@ const SavedReportsList: React.FC = () => {
                       Entities
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Shared
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created
                     </th>
                     <th className="px-4 py-3 w-12" />
@@ -170,27 +157,14 @@ const SavedReportsList: React.FC = () => {
                           })}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                            report.is_shared
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {report.is_shared ? 'Shared' : 'Private'}
-                        </span>
-                      </td>
                       <td className="px-4 py-3 text-sm text-[#71717a]">
                         {formatDate(report.created_at)}
                       </td>
                       <td className="px-4 py-3">
                         <SavedReportActions
                           report={report}
-                          onRun={handleRun}
                           onEdit={handleEdit}
                           onClone={handleClone}
-                          onToggleShare={handleToggleShare}
                           onDelete={(id) => setDeleteModal({ isOpen: true, reportId: id })}
                         />
                       </td>

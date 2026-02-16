@@ -139,7 +139,7 @@ export default function TipsManagement() {
       };
 
       const response = await adminAPI.getTips(params) as Record<string, unknown>;
-      setTips((response.tips as Tip[]) || []);
+      setTips((response.items as Tip[]) || []);
       setTotal((response.total as number) || 0);
       setTotalPages((response.total_pages as number) || 1);
     } catch (err: unknown) {
@@ -153,7 +153,7 @@ export default function TipsManagement() {
   const fetchCharacters = async () => {
     try {
       const response = await adminAPI.getAICharacters({ is_active: 'true' }) as Record<string, unknown>;
-      setCharacters((response.characters as AICharacter[]) || (response.items as AICharacter[]) || []);
+      setCharacters((response.items as AICharacter[]) || []);
     } catch (err: unknown) {
       console.error('Error fetching characters:', err);
     }

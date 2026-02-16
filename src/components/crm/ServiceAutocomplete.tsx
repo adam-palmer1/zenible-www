@@ -147,7 +147,7 @@ const ServiceAutocomplete: React.FC<ServiceAutocompleteProps> = ({
                 </div>
                 {service.price && (
                   <div className="text-sm text-gray-700 font-medium ml-2 flex-shrink-0">
-                    {getCurrencySymbol(service.currency_code || 'GBP')}
+                    {getCurrencySymbol(service.currency?.code || 'GBP')}
                     {parseFloat(service.price).toFixed(2)}
                     {service.frequency_type === 'recurring' && (
                       <span className="text-xs text-gray-500 ml-1">
