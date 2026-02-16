@@ -82,6 +82,13 @@ const BillableHourModal: React.FC<BillableHourModalProps> = ({
     return companyCurrencies[0] || null;
   }, [contactCurrencyId, contactCurrencyCode, projectCurrencyId, projectCurrencyCode, companyDefaultCurrency, companyCurrencies]);
 
+  // Get first active service ID for defaulting
+  const defaultServiceId = useMemo(() => {
+    if (!services || services.length === 0) return '';
+    const firstActive = services.find((s: any) => s.contact_service?.id && s.is_active !== false);
+    return firstActive?.contact_service?.id || '';
+  }, [services]);
+
   // Reset form when modal opens/closes or entry changes
   useEffect(() => {
     if (isOpen) {
@@ -107,11 +114,11 @@ const BillableHourModal: React.FC<BillableHourModalProps> = ({
           is_billable: true,
           hourly_rate: '',
           currency_id: effectiveDefaultCurrency?.currency_id || '',
-          contact_service_id: '',
+          contact_service_id: defaultServiceId,
         });
       }
     }
-  }, [isOpen, entry, effectiveDefaultCurrency]);
+  }, [isOpen, entry, effectiveDefaultCurrency, defaultServiceId]);
 
   // Helper to format ISO datetime to datetime-local input format
   const formatDateTimeLocal = (isoString: string) => {
@@ -218,11 +225,11 @@ const BillableHourModal: React.FC<BillableHourModalProps> = ({
     [companyCurrencies]
   );
 
-  // Service options for dropdown
+  // Service options for dropdown - only active services
   const serviceOptions = useMemo(() => {
     if (!services || services.length === 0) return [];
     return services
-      .filter((s: any) => s.contact_service?.id)
+      .filter((s: any) => s.contact_service?.id && s.is_active !== false)
       .map((s: any) => ({
         value: s.contact_service.id,
         label: s.contact_service.name || s.contact_service.template_service?.name || 'Unnamed Service',

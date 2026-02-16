@@ -58,7 +58,7 @@ export default function CalendarMonthView({ currentDate, appointments, onAppoint
   useEffect(() => {
     const updateCellHeight = () => {
       if (!gridRef.current) return;
-      setCellHeight(gridRef.current.clientHeight / numWeeks);
+      setCellHeight(Math.max(120, gridRef.current.clientHeight / numWeeks));
     };
 
     updateCellHeight();
@@ -93,7 +93,7 @@ export default function CalendarMonthView({ currentDate, appointments, onAppoint
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full min-h-0 flex flex-col overflow-hidden">
       <div className="grid grid-cols-7 border-b border-gray-200 flex-shrink-0 pr-2">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayName) => (
           <div key={dayName} className="p-2 text-center text-sm font-medium text-gray-600">
@@ -102,13 +102,13 @@ export default function CalendarMonthView({ currentDate, appointments, onAppoint
         ))}
       </div>
 
-      <div ref={gridRef} className="flex-1 overflow-hidden flex flex-col">
+      <div ref={gridRef} className="flex-1 min-h-0 overflow-y-auto scrollbar-hover flex flex-col">
         {weeks.map((weekDays, weekIndex) => {
           const weekLayout = weekLayouts[weekIndex];
           const maxVisible = getMaxVisible(weekIndex);
 
           return (
-            <div key={weekIndex} className="flex-1 min-h-0 flex relative">
+            <div key={weekIndex} className="flex-1 shrink-0 min-h-[120px] flex relative overflow-hidden">
               {/* Day cells */}
               {weekDays.map((day, dayIndex) => {
                 const isCurrentMonth = isSameMonth(day, currentDate);

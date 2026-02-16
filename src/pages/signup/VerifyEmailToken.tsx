@@ -25,7 +25,8 @@ export default function VerifyEmailToken() {
   const [error, setError] = useState<string>('');
   const [isResending, setIsResending] = useState<boolean>(false);
   const [resendSuccess, setResendSuccess] = useState<boolean>(false);
-  const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
+  // Start with 60s cooldown when arriving from signup (email in URL means verification was just sent)
+  const [cooldownSeconds, setCooldownSeconds] = useState<number>(urlEmail ? 60 : 0);
 
   // Countdown timer for resend cooldown
   useEffect(() => {
@@ -135,8 +136,12 @@ export default function VerifyEmailToken() {
         setTimeout(() => setResendSuccess(false), 5000);
       } else {
         const data = await response.json();
-        if (response.status === 429 && data.detail?.retry_after) {
-          setCooldownSeconds(data.detail.retry_after);
+        // retry_after can be at top level (from 429 handler) or nested in detail (from endpoint)
+        const retryAfter = data.retry_after || data.detail?.retry_after;
+        if (response.status === 429 && retryAfter) {
+          setCooldownSeconds(parseInt(String(retryAfter), 10));
+          setResendSuccess(true);
+          setTimeout(() => setResendSuccess(false), 5000);
         } else {
           let errorMessage = 'Failed to resend verification email.';
           if (typeof data.detail === 'string') {
@@ -267,7 +272,7 @@ export default function VerifyEmailToken() {
               {resendSuccess && (
                 <div className="w-full p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                   <p className="text-sm text-green-600 dark:text-green-400 font-inter text-center">
-                    Verification code sent! Check your email.
+                    A verification email has been sent to your email address. Please check your inbox.
                   </p>
                 </div>
               )}

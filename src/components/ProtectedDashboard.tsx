@@ -10,7 +10,7 @@ import { PaymentsProvider } from '../contexts/PaymentsContext';
 
 export default function ProtectedDashboard() {
   const { user, loading } = useAuth();
-  const { preferences, loading: prefsLoading } = usePreferences();
+  const { preferences, loading: prefsLoading, initialized } = usePreferences();
   const navigate = useNavigate();
   const [showFirstSignIn, setShowFirstSignIn] = useState(false);
   const hasCheckedOnboarding = useRef(false);
@@ -24,7 +24,7 @@ export default function ProtectedDashboard() {
 
   useEffect(() => {
     // Check if first sign-in modal should be shown - only once when loading completes
-    if (!loading && !prefsLoading && user && !hasCheckedOnboarding.current) {
+    if (!loading && !prefsLoading && initialized && user && !hasCheckedOnboarding.current) {
       hasCheckedOnboarding.current = true;
 
       const onboardingStatus = preferences?.onboarding_status;
@@ -43,7 +43,7 @@ export default function ProtectedDashboard() {
         setShowFirstSignIn(true);
       }
     }
-  }, [user, loading, prefsLoading, preferences]);
+  }, [user, loading, prefsLoading, initialized, preferences]);
 
   // Show loading state while checking authentication
   if (loading) {

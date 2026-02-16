@@ -455,7 +455,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
 
     if (isRecurring) {
       if (recurringType === 'custom') {
-        if (!customEvery || customEvery < 1) {
+        if (!customEvery || isNaN(customEvery) || customEvery < 1) {
           showError('Please specify a valid custom recurrence interval');
           return;
         }
@@ -464,7 +464,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
           return;
         }
       }
-      if (recurringNumber !== -1 && recurringNumber < 1) {
+      if (recurringNumber !== -1 && (isNaN(recurringNumber) || recurringNumber < 1)) {
         showError('Number of occurrences must be at least 1 or -1 for infinite');
         return;
       }

@@ -43,16 +43,17 @@ interface BillableHoursSummary {
  * Custom hook for managing billable hours for a project
  * Uses React Query for caching, deduplication, and automatic invalidation
  */
-export function useBillableHours(projectId: string | undefined) {
+export function useBillableHours(projectId: string | undefined, filters: Record<string, unknown> = {}) {
   const queryClient = useQueryClient();
 
   const projectQueryKey = queryKeys.billableHours.byProject(projectId!);
+  const filteredQueryKey = [...projectQueryKey, { filters }];
 
   // Billable hours query
   const entriesQuery = useQuery({
-    queryKey: projectQueryKey,
+    queryKey: filteredQueryKey,
     queryFn: async () => {
-      const response = await billableHoursAPI.list(projectId!, {}) as BillableHourListResponse;
+      const response = await billableHoursAPI.list(projectId!, filters) as BillableHourListResponse;
       return response;
     },
     enabled: !!projectId,
@@ -100,13 +101,9 @@ export function useBillableHours(projectId: string | undefined) {
     },
   });
 
-  // Backwards-compatible wrapper functions
-  const fetchEntries = useCallback(async (filters: Record<string, unknown> = {}): Promise<unknown> => {
+  // Backwards-compatible wrapper to refetch entries
+  const fetchEntries = useCallback(async (): Promise<unknown> => {
     if (!projectId) return;
-    if (Object.keys(filters).length > 0) {
-      // If specific filters provided, do a direct API call and return
-      return billableHoursAPI.list(projectId, filters) as Promise<BillableHourListResponse>;
-    }
     await queryClient.invalidateQueries({ queryKey: projectQueryKey });
     return entriesQuery.data;
   }, [projectId, queryClient, projectQueryKey, entriesQuery.data]);

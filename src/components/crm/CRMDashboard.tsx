@@ -125,7 +125,7 @@ const CRMDashboard: React.FC = () => {
   const servicesFilters = useServicesFilters();
 
   // Load contacts with combined filters
-  const { contacts, loading: contactsLoading, updateContact } = useContacts(contactFilters, refreshKey, { skipInitialFetch: !filtersLoaded });
+  const { contacts, loading: contactsLoading, updateContact, deleteContact } = useContacts(contactFilters, refreshKey, { skipInitialFetch: !filtersLoaded });
 
   // Apply remaining client-side status filters (hidden filtering is now server-side)
   const filteredContacts = (contacts || []).filter((contact: any) => {
@@ -337,6 +337,7 @@ const CRMDashboard: React.FC = () => {
         selectContact={selectContact}
         openContactModal={openContactModal}
         updateContact={updateContact}
+        deleteContact={deleteContact}
         refreshWithScrollPreservation={refreshWithScrollPreservation}
         sortOrder={sortOrder ?? ''}
         handleStatusUpdate={handleStatusUpdate}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Pencil, ShieldCheck, ShieldX, RotateCcw, Ban, Trash2, RefreshCw, Skull } from 'lucide-react';
+import { Eye, Pencil, ShieldCheck, ShieldX, RotateCcw, Ban, Trash2, RefreshCw, Skull, PlayCircle } from 'lucide-react';
 import { AdminUser, ConfirmModalState } from './types';
 
 interface ActionsDropdownMenuProps {
@@ -14,6 +14,7 @@ interface ActionsDropdownMenuProps {
   handleToggleVerification: (userId: string, currentlyVerified: boolean) => Promise<void>;
   handleResetApiUsage: (userId: string) => Promise<void>;
   handleCancelSubscription: (subscriptionId: string, atPeriodEnd: boolean) => Promise<void>;
+  handleReactivateSubscription: (subscriptionId: string) => Promise<void>;
   handleDeleteUser: (userId: string) => Promise<void>;
   handleRestoreUser: (userId: string) => Promise<void>;
   hasStripeSubscription: (user: AdminUser) => boolean;
@@ -32,6 +33,7 @@ const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
   handleToggleVerification,
   handleResetApiUsage,
   handleCancelSubscription,
+  handleReactivateSubscription,
   handleDeleteUser,
   handleRestoreUser,
   hasStripeSubscription,
@@ -127,24 +129,45 @@ const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
         Reset API Usage
       </button>
       {hasStripeSubscription(dropdownUser) && dropdownUser.active_subscription_id && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowDropdownForUser(null);
-            setDropdownUser(null);
-            setConfirmModal({
-              open: true,
-              title: 'Cancel Subscription',
-              message: `Are you sure you want to cancel the subscription for ${dropdownUser.email}? The subscription will remain active until the end of the current billing period.`,
-              action: () => handleCancelSubscription(dropdownUser.active_subscription_id!, true),
-              variant: 'danger'
-            });
-          }}
-          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-        >
-          <Ban className="h-4 w-4" />
-          Cancel Subscription
-        </button>
+        dropdownUser.cancel_at_period_end ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDropdownForUser(null);
+              setDropdownUser(null);
+              setConfirmModal({
+                open: true,
+                title: 'Re-activate Subscription',
+                message: `Are you sure you want to re-activate the subscription for ${dropdownUser.email}? This will cancel the pending cancellation.`,
+                action: () => handleReactivateSubscription(dropdownUser.active_subscription_id!),
+                variant: 'primary'
+              });
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+          >
+            <PlayCircle className="h-4 w-4" />
+            Re-activate Subscription
+          </button>
+        ) : (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDropdownForUser(null);
+              setDropdownUser(null);
+              setConfirmModal({
+                open: true,
+                title: 'Cancel Subscription',
+                message: `Are you sure you want to cancel the subscription for ${dropdownUser.email}? The subscription will remain active until the end of the current billing period.`,
+                action: () => handleCancelSubscription(dropdownUser.active_subscription_id!, true),
+                variant: 'danger'
+              });
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            <Ban className="h-4 w-4" />
+            Cancel Subscription
+          </button>
+        )
       )}
       <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
       {dropdownUser.deleted_at ? (

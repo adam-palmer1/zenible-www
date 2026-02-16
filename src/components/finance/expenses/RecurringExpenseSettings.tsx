@@ -123,7 +123,8 @@ const RecurringExpenseSettings: React.FC<RecurringExpenseSettingsProps> = ({
                     <input
                       type="number"
                       value={customEvery}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('customEvery', parseInt(e.target.value) || 1)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('customEvery', parseInt(e.target.value))}
+                      onBlur={() => { if (isNaN(customEvery) || customEvery < 1) handleChange('customEvery', 1); }}
                       min="1"
                       className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
@@ -229,7 +230,8 @@ const RecurringExpenseSettings: React.FC<RecurringExpenseSettingsProps> = ({
                     <input
                       type="number"
                       value={recurringNumber === -1 ? 12 : recurringNumber}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('recurringNumber', parseInt(e.target.value) || 1)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('recurringNumber', parseInt(e.target.value))}
+                      onBlur={() => { if (recurringNumber !== -1 && (isNaN(recurringNumber) || recurringNumber < 1)) handleChange('recurringNumber', 1); }}
                       onFocus={() => {
                         if (recurringNumber === -1) {
                           handleChange('recurringNumber', 12);

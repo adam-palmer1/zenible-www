@@ -16,6 +16,7 @@ export interface AdminUser {
   subscription_status?: string | null;
   subscription_id?: string;
   active_subscription_id?: string;
+  cancel_at_period_end?: boolean;
   avatar_url?: string;
   deleted_at?: string | null;
   created_at?: string;

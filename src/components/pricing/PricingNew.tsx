@@ -95,7 +95,7 @@ export default function PricingNew() {
 
       setPlans(plansWithFeatures);
 
-      // Check if any plan has annual pricing
+      // Check if any plan has explicit annual pricing
       const anyAnnualPricing = plansWithFeatures.some(plan => plan.annual_price !== null);
       setHasAnnualPricing(anyAnnualPricing);
 
@@ -445,7 +445,6 @@ export default function PricingNew() {
             </button>
           </div>
         ) : (
-          // Show just a label when only monthly pricing is available
           <div className={`px-3 py-2 text-sm font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
             Monthly Pricing
           </div>
@@ -530,18 +529,42 @@ export default function PricingNew() {
                 </div>
 
                 {/* Price */}
-                <div className="flex items-center gap-3">
-                  {originalPrice && (
-                    <span className="text-2xl font-medium text-zinc-400 line-through">
-                      ${typeof originalPrice === 'number' ? originalPrice.toFixed(2).replace(/\.00$/, '') : parseFloat(originalPrice).toFixed(2).replace(/\.00$/, '')}
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-3">
+                    {originalPrice && (
+                      <span className="text-2xl font-medium text-zinc-400 line-through">
+                        ${typeof originalPrice === 'number' ? originalPrice.toFixed(2).replace(/\.00$/, '') : parseFloat(originalPrice).toFixed(2).replace(/\.00$/, '')}
+                      </span>
+                    )}
+                    <span className="text-[32px] font-bold text-zinc-950">
+                      ${price}
                     </span>
-                  )}
-                  <span className="text-[32px] font-bold text-zinc-950">
-                    ${price}
-                  </span>
-                  <span className="text-base text-zinc-500">
-                    /{billingCycle === 'monthly' ? 'mo' : 'yr'}
-                  </span>
+                    <span className="text-base text-zinc-500">
+                      /{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                    </span>
+                  </div>
+                  {/* Show the alternative billing cycle price when annual pricing is set */}
+                  {!isFreePlan(plan) && plan.annual_price !== null && (() => {
+                    const altPrice = billingCycle === 'monthly'
+                      ? parseFloat(plan.annual_price).toFixed(2).replace(/\.00$/, '')
+                      : parseFloat(plan.monthly_price).toFixed(2).replace(/\.00$/, '');
+                    const altLabel = billingCycle === 'monthly' ? '/yr' : '/mo';
+                    const savingsText = billingCycle === 'monthly'
+                      ? (plan.annual_savings_percentage
+                          ? ` (Save ${Math.round(plan.annual_savings_percentage)}%)`
+                          : (() => {
+                              const monthlyAnnual = parseFloat(plan.monthly_price) * 12;
+                              const annual = parseFloat(plan.annual_price);
+                              const pct = Math.round(((monthlyAnnual - annual) / monthlyAnnual) * 100);
+                              return pct > 0 ? ` (Save ${pct}%)` : '';
+                            })())
+                      : '';
+                    return (
+                      <span className="text-sm text-zinc-400">
+                        or ${altPrice}{altLabel}{savingsText}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
 

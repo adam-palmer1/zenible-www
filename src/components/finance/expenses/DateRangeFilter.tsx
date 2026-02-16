@@ -130,6 +130,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
   const [showCustom, setShowCustom] = useState(false);
   const [customStart, setCustomStart] = useState(startDate || '');
   const [customEnd, setCustomEnd] = useState(endDate || '');
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -167,16 +168,28 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
   useEffect(() => {
     setCustomStart(startDate || '');
     setCustomEnd(endDate || '');
+    // Derive matching preset when dates change externally (e.g., URL params)
+    if (startDate && endDate) {
+      const match = DATE_PRESETS.find(p => {
+        const { start_date, end_date } = p.getValue();
+        return startDate === start_date && endDate === end_date;
+      });
+      if (match) setSelectedPreset(match.label);
+    } else {
+      setSelectedPreset(null);
+    }
   }, [startDate, endDate]);
 
   const handlePresetClick = (preset: DatePreset) => {
     const { start_date, end_date } = preset.getValue();
+    setSelectedPreset(preset.label);
     onChange({ start_date, end_date });
     setIsOpen(false);
     setShowCustom(false);
   };
 
   const handleCustomApply = () => {
+    setSelectedPreset(null);
     onChange({
       start_date: customStart || null,
       end_date: customEnd || null,
@@ -187,6 +200,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setSelectedPreset(null);
     onChange({ start_date: null, end_date: null });
     setCustomStart('');
     setCustomEnd('');
@@ -195,7 +209,10 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
   const getDisplayText = () => {
     if (!startDate && !endDate) return 'All Time';
 
-    // Check if current dates match a preset and show its label
+    // Use tracked preset label to avoid ambiguity when ranges overlap
+    if (selectedPreset) return selectedPreset;
+
+    // Fallback: check if current dates match a preset (e.g., dates set externally)
     if (startDate && endDate) {
       for (const preset of DATE_PRESETS) {
         const { start_date, end_date } = preset.getValue();
@@ -229,6 +246,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
   const hasFilter = startDate || endDate;
 
   const isPresetActive = (preset: DatePreset) => {
+    if (selectedPreset) return preset.label === selectedPreset;
     if (!startDate || !endDate) return false;
     const { start_date, end_date } = preset.getValue();
     return startDate === start_date && endDate === end_date;
@@ -295,6 +313,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
                 <div className="py-1 max-h-80 overflow-y-auto">
                   <button
                     onClick={() => {
+                      setSelectedPreset(null);
                       onChange({ start_date: null, end_date: null });
                       setIsOpen(false);
                     }}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { PlusIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { useBillableHours } from '../../hooks/crm';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -44,6 +44,15 @@ const BillableHoursTab: React.FC<BillableHoursTabProps> = ({
 
   const { showSuccess, showError, showInfo } = useNotification();
 
+  // Build filters object for the query
+  const filters = useMemo(() => {
+    const f: Record<string, unknown> = {};
+    if (uninvoicedOnly) f.uninvoiced_only = true;
+    if (startDate) f.start_date = startDate;
+    if (endDate) f.end_date = endDate;
+    return f;
+  }, [uninvoicedOnly, startDate, endDate]);
+
   const {
     entries,
     loading,
@@ -55,19 +64,7 @@ const BillableHoursTab: React.FC<BillableHoursTabProps> = ({
     deleteEntry,
     duplicateEntry,
     unlinkFromInvoice,
-  } = useBillableHours(projectId);
-
-  // Fetch entries on mount and when filters change
-  useEffect(() => {
-    if (projectId) {
-      const filters: any = {};
-      if (uninvoicedOnly) filters.uninvoiced_only = true;
-      if (startDate) filters.start_date = startDate;
-      if (endDate) filters.end_date = endDate;
-
-      fetchEntries(filters);
-    }
-  }, [projectId, fetchEntries, uninvoicedOnly, startDate, endDate]);
+  } = useBillableHours(projectId, filters);
 
   // Handle add new entry
   const handleAdd = () => {

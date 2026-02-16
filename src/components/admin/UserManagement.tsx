@@ -250,8 +250,17 @@ export default function UserManagement() {
 
       handleCloseActionsModal();
       fetchUsers();
-    } catch (err: unknown) {
-      alert(`Error updating user: ${err instanceof Error ? err.message : String(err)}`);
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      let msg = 'Error updating user';
+      if (Array.isArray(detail)) {
+        msg = detail.map((d: any) => d.msg || d.message || String(d)).join(', ');
+      } else if (typeof detail === 'string') {
+        msg = detail;
+      } else if (err instanceof Error) {
+        msg = err.message;
+      }
+      alert(msg);
     } finally {
       setSavingActions(false);
     }
@@ -284,6 +293,15 @@ export default function UserManagement() {
       fetchUsers();
     } catch (err: unknown) {
       alert(`Error canceling subscription: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleReactivateSubscription = async (subscriptionId: string) => {
+    try {
+      await adminAPI.reactivateSubscription(subscriptionId);
+      fetchUsers();
+    } catch (err: unknown) {
+      alert(`Error reactivating subscription: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -451,6 +469,7 @@ export default function UserManagement() {
           handleToggleVerification={handleToggleVerification}
           handleResetApiUsage={handleResetApiUsage}
           handleCancelSubscription={handleCancelSubscription}
+          handleReactivateSubscription={handleReactivateSubscription}
           handleDeleteUser={handleDeleteUser}
           handleRestoreUser={handleRestoreUser}
           hasStripeSubscription={hasStripeSubscription}

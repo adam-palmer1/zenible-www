@@ -210,8 +210,16 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
       await companiesAPI.updateCurrent(payload);
       setHasChanges(false);
       showSuccess('Company settings saved successfully');
-    } catch (error) {
-      showError('Failed to save company settings');
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        const messages = detail.map((d: any) => d.msg || d.message || String(d)).join(', ');
+        showError(messages || 'Failed to save company settings');
+      } else if (typeof detail === 'string') {
+        showError(detail);
+      } else {
+        showError('Failed to save company settings');
+      }
       console.error('Failed to save:', error);
     } finally {
       setSaving(false);

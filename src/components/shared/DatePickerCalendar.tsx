@@ -210,9 +210,10 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
       {/* Calendar Dropdown - rendered via portal to escape overflow:hidden containers */}
       {isOpen && createPortal(
         <>
-          <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => { setIsOpen(false); setInputText(formatDisplay(value)); }} />
+          <div className="fixed inset-0" style={{ zIndex: 9998 }} onMouseDown={(e) => e.stopPropagation()} onClick={() => { setIsOpen(false); setInputText(formatDisplay(value)); }} />
           <div
             ref={dropdownRef}
+            onMouseDown={(e) => e.stopPropagation()}
             style={{
               position: 'fixed',
               left: dropdownPos.left,

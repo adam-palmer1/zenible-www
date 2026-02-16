@@ -1,6 +1,5 @@
 import React, { Suspense, useMemo } from 'react';
 import { ContactActionsProvider } from '../../../contexts/ContactActionsContext';
-import contactsAPI from '../../../services/api/crm/contacts';
 
 // Lazy-load tab views - only one is rendered at a time
 const SalesPipeline = React.lazy(() => import('../SalesPipelineNew'));
@@ -31,6 +30,7 @@ interface CRMTabContentProps {
   selectContact: (contact: any) => void;
   openContactModal: (...args: any[]) => void;
   updateContact: (contactId: string, data: any) => Promise<any>;
+  deleteContact: (contactId: string) => Promise<boolean>;
   refreshWithScrollPreservation: () => void;
   sortOrder: string;
   handleStatusUpdate: (...args: any[]) => void;
@@ -63,6 +63,7 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
   selectContact,
   openContactModal,
   updateContact,
+  deleteContact,
   refreshWithScrollPreservation,
   sortOrder,
   handleStatusUpdate,
@@ -114,8 +115,7 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
             statusRoles={statusRoles}
             onEdit={openContactModal}
             onDelete={async (contact: any) => {
-              await contactsAPI.delete(contact.id);
-              refreshWithScrollPreservation();
+              await deleteContact(contact.id);
             }}
             onUpdateStatus={async (contactId: string, updateData: any) => {
               return await updateContact(contactId, updateData);
@@ -151,8 +151,7 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
           onContactClick={selectContact}
           onEdit={openContactModal}
           onDelete={async (contact: any) => {
-            await contactsAPI.delete(contact.id);
-            window.location.reload(); // Temporary - should use proper refresh
+            await deleteContact(contact.id);
           }}
           onUpdateStatus={async (contactId: string, updateData: any) => {
             return await updateContact(contactId, updateData);
