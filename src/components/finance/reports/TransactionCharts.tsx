@@ -17,14 +17,15 @@ import { useReportsSummaryContext } from '../../../contexts/ReportsSummaryContex
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 /**
- * Transaction type colors
+ * Pie chart segment colors for the 6 categories
  */
-const TYPE_COLORS: Record<string, { bg: string; border: string }> = {
-  invoice: { bg: 'rgba(59, 130, 246, 0.8)', border: '#3b82f6' },
-  quote: { bg: 'rgba(139, 92, 246, 0.8)', border: '#8b5cf6' },
-  expense: { bg: 'rgba(239, 68, 68, 0.8)', border: '#ef4444' },
-  credit_note: { bg: 'rgba(249, 115, 22, 0.8)', border: '#f97316' },
-  payment: { bg: 'rgba(34, 197, 94, 0.8)', border: '#22c55e' },
+const PIE_COLORS: Record<string, { bg: string; border: string }> = {
+  paid_invoices:   { bg: 'rgba(59, 130, 246, 0.8)',  border: '#3b82f6' },  // blue
+  other_payments:  { bg: 'rgba(34, 197, 94, 0.8)',   border: '#22c55e' },  // green
+  unpaid_invoices: { bg: 'rgba(251, 191, 36, 0.8)',  border: '#f59e0b' },  // amber
+  quotes:          { bg: 'rgba(139, 92, 246, 0.8)',  border: '#8b5cf6' },  // purple
+  paid_expenses:   { bg: 'rgba(239, 68, 68, 0.8)',   border: '#ef4444' },  // red
+  unpaid_expenses: { bg: 'rgba(249, 115, 22, 0.8)',  border: '#f97316' },  // orange
 };
 
 /**
@@ -39,24 +40,16 @@ const formatPeriodLabel = (period: string): string => {
   return `${monthNames[monthIndex]} ${shortYear}`;
 };
 
-/**
- * Format transaction type label
- */
-const formatTypeLabel = (type: string): string => {
-  const labels: Record<string, string> = {
-    invoice: 'Invoices',
-    quote: 'Quotes',
-    expense: 'Expenses',
-    credit_note: 'Credit Notes',
-    payment: 'Payments',
-  };
-  return labels[type] || type;
-};
-
 interface ChartSubProps {
   data: any[];
   loading: boolean;
   currencySymbol?: string;
+}
+
+interface PieSegment {
+  key: string;
+  label: string;
+  value: number;
 }
 
 /**
@@ -171,9 +164,13 @@ const IncomeExpenseChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
 };
 
 /**
- * Transaction Type Breakdown Pie Chart
+ * Financial Breakdown Pie Chart
+ * Shows 6 categories: Paid Invoices, Other Payments, Unpaid Invoices, Quotes,
+ * Paid Expenses, Unpaid Expenses.
  */
-const TypeBreakdownChart: React.FC<ChartSubProps> = ({ data, loading, currencySymbol = '$' }) => {
+const FinancialBreakdownChart: React.FC<{ loading: boolean; currencySymbol?: string }> = ({ loading, currencySymbol = '$' }) => {
+  const { summary } = useReportsSummaryContext();
+
   if (loading) {
     return (
       <div className="bg-white border border-[#e5e5e5] rounded-xl p-6">
@@ -183,10 +180,31 @@ const TypeBreakdownChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
     );
   }
 
-  if (!data || data.length === 0) {
+  // All values below are currency-converted to the company's default currency by the backend.
+  // paid_invoices_total is already net of credit notes, outstanding_invoices is credit-adjusted.
+  const paidInvoicesNet = parseFloat(String(summary?.paid_invoices_total ?? 0));
+  const unpaidInvoices = parseFloat(String(summary?.outstanding_invoices ?? 0));
+  const quotesTotal = parseFloat(String(summary?.quote_total ?? 0));
+  const paidExpenses = parseFloat(String(summary?.paid_expenses_total ?? 0));
+  const unpaidExpenses = parseFloat(String(summary?.unpaid_expenses_total ?? 0));
+  const otherPayments = parseFloat(String(summary?.unlinked_payments_total ?? 0));
+
+  const segments: PieSegment[] = [
+    { key: 'paid_invoices',   label: 'Paid Invoices',   value: paidInvoicesNet },
+    { key: 'other_payments',  label: 'Other Payments',  value: otherPayments },
+    { key: 'unpaid_invoices', label: 'Unpaid Invoices', value: unpaidInvoices },
+    { key: 'quotes',          label: 'Quotes',          value: quotesTotal },
+    { key: 'paid_expenses',   label: 'Paid Expenses',   value: paidExpenses },
+    { key: 'unpaid_expenses', label: 'Unpaid Expenses', value: unpaidExpenses },
+  ];
+
+  // Only show segments with value > 0
+  const activeSegments = segments.filter((s) => s.value > 0);
+
+  if (activeSegments.length === 0) {
     return (
       <div className="bg-white border border-[#e5e5e5] rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-[#09090b] mb-4">By Transaction Type</h3>
+        <h3 className="text-lg font-semibold text-[#09090b] mb-4">Financial Breakdown</h3>
         <div className="h-64 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-lg">
           <div className="text-center">
             <PieChart className="w-12 h-12 text-gray-400 mx-auto mb-2" />
@@ -198,16 +216,12 @@ const TypeBreakdownChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
   }
 
   const chartData = {
-    labels: data.map((item: any) => formatTypeLabel(item.transaction_type)),
+    labels: activeSegments.map((s) => s.label),
     datasets: [
       {
-        data: data.map((item: any) => parseFloat(item.total_amount) || 0),
-        backgroundColor: data.map(
-          (item: any) => TYPE_COLORS[item.transaction_type]?.bg || 'rgba(156, 163, 175, 0.8)'
-        ),
-        borderColor: data.map(
-          (item: any) => TYPE_COLORS[item.transaction_type]?.border || '#9ca3af'
-        ),
+        data: activeSegments.map((s) => s.value),
+        backgroundColor: activeSegments.map((s) => PIE_COLORS[s.key]?.bg || 'rgba(156, 163, 175, 0.8)'),
+        borderColor: activeSegments.map((s) => PIE_COLORS[s.key]?.border || '#9ca3af'),
         borderWidth: 2,
       },
     ],
@@ -249,7 +263,7 @@ const TypeBreakdownChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
 
   return (
     <div className="bg-white border border-[#e5e5e5] rounded-xl p-6">
-      <h3 className="text-lg font-semibold text-[#09090b] mb-4">By Transaction Type</h3>
+      <h3 className="text-lg font-semibold text-[#09090b] mb-4">Financial Breakdown</h3>
       <div style={{ height: '280px' }}>
         <Pie data={chartData} options={chartOptions} />
       </div>
@@ -274,8 +288,7 @@ const TransactionCharts: React.FC = () => {
         loading={summaryLoading}
         currencySymbol={currencySymbol}
       />
-      <TypeBreakdownChart
-        data={summary?.by_type || []}
+      <FinancialBreakdownChart
         loading={summaryLoading}
         currencySymbol={currencySymbol}
       />

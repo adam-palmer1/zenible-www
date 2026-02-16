@@ -13,9 +13,31 @@ import type {
   CustomReportUpdate,
   ReportConfiguration,
   ReportExecutionResponse,
+  ReportEntityType,
+  EntityQueryResultResponse,
 } from '@/types/customReport';
 
 const request = createRequest('CustomReportsAPI');
+
+/** Raw API response shape — entities come as an array */
+interface RawReportExecutionResponse {
+  entities: EntityQueryResultResponse[];
+  executed_at: string;
+  date_range_resolved?: { start: string; end: string };
+}
+
+/** Convert entities array into a record keyed by entity_type */
+function transformExecutionResponse(raw: RawReportExecutionResponse): ReportExecutionResponse {
+  const results = {} as Record<ReportEntityType, EntityQueryResultResponse>;
+  for (const entity of raw.entities) {
+    results[entity.entity_type] = entity;
+  }
+  return {
+    results,
+    executed_at: raw.executed_at,
+    date_range_resolved: raw.date_range_resolved,
+  };
+}
 
 class CustomReportsAPI {
   private baseEndpoint: string;
@@ -39,13 +61,14 @@ class CustomReportsAPI {
     page = 1,
     perPage = 50
   ): Promise<ReportExecutionResponse> {
-    return request<ReportExecutionResponse>(
+    const raw = await request<RawReportExecutionResponse>(
       `${this.baseEndpoint}/execute?page=${page}&per_page=${perPage}`,
       {
         method: 'POST',
         body: JSON.stringify(configuration),
       }
     );
+    return transformExecutionResponse(raw);
   }
 
   async exportCSV(configuration: ReportConfiguration): Promise<Blob> {
@@ -145,10 +168,11 @@ class CustomReportsAPI {
     page = 1,
     perPage = 50
   ): Promise<ReportExecutionResponse> {
-    return request<ReportExecutionResponse>(
+    const raw = await request<RawReportExecutionResponse>(
       `${this.baseEndpoint}/${id}/execute?page=${page}&per_page=${perPage}`,
       { method: 'GET' }
     );
+    return transformExecutionResponse(raw);
   }
 
   async exportSavedCSV(id: string): Promise<Blob> {

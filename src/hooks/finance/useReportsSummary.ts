@@ -30,9 +30,16 @@ export interface TypeBreakdown {
 export interface ReportSummary {
   default_currency?: { code: string; symbol: string; [key: string]: unknown };
   income_total?: string | number;
+  invoice_total?: string | number;
+  quote_total?: string | number;
   expense_total?: string | number;
+  paid_expenses_total?: string | number;
+  unpaid_expenses_total?: string | number;
   net_amount?: string | number;
   outstanding_invoices?: string | number;
+  paid_invoices_total?: string | number;
+  credit_notes_total?: string | number;
+  unlinked_payments_total?: string | number;
   overdue_count?: number;
   total_count?: number;
   income_by_currency?: CurrencyBreakdown[];
@@ -57,18 +64,28 @@ const getDateDaysAgo = (days: number): string => {
 
 const getToday = (): string => formatLocalDate(new Date());
 
+export interface ReportsSummaryParams {
+  start_date?: string;
+  end_date?: string;
+  contact_id?: string;
+  transaction_types?: string[];
+  group_by_period?: string;
+}
+
 /**
  * Lightweight hook that only fetches the reports summary (KPI cards + chart data).
  * Default: last 30 days, all transaction types, grouped by month.
+ * Caller can override any param via the optional `params` argument.
  */
-export function useReportsSummary(): UseReportsSummaryReturn {
+export function useReportsSummary(params?: ReportsSummaryParams): UseReportsSummaryReturn {
   const { user } = useAuth();
 
   const summaryParams = useMemo(() => ({
     start_date: getDateDaysAgo(30),
     end_date: getToday(),
     group_by_period: 'month',
-  }), []);
+    ...params,
+  }), [params]);
 
   const summaryQuery = useQuery({
     queryKey: queryKeys.financeReports.summary(summaryParams),
