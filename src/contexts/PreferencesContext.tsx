@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import adminAPI from '../services/adminAPI';
 import { useAuth } from './AuthContext';
 
@@ -49,6 +49,8 @@ export const PreferencesProvider = ({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState<boolean>(true);
   const [initialized, setInitialized] = useState<boolean>(false);
   const [darkMode, setDarkMode] = useState<boolean>(false);
+  const preferencesRef = useRef(preferences);
+  preferencesRef.current = preferences;
 
   // Load all preferences when user is authenticated
   useEffect(() => {
@@ -170,8 +172,8 @@ export const PreferencesProvider = ({ children }: { children: React.ReactNode })
   };
 
   const getPreference = useCallback((key: string, defaultValue: unknown = null): unknown => {
-    return preferences[key] !== undefined ? preferences[key] : defaultValue;
-  }, [preferences]);
+    return preferencesRef.current[key] !== undefined ? preferencesRef.current[key] : defaultValue;
+  }, []);
 
   // CRM-specific preference helpers
   const getCRMFilters = (): CRMFilters => {

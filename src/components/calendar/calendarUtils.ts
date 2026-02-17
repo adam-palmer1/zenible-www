@@ -116,7 +116,8 @@ export const computeSpanningEventsLayout = (
 
   const allDayAppts = appointments.filter((apt: any) => {
     const aptStart = startOfDay(parseISO(apt.start_datetime));
-    const effectiveEnd = getEffectiveEndDate(apt.end_datetime, parseISO);
+    // All-day events store inclusive end dates; skip getEffectiveEndDate to avoid subtracting a day
+    const effectiveEnd = apt.all_day ? parseISO(apt.end_datetime) : getEffectiveEndDate(apt.end_datetime, parseISO);
     const aptEnd = startOfDay(effectiveEnd);
     const isMultiDay = aptEnd.getTime() > aptStart.getTime();
     // Include all-day events OR timed events spanning multiple days
@@ -130,7 +131,7 @@ export const computeSpanningEventsLayout = (
 
   const events = allDayAppts.map((apt: any) => {
     const aptStart = startOfDay(parseISO(apt.start_datetime));
-    const effectiveEnd = getEffectiveEndDate(apt.end_datetime, parseISO);
+    const effectiveEnd = apt.all_day ? parseISO(apt.end_datetime) : getEffectiveEndDate(apt.end_datetime, parseISO);
     const aptEnd = startOfDay(effectiveEnd);
 
     let startCol = 0;

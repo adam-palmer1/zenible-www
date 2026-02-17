@@ -11,7 +11,9 @@ import {
   isSameMonth,
   isSameDay,
   parseISO,
+  startOfDay,
 } from 'date-fns';
+import { getEffectiveEndDate } from './calendarUtils';
 
 interface CalendarMiniCalendarProps {
   currentDate: Date;
@@ -35,7 +37,17 @@ export default function CalendarMiniCalendar({ currentDate, onDateSelect, appoin
   }
 
   const hasAppointments = (day: Date) => {
-    return appointments.some((apt: any) => isSameDay(parseISO(apt.start_datetime), day));
+    return appointments.some((apt: any) => {
+      if (isSameDay(parseISO(apt.start_datetime), day)) return true;
+      // Check if day falls within a multi-day event's range
+      const aptStart = startOfDay(parseISO(apt.start_datetime));
+      // All-day events store inclusive end dates; skip getEffectiveEndDate
+      const effectiveEnd = apt.all_day ? parseISO(apt.end_datetime) : getEffectiveEndDate(apt.end_datetime, parseISO);
+      const aptEnd = startOfDay(effectiveEnd);
+      if (aptEnd.getTime() <= aptStart.getTime()) return false;
+      const current = startOfDay(day);
+      return current >= aptStart && current <= aptEnd;
+    });
   };
 
   return (

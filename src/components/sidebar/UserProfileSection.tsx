@@ -3,7 +3,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import ChevronRightIcon from './icons/ChevronRightIcon';
 
-export default function UserProfileSection() {
+interface UserProfileSectionProps {
+  isCollapsed?: boolean;
+}
+
+export default function UserProfileSection({ isCollapsed = false }: UserProfileSectionProps) {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -63,12 +67,14 @@ export default function UserProfileSection() {
   const username = user?.email ? `@${user.email.split('@')[0]}` : '@user';
 
   return (
-    <div className="px-4 pb-6 relative" ref={dropdownRef}>
+    <div className={`${isCollapsed ? 'px-2' : 'px-4'} pb-6 relative`} ref={dropdownRef}>
       <button
         onClick={handleProfileClick}
-        className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-[#F9FAFB] transition-colors duration-150 group"
+        className={`w-full flex items-center rounded-lg hover:bg-[#F9FAFB] transition-colors duration-150 group ${
+          isCollapsed ? 'justify-center p-2' : 'justify-between p-3'
+        }`}
       >
-        <div className="flex items-center gap-3">
+        <div className={`flex items-center ${isCollapsed ? '' : 'gap-3'}`}>
           {/* Avatar */}
           <div className="relative">
             {user?.avatar_url ? (
@@ -86,28 +92,34 @@ export default function UserProfileSection() {
             )}
           </div>
 
-          {/* User Info */}
-          <div className="flex flex-col text-left">
-            <span className="text-[#111827] text-sm font-semibold leading-5 truncate max-w-[140px]">
-              {displayName}
-            </span>
-            <span className="text-[#6B7280] text-xs leading-4 truncate max-w-[140px]">
-              {username}
-            </span>
-          </div>
+          {/* User Info - Hidden when collapsed */}
+          {!isCollapsed && (
+            <div className="flex flex-col text-left">
+              <span className="text-[#111827] text-sm font-semibold leading-5 truncate max-w-[140px]">
+                {displayName}
+              </span>
+              <span className="text-[#6B7280] text-xs leading-4 truncate max-w-[140px]">
+                {username}
+              </span>
+            </div>
+          )}
         </div>
 
-        <ChevronRightIcon
-          className={`w-4 h-4 flex-shrink-0 text-[#6B7280] transition-transform duration-200 ${
-            showDropdown ? 'rotate-90' : ''
-          }`}
-          color="currentColor"
-        />
+        {!isCollapsed && (
+          <ChevronRightIcon
+            className={`w-4 h-4 flex-shrink-0 text-[#6B7280] transition-transform duration-200 ${
+              showDropdown ? 'rotate-90' : ''
+            }`}
+            color="currentColor"
+          />
+        )}
       </button>
 
       {/* Dropdown Menu */}
       {showDropdown && (
-        <div className="absolute bottom-full left-4 right-4 mb-2 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-2 z-50 min-w-max">
+        <div className={`absolute bottom-full mb-2 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-2 z-50 min-w-max ${
+          isCollapsed ? 'left-2 right-auto' : 'left-4 right-4'
+        }`}>
           {isAdmin && (
             <button
               onClick={handleAdminSettings}

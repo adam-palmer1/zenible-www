@@ -199,10 +199,15 @@ export default function PricingNew() {
       const preview = await planAPI.previewPlanChange(planId, { billingCycle }) as ChangePlanPreview;
       setPlanChangeModal(prev => ({ ...prev, preview, loading: false }));
     } catch (err: unknown) {
+      const errorMessage = (err as Error).message || 'Failed to load preview';
+      // If same-price error (422), show a friendly message in the modal
+      const isSamePriceError = errorMessage.toLowerCase().includes('same price');
       setPlanChangeModal(prev => ({
         ...prev,
         loading: false,
-        error: (err as Error).message || 'Failed to load preview',
+        error: isSamePriceError
+          ? 'This plan has the same price as your current plan. No change is needed.'
+          : errorMessage,
       }));
     }
   };

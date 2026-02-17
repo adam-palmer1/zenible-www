@@ -128,11 +128,13 @@ function RootLayout(): React.ReactElement {
   return (
     <SidebarProvider>
       <UsageDashboardProvider>
-        <WebSocketProvider>
-          <ErrorBoundary level="page">
-            <Outlet />
-          </ErrorBoundary>
-        </WebSocketProvider>
+        <CRMReferenceDataProvider>
+          <WebSocketProvider>
+            <ErrorBoundary level="page">
+              <Outlet />
+            </ErrorBoundary>
+          </WebSocketProvider>
+        </CRMReferenceDataProvider>
       </UsageDashboardProvider>
     </SidebarProvider>
   );
@@ -624,13 +626,11 @@ function App(): React.ReactElement {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <CRMReferenceDataProvider>
-          <PreferencesProvider>
-            <NotificationProvider>
-              <AppWithNetworkStatus />
-            </NotificationProvider>
-          </PreferencesProvider>
-        </CRMReferenceDataProvider>
+        <PreferencesProvider>
+          <NotificationProvider>
+            <AppWithNetworkStatus />
+          </NotificationProvider>
+        </PreferencesProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

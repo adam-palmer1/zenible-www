@@ -6,8 +6,9 @@ import {
   parseISO,
   getHours,
   getMinutes,
+  startOfDay,
 } from 'date-fns';
-import { getAppointmentKey, formatHour, calculateAppointmentLayout } from './calendarUtils';
+import { getAppointmentKey, formatHour, calculateAppointmentLayout, getEffectiveEndDate } from './calendarUtils';
 
 interface CalendarDayViewProps {
   currentDate: Date;
@@ -51,7 +52,14 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
   const dayAppointments = useMemo(() => {
     return appointments.filter((apt: any) => {
       const aptDate = parseISO(apt.start_datetime);
-      return isSameDay(aptDate, currentDate) && !apt.all_day;
+      if (!isSameDay(aptDate, currentDate)) return false;
+      if (apt.all_day) return false;
+      // Exclude multi-day timed events (they're in the all-day row)
+      const aptStartDay = startOfDay(parseISO(apt.start_datetime));
+      const effectiveEnd = getEffectiveEndDate(apt.end_datetime, parseISO);
+      const aptEndDay = startOfDay(effectiveEnd);
+      if (aptEndDay.getTime() > aptStartDay.getTime()) return false;
+      return true;
     });
   }, [appointments, currentDate]);
 
@@ -91,60 +99,85 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
   }, [dayAppointments]);
 
   const allDayAppointments = appointments.filter((apt: any) => {
-    const aptDate = parseISO(apt.start_datetime);
-    return isSameDay(aptDate, currentDate) && apt.all_day;
+    if (!apt.all_day) return false;
+    const aptStart = startOfDay(parseISO(apt.start_datetime));
+    // All-day events store inclusive end dates; skip getEffectiveEndDate
+    const aptEnd = startOfDay(parseISO(apt.end_datetime));
+    const current = startOfDay(currentDate);
+    return current >= aptStart && current <= aptEnd;
   });
+
+  const multiDayTimedAppointments = appointments.filter((apt: any) => {
+    if (apt.all_day) return false;
+    const aptStart = startOfDay(parseISO(apt.start_datetime));
+    const effectiveEnd = getEffectiveEndDate(apt.end_datetime, parseISO);
+    const aptEnd = startOfDay(effectiveEnd);
+    if (aptEnd.getTime() <= aptStart.getTime()) return false; // not multi-day
+    const current = startOfDay(currentDate);
+    return current >= aptStart && current <= aptEnd;
+  });
+
+  const allDayRowAppointments = [...allDayAppointments, ...multiDayTimedAppointments];
 
   const appointmentsWithLayout = calculateAppointmentLayout(dayAppointments, parseISO, getHours, getMinutes);
 
   return (
     <div className="h-full relative">
-      <div ref={scrollContainerRef} className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide">
-        <div className="sticky top-0 z-10 bg-white flex border-b border-gray-200">
-          <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
-          <div className="flex-1 min-h-16 flex flex-col items-center justify-start bg-purple-100 py-2">
-          <span className="text-lg font-semibold text-purple-600">
-            {format(currentDate, 'EEEE, MMMM d')}
-          </span>
+      <div ref={scrollContainerRef} className="h-full overflow-y-auto overflow-x-hidden">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+          {/* Date bar */}
+          <div className="flex">
+            <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
+            <div className="flex-1 min-h-16 flex items-center justify-center bg-purple-100 py-2">
+              <span className="text-lg font-semibold text-purple-600">
+                {format(currentDate, 'EEEE, MMMM d')}
+              </span>
+            </div>
+          </div>
 
-          {allDayAppointments.length > 0 && (
-            <div className="w-full px-4 mt-2 space-y-1">
-              {allDayAppointments.map((apt: any) => {
-                const color = getAppointmentColor(apt);
-                const isRecurring = isRecurringAppointment(appointments, apt.id);
-                const isReadOnly = isAppointmentReadOnly(apt);
-                return (
-                  <div
-                    key={getAppointmentKey(apt)}
-                    onClick={() => onAppointmentClick(apt)}
-                    className={`text-white text-sm px-2 py-1 rounded ${
-                      isReadOnly
-                        ? 'cursor-default'
-                        : 'cursor-pointer hover:brightness-110'
-                    }`}
-                    style={{ backgroundColor: color, opacity: isReadOnly ? 0.5 : 0.9 }}
-                    title={isReadOnly ? 'Read-only (imported from secondary calendar)' : (apt.contact ? `Contact: ${apt.contact.name}` : '')}
-                  >
-                    <div className="flex items-center gap-1 font-medium">
-                      {isReadOnly && <LockClosedIcon className="w-4 h-4 flex-shrink-0" />}
-                      {isRecurring && <ArrowPathIcon className="w-4 h-4 flex-shrink-0" />}
-                      <span>{apt.title}</span>
-                      {apt.status && apt.status !== 'scheduled' && (
-                        <span
-                          className="text-[10px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
-                          style={{ color: getStatusColor(apt.status) }}
-                          title={getStatusLabel(apt.status)}
-                        >
-                          {getStatusLabel(apt.status)}
-                        </span>
-                      )}
+          {/* All Day row */}
+          {allDayRowAppointments.length > 0 && (
+            <div className="flex border-t border-gray-200">
+              <div className="w-24 flex-shrink-0 border-r border-gray-200 flex items-center justify-center">
+                <span className="text-xs font-medium text-gray-500">All Day</span>
+              </div>
+              <div className="flex-1 px-4 py-2 space-y-1">
+                {allDayRowAppointments.map((apt: any) => {
+                  const color = getAppointmentColor(apt);
+                  const isRecurring = isRecurringAppointment(appointments, apt.id);
+                  const isReadOnly = isAppointmentReadOnly(apt);
+                  return (
+                    <div
+                      key={getAppointmentKey(apt)}
+                      onClick={() => onAppointmentClick(apt)}
+                      className={`text-white text-sm px-2 py-1 rounded ${
+                        isReadOnly
+                          ? 'cursor-default'
+                          : 'cursor-pointer hover:brightness-110'
+                      }`}
+                      style={{ backgroundColor: color, opacity: isReadOnly ? 0.5 : 0.9 }}
+                      title={isReadOnly ? 'Read-only (imported from secondary calendar)' : (apt.contact ? `Contact: ${apt.contact.name}` : '')}
+                    >
+                      <div className="flex items-center gap-1 font-medium">
+                        {isReadOnly && <LockClosedIcon className="w-4 h-4 flex-shrink-0" />}
+                        {isRecurring && <ArrowPathIcon className="w-4 h-4 flex-shrink-0" />}
+                        <span>{apt.title}</span>
+                        {apt.status && apt.status !== 'scheduled' && (
+                          <span
+                            className="text-[10px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
+                            style={{ color: getStatusColor(apt.status) }}
+                            title={getStatusLabel(apt.status)}
+                          >
+                            {getStatusLabel(apt.status)}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
-          </div>
         </div>
 
         <div className="flex">

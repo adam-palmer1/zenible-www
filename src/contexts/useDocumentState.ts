@@ -18,6 +18,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { usePreferences } from './PreferencesContext';
+import { useUsageDashboardOptional } from './UsageDashboardContext';
 import { DEFAULT_PAGE_SIZE } from '../constants/pagination';
 
 // ---------------------------------------------------------------------------
@@ -137,6 +138,13 @@ export interface DocumentStateConfig<TFilters extends object> {
    * Useful for extracting extra data from the response (e.g. stats).
    */
   onFetchSuccess?: (response: ListResponse) => void;
+
+  /**
+   * Optional feature code to check before fetching data.
+   * If provided, the query will be disabled unless this feature is enabled
+   * in the user's plan (via UsageDashboardContext).
+   */
+  featureCode?: string;
 }
 
 export interface DocumentState<TFilters extends object> {
@@ -201,11 +209,20 @@ export function useDocumentState<TFilters extends object>(
     saveExtraPreferences,
     transformFilterParam,
     onFetchSuccess,
+    featureCode,
   } = config;
 
   const { user } = useAuth();
   const { getPreference, updatePreference } = usePreferences();
   const queryClient = useQueryClient();
+  const usageDashboard = useUsageDashboardOptional();
+
+  // If a featureCode is specified, check if it's enabled in the user's plan.
+  // Default to true when no featureCode is set, or when usage data hasn't loaded yet
+  // and we don't have a definitive answer (to avoid blocking users who DO have the feature).
+  const featureEnabled = featureCode
+    ? (usageDashboard?.isFeatureEnabled(featureCode) ?? false)
+    : true;
 
   // Modal state (purely UI, not related to data fetching)
   const [showModal, setShowModal] = useState(false);
@@ -301,7 +318,7 @@ export function useDocumentState<TFilters extends object>(
       const response = (Array.isArray(raw) ? { items: raw, total: raw.length } : raw) as ListResponse;
       return response;
     },
-    enabled: !!user && preferencesLoaded,
+    enabled: !!user && preferencesLoaded && featureEnabled,
   });
 
   // When query data changes, update pagination total and call onFetchSuccess

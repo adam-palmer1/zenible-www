@@ -248,7 +248,7 @@ export default function Sidebar() {
       </nav>
 
       {/* User Profile Section */}
-      <UserProfileSection />
+      <UserProfileSection isCollapsed={false} />
     </div>
   );
 
@@ -325,7 +325,7 @@ export default function Sidebar() {
       </nav>
 
       {/* User Profile Section */}
-      <UserProfileSection />
+      <UserProfileSection isCollapsed={isCollapsed} />
     </div>
   );
 }

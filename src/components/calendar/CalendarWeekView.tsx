@@ -127,7 +127,7 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
 
   return (
     <div className="h-full relative">
-      <div ref={scrollContainerRef} className="h-full overflow-y-auto overflow-x-auto scrollbar-hide">
+      <div ref={scrollContainerRef} className="h-full overflow-y-auto overflow-x-auto">
         <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
           {/* Day labels */}
           <div className="flex">

@@ -55,32 +55,9 @@ class PlanAPI {
     }
   }
 
-  // Get plan with all its features (display and system)
+  // Get plan with all its features (display features from public endpoint)
   async getPlanWithFeatures(planId: string): Promise<unknown> {
-    try {
-      // Try with authentication if available
-      const accessToken = localStorage.getItem('access_token');
-
-      if (accessToken) {
-        const response = await fetch(`${API_BASE_URL}/admin/features/plans/${planId}/features`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        });
-
-        if (response.ok) {
-          return await response.json();
-        }
-      }
-
-      // Fall back to basic plan details
-      return this.getPublicPlanDetails(planId);
-    } catch {
-      // Fall back to basic plan details if features endpoint is not available
-      return this.getPublicPlanDetails(planId);
-    }
+    return this.getPublicPlanDetails(planId);
   }
 
   // Authenticated endpoints

@@ -1,5 +1,6 @@
 import { createContext, useState, useCallback, useMemo, useContext, useEffect, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import { useUsageDashboardOptional } from './UsageDashboardContext';
 import quotesAPI from '../services/api/finance/quotes';
 import type { QuoteCreate } from '../types';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
@@ -125,6 +126,8 @@ const getDefaultDateRange = () => {
 
 export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
+  const usageDashboard = useUsageDashboardOptional();
+  const financeEnabled = usageDashboard?.isFeatureEnabled('finance_features') ?? false;
 
   const defaultRange = getDefaultDateRange();
 
@@ -138,6 +141,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     paginationStyle: 'page-perpage',
     defaultSort: 'created_at',
     preferencePrefix: 'quote',
+    featureCode: 'finance_features',
     defaultFilters: {
       search: '',
       status: null,
@@ -197,12 +201,12 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch stats when user is loaded (and on refresh)
   useEffect(() => {
-    if (user) {
+    if (user && financeEnabled) {
       fetchStats();
     }
   // We re-fetch stats whenever doc.initialized changes (triggered by refreshKey internally)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, fetchStats]);
+  }, [user, financeEnabled, fetchStats]);
 
   // Fetch quote templates
   const fetchTemplates = useCallback(async () => {

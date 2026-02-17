@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
+import { useUsageDashboardOptional } from './UsageDashboardContext';
 import countriesAPI from '../services/api/crm/countries';
 import industriesAPI from '../services/api/crm/industries';
 import employeeRangesAPI from '../services/api/crm/employeeRanges';
@@ -109,7 +110,7 @@ const REFERENCE_GC_TIME = 60 * 60 * 1000; // 1 hour
 
 const CRMReferenceDataContext = createContext<CRMReferenceDataContextValue | null>(null);
 
-async function fetchAllReferenceData() {
+async function fetchAllReferenceData(calendarEnabled: boolean) {
   const failedSources: string[] = [];
 
   const [
@@ -127,7 +128,9 @@ async function fetchAllReferenceData() {
     employeeRangesAPI.list().catch((err: unknown) => { console.error('Failed to load employee ranges:', err); failedSources.push('employeeRanges'); return []; }),
     vendorTypesAPI.list().catch((err: unknown) => { console.error('Failed to load vendor types:', err); failedSources.push('vendorTypes'); return []; }),
     numberFormatsAPI.list().catch((err: unknown) => { console.error('Failed to load number formats:', err); failedSources.push('numberFormats'); return []; }),
-    appointmentEnumsAPI.getEnums().catch((err: unknown) => { console.error('Failed to load appointment enums:', err); failedSources.push('appointmentEnums'); return {}; })
+    calendarEnabled
+      ? appointmentEnumsAPI.getEnums().catch((err: unknown) => { console.error('Failed to load appointment enums:', err); failedSources.push('appointmentEnums'); return {}; })
+      : Promise.resolve({})
   ]);
 
   const enums = appointmentEnumsData as AppointmentEnumsData;
@@ -153,10 +156,14 @@ async function fetchAllReferenceData() {
 export const CRMReferenceDataProvider = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  const usageDashboard = useUsageDashboardOptional();
+
+  // Check if calendar feature is enabled (default to false if usage data not yet loaded)
+  const calendarEnabled = usageDashboard?.isFeatureEnabled('calendar') ?? false;
 
   const { data, isLoading, error, dataUpdatedAt } = useQuery({
-    queryKey: queryKeys.referenceData.all,
-    queryFn: fetchAllReferenceData,
+    queryKey: [...queryKeys.referenceData.all, { calendarEnabled }],
+    queryFn: () => fetchAllReferenceData(calendarEnabled),
     staleTime: REFERENCE_STALE_TIME,
     gcTime: REFERENCE_GC_TIME,
     enabled: !authLoading && isAuthenticated,

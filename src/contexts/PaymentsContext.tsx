@@ -2,6 +2,7 @@ import { createContext, useState, useCallback, useMemo, useContext, useEffect, t
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { usePreferences } from './PreferencesContext';
+import { useUsageDashboardOptional } from './UsageDashboardContext';
 import paymentsAPI from '../services/api/finance/payments';
 import { formatLocalDate } from '../utils/dateUtils';
 import { queryKeys } from '../lib/query-keys';
@@ -87,6 +88,8 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const { getPreference, updatePreference } = usePreferences();
   const queryClient = useQueryClient();
+  const usageDashboard = useUsageDashboardOptional();
+  const financeEnabled = usageDashboard?.isFeatureEnabled('finance_features') ?? false;
 
   // Modal state
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -167,7 +170,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
       const items = response.items || [];
       return { items, total: response.total ?? 0, total_pages: response.total_pages, stats: response.stats };
     },
-    enabled: !!user && preferencesLoaded,
+    enabled: !!user && preferencesLoaded && financeEnabled,
   });
 
   // Update pagination and stats when data changes

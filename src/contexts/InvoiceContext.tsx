@@ -107,6 +107,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
     sortParamName: 'sort_order',
     defaultSort: 'created_at',
     preferencePrefix: 'invoice',
+    featureCode: 'finance_features',
     defaultFilters: {
       search: '',
       status: null,

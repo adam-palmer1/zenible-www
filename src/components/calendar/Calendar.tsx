@@ -539,10 +539,20 @@ export default function Calendar() {
     if (!draggingAppointment || !dragPreview) return;
 
     try {
-      await updateAppointment(draggingAppointment.id, {
+      const updateData: AppointmentFormData = {
         start_datetime: dragPreview.start.toISOString(),
         end_datetime: dragPreview.end.toISOString(),
-      });
+      };
+
+      const queryParams: Record<string, string> = {};
+
+      // For recurring appointments, default to editing just this occurrence
+      if (isRecurringAppointment(filteredAppointments, draggingAppointment.id)) {
+        updateData.edit_scope = 'this';
+        queryParams.occurrence_date = draggingAppointment.start_datetime;
+      }
+
+      await updateAppointment(draggingAppointment.id, updateData, queryParams);
     } catch (error) {
       console.error('Failed to update appointment:', error);
     }

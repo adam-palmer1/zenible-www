@@ -1,5 +1,6 @@
 import { createContext, useState, useCallback, useMemo, useContext, useEffect, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import { useUsageDashboardOptional } from './UsageDashboardContext';
 import expensesAPI from '../services/api/finance/expenses';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
 import { formatLocalDate } from '../utils/dateUtils';
@@ -160,6 +161,8 @@ const saveExtraPreferences = (
 
 export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
+  const usageDashboard = useUsageDashboardOptional();
+  const financeEnabled = usageDashboard?.isFeatureEnabled('finance_features') ?? false;
 
   // -------------------------------------------------------------------------
   // Expense-specific state
@@ -184,6 +187,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
     paginationStyle: 'page-perpage',
     defaultSort: 'expense_date',
     preferencePrefix: 'expense',
+    featureCode: 'finance_features',
     defaultFilters: {
       search: '',
       category_id: null,
@@ -222,10 +226,10 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
   }, [user]);
 
   useEffect(() => {
-    if (user && !categoriesLoaded) {
+    if (user && !categoriesLoaded && financeEnabled) {
       fetchCategories();
     }
-  }, [user, categoriesLoaded, fetchCategories]);
+  }, [user, categoriesLoaded, fetchCategories, financeEnabled]);
 
   // -------------------------------------------------------------------------
   // Expense-specific actions (using doc.setItems and doc.setLoading)
