@@ -224,7 +224,13 @@ class PlanAPI {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: response.statusText }));
-        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+        const detail = error.detail;
+        const message = typeof detail === 'string'
+          ? detail
+          : typeof detail === 'object' && detail !== null
+            ? (detail.message || JSON.stringify(detail))
+            : error.message || `HTTP error! status: ${response.status}`;
+        throw new Error(message);
       }
 
       return await response.json();
@@ -238,6 +244,7 @@ class PlanAPI {
     billingCycle?: string;
     applyImmediately?: boolean;
     reason?: string;
+    paymentMethodId?: string;
   }): Promise<unknown> {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) {
@@ -256,12 +263,19 @@ class PlanAPI {
           billing_cycle: options?.billingCycle,
           apply_immediately: options?.applyImmediately,
           reason: options?.reason,
+          payment_method_id: options?.paymentMethodId,
         }),
       });
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: response.statusText }));
-        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+        const detail = error.detail;
+        const message = typeof detail === 'string'
+          ? detail
+          : typeof detail === 'object' && detail !== null
+            ? (detail.message || JSON.stringify(detail))
+            : error.message || `HTTP error! status: ${response.status}`;
+        throw new Error(message);
       }
 
       return await response.json();

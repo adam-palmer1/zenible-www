@@ -636,6 +636,84 @@ const QuoteDetail: React.FC = () => {
           )}
         </div>
 
+        {/* Rejection Details Card */}
+        {status === QUOTE_STATUS.REJECTED && (quote.rejected_by || quote.rejection_reason) && (
+          <div className="w-full max-w-[840px] bg-white dark:bg-gray-800 border-2 border-red-200 dark:border-red-900/50 rounded-[12px] p-6">
+            <h3 className="text-[16px] font-semibold leading-[24px] text-red-700 dark:text-red-400 mb-4">
+              Quote Rejected
+            </h3>
+            <div className="flex flex-col gap-3">
+              {quote.rejected_by && (
+                <div>
+                  <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">Rejected By</p>
+                  <p className="text-[14px] font-medium leading-[22px] text-[#09090b] dark:text-white">
+                    {quote.rejected_by}
+                  </p>
+                </div>
+              )}
+              {quote.rejected_at && (
+                <div>
+                  <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">Rejected At</p>
+                  <p className="text-[14px] font-normal leading-[22px] text-[#09090b] dark:text-white">
+                    {formatDate(quote.rejected_at)}
+                  </p>
+                </div>
+              )}
+              {quote.rejection_reason && (
+                <div>
+                  <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">Reason</p>
+                  <p className="text-[14px] font-normal leading-[22px] text-[#09090b] dark:text-white whitespace-pre-wrap">
+                    {quote.rejection_reason}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Acceptance Details Card */}
+        {status === QUOTE_STATUS.ACCEPTED && (quote.accepted_by || quote.acceptance_notes) && (
+          <div className="w-full max-w-[840px] bg-white dark:bg-gray-800 border-2 border-green-200 dark:border-green-900/50 rounded-[12px] p-6">
+            <h3 className="text-[16px] font-semibold leading-[24px] text-green-700 dark:text-green-400 mb-4">
+              Quote Accepted
+            </h3>
+            <div className="flex flex-col gap-3">
+              {quote.accepted_by && (
+                <div>
+                  <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">Accepted By</p>
+                  <p className="text-[14px] font-medium leading-[22px] text-[#09090b] dark:text-white">
+                    {quote.accepted_by}
+                  </p>
+                </div>
+              )}
+              {quote.accepted_at && (
+                <div>
+                  <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">Accepted At</p>
+                  <p className="text-[14px] font-normal leading-[22px] text-[#09090b] dark:text-white">
+                    {formatDate(quote.accepted_at)}
+                  </p>
+                </div>
+              )}
+              {quote.acceptance_signature && (
+                <div>
+                  <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">Signature</p>
+                  <p className="text-[14px] font-normal leading-[22px] text-[#09090b] dark:text-white">
+                    {quote.acceptance_signature}
+                  </p>
+                </div>
+              )}
+              {quote.acceptance_notes && (
+                <div>
+                  <p className="text-[12px] font-normal leading-[20px] text-[#71717a]">Notes</p>
+                  <p className="text-[14px] font-normal leading-[22px] text-[#09090b] dark:text-white whitespace-pre-wrap">
+                    {quote.acceptance_notes}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Reminder Status Card - Only show for sent/viewed quotes */}
         {(status === QUOTE_STATUS.SENT || status === 'viewed') && (
           <div className="w-full max-w-[840px] bg-white dark:bg-gray-800 border-2 border-[#e5e5e5] dark:border-gray-700 rounded-[12px] p-6">

@@ -83,8 +83,8 @@ export default function PlanManagement() {
     setLoading(true);
     setError(null);
     try {
-      const response = await adminAPI.getPlans({ include_inactive: 'true' }) as { items?: PlanResponse[] };
-      setPlans(response.items || []);
+      const response = await adminAPI.getPlans({ include_inactive: 'true' }) as { plans?: PlanResponse[] };
+      setPlans(response.plans || []);
     } catch (err: any) {
       setError(err.message);
     } finally {

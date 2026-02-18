@@ -347,9 +347,9 @@ function UpdatePaymentForm({ onSuccess, onError: _onError, onCancel, loading }: 
         <div className="px-[16px] mb-[16px]">
           <div className="font-['Inter'] font-normal leading-[20px] not-italic relative text-[12px] text-zinc-500 text-center">
             By subscribing, you agree to our{' '}
-            <span className="font-['Inter'] font-medium not-italic text-[#8e51ff]">Terms of Service</span>
+            <a href="https://www.zenible.com/terms-of-service" target="_blank" rel="noopener noreferrer" className="font-['Inter'] font-medium not-italic text-[#8e51ff] hover:underline">Terms of Service</a>
             {' '}and{' '}
-            <span className="font-['Inter'] font-medium not-italic text-[#8e51ff]">Privacy Policy</span>
+            <a href="https://www.zenible.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="font-['Inter'] font-medium not-italic text-[#8e51ff] hover:underline">Privacy Policy</a>
           </div>
         </div>
 

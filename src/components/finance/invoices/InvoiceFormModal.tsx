@@ -61,6 +61,7 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({ isOpen, onClose, in
           {/* Form Content */}
           <div className="px-6 py-6">
             <InvoiceForm
+              key={invoice?.id ?? 'new'}
               invoice={invoice}
               onSuccess={handleSuccess}
               isInModal={true}

@@ -56,6 +56,12 @@ export default function PricingNew() {
     confirming: false,
     error: null,
   });
+  const [pendingUpgrade, setPendingUpgrade] = useState<{
+    planId: string;
+    planName: string;
+    price: string;
+    billingCycle: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -96,7 +102,7 @@ export default function PricingNew() {
       setPlans(plansWithFeatures);
 
       // Check if any plan has explicit annual pricing
-      const anyAnnualPricing = plansWithFeatures.some(plan => plan.annual_price !== null);
+      const anyAnnualPricing = plansWithFeatures.some(plan => plan.annual_price != null && parseFloat(plan.annual_price) > 0);
       setHasAnnualPricing(anyAnnualPricing);
 
       // If no annual pricing, ensure we're on monthly
@@ -146,16 +152,24 @@ export default function PricingNew() {
 
   const handlePaymentSuccess = async (paymentMethodId: string) => {
     try {
-      await planAPI.createSubscription(paymentModal.planId!, paymentModal.billingCycle, paymentMethodId);
+      if (pendingUpgrade) {
+        // Free-to-paid upgrade: use changeSubscription with payment method
+        await planAPI.changeSubscription(pendingUpgrade.planId, {
+          billingCycle: pendingUpgrade.billingCycle,
+          paymentMethodId,
+        });
+      } else {
+        // New subscription (no existing subscription record)
+        await planAPI.createSubscription(paymentModal.planId!, paymentModal.billingCycle, paymentMethodId);
+      }
 
       // Close payment modal and show success modal
+      const planName = pendingUpgrade?.planName || paymentModal.planName;
+      const price = pendingUpgrade?.price || paymentModal.price;
+      const cycle = pendingUpgrade?.billingCycle || paymentModal.billingCycle;
       setPaymentModal({ isOpen: false, planId: null, planName: '', price: '', billingCycle: 'monthly' });
-      setSuccessModal({
-        isOpen: true,
-        planName: paymentModal.planName,
-        price: paymentModal.price,
-        billingCycle: paymentModal.billingCycle
-      });
+      setPendingUpgrade(null);
+      setSuccessModal({ isOpen: true, planName, price, billingCycle: cycle });
 
       // Refresh subscription data and user context
       await Promise.all([
@@ -173,6 +187,7 @@ export default function PricingNew() {
 
   const closePaymentModal = () => {
     setPaymentModal({ isOpen: false, planId: null, planName: '', price: '', billingCycle: 'monthly' });
+    setPendingUpgrade(null);
   };
 
   const handleContinueToDashboard = () => {
@@ -214,6 +229,18 @@ export default function PricingNew() {
 
   const handleConfirmPlanChange = async () => {
     if (!planChangeModal.planId) return;
+
+    // Free-to-paid upgrade: need to collect payment first
+    if (!currentSubscription?.stripe_subscription_id && planChangeModal.preview?.direction === 'upgrade') {
+      const planName = planChangeModal.preview?.new_plan_name || 'New Plan';
+      const price = String(planChangeModal.preview?.new_price || '');
+      // Close preview modal and save pending upgrade info
+      setPlanChangeModal({ isOpen: false, planId: null, preview: null, loading: false, confirming: false, error: null });
+      setPendingUpgrade({ planId: planChangeModal.planId, planName, price, billingCycle });
+      // Open payment modal to collect card details
+      setPaymentModal({ isOpen: true, planId: planChangeModal.planId, planName, price, billingCycle });
+      return;
+    }
 
     setPlanChangeModal(prev => ({ ...prev, confirming: true, error: null }));
 
@@ -449,11 +476,7 @@ export default function PricingNew() {
               Annually
             </button>
           </div>
-        ) : (
-          <div className={`px-3 py-2 text-sm font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-            Monthly Pricing
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Content Section */}
@@ -468,11 +491,10 @@ export default function PricingNew() {
           </div>
         )}
         {plans.map((plan) => {
-          // Skip plans that don't have any pricing
-          if (plan.monthly_price === null && plan.annual_price === null) {
-            return null;
-          }
-          // For annual view, if no annual price but has monthly, calculate it
+          // Skip plans that don't have pricing for the selected billing cycle
+          if (billingCycle === 'monthly' && plan.monthly_price === null) return null;
+          if (billingCycle === 'annual' && plan.annual_price === null) return null;
+
           const isPopular = plan.is_recommended === true;
           const currentPlan = isCurrentPlan(plan.id);
 
@@ -481,14 +503,7 @@ export default function PricingNew() {
           if (billingCycle === 'monthly') {
             price = plan.monthly_price ? parseFloat(plan.monthly_price).toFixed(2).replace(/\.00$/, '') : '0';
           } else {
-            // Use annual price if available, otherwise calculate from monthly
-            if (plan.annual_price !== null) {
-              price = parseFloat(plan.annual_price).toFixed(2).replace(/\.00$/, '');
-            } else if (plan.monthly_price !== null) {
-              price = (parseFloat(plan.monthly_price) * 12).toFixed(2).replace(/\.00$/, '');
-            } else {
-              return null; // Skip if no pricing available
-            }
+            price = parseFloat(plan.annual_price).toFixed(2).replace(/\.00$/, '');
           }
           const features = getFeaturesList(plan);
 
@@ -497,15 +512,7 @@ export default function PricingNew() {
           if (billingCycle === 'monthly') {
             originalPrice = plan.old_monthly_price;
           } else {
-            // For annual, use old_annual_price if available, or calculate from old_monthly_price
-            if (plan.old_annual_price !== null) {
-              originalPrice = plan.old_annual_price;
-            } else if (plan.old_monthly_price !== null && plan.annual_price === null) {
-              // If showing calculated annual price, also calculate old annual price
-              originalPrice = parseFloat(plan.old_monthly_price) * 12;
-            } else {
-              originalPrice = null;
-            }
+            originalPrice = plan.old_annual_price ?? null;
           }
 
           return (

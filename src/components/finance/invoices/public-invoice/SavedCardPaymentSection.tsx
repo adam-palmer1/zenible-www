@@ -24,7 +24,7 @@ const SavedCardPaymentSection: React.FC<SavedCardPaymentSectionProps> = ({ share
     setError(null);
 
     try {
-      const result = await invoicesAPITyped.payWithSavedCard(shareCode, {});
+      const result = await invoicesAPITyped.payWithSavedCard(shareCode, { amount: amountDue });
 
       if (result.status === 'succeeded') {
         onSuccess();

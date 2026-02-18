@@ -38,6 +38,7 @@ interface AppointmentSaveData extends Record<string, unknown> {
   location: string | null;
   meeting_link: string | null;
   all_day: boolean;
+  send_invite_to_contact: boolean;
   recurrence?: Record<string, unknown> | null;
 }
 
@@ -81,6 +82,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
     location: '',
     meeting_link: '',
     all_day: false,
+    send_invite_to_contact: true,
   });
 
   // Recurring appointment state
@@ -126,6 +128,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
           location: fullAppointment.location || '',
           meeting_link: fullAppointment.meeting_link || '',
           all_day: fullAppointment.all_day || false,
+          send_invite_to_contact: fullAppointment.send_invite_to_contact ?? true,
         });
 
         // Initialize recurrence state from full appointment
@@ -204,6 +207,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
           location: '',
           meeting_link: '',
           all_day: false,
+          send_invite_to_contact: true,
         });
         setSelectedContact(null);
 
@@ -342,6 +346,11 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
         location: formData.location,
         meeting_link: formData.meeting_link,
       };
+
+      // Only include send_invite_to_contact if a contact is selected
+      if (!submitData.contact_id) {
+        delete (submitData as Record<string, unknown>).send_invite_to_contact;
+      }
 
       // Convert empty strings to null for optional fields
       if (!submitData.description || !submitData.description.trim()) {
@@ -624,6 +633,26 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                     />
                   </div>
                 </div>
+
+                {/* Send invite toggle - shown when a contact is selected */}
+                {formData.contact_id && (
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="send_invite_to_contact"
+                      checked={formData.send_invite_to_contact}
+                      onChange={(e) => setFormData({ ...formData, send_invite_to_contact: e.target.checked })}
+                      disabled={!selectedContact?.email}
+                      className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 disabled:opacity-50"
+                    />
+                    <label htmlFor="send_invite_to_contact" className={`ml-2 text-sm ${selectedContact?.email ? 'text-gray-700' : 'text-gray-400'}`}>
+                      Send Google Calendar invite to contact
+                    </label>
+                    {!selectedContact?.email && (
+                      <span className="ml-1 text-xs text-gray-400">(no email on file)</span>
+                    )}
+                  </div>
+                )}
 
                 {/* Date & Time Row */}
                 <div className="grid grid-cols-2 gap-4">

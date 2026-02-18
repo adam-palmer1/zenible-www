@@ -36,6 +36,7 @@ const PublicInvoiceView: React.FC = () => {
   const [deleteCardError, setDeleteCardError] = useState<string | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState<number>(0);
 
   // Use shareCode from URL or fall back to token for backwards compatibility
   const invoiceCode = shareCode || token;
@@ -222,20 +223,38 @@ const PublicInvoiceView: React.FC = () => {
     }
   }, [invoice?.has_saved_payment_method, loadSavedCards]);
 
-  const handlePaymentSuccess = useCallback(async () => {
-    // Refresh invoice data silently (without showing loading spinner)
-    // so the updated amounts are displayed with the success message
-    try {
-      const data = await invoicesAPITyped.getPublicByShareCode(invoiceCode!);
-      setInvoice(data);
-    } catch (err: unknown) {
-      console.error('[PublicInvoiceView] Error refreshing invoice after payment:', err);
+  // Sync paymentAmount to amountDue whenever invoice data changes
+  useEffect(() => {
+    if (invoice) {
+      const due = invoice.outstanding_balance || invoice.total - (invoice.paid_amount || 0);
+      setPaymentAmount(due);
     }
+  }, [invoice?.outstanding_balance, invoice?.total, invoice?.paid_amount]);
+
+  const handlePaymentSuccess = useCallback(async () => {
+    // Reset payment method selection so the form goes back to method chooser
+    setPaymentMethod(null);
     // Show success toast temporarily
     setShowSuccessToast(true);
     setTimeout(() => setShowSuccessToast(false), 5000);
-    // Mark payment as successful (hides payment form)
-    setPaymentSuccess(true);
+
+    // Wait briefly for the Stripe webhook to update invoice paid_amount/status
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Refresh invoice data to get updated amounts
+    try {
+      const data = await invoicesAPITyped.getPublicByShareCode(invoiceCode!);
+      setInvoice(data);
+
+      // Only hide payment section if invoice is fully paid
+      const outstanding = parseFloat(data.outstanding_balance as any) || (parseFloat(data.total as any) - parseFloat(data.paid_amount as any || '0'));
+      if (data.status === 'paid' || outstanding <= 0) {
+        setPaymentSuccess(true);
+      }
+    } catch (err: unknown) {
+      console.error('[PublicInvoiceView] Error refreshing invoice after payment:', err);
+      setPaymentSuccess(true);
+    }
   }, [invoiceCode]);
 
   // Loading state
@@ -371,6 +390,9 @@ const PublicInvoiceView: React.FC = () => {
             loadInvoice={loadInvoice}
             downloadingPdf={downloadingPdf}
             handleDownloadPdf={handleDownloadPdf}
+            allowPartialPayments={invoice.allow_partial_payments}
+            paymentAmount={paymentAmount}
+            setPaymentAmount={setPaymentAmount}
           />
         </div>
       </div>

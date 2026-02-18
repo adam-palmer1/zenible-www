@@ -227,13 +227,15 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleView}
-              className="px-3 py-1.5 text-xs font-medium design-text-primary design-bg-tertiary rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              View
-            </button>
+            {receipt?.receipt_url && !receipt.receipt_url.startsWith('data:') && (
+              <button
+                type="button"
+                onClick={handleView}
+                className="px-3 py-1.5 text-xs font-medium design-text-primary design-bg-tertiary rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                View
+              </button>
+            )}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}

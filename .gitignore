@@ -66,6 +66,9 @@ Thumbs.db
 .cache
 .parcel-cache
 
+# next.js
+.next
+
 # vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*

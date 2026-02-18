@@ -27,26 +27,32 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
   const outstandingInvoices = parseFloat(summary?.outstanding_invoices || 0);
   const totalWithOutstanding = paymentsCollected + outstandingInvoices;
 
-  // Calculate percentages for the ring segments
+  // Calculate percentages (uncapped — can exceed 100%)
   const circumference = 2 * Math.PI * 40; // ~251
-  const paymentsPercent = monthlyGoal > 0 ? Math.min((paymentsCollected / monthlyGoal) * 100, 100) : 0;
-  const outstandingPercent = monthlyGoal > 0 ? Math.min((outstandingInvoices / monthlyGoal) * 100, 100 - paymentsPercent) : 0;
+  const paymentsPercent = monthlyGoal > 0 ? (paymentsCollected / monthlyGoal) * 100 : 0;
+  const outstandingPercent = monthlyGoal > 0 ? (outstandingInvoices / monthlyGoal) * 100 : 0;
 
-  // Dash arrays for segments
-  const paymentsDash = (paymentsPercent / 100) * circumference;
-  const outstandingDash = (outstandingPercent / 100) * circumference;
+  // Ring segments are capped at 100% visually (can't draw past full circle)
+  const paymentsRingPercent = Math.min(paymentsPercent, 100);
+  const outstandingRingPercent = Math.min(outstandingPercent, Math.max(100 - paymentsPercent, 0));
+  const paymentsDash = (paymentsRingPercent / 100) * circumference;
+  const outstandingDash = (outstandingRingPercent / 100) * circumference;
   const outstandingDashOffset = -paymentsDash;
 
-  // Display percentage based on hover
+  // Display percentage based on hover (uncapped)
   const displayPercent = hoveringOutstanding
-    ? Math.min(((paymentsCollected + outstandingInvoices) / monthlyGoal) * 100, 100)
+    ? monthlyGoal > 0 ? ((paymentsCollected + outstandingInvoices) / monthlyGoal) * 100 : 0
     : paymentsPercent;
 
   const isGoalMet = paymentsCollected >= monthlyGoal;
-  const remaining = Math.max(monthlyGoal - (hoveringOutstanding ? totalWithOutstanding : paymentsCollected), 0);
+  const currentAmount = hoveringOutstanding ? totalWithOutstanding : paymentsCollected;
+  const remaining = Math.max(monthlyGoal - currentAmount, 0);
+  const overGoalBy = Math.max(currentAmount - monthlyGoal, 0);
 
   // Get motivational message based on percentage
   const getMessage = () => {
+    if (displayPercent >= 150) return "Absolutely crushing it!";
+    if (displayPercent >= 120) return "Way beyond the goal!";
     if (displayPercent >= 100) return "Outstanding work!";
     if (displayPercent >= 90) return "Almost at the finish line!";
     if (displayPercent >= 75) return "Almost there!";
@@ -176,18 +182,28 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
                 <span className="font-medium">{formatCurrency(outstandingInvoices, currency)}</span>
                 <span className="text-gray-400"> outstanding</span>
               </p>
-              {!isGoalMet && (
+              {!isGoalMet && remaining > 0 && (
                 <p className="text-xs text-gray-500 mt-1">
                   {formatCurrency(remaining, currency)} to go
+                </p>
+              )}
+              {isGoalMet && overGoalBy > 0 && (
+                <p className="text-xs text-green-600 mt-1">
+                  {formatCurrency(overGoalBy, currency)} over goal
                 </p>
               )}
             </>
           )}
           {!hoveringOutstanding && (
             <>
-              {!isGoalMet && (
+              {!isGoalMet && remaining > 0 && (
                 <p className="text-xs text-gray-500 mt-1">
                   {formatCurrency(remaining, currency)} to go
+                </p>
+              )}
+              {isGoalMet && overGoalBy > 0 && (
+                <p className="text-xs text-green-600 mt-1">
+                  {formatCurrency(overGoalBy, currency)} over goal
                 </p>
               )}
               <p className="text-xs text-[#8e51ff] font-medium mt-2">

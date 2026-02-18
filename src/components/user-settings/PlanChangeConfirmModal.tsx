@@ -89,23 +89,23 @@ export default function PlanChangeConfirmModal({
                 darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border' : 'bg-gray-50 border-gray-200'
               }`}>
                 <div className="flex items-center justify-between">
-                  <div className="text-center flex-1">
+                  <div className="text-center flex-1 min-w-0 max-w-[180px]">
                     <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Current</p>
-                    <p className={`font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                    <p className={`font-semibold break-words ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                       {preview.current_plan_name}
                     </p>
                     <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                       {formatCurrency(preview.current_price)}/{billingLabel}
                     </p>
                   </div>
-                  <div className={`px-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-400'}`}>
+                  <div className={`px-3 shrink-0 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-400'}`}>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
                   </div>
-                  <div className="text-center flex-1">
+                  <div className="text-center flex-1 min-w-0 max-w-[180px]">
                     <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>New</p>
-                    <p className={`font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
+                    <p className={`font-semibold break-words ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                       {preview.new_plan_name}
                     </p>
                     <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>

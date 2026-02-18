@@ -12538,6 +12538,11 @@ export interface components {
              * @default false
              */
             all_day: boolean;
+            /**
+             * Send Invite To Contact
+             * @default true
+             */
+            send_invite_to_contact: boolean;
             /** @description Recurrence configuration for recurring appointments */
             recurrence?: components["schemas"]["RecurrenceConfig"] | null;
         };
@@ -12731,6 +12736,11 @@ export interface components {
             exception_type?: string | null;
             /** Google Recurring Event Id */
             google_recurring_event_id?: string | null;
+            /**
+             * Send Invite To Contact
+             * @default true
+             */
+            send_invite_to_contact: boolean;
         };
         /**
          * AppointmentTypeEnum
@@ -12793,6 +12803,8 @@ export interface components {
             meeting_link?: string | null;
             /** All Day */
             all_day?: boolean | null;
+            /** Send Invite To Contact */
+            send_invite_to_contact?: boolean | null;
             /** @description Recurrence configuration (for recurring appointments) */
             recurrence?: components["schemas"]["RecurrenceConfig"] | null;
             /** @default this */

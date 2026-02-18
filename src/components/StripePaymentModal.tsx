@@ -238,9 +238,9 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError: _onEr
           {/* Terms Text */}
           <p className={`text-xs text-center ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
             By subscribing, you agree to our{' '}
-            <a href="#" className="text-zenible-primary font-medium hover:underline">Terms of Service</a>
+            <a href="https://www.zenible.com/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-zenible-primary font-medium hover:underline">Terms of Service</a>
             {' '}and{' '}
-            <a href="#" className="text-zenible-primary font-medium hover:underline">Privacy Policy</a>
+            <a href="https://www.zenible.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-zenible-primary font-medium hover:underline">Privacy Policy</a>
           </p>
         </div>
       </div>

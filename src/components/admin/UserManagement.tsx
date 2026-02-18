@@ -122,7 +122,7 @@ export default function UserManagement() {
   const fetchPlans = async () => {
     try {
       const response = await adminAPI.getPlans({ is_active: 'true' }) as Record<string, unknown>;
-      setPlans((response.items as AdminPlan[]) || []);
+      setPlans((response.plans as AdminPlan[]) || []);
     } catch (err: unknown) {
       console.error('Error fetching plans:', err);
     }

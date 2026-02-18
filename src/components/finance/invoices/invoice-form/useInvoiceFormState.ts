@@ -170,6 +170,22 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
     loadInvoice();
   }, [id, invoiceProp]);
 
+  // Reset payment options to defaults when creating a new invoice (no invoice loaded).
+  // This prevents stale state from a previously-edited invoice persisting if the
+  // component is reused without remounting (e.g. Radix Dialog keeping children mounted).
+  useEffect(() => {
+    if (!invoiceProp && !id) {
+      setAllowStripePayments(false);
+      setAllowPaypalPayments(false);
+      setAllowPartialPayments(false);
+      setAutomaticPaymentEnabled(false);
+      setAutomaticEmail(true);
+      setAttachPdfToEmail(true);
+      setSendPaymentReceipt(true);
+      setReceivePaymentNotifications(true);
+    }
+  }, [invoiceProp, id]);
+
   // Initialize form fields from loaded invoice
   useEffect(() => {
     if (invoice) {

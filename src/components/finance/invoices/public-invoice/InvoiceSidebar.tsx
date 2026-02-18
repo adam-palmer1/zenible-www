@@ -33,6 +33,9 @@ export interface InvoiceSidebarProps {
   loadInvoice: () => void;
   downloadingPdf: boolean;
   handleDownloadPdf: () => void;
+  allowPartialPayments?: boolean;
+  paymentAmount: number;
+  setPaymentAmount: (amount: number) => void;
 }
 
 const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
@@ -60,6 +63,9 @@ const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
   loadInvoice,
   downloadingPdf,
   handleDownloadPdf,
+  allowPartialPayments,
+  paymentAmount,
+  setPaymentAmount,
 }) => {
   return (
     <div className="lg:w-[340px] lg:flex-shrink-0 flex flex-col gap-4 h-fit lg:sticky lg:top-4">
@@ -155,7 +161,7 @@ const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
           </div>
         )}
 
-        {/* Amount Due Banner */}
+        {/* Amount Due Banner / Partial Payment Input */}
         <div className="p-4 bg-[#f4f4f5] rounded-lg">
           <div className="flex items-center justify-between">
             <span className="text-[14px] text-[#71717a]">Amount Due:</span>
@@ -163,6 +169,48 @@ const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
               {formatCurrency(amountDue, invoice.currency_code)}
             </span>
           </div>
+          {allowPartialPayments && (
+            <div className="mt-3 pt-3 border-t border-[#e5e5e5]">
+              <label className="text-[13px] font-medium text-[#09090b] mb-1.5 block">
+                Payment Amount
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-[#71717a]">
+                    {invoice.currency_code === 'USD' ? '$' : invoice.currency_code === 'EUR' ? '€' : invoice.currency_code === 'GBP' ? '£' : ''}
+                  </span>
+                  <input
+                    type="number"
+                    min={0.01}
+                    max={amountDue}
+                    step={0.01}
+                    value={paymentAmount}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val)) {
+                        setPaymentAmount(Math.min(val, amountDue));
+                      }
+                    }}
+                    className="w-full pl-7 pr-3 py-2 text-[14px] border border-[#d4d4d8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8e51ff] focus:border-transparent"
+                  />
+                </div>
+                {paymentAmount !== amountDue && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentAmount(amountDue)}
+                    className="text-[12px] font-medium text-[#8e51ff] hover:text-[#7a44db] whitespace-nowrap px-2 py-2"
+                  >
+                    Pay Full Balance
+                  </button>
+                )}
+              </div>
+              {paymentAmount < amountDue && paymentAmount > 0 && (
+                <p className="text-[11px] text-[#71717a] mt-1.5">
+                  Remaining after payment: {formatCurrency(amountDue - paymentAmount, invoice.currency_code)}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Card on File Indicator */}
@@ -322,7 +370,7 @@ const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
         {paymentMethod === 'saved_card' && hasCardOnFile && (
           <SavedCardPaymentInline
             shareCode={invoiceCode as string}
-            amountDue={amountDue}
+            amountDue={paymentAmount}
             currency={invoice.currency_code}
             savedCard={savedCards[0]}
             onSuccess={handlePaymentSuccess}
@@ -334,7 +382,7 @@ const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
         {paymentMethod === 'stripe' && canPayStripe && (
           <StripePaymentSection
             shareCode={invoiceCode as string}
-            amount={amountDue}
+            amount={paymentAmount}
             currency={invoice.currency_code}
             onSuccess={handlePaymentSuccess}
             onError={(err) => console.error(err)}
@@ -346,7 +394,7 @@ const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
         {paymentMethod === 'paypal' && canPayPayPal && (
           <PayPalPaymentSection
             shareCode={invoiceCode as string}
-            amount={amountDue}
+            amount={paymentAmount}
             currency={invoice.currency_code}
             onBack={() => setPaymentMethod(null)}
           />
@@ -358,7 +406,7 @@ const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
     {cardSetupSuccess && !paymentSuccess && (
       <SavedCardPaymentSection
         shareCode={invoiceCode as string}
-        amountDue={amountDue}
+        amountDue={paymentAmount}
         currency={invoice.currency_code}
         onSuccess={handlePaymentSuccess}
       />

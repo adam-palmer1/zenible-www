@@ -19,7 +19,7 @@ interface SendQuoteModalProps {
  *
  * Modal for sending quotes via email with template selection
  */
-const SendQuoteModal: React.FC<SendQuoteModalProps> = ({ isOpen, onClose, quote }) => {
+const SendQuoteModal: React.FC<SendQuoteModalProps> = ({ isOpen, onClose, quote, onSuccess }) => {
   const { refresh } = useQuotes();
 
   // ---- Fetch rendered email preview ----
@@ -47,7 +47,8 @@ const SendQuoteModal: React.FC<SendQuoteModalProps> = ({ isOpen, onClose, quote 
   // ---- Post-send: refresh quote list ----
   const handleSendSuccess = useCallback(() => {
     refresh();
-  }, [refresh]);
+    onSuccess?.();
+  }, [refresh, onSuccess]);
 
   // ---- Document info section (includes quote total/currency) ----
   const renderDocumentInfo = useCallback(

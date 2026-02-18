@@ -58,7 +58,7 @@ export default function CalendarMonthView({ currentDate, appointments, onAppoint
   useEffect(() => {
     const updateCellHeight = () => {
       if (!gridRef.current) return;
-      setCellHeight(Math.max(120, gridRef.current.clientHeight / numWeeks));
+      setCellHeight(Math.max(80, gridRef.current.clientHeight / numWeeks));
     };
 
     updateCellHeight();
@@ -84,7 +84,7 @@ export default function CalendarMonthView({ currentDate, appointments, onAppoint
   };
 
   const getMaxVisible = (weekIndex: number) => {
-    if (!cellHeight) return 3;
+    if (!cellHeight) return 2;
     const laneCount = weekLayouts[weekIndex]?.laneCount || 0;
     const laneHeight = laneCount * 22;
     const reservedHeight = 28 + laneHeight + 8;
@@ -108,7 +108,7 @@ export default function CalendarMonthView({ currentDate, appointments, onAppoint
           const maxVisible = getMaxVisible(weekIndex);
 
           return (
-            <div key={weekIndex} className="flex-1 shrink-0 min-h-[120px] flex relative overflow-hidden">
+            <div key={weekIndex} className="flex-1 min-h-0 flex relative overflow-hidden">
               {/* Day cells */}
               {weekDays.map((day, dayIndex) => {
                 const isCurrentMonth = isSameMonth(day, currentDate);

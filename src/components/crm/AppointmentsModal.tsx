@@ -64,6 +64,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   const { setFollowUp, refreshContacts } = useContactActions();
   const { showSuccess, showError } = useNotification();
   const [cancelConfirmModal, setCancelConfirmModal] = useState<{ isOpen: boolean; appointment: AppointmentItem | null }>({ isOpen: false, appointment: null });
+  const [sendInviteToContact, setSendInviteToContact] = useState(true);
   const [fetchedAppointments, setFetchedAppointments] = useState<AppointmentItem[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
 
@@ -105,6 +106,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
     setAppointmentTime(getNextHour());
     setAppointmentType('call');
     setDuration(60);
+    setSendInviteToContact(true);
   };
 
   // Initialize form when editing appointment
@@ -125,12 +127,13 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
     }
     setAppointmentType(appointment.appointment_type || 'call');
     setDuration(60);
+    setSendInviteToContact((appointment as Record<string, unknown>).send_invite_to_contact !== false);
   };
 
   // Handle creating new appointment
   const handleSaveNew = async () => {
     const dateTimeValue = new Date(`${appointmentDate}T${appointmentTime}:00`).toISOString();
-    await setFollowUp(contact, dateTimeValue, appointmentType, duration);
+    await setFollowUp(contact, dateTimeValue, appointmentType, duration, sendInviteToContact);
     await fetchAppointments();
     setMode('list');
   };
@@ -146,7 +149,8 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       await appointmentsAPI.update(editingAppointment.id, {
         start_datetime: startISO,
         end_datetime: endISO,
-        appointment_type: appointmentType
+        appointment_type: appointmentType,
+        send_invite_to_contact: sendInviteToContact
       });
 
       showSuccess('Appointment updated successfully');
@@ -380,6 +384,23 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                   ))}
                 </Dropdown>
               </div>
+            </div>
+            {/* Send invite toggle */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="send_invite_to_contact"
+                checked={sendInviteToContact}
+                onChange={(e) => setSendInviteToContact(e.target.checked)}
+                disabled={!contact?.email}
+                className="w-4 h-4 text-zenible-primary border-gray-300 dark:border-gray-600 rounded focus:ring-zenible-primary disabled:opacity-50"
+              />
+              <label htmlFor="send_invite_to_contact" className={`ml-2 text-sm ${contact?.email ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
+                Send Google Calendar invite to contact
+              </label>
+              {!contact?.email && (
+                <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">(no email on file)</span>
+              )}
             </div>
             <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
               <button

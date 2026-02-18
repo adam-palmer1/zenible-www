@@ -15,7 +15,9 @@ import {
   X,
   MoreVertical,
   Trash2,
-  Download
+  Download,
+  Users,
+  Check
 } from 'lucide-react';
 import { CREDIT_NOTE_STATUS, CREDIT_NOTE_STATUS_COLORS, CREDIT_NOTE_STATUS_LABELS } from '../../../constants/finance';
 import { getCurrencySymbol } from '../../../utils/currency';
@@ -129,6 +131,7 @@ const CreditNotesDashboard: React.FC = () => {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [datePreset, setDatePreset] = useState('last_30_days');
   const [customDateFrom, setCustomDateFrom] = useState('');
@@ -141,8 +144,10 @@ const CreditNotesDashboard: React.FC = () => {
 
   // Dropdown refs and positions for portal rendering
   const dateButtonRef = useRef<HTMLButtonElement>(null);
+  const clientButtonRef = useRef<HTMLButtonElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const [dateDropdownPos, setDateDropdownPos] = useState({ top: 0, right: 0 });
+  const [clientDropdownPos, setClientDropdownPos] = useState({ top: 0, right: 0 });
   const [filterDropdownPos, setFilterDropdownPos] = useState({ top: 0, right: 0 });
 
   useEffect(() => {
@@ -151,6 +156,13 @@ const CreditNotesDashboard: React.FC = () => {
       setDateDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
     }
   }, [showDateDropdown]);
+
+  useEffect(() => {
+    if (showClientDropdown && clientButtonRef.current) {
+      const rect = clientButtonRef.current.getBoundingClientRect();
+      setClientDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+  }, [showClientDropdown]);
 
   useEffect(() => {
     if (showFilterDropdown && filterButtonRef.current) {
@@ -340,17 +352,6 @@ const CreditNotesDashboard: React.FC = () => {
       client.email?.toLowerCase().includes(query)
     );
   }, [allClients, clientSearchQuery]);
-
-  // Get display name for selected clients
-  const getSelectedClientsLabel = (): string | null => {
-    if (selectedClientIds.length === 0) return null;
-    if (selectedClientIds.length === 1) {
-      const client = allClients.find((c: any) => c.id === selectedClientIds[0]);
-      if (!client) return '1 client';
-      return client.business_name || `${client.first_name} ${client.last_name}`;
-    }
-    return `${selectedClientIds.length} clients`;
-  };
 
   // Get current date filter label
   const getDateFilterLabel = (): string => {
@@ -640,19 +641,117 @@ const CreditNotesDashboard: React.FC = () => {
                   </div>
 
 
-                  {/* Active Client Filter Tag */}
-                  {selectedClientIds.length > 0 && (
-                    <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm">
-                      <span>Client:</span>
-                      <span className="font-medium max-w-[150px] truncate">{getSelectedClientsLabel()}</span>
-                      <button
-                        onClick={clearClientFilter}
-                        className="ml-1 p-0.5 hover:bg-purple-200 rounded-full"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  )}
+                  {/* Clients Dropdown */}
+                  <div className="relative">
+                    <button
+                      ref={clientButtonRef}
+                      onClick={() => setShowClientDropdown(!showClientDropdown)}
+                      className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                        selectedClientIds.length > 0
+                          ? 'border-purple-500 bg-purple-50 text-purple-700'
+                          : 'border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      <Users className="h-4 w-4" />
+                      Clients
+                      {selectedClientIds.length > 0 && (
+                        <span className="px-1.5 py-0.5 text-xs font-medium bg-purple-600 text-white rounded-full">
+                          {selectedClientIds.length}
+                        </span>
+                      )}
+                    </button>
+                    {showClientDropdown && createPortal(
+                      <>
+                        <div
+                          className="fixed inset-0"
+                          style={{ zIndex: 9998 }}
+                          onClick={() => setShowClientDropdown(false)}
+                        />
+                        <div
+                          style={{ position: 'fixed', top: clientDropdownPos.top, right: clientDropdownPos.right, width: 320, zIndex: 9999 }}
+                          className="bg-white rounded-lg shadow-lg border border-gray-200"
+                        >
+                          {/* Search Input */}
+                          <div className="p-3 border-b border-gray-200">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                              <input
+                                type="text"
+                                placeholder="Search clients..."
+                                value={clientSearchQuery}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClientSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                autoFocus
+                              />
+                            </div>
+                          </div>
+
+                          {/* Select All / Clear All */}
+                          <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+                            <button
+                              onClick={() => {
+                                const allClientIds = allClients.map((c: any) => c.id);
+                                setSelectedClientIds(allClientIds);
+                              }}
+                              className="text-xs font-medium text-purple-600 hover:text-purple-700 flex items-center gap-1"
+                            >
+                              <Check className="h-3 w-3" />
+                              Select All
+                            </button>
+                            <button
+                              onClick={clearClientFilter}
+                              className="text-xs font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                            >
+                              <X className="h-3 w-3" />
+                              Clear All
+                            </button>
+                          </div>
+
+                          {/* Client List */}
+                          <div className="max-h-64 overflow-y-auto p-2">
+                            {clientsLoading ? (
+                              <p className="text-sm text-gray-500 py-4 text-center">Loading clients...</p>
+                            ) : filteredClients.length === 0 ? (
+                              <p className="text-sm text-gray-500 py-4 text-center">
+                                {allClients.length === 0 ? 'No clients found' : 'No matching clients'}
+                              </p>
+                            ) : (
+                              filteredClients.map((client: any) => (
+                                <label
+                                  key={client.id}
+                                  className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedClientIds.includes(client.id)}
+                                    onChange={() => handleClientToggle(client.id)}
+                                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                                  />
+                                  <span className="truncate flex-1">
+                                    {client.business_name || `${client.first_name} ${client.last_name}`}
+                                  </span>
+                                  {selectedClientIds.includes(client.id) && (
+                                    <Check className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                  )}
+                                </label>
+                              ))
+                            )}
+                          </div>
+
+                          {/* Done button */}
+                          <div className="p-3 border-t border-gray-200">
+                            <button
+                              onClick={() => setShowClientDropdown(false)}
+                              className="w-full px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
+                            >
+                              Done
+                            </button>
+                          </div>
+                        </div>
+                      </>,
+                      document.body
+                    )}
+                  </div>
 
                   {/* Active Status Filter Tag */}
                   {filterStatus !== 'all' && (
@@ -668,22 +767,22 @@ const CreditNotesDashboard: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Filter Dropdown */}
+                  {/* Filter Dropdown (Status only) */}
                   <div className="relative">
                     <button
                       ref={filterButtonRef}
                       onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                       className={`inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                        filterStatus !== 'all' || selectedClientIds.length > 0
+                        filterStatus !== 'all'
                           ? 'border-purple-500 bg-purple-50 text-purple-700'
                           : 'border-gray-300 text-gray-700'
                       }`}
                     >
                       <Filter className="h-4 w-4" />
                       Filter
-                      {(filterStatus !== 'all' || selectedClientIds.length > 0) && (
+                      {filterStatus !== 'all' && (
                         <span className="bg-purple-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                          {(filterStatus !== 'all' ? 1 : 0) + (selectedClientIds.length > 0 ? 1 : 0)}
+                          1
                         </span>
                       )}
                     </button>
@@ -696,7 +795,7 @@ const CreditNotesDashboard: React.FC = () => {
                         />
                         <div
                           style={{ position: 'fixed', top: filterDropdownPos.top, right: filterDropdownPos.right, width: 288, zIndex: 9999 }}
-                          className="bg-white rounded-lg shadow-lg border border-gray-200"
+                          className="bg-white rounded-lg shadow-lg border border-gray-200 max-h-[80vh] overflow-y-auto"
                         >
                           {/* Status Filter Section */}
                           <div className="p-3 border-b border-gray-200">
@@ -735,66 +834,10 @@ const CreditNotesDashboard: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Client Filter Section */}
-                          <div className="p-3 border-b border-gray-200">
-                            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Client</div>
-
-                            {/* Client Search */}
-                            <div className="relative mb-2">
-                              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                              <input
-                                type="text"
-                                placeholder="Search clients..."
-                                value={clientSearchQuery}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClientSearchQuery(e.target.value)}
-                                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                              />
-                            </div>
-
-                            {/* Client List with Checkboxes */}
-                            <div className="max-h-48 overflow-y-auto space-y-1">
-                              {clientsLoading ? (
-                                <div className="text-center py-4 text-sm text-gray-500">Loading clients...</div>
-                              ) : filteredClients.length === 0 ? (
-                                <div className="text-center py-4 text-sm text-gray-500">No clients found</div>
-                              ) : (
-                                filteredClients.map((client: any) => (
-                                  <label
-                                    key={client.id}
-                                    className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedClientIds.includes(client.id)}
-                                      onChange={() => handleClientToggle(client.id)}
-                                      className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                                    />
-                                    <span className="text-sm text-gray-700 truncate">
-                                      {client.business_name || `${client.first_name} ${client.last_name}`}
-                                    </span>
-                                  </label>
-                                ))
-                              )}
-                            </div>
-
-                            {/* Clear client selection */}
-                            {selectedClientIds.length > 0 && (
-                              <button
-                                onClick={clearClientFilter}
-                                className="mt-2 text-xs text-purple-600 hover:text-purple-700"
-                              >
-                                Clear client selection
-                              </button>
-                            )}
-                          </div>
-
                           {/* Actions */}
                           <div className="p-3 flex items-center justify-between">
                             <button
-                              onClick={() => {
-                                setFilterStatus('all');
-                                clearClientFilter();
-                              }}
+                              onClick={() => setFilterStatus('all')}
                               className="text-sm text-gray-600 hover:text-gray-900"
                             >
                               Clear All

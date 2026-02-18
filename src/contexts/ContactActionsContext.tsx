@@ -61,7 +61,7 @@ interface ContactActionsContextValue {
   deleteContact: (contact: ContactActionContact) => Promise<ContactActionResult>;
   toggleHidden: (contact: ContactActionContact, context?: 'crm' | 'client' | 'vendor') => Promise<ContactActionResult>;
   toggleClient: (contact: ContactActionContact, showSuccessModal?: boolean) => Promise<ContactActionResult>;
-  setFollowUp: (contact: ContactActionContact, followUpDateTime: string, appointmentType?: string, durationMinutes?: number) => Promise<ContactActionResult>;
+  setFollowUp: (contact: ContactActionContact, followUpDateTime: string, appointmentType?: string, durationMinutes?: number, sendInviteToContact?: boolean) => Promise<ContactActionResult>;
   dismissFollowUp: (contact: ContactActionContact) => Promise<ContactActionResult>;
   refreshContacts?: () => void;
   statusRoles?: StatusRoles;
@@ -300,13 +300,16 @@ export const ContactActionsProvider = ({
    * @param followUpDateTime - The follow-up date/time (ISO 8601 format)
    * @param appointmentType - The appointment type ('call' or 'follow_up')
    */
-  const setFollowUp = useCallback(async (contact: ContactActionContact, followUpDateTime: string, appointmentType = 'follow_up', durationMinutes = 60): Promise<ContactActionResult> => {
+  const setFollowUp = useCallback(async (contact: ContactActionContact, followUpDateTime: string, appointmentType = 'follow_up', durationMinutes = 60, sendInviteToContact = true): Promise<ContactActionResult> => {
     const displayName = getContactDisplayName(contact, 'Contact');
     const isCall = appointmentType === 'call';
 
     try {
       // Prepare appointment data
-      const appointmentData = prepareAppointmentData(contact, followUpDateTime, appointmentType, null, durationMinutes);
+      const appointmentData = {
+        ...prepareAppointmentData(contact, followUpDateTime, appointmentType, null, durationMinutes),
+        send_invite_to_contact: sendInviteToContact,
+      };
 
       // Create appointment via Appointments API
       await appointmentsAPI.create(appointmentData);

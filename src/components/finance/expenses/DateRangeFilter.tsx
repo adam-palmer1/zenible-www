@@ -170,6 +170,16 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
     setCustomEnd(endDate || '');
     // Derive matching preset when dates change externally (e.g., URL params)
     if (startDate && endDate) {
+      // If the currently selected preset still matches these dates, keep it.
+      // This prevents ambiguity when multiple presets produce the same range
+      // (e.g., "This Quarter" and "This Year" both start Jan 1 during Q1).
+      if (selectedPreset) {
+        const current = DATE_PRESETS.find(p => p.label === selectedPreset);
+        if (current) {
+          const { start_date, end_date } = current.getValue();
+          if (startDate === start_date && endDate === end_date) return;
+        }
+      }
       const match = DATE_PRESETS.find(p => {
         const { start_date, end_date } = p.getValue();
         return startDate === start_date && endDate === end_date;
@@ -178,6 +188,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ startDate, endDate, o
     } else {
       setSelectedPreset(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate]);
 
   const handlePresetClick = (preset: DatePreset) => {
