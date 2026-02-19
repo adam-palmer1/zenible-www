@@ -3,7 +3,7 @@ import { X, RotateCcw, AlertTriangle, Loader2 } from 'lucide-react';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
-import { formatCurrency } from '../../../utils/currency';
+import { formatCurrency, getCurrencySymbol } from '../../../utils/currency';
 
 interface RefundModalProps {
   isOpen: boolean;
@@ -34,6 +34,8 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment }) =
 
   const maxRefundable = parseFloat(payment.amount) - parseFloat(payment.refunded_amount || 0);
   const currency = payment.currency?.code || 'USD';
+  const currencySymbol = getCurrencySymbol(currency);
+  const currencyPaddingClass = currencySymbol.length <= 1 ? 'pl-7' : currencySymbol.length <= 2 ? 'pl-10' : 'pl-14';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,7 +195,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment }) =
                 Refund Amount
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">{currencySymbol}</span>
                 <input
                   type="number"
                   step="0.01"
@@ -202,7 +204,7 @@ const RefundModal: React.FC<RefundModalProps> = ({ isOpen, onClose, payment }) =
                   value={refundAmount}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRefundAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full pl-7 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className={`w-full ${currencyPaddingClass} pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white`}
                   required
                 />
               </div>

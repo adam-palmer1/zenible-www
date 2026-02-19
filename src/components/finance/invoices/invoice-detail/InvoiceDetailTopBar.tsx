@@ -24,6 +24,7 @@ interface InvoiceDetailTopBarProps {
   onMarkAsSent: () => void;
   onRevertToDraft: () => void;
   onChargeCard: () => void;
+  onSendPaymentReceipt?: () => void;
 }
 
 const InvoiceDetailTopBar: React.FC<InvoiceDetailTopBarProps> = ({
@@ -46,6 +47,7 @@ const InvoiceDetailTopBar: React.FC<InvoiceDetailTopBarProps> = ({
   onMarkAsSent,
   onRevertToDraft,
   onChargeCard,
+  onSendPaymentReceipt,
 }) => {
   return (
     <div className="border-b border-[#e5e5e5] dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-[10px] flex items-center gap-4">
@@ -112,6 +114,8 @@ const InvoiceDetailTopBar: React.FC<InvoiceDetailTopBarProps> = ({
         showMarkAsSent={status === INVOICE_STATUS.DRAFT}
         showRevertToDraft={status === INVOICE_STATUS.SENT}
         showChargeCard={canChargeCard}
+        onSendPaymentReceipt={onSendPaymentReceipt}
+        showSendPaymentReceipt={['paid', 'partially_paid'].includes(status)}
       />
     </div>
   );

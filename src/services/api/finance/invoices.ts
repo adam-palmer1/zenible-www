@@ -326,6 +326,26 @@ const invoicesAPI = {
   },
 
   /**
+   * Preview payment receipt email
+   */
+  async previewPaymentReceipt(invoiceId: string, data: unknown = {}): Promise<{ subject: string; body: string }> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}/${invoiceId}/preview-payment-receipt`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Send payment receipt email
+   */
+  async sendPaymentReceipt(invoiceId: string, emailData: unknown): Promise<InvoiceSendResponse> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}/${invoiceId}/send-payment-receipt`, {
+      method: 'POST',
+      body: JSON.stringify(emailData),
+    });
+  },
+
+  /**
    * Export invoices
    */
   async export(params: Record<string, string> = {}, format: string = 'csv'): Promise<Blob> {

@@ -540,6 +540,11 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
     return curr?.currency?.symbol || '$';
   }, [currency, currencies]);
 
+  const currencyPaddingClass = useMemo(() => {
+    const len = selectedCurrencySymbol.length;
+    return len <= 1 ? 'pl-7' : len <= 2 ? 'pl-10' : 'pl-14';
+  }, [selectedCurrencySymbol]);
+
   const formContent = (
     <div className="max-w-4xl mx-auto p-6">
       <div className="design-bg-primary rounded-lg shadow-sm">
@@ -589,7 +594,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
                   step="0.01"
                   min="0"
                   autoComplete="off"
-                  className="w-full pl-8 pr-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className={`w-full ${currencyPaddingClass} pr-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
                   required
                 />
               </div>

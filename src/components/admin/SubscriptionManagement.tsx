@@ -502,7 +502,7 @@ export default function SubscriptionManagement() {
                         {sub.billing_cycle}
                       </td>
                       <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                        ${sub.plan?.monthly_price || 'N/A'}/mo
+                        ${sub.current_price}/{sub.billing_frequency}
                       </td>
                       <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                         {formatDate(sub.current_period_end)}

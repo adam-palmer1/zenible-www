@@ -10,6 +10,7 @@ import {
   FolderIcon,
   CreditCardIcon,
   BellAlertIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import { MoreVertical } from 'lucide-react';
 import Dropdown from '../../ui/dropdown/Dropdown';
@@ -34,11 +35,13 @@ interface InvoiceActionsMenuProps {
   onMarkAsSent?: () => void;
   onRevertToDraft?: () => void;
   onChargeCard?: () => void;
+  onSendPaymentReceipt?: () => void;
   showLinkPayment?: boolean;
   showSendReminder?: boolean;
   showMarkAsSent?: boolean;
   showRevertToDraft?: boolean;
   showChargeCard?: boolean;
+  showSendPaymentReceipt?: boolean;
 }
 
 /**
@@ -57,11 +60,13 @@ const InvoiceActionsMenu: React.FC<InvoiceActionsMenuProps> = ({
   onMarkAsSent,
   onRevertToDraft,
   onChargeCard,
+  onSendPaymentReceipt,
   showLinkPayment = false,
   showSendReminder = false,
   showMarkAsSent = false,
   showRevertToDraft = false,
   showChargeCard = false,
+  showSendPaymentReceipt = false,
 }) => {
   const menuItems = [
     {
@@ -81,6 +86,12 @@ const InvoiceActionsMenu: React.FC<InvoiceActionsMenuProps> = ({
       label: 'Send Reminder',
       icon: BellAlertIcon,
       onClick: onSendReminder,
+    },
+    showSendPaymentReceipt && {
+      id: 'send_payment_receipt',
+      label: 'Send Payment Receipt',
+      icon: EnvelopeIcon,
+      onClick: onSendPaymentReceipt,
     },
     showChargeCard && {
       id: 'charge_card',

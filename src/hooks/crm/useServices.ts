@@ -35,6 +35,7 @@ export function useServices(options: Record<string, unknown> = {}, refreshKey: n
     mutationFn: (data: Record<string, unknown>) => servicesAPI.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
     },
   });
 
@@ -52,6 +53,7 @@ export function useServices(options: Record<string, unknown> = {}, refreshKey: n
     mutationFn: (serviceId: string) => servicesAPI.delete(serviceId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
     },
   });
 

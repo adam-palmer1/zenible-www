@@ -119,6 +119,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   ...props
 }) => {
   const symbol = getCurrencySymbol(currency);
+  const paddingClass = symbol.length <= 1 ? 'pl-7' : symbol.length <= 2 ? 'pl-10' : 'pl-14';
 
   return (
     <div className="relative">
@@ -133,7 +134,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className={`pl-8 pr-3 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50 ${className}`}
+        className={`${paddingClass} pr-3 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50 ${className}`}
         {...props}
       />
     </div>

@@ -133,7 +133,7 @@ const Combobox: React.FC<ComboboxProps> = ({
   // Focus input when opened
   useEffect(() => {
     if (isOpen && inputRef.current && !showCreateForm) {
-      inputRef.current.focus();
+      inputRef.current.focus({ preventScroll: true });
     }
   }, [isOpen, showCreateForm]);
 

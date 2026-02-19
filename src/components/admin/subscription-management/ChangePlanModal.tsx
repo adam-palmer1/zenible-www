@@ -9,6 +9,8 @@ interface ChangePlanModalProps {
     id: string;
     plan?: { id: string; name: string; monthly_price?: number } | null;
     billing_cycle: string;
+    current_price?: number | string | null;
+    billing_frequency?: string | null;
     user_name?: string | null;
     user_email?: string | null;
   };
@@ -68,7 +70,7 @@ const ChangePlanModal: React.FC<ChangePlanModalProps> = ({
           <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Current Plan</p>
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {subscription.plan?.name || 'N/A'} — ${subscription.plan?.monthly_price || 'N/A'}/mo ({subscription.billing_cycle})
+              {subscription.plan?.name || 'N/A'} — ${subscription.current_price}/{subscription.billing_frequency} ({subscription.billing_cycle})
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               {subscription.user_name || subscription.user_email || ''}

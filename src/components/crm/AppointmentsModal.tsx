@@ -4,8 +4,9 @@ import { CalendarIcon, PhoneIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon, Cl
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { Z_INDEX } from '../../constants/crm';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
-import { getScheduledAppointments, getNextHour, calculateEndDateTime } from '../../utils/crm/appointmentUtils';
+import { getScheduledAppointments, getNextHour, calculateEndDateTime, formatAppointmentTitle } from '../../utils/crm/appointmentUtils';
 import { useContactActions } from '../../contexts/ContactActionsContext';
+import { useAuth } from '../../contexts/AuthContext';
 import appointmentsAPI from '../../services/api/crm/appointments';
 import { useNotification } from '../../contexts/NotificationContext';
 import ConfirmationModal from '../common/ConfirmationModal';
@@ -58,11 +59,13 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   const [mode, setMode] = useState<'list' | 'create' | 'edit'>('list');
   const [editingAppointment, setEditingAppointment] = useState<AppointmentItem | null>(null);
   const [appointmentType, setAppointmentType] = useState('call');
+  const [appointmentTitle, setAppointmentTitle] = useState('');
   const [appointmentDate, setAppointmentDate] = useState(new Date().toISOString().split('T')[0]);
   const [appointmentTime, setAppointmentTime] = useState(getNextHour());
   const [duration, setDuration] = useState(60);
   const { setFollowUp, refreshContacts } = useContactActions();
   const { showSuccess, showError } = useNotification();
+  const { user } = useAuth();
   const [cancelConfirmModal, setCancelConfirmModal] = useState<{ isOpen: boolean; appointment: AppointmentItem | null }>({ isOpen: false, appointment: null });
   const [sendInviteToContact, setSendInviteToContact] = useState(true);
   const [fetchedAppointments, setFetchedAppointments] = useState<AppointmentItem[]>([]);
@@ -105,14 +108,16 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
     setAppointmentDate(new Date().toISOString().split('T')[0]);
     setAppointmentTime(getNextHour());
     setAppointmentType('call');
+    setAppointmentTitle('');
     setDuration(60);
-    setSendInviteToContact(true);
+    setSendInviteToContact(!!contact?.email);
   };
 
   // Initialize form when editing appointment
   const handleEdit = (appointment: AppointmentItem) => {
     setMode('edit');
     setEditingAppointment(appointment);
+    setAppointmentTitle((appointment as Record<string, unknown>).title as string || '');
 
     // Convert UTC datetime from API to local date/time for form fields
     if (appointment.start_datetime) {
@@ -127,13 +132,13 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
     }
     setAppointmentType(appointment.appointment_type || 'call');
     setDuration(60);
-    setSendInviteToContact((appointment as Record<string, unknown>).send_invite_to_contact !== false);
+    setSendInviteToContact(!!contact?.email && (appointment as Record<string, unknown>).send_invite_to_contact !== false);
   };
 
   // Handle creating new appointment
   const handleSaveNew = async () => {
     const dateTimeValue = new Date(`${appointmentDate}T${appointmentTime}:00`).toISOString();
-    await setFollowUp(contact, dateTimeValue, appointmentType, duration, sendInviteToContact);
+    await setFollowUp(contact, dateTimeValue, appointmentType, duration, sendInviteToContact, appointmentTitle.trim() || null);
     await fetchAppointments();
     setMode('list');
   };
@@ -147,6 +152,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       const endISO = calculateEndDateTime(startISO, duration);
 
       await appointmentsAPI.update(editingAppointment.id, {
+        title: appointmentTitle.trim() || formatAppointmentTitle(contact, appointmentType, user),
         start_datetime: startISO,
         end_datetime: endISO,
         appointment_type: appointmentType,
@@ -244,7 +250,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                           )}
                           <div className="flex-1">
                             <div className={`font-medium ${isCall ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}`}>
-                              {isCall ? 'Call' : 'Follow-up'}
+                              {(appointment as Record<string, unknown>).title as string || (isCall ? 'Call' : 'Follow-up')}
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">
                               {date.toLocaleDateString('en-US', {
@@ -333,6 +339,22 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                   );
                 })}
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Title
+              </label>
+              <input
+                type="text"
+                value={appointmentTitle}
+                onChange={(e) => setAppointmentTitle(e.target.value)}
+                placeholder={`e.g., Meet: ${contact?.first_name || contact?.business_name || 'Client'}`}
+                maxLength={255}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary transition-colors"
+              />
+              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                Leave blank to auto-generate from type and contact name
+              </p>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>

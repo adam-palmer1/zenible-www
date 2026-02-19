@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useCallback } from 'react';
 import { useNotification } from './NotificationContext';
+import { useAuth } from './AuthContext';
 import { getContactDisplayName } from '../utils/crm/contactUtils';
 import appointmentsAPI from '../services/api/crm/appointments';
 import { prepareAppointmentData } from '../utils/crm/appointmentUtils';
@@ -61,7 +62,7 @@ interface ContactActionsContextValue {
   deleteContact: (contact: ContactActionContact) => Promise<ContactActionResult>;
   toggleHidden: (contact: ContactActionContact, context?: 'crm' | 'client' | 'vendor') => Promise<ContactActionResult>;
   toggleClient: (contact: ContactActionContact, showSuccessModal?: boolean) => Promise<ContactActionResult>;
-  setFollowUp: (contact: ContactActionContact, followUpDateTime: string, appointmentType?: string, durationMinutes?: number, sendInviteToContact?: boolean) => Promise<ContactActionResult>;
+  setFollowUp: (contact: ContactActionContact, followUpDateTime: string, appointmentType?: string, durationMinutes?: number, sendInviteToContact?: boolean, customTitle?: string | null) => Promise<ContactActionResult>;
   dismissFollowUp: (contact: ContactActionContact) => Promise<ContactActionResult>;
   refreshContacts?: () => void;
   statusRoles?: StatusRoles;
@@ -92,6 +93,7 @@ export const ContactActionsProvider = ({
   onRefreshContacts
 }: ContactActionsProviderProps) => {
   const { showSuccess, showError } = useNotification();
+  const { user } = useAuth();
 
   /**
    * Mark contact as lost
@@ -300,14 +302,14 @@ export const ContactActionsProvider = ({
    * @param followUpDateTime - The follow-up date/time (ISO 8601 format)
    * @param appointmentType - The appointment type ('call' or 'follow_up')
    */
-  const setFollowUp = useCallback(async (contact: ContactActionContact, followUpDateTime: string, appointmentType = 'follow_up', durationMinutes = 60, sendInviteToContact = true): Promise<ContactActionResult> => {
+  const setFollowUp = useCallback(async (contact: ContactActionContact, followUpDateTime: string, appointmentType = 'follow_up', durationMinutes = 60, sendInviteToContact = true, customTitle: string | null = null): Promise<ContactActionResult> => {
     const displayName = getContactDisplayName(contact, 'Contact');
     const isCall = appointmentType === 'call';
 
     try {
       // Prepare appointment data
       const appointmentData = {
-        ...prepareAppointmentData(contact, followUpDateTime, appointmentType, null, durationMinutes),
+        ...prepareAppointmentData(contact, followUpDateTime, appointmentType, customTitle, durationMinutes, user),
         send_invite_to_contact: sendInviteToContact,
       };
 
@@ -331,7 +333,7 @@ export const ContactActionsProvider = ({
       showError((error as Error).message || 'Failed to schedule appointment. Please try again.');
       return { success: false, error };
     }
-  }, [onRefreshContacts, showSuccess, showError]);
+  }, [user, onRefreshContacts, showSuccess, showError]);
 
   /**
    * Dismiss follow-up date for contact

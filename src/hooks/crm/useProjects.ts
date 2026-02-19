@@ -38,6 +38,7 @@ export function useProjects(filters: Record<string, unknown> = {}) {
       // Invalidate all project lists and stats
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.stats() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
     },
   });
 
@@ -58,6 +59,7 @@ export function useProjects(filters: Record<string, unknown> = {}) {
       // Invalidate all project lists and stats
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.stats() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
     },
   });
 

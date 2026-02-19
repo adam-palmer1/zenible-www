@@ -113,7 +113,7 @@ export default function SubscriptionSettingsTab({
                     Price:
                   </span>
                   <span className={`ml-2 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                    ${parseFloat(currentSubscription.plan?.monthly_price).toFixed(2) || 'N/A'}/month
+                    ${parseFloat(currentSubscription.current_price).toFixed(2)}/{currentSubscription.billing_frequency}
                   </span>
                 </div>
                 <div>
@@ -238,7 +238,7 @@ export default function SubscriptionSettingsTab({
                   {currentSubscription.plan?.name || 'Current Plan'}
                 </h3>
                 <span className={`text-lg font-medium ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                  ${parseFloat(currentSubscription.plan?.monthly_price).toFixed(2) || 'N/A'}/month
+                  ${parseFloat(currentSubscription.current_price).toFixed(2)}/{currentSubscription.billing_frequency}
                 </span>
               </div>
 

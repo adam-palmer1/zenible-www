@@ -101,6 +101,7 @@ export function useContacts(
     mutationFn: (data: ContactCreate) => contactsAPI.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
     },
   });
 
@@ -115,6 +116,7 @@ export function useContacts(
     onSuccess: (_result, { contactId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.detail(contactId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
     },
   });
 
@@ -132,6 +134,7 @@ export function useContacts(
     mutationFn: (contactId: string) => contactsAPI.delete(contactId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
     },
   });
 
@@ -146,6 +149,7 @@ export function useContacts(
       contactsAPI.changeStatus(contactId, statusData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
     },
   });
 

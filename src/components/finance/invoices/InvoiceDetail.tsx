@@ -10,6 +10,7 @@ import invoicesAPI from '../../../services/api/finance/invoices';
 import companiesAPI from '../../../services/api/crm/companies';
 import SendInvoiceDialog from './SendInvoiceDialog';
 import SendReminderDialog from './SendReminderDialog';
+import SendPaymentReceiptDialog from './SendPaymentReceiptDialog';
 import { LoadingSpinner } from '../../shared';
 import AddPaymentModal from './AddPaymentModal';
 import LinkPaymentModal from './LinkPaymentModal';
@@ -48,6 +49,13 @@ const InvoiceDetail: React.FC = () => {
   const [showLinkPaymentModal, setShowLinkPaymentModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptPaymentData, setReceiptPaymentData] = useState<{
+    payment_amount: number;
+    payment_date: string;
+    payment_method: string;
+    transaction_id?: string;
+  } | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Charge card modal state
@@ -343,6 +351,7 @@ const InvoiceDetail: React.FC = () => {
         onMarkAsSent={handleMarkAsSent}
         onRevertToDraft={handleRevertToDraft}
         onChargeCard={handleChargeCard}
+        onSendPaymentReceipt={() => setShowReceiptModal(true)}
       />
 
       {/* Content Section */}
@@ -416,11 +425,21 @@ const InvoiceDetail: React.FC = () => {
         onSuccess={loadInvoice}
       />
 
+      <SendPaymentReceiptDialog
+        isOpen={showReceiptModal}
+        onClose={() => { setShowReceiptModal(false); setReceiptPaymentData(null); }}
+        invoice={invoice}
+        contact={invoice.contact}
+        onSuccess={loadInvoice}
+        paymentData={receiptPaymentData}
+      />
+
       <AddPaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
         invoice={invoice}
         onSuccess={handlePaymentSuccess}
+        onSendReceipt={(paymentData) => { setReceiptPaymentData(paymentData); setShowReceiptModal(true); }}
       />
 
       <LinkPaymentModal

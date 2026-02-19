@@ -30,9 +30,10 @@ interface AddPaymentModalProps {
   onClose: () => void;
   invoice: any;
   onSuccess?: (payment: any) => void;
+  onSendReceipt?: (paymentData: { payment_amount: number; payment_date: string; payment_method: string; transaction_id?: string }) => void;
 }
 
-const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invoice, onSuccess }) => {
+const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invoice, onSuccess, onSendReceipt }) => {
   const { showSuccess, showError } = useNotification();
   useEscapeKey(onClose, isOpen);
   const methodDropdownRef = useRef<HTMLDivElement>(null);
@@ -46,6 +47,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
   });
   const [submitting, setSubmitting] = useState(false);
   const [methodDropdownOpen, setMethodDropdownOpen] = useState(false);
+  const [sendReceipt, setSendReceipt] = useState(true);
 
   // Credit note state
   const [availableCreditNotes, setAvailableCreditNotes] = useState<any[]>([]);
@@ -104,6 +106,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
       setAvailableCreditNotes([]);
       setCnDropdownOpen(false);
       setCnSearchQuery('');
+      setSendReceipt(true);
     }
   }, [isOpen, invoice]);
 
@@ -228,6 +231,15 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
       }
 
       onClose();
+
+      if (sendReceipt && onSendReceipt) {
+        onSendReceipt({
+          payment_amount: parseFloat(formData.amount),
+          payment_date: formData.payment_date,
+          payment_method: formData.payment_method,
+          transaction_id: formData.reference_number || undefined,
+        });
+      }
     } catch (error: any) {
       console.error('Error recording payment:', error);
       showError(error.message || 'Failed to record payment');
@@ -605,6 +617,22 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
                     {formData.notes.length}/500 characters
                   </p>
                 </div>
+
+                {/* Send Receipt Checkbox - only for non-credit-note payments */}
+                {!isCreditNote && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sendReceipt}
+                      onChange={(e) => setSendReceipt(e.target.checked)}
+                      disabled={submitting}
+                      className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Send payment receipt to contact
+                    </span>
+                  </label>
+                )}
               </div>
             </div>
 

@@ -20,10 +20,24 @@ export const calculateEndDateTime = (startDateTime: string, durationMinutes = 60
   return endDate.toISOString();
 };
 
-export const formatAppointmentTitle = (contact: ContactLike | null | undefined, appointmentType: string): string => {
-  const displayName = getContactDisplayName(contact, 'Contact');
-  const typeLabel = appointmentType === 'call' ? 'Call' : 'Follow-up';
-  return `${typeLabel}: ${displayName}`;
+interface UserLike {
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+}
+
+export const formatAppointmentTitle = (contact: ContactLike | null | undefined, _appointmentType: string, user?: UserLike | null): string => {
+  // CLIENT: contact's first name, or business name if no first name
+  const clientName = contact?.first_name || contact?.business_name || 'Contact';
+
+  // ZENIBLE_USER: user's full name (first + last), or email prefix as fallback
+  let zenibleUser = '';
+  if (user) {
+    const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+    zenibleUser = fullName || user.email?.split('@')[0] || '';
+  }
+
+  return zenibleUser ? `Meet: ${clientName} / ${zenibleUser}` : `Meet: ${clientName}`;
 };
 
 export const prepareAppointmentData = (
@@ -31,11 +45,12 @@ export const prepareAppointmentData = (
   startDateTime: string,
   appointmentType: string,
   customTitle: string | null = null,
-  durationMinutes = 60
+  durationMinutes = 60,
+  user?: UserLike | null
 ) => {
   return {
     contact_id: contact.id,
-    title: customTitle || formatAppointmentTitle(contact, appointmentType),
+    title: customTitle || formatAppointmentTitle(contact, appointmentType, user),
     start_datetime: startDateTime,
     end_datetime: calculateEndDateTime(startDateTime, durationMinutes),
     appointment_type: appointmentType,

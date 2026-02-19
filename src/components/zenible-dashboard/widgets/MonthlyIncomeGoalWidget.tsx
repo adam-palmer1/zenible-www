@@ -49,22 +49,6 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
   const remaining = Math.max(monthlyGoal - currentAmount, 0);
   const overGoalBy = Math.max(currentAmount - monthlyGoal, 0);
 
-  // Get motivational message based on percentage
-  const getMessage = () => {
-    if (displayPercent >= 150) return "Absolutely crushing it!";
-    if (displayPercent >= 120) return "Way beyond the goal!";
-    if (displayPercent >= 100) return "Outstanding work!";
-    if (displayPercent >= 90) return "Almost at the finish line!";
-    if (displayPercent >= 75) return "Almost there!";
-    if (displayPercent >= 66) return "Making great progress!";
-    if (displayPercent >= 51) return "Past half way!";
-    if (displayPercent === 50) return "Half way there!";
-    if (displayPercent >= 31) return "Nearly half way!";
-    if (displayPercent >= 11) return "Great progress!";
-    if (displayPercent >= 1) return "Off to a great start!";
-    return "Let's get started!";
-  };
-
   const monthName = new Date().toLocaleDateString('en-US', { month: 'long' });
 
   if (loading) {
@@ -206,9 +190,6 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
                   {formatCurrency(overGoalBy, currency)} over goal
                 </p>
               )}
-              <p className="text-xs text-[#8e51ff] font-medium mt-2">
-                {getMessage()}
-              </p>
             </>
           )}
         </div>
