@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { useModalPortal } from '../../contexts/ModalPortalContext';
 
 interface DatePickerCalendarProps {
   value: string; // YYYY-MM-DD format
@@ -19,6 +20,8 @@ const formatDisplay = (dateStr: string) => {
 
 const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange, error = false, className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const modalPortal = useModalPortal();
+  const portalTarget = modalPortal || document.body;
   const [viewDate, setViewDate] = useState(() => {
     if (value) return new Date(value + 'T00:00:00');
     return new Date();
@@ -209,11 +212,14 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
 
       {/* Calendar Dropdown - rendered via portal to escape overflow:hidden containers */}
       {isOpen && createPortal(
-        <>
-          <div className="fixed inset-0" style={{ zIndex: 9998 }} onMouseDown={(e) => e.stopPropagation()} onClick={() => { setIsOpen(false); setInputText(formatDisplay(value)); }} />
+        <div
+          style={{ pointerEvents: 'auto' }}
+          onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
+          <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => { setIsOpen(false); setInputText(formatDisplay(value)); }} />
           <div
             ref={dropdownRef}
-            onMouseDown={(e) => e.stopPropagation()}
             style={{
               position: 'fixed',
               left: dropdownPos.left,
@@ -283,8 +289,8 @@ const DatePickerCalendar: React.FC<DatePickerCalendarProps> = ({ value, onChange
               ))}
             </div>
           </div>
-        </>,
-        document.body
+        </div>,
+        portalTarget
       )}
     </div>
   );
