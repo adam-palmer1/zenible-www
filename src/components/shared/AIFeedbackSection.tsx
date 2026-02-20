@@ -72,9 +72,18 @@ export default function AIFeedbackSection({
       setDisplayContent(feedback.raw);
     } else if (feedback?.analysis?.raw) {
       setDisplayContent(feedback.analysis.raw);
+    } else if (!isStreaming && !streamingContent && !rawAnalysis && !feedback?.raw && !feedback?.analysis?.raw) {
+      setDisplayContent('');
     }
 
   }, [isStreaming, streamingContent, rawAnalysis, feedback]);
+
+  // Clear display content when new analysis starts
+  useEffect(() => {
+    if (analyzing) {
+      setDisplayContent('');
+    }
+  }, [analyzing]);
 
   // Reset rating when message changes
   useEffect(() => {
@@ -85,6 +94,12 @@ export default function AIFeedbackSection({
   useEffect(() => {
     setQuestionsSent(false);
   }, [conversationId, analyzing]);
+
+  // Clear stale state when conversation changes
+  useEffect(() => {
+    setMessageRatings({});
+    setConversationHistory([]);
+  }, [conversationId]);
 
   // Check if user is scrolled to bottom (within threshold)
   const isScrolledToBottom = useCallback(() => {
@@ -209,6 +224,19 @@ export default function AIFeedbackSection({
     }
   };
 
+  // Shared toggle rating logic
+  const toggleRating = useCallback(async (
+    msgId: string,
+    currentRating: string | null,
+    newRating: string,
+    onSuccess: (rating: string | null) => void
+  ) => {
+    if (!conversationId) return;
+    const finalRating = currentRating === newRating ? null : newRating;
+    await messageAPI.rateMessage(conversationId, msgId, finalRating as 'good' | 'bad' | null);
+    onSuccess(finalRating);
+  }, [conversationId]);
+
   const handleRating = async (rating: string) => {
     if (!conversationId || !messageId || ratingLoading) {
       return;
@@ -216,18 +244,7 @@ export default function AIFeedbackSection({
 
     setRatingLoading(true);
     try {
-      let newRating: string | null;
-
-      // If clicking the same rating, unset it (toggle off)
-      if (messageRating === rating) {
-        newRating = null;
-      } else {
-        // Set the new rating
-        newRating = rating;
-      }
-
-      await messageAPI.rateMessage(conversationId, messageId, newRating as 'good' | 'bad');
-      setMessageRating(newRating);
+      await toggleRating(messageId, messageRating, rating, setMessageRating);
     } catch {
       // Silent failure - rating not critical
     } finally {
@@ -241,24 +258,9 @@ export default function AIFeedbackSection({
     }
 
     try {
-      const currentRating = messageRatings[msgId];
-      let newRating: string | null;
-
-      // If clicking the same rating, unset it (toggle off)
-      if (currentRating === rating) {
-        newRating = null;
-      } else {
-        // Set the new rating
-        newRating = rating;
-      }
-
-      await messageAPI.rateMessage(conversationId, msgId, newRating as 'good' | 'bad');
-
-      // Update state
-      setMessageRatings(prev => ({
-        ...prev,
-        [msgId]: newRating
-      }));
+      await toggleRating(msgId, messageRatings[msgId] ?? null, rating, (finalRating) => {
+        setMessageRatings(prev => ({ ...prev, [msgId]: finalRating }));
+      });
     } catch {
       // Silent failure - rating not critical
     }

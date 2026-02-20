@@ -50,7 +50,8 @@ export function useProfileAnalysis({
     invokeTool,
     sendFollowUpMessage,
     reset,
-    clearConversation
+    clearConversation,
+    setConversationId
   } = useBaseAIAnalysis({
     characterId,
     panelId,
@@ -106,6 +107,7 @@ export function useProfileAnalysis({
     generateProfile,
     sendFollowUpMessage,
     reset,
-    clearConversation
+    clearConversation,
+    setConversationId
   };
 }

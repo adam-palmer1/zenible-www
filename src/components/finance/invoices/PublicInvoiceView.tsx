@@ -305,7 +305,7 @@ const PublicInvoiceView: React.FC = () => {
   // Calculate totals
   const subtotal = items.reduce((sum: number, item: any) => sum + parseFloat(item.amount || 0), 0);
   const itemLevelTax = items.reduce((sum: number, item: any) => {
-    const itemTax = item.taxes?.reduce((t: number, tax: any) => t + (tax.tax_amount || 0), 0) || 0;
+    const itemTax = item.taxes?.reduce((t: number, tax: any) => t + (Number(tax.tax_amount) || 0), 0) || 0;
     return sum + itemTax;
   }, 0);
   const hasTax = itemLevelTax > 0 || (invoice.tax_total && invoice.tax_total > 0);

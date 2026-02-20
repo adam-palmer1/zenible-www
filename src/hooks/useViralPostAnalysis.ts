@@ -46,7 +46,8 @@ export function useViralPostAnalysis({
     invokeTool,
     sendFollowUpMessage,
     reset,
-    clearConversation
+    clearConversation,
+    setConversationId
   } = useBaseAIAnalysis({
     characterId,
     panelId,
@@ -93,6 +94,7 @@ export function useViralPostAnalysis({
     analyzeFromStrategy,
     sendFollowUpMessage,
     reset,
-    clearConversation
+    clearConversation,
+    setConversationId
   };
 }

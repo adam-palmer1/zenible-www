@@ -50,8 +50,8 @@ const BillableHourEntry: React.FC<BillableHourEntryProps> = ({
     if (showMenu && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       setMenuPosition({
-        top: rect.bottom + window.scrollY,
-        left: rect.right - 192 + window.scrollX, // 192px = w-48 menu width
+        top: rect.bottom,
+        left: rect.right - 192, // 192px = w-48 menu width
       });
     }
   }, [showMenu]);

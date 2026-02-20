@@ -18,6 +18,7 @@ import { getCharacterTools } from '../../services/toolDiscoveryAPI';
 import UsageLimitBadge from '../ui/UsageLimitBadge';
 import { useModalState } from '../../hooks/useModalState';
 import { useMobile } from '../../hooks/useMobile';
+import { senderTypeToRole } from '../../utils/messageUtils';
 
 interface AICharacter {
   id: string;
@@ -54,10 +55,10 @@ interface ConversationMessagesResponse {
 
 interface ConversationMessage {
   id: string;
-  role: string;
+  sender_type: string;
   content: string;
   created_at: string;
-  metadata?: Record<string, string>;
+  metadata?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -126,6 +127,7 @@ export default function ProposalWizard() {
   const historyModal = useModalState();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(false);
+  const [conversationError, setConversationError] = useState<string | null>(null);
   const [conversationPage, setConversationPage] = useState(1);
   const [totalConversationPages, setTotalConversationPages] = useState(1);
   const [selectedHistoryConversation, setSelectedHistoryConversation] = useState<ConversationSummary | null>(null);
@@ -138,6 +140,7 @@ export default function ProposalWizard() {
   const [totalMessagePages, setTotalMessagePages] = useState(1);
   const [messageFilter, setMessageFilter] = useState('');
   const [messageOrder, setMessageOrder] = useState('asc');
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
 
   // Get WebSocket context
   const {
@@ -159,7 +162,8 @@ export default function ProposalWizard() {
     generateProposal: sendGeneration,
     sendFollowUpMessage: sendFollowUp,
     reset: resetAnalysis,
-    clearConversation
+    clearConversation,
+    setConversationId
   } = useProposalAnalysis({
     characterId: selectedCharacterId || '',
     panelId: 'proposal_wizard',
@@ -378,17 +382,24 @@ export default function ProposalWizard() {
       if (!found) return;
       character = found;
     }
+
+    // Confirm before clearing active conversation
+    if (conversationId) {
+      const confirmed = window.confirm(
+        'Switching characters will clear your current conversation. Continue?'
+      );
+      if (!confirmed) return;
+
+      clearConversation();
+      setFollowUpMessages([]);
+      setFeedback(null);
+      setAnalysisHistory([]);
+    }
+
     setSelectedCharacterId(character.id);
     setSelectedCharacterName(character.name);
     setSelectedCharacterAvatar(character.avatar_url || null);
     setSelectedCharacterDescription(character.description || '');
-
-    // Clear conversation when switching characters
-    if (conversationId) {
-      clearConversation();
-      setFollowUpMessages([]);
-      setFeedback(null);
-    }
   };
 
   // Handle proposal analysis
@@ -470,6 +481,7 @@ export default function ProposalWizard() {
   const loadConversations = async (page = 1) => {
     try {
       setLoadingConversations(true);
+      setConversationError(null);
       const response = await userAPI.getUserConversations({
         tool_type: 'proposal_wizard',
         page: String(page),
@@ -480,6 +492,7 @@ export default function ProposalWizard() {
       setConversationPage(page);
     } catch (error) {
       console.error('Failed to load conversations:', error);
+      setConversationError('Failed to load conversations. Please try again.');
     } finally {
       setLoadingConversations(false);
     }
@@ -519,33 +532,89 @@ export default function ProposalWizard() {
     await loadConversationMessages(conv.id, 1);
   };
 
+  // Convert backend sender_type to frontend role — imported from shared utility
+
   // Handle loading conversation from history
   const handleLoadConversation = () => {
-    if (selectedHistoryConversation && conversationMessages.length > 0) {
-      // Find the initial job post and proposal from the messages
-      const firstUserMessage = conversationMessages.find((msg: ConversationMessage) => msg.role === 'user');
-      if (firstUserMessage?.metadata?.job_post) {
-        setJobPost(firstUserMessage.metadata.job_post);
-      }
-      if (firstUserMessage?.metadata?.proposal) {
-        setProposal(firstUserMessage.metadata.proposal);
-      }
-      if (firstUserMessage?.metadata?.platform) {
-        setSelectedPlatform(firstUserMessage.metadata.platform);
+    if (!selectedHistoryConversation || conversationMessages.length === 0) return;
+
+    // Restore conversationId so follow-ups and ratings work (Bug 3)
+    setConversationId(selectedHistoryConversation.id);
+
+    // Find the first user message using sender_type (Bug 1)
+    const firstUserMessage = conversationMessages.find(
+      (msg: ConversationMessage) => msg.sender_type?.toUpperCase() === 'USER'
+    );
+
+    // Extract metadata from tool_arguments nested path (Bug 2)
+    if (firstUserMessage?.metadata) {
+      const meta = firstUserMessage.metadata as Record<string, unknown>;
+      const toolArgs = meta.tool_arguments as Record<string, unknown> | undefined;
+
+      if (toolArgs?.job_post) {
+        setJobPost(toolArgs.job_post as string);
+      } else if (meta.job_post) {
+        setJobPost(meta.job_post as string);
       }
 
-      // Load the conversation messages as follow-ups
-      const formattedMessages = conversationMessages.map((msg: ConversationMessage) => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.created_at,
-        messageId: msg.id
-      }));
-      setFollowUpMessages(formattedMessages);
+      if (toolArgs?.user_proposal) {
+        setProposal(toolArgs.user_proposal as string);
+      } else if (meta.proposal) {
+        setProposal(meta.proposal as string);
+      }
 
-      // Close modal
-      historyModal.close();
+      if (toolArgs?.platform) {
+        setSelectedPlatform(toolArgs.platform as string);
+      } else if (meta.platform) {
+        setSelectedPlatform(meta.platform as string);
+      }
     }
+
+    // Categorize messages: first AI response → analysisHistory, rest → followUpMessages (Bug 4)
+    let foundFirstAIResponse = false;
+    const newAnalysisHistory: AnalysisHistoryEntry[] = [];
+    const newFollowUpMessages: FollowUpMessage[] = [];
+
+    for (const msg of conversationMessages) {
+      const role = senderTypeToRole(msg.sender_type);
+
+      if (!foundFirstAIResponse && role === 'assistant') {
+        // First AI response is the analysis
+        foundFirstAIResponse = true;
+        newAnalysisHistory.push({
+          role: 'assistant',
+          type: 'analysis',
+          content: msg.content,
+          messageId: msg.id,
+          timestamp: msg.created_at,
+        });
+
+        // Set feedback state so the display panel activates
+        setFeedback({
+          isProcessing: false,
+          raw: msg.content,
+          analysis: { raw: msg.content, structured: null },
+          messageId: msg.id,
+        });
+      } else if (role === 'user' && msg === firstUserMessage) {
+        // Skip the first user message (it's the tool invocation, shown via input fields)
+        continue;
+      } else {
+        // Subsequent messages are follow-ups
+        newFollowUpMessages.push({
+          role,
+          content: msg.content,
+          timestamp: msg.created_at,
+          messageId: msg.id,
+        });
+      }
+    }
+
+    setAnalysisHistory(newAnalysisHistory);
+    setFollowUpMessages(newFollowUpMessages);
+
+    // Close modal
+    historyModal.close();
   };
 
   // Export conversation
@@ -553,6 +622,7 @@ export default function ProposalWizard() {
     if (!conversationId) return;
 
     try {
+      setExportStatus(null);
       const blob = await userAPI.exportUserConversation(conversationId, 'markdown') as Blob;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -562,8 +632,12 @@ export default function ProposalWizard() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      setExportStatus('Exported successfully!');
+      setTimeout(() => setExportStatus(null), 3000);
     } catch (error) {
       console.error('Error exporting conversation:', error);
+      setExportStatus('Export failed. Please try again.');
+      setTimeout(() => setExportStatus(null), 5000);
     }
   };
 
@@ -615,16 +689,27 @@ export default function ProposalWizard() {
             )}
 
             {conversationId && (
-              <button
-                onClick={handleExportConversation}
-                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                  darkMode
-                    ? 'bg-gray-700 text-white hover:bg-gray-600'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Export
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportConversation}
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                    darkMode
+                      ? 'bg-gray-700 text-white hover:bg-gray-600'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Export
+                </button>
+                {exportStatus && (
+                  <span className={`text-xs ${
+                    exportStatus.includes('failed')
+                      ? darkMode ? 'text-red-400' : 'text-red-600'
+                      : darkMode ? 'text-green-400' : 'text-green-600'
+                  }`}>
+                    {exportStatus}
+                  </span>
+                )}
+              </div>
             )}
             <button
               onClick={handleOpenHistory}
@@ -747,6 +832,20 @@ export default function ProposalWizard() {
               }`}>
                 {loadingConversations ? (
                   <div className="p-4 text-center">Loading...</div>
+                ) : conversationError ? (
+                  <div className="p-4 text-center">
+                    <div className={`text-sm ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
+                      {conversationError}
+                    </div>
+                    <button
+                      onClick={() => loadConversations(1)}
+                      className={`mt-2 text-sm px-3 py-1 rounded ${
+                        darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Retry
+                    </button>
+                  </div>
                 ) : conversations.length === 0 ? (
                   <div className="p-4 text-center text-gray-500">No conversations yet</div>
                 ) : (
@@ -874,10 +973,10 @@ export default function ProposalWizard() {
                         <div className="space-y-4">
                           {conversationMessages.map((msg: ConversationMessage, idx: number) => (
                             <div key={msg.id || idx} className={`flex ${
-                              msg.role === 'user' ? 'justify-end' : 'justify-start'
+                              msg.sender_type?.toUpperCase() === 'USER' ? 'justify-end' : 'justify-start'
                             }`}>
                               <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                                msg.role === 'user'
+                                msg.sender_type?.toUpperCase() === 'USER'
                                   ? darkMode
                                     ? 'bg-zenible-primary text-white'
                                     : 'bg-zenible-primary text-white'
@@ -888,7 +987,11 @@ export default function ProposalWizard() {
                                 <div className="text-sm">
                                   {msg.content.length > 500 ? (
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                      {msg.content.substring(0, 500) + '...'}
+                                      {(() => {
+                                        const truncated = msg.content.substring(0, 500);
+                                        const openFences = (truncated.match(/```/g) || []).length;
+                                        return openFences % 2 !== 0 ? truncated + '\n```\n...' : truncated + '...';
+                                      })()}
                                     </ReactMarkdown>
                                   ) : (
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>

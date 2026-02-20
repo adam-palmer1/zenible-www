@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import brandIcon from '../../../assets/icons/brand-icon.svg';
@@ -52,10 +52,9 @@ export default function ConversationHistory({
   onMessageRate,
   onCopyMessage,
 }: ConversationHistoryProps) {
-  const allCompletedAnalyses = analysisHistory;
-
-  const currentAnalysis = (isStreaming && streamingContent) || (displayContent && messageId)
-    ? {
+  const currentAnalysis = useMemo(() => {
+    if ((isStreaming && streamingContent) || (displayContent && messageId)) {
+      return {
         role: 'assistant',
         type: 'analysis',
         content: isStreaming ? streamingContent : (rawAnalysis || displayContent),
@@ -64,23 +63,29 @@ export default function ConversationHistory({
         usage: feedback?.usage,
         timestamp: new Date().toISOString(),
         isStreaming: isStreaming
-      }
-    : null;
+      };
+    }
+    return null;
+  }, [isStreaming, streamingContent, displayContent, messageId, rawAnalysis, structuredAnalysis, feedback?.usage]);
 
-  const allMessages: ConversationMessage[] = [
-    ...allCompletedAnalyses.map(msg => ({ ...msg, type: 'analysis' })),
-    ...conversationHistory.map(msg => ({ ...msg, type: 'user' })),
-    ...followUpMessages.map(msg => ({ ...msg, type: 'assistant' }))
-  ];
+  const sortedMessages = useMemo(() => {
+    const allMessages: ConversationMessage[] = [
+      ...analysisHistory.map(msg => ({ ...msg, type: 'analysis' })),
+      ...conversationHistory.map(msg => ({ ...msg, type: 'user' })),
+      ...followUpMessages.map(msg => ({ ...msg, type: 'assistant' }))
+    ];
 
-  if (currentAnalysis && !allCompletedAnalyses.find(a => a.messageId === currentAnalysis.messageId)) {
-    allMessages.push(currentAnalysis);
-  }
+    if (currentAnalysis && !analysisHistory.find(a => a.messageId === currentAnalysis.messageId)) {
+      allMessages.push(currentAnalysis);
+    }
 
-  const sortedMessages = allMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    return allMessages.sort((a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+  }, [analysisHistory, conversationHistory, followUpMessages, currentAnalysis]);
 
-  const analysisComponents = getMarkdownComponents(darkMode, 'analysis');
-  const messageComponents = getMarkdownComponents(darkMode, 'message');
+  const analysisComponents = useMemo(() => getMarkdownComponents(darkMode, 'analysis'), [darkMode]);
+  const messageComponents = useMemo(() => getMarkdownComponents(darkMode, 'message'), [darkMode]);
 
   return (
     <div className="mt-6 space-y-3">

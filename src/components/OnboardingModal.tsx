@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import customizationAPI from '../services/customizationAPI';
 import DatePickerCalendar from './shared/DatePickerCalendar';
+import { ModalPortalContext } from '../contexts/ModalPortalContext';
 
 // Figma SVG assets - converted from localhost to data URIs
 const sparkleIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28' fill='none'%3E%3Cpath d='M14 2L16.29 9.71L24 12L16.29 14.29L14 22L11.71 14.29L4 12L11.71 9.71L14 2Z' fill='%238e51ff'/%3E%3C/svg%3E";
@@ -39,6 +40,10 @@ interface OnboardingModalProps {
 export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
   const { darkMode, updatePreference, reloadPreferences } = usePreferences();
   useEscapeKey(onClose, isOpen);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  const portalContainerRef = useCallback((node: HTMLDivElement | null) => {
+    setPortalContainer(node);
+  }, []);
   const [currentStep, setCurrentStep] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showCompletion, setShowCompletion] = useState(false);
@@ -459,6 +464,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <ModalPortalContext.Provider value={portalContainer}>
       <div className={`w-full max-w-2xl max-h-[90vh] rounded-xl shadow-xl overflow-hidden ${
         darkMode ? 'bg-zenible-dark-card' : 'bg-white'
       }`}>
@@ -785,6 +791,11 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
           </div>
         )}
       </div>
+      <div
+        ref={portalContainerRef}
+        className="fixed inset-0 pointer-events-none overflow-visible z-[51]"
+      />
+      </ModalPortalContext.Provider>
     </div>
   );
 }

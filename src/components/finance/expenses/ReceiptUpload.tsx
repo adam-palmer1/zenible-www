@@ -171,9 +171,25 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
    * Open file in new tab
    */
   const handleView = useCallback(() => {
-    if (receipt?.receipt_url) {
-      window.open(receipt.receipt_url, '_blank');
+    if (!receipt?.receipt_url) return;
+
+    // Data URLs (unsaved expense) can't be opened via window.open in modern browsers.
+    // Convert to a blob URL first.
+    if (receipt.receipt_url.startsWith('data:')) {
+      const byteString = atob(receipt.receipt_url.split(',')[1]);
+      const mimeType = receipt.receipt_url.split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: mimeType });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      return;
     }
+
+    window.open(receipt.receipt_url, '_blank');
   }, [receipt]);
 
   /**

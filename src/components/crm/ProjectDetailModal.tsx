@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, FileText, Receipt, CreditCard, FileMinus, Loader2, Settings2, ChevronDown, ChevronUp, Trash2, Plus, type LucideProps } from 'lucide-react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import BillableHoursTab from './BillableHoursTab';
@@ -10,6 +10,7 @@ import projectsAPI from '../../services/api/crm/projects';
 import ConfirmationModal from '../common/ConfirmationModal';
 import AssignExpenseModal from '../finance/expenses/AssignExpenseModal';
 import AssignFinanceItemModal from '../finance/allocations/AssignFinanceItemModal';
+import { ModalPortalContext } from '../../contexts/ModalPortalContext';
 
 /** Nested finance entity shape (invoice, quote, credit note) */
 interface FinanceEntityBase {
@@ -149,6 +150,10 @@ const TABS = [
 const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose, project: projectProp, onUpdate: _onUpdate }) => {
   const { showError, showSuccess } = useNotification();
   useEscapeKey(onClose, isOpen);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  const portalContainerRef = useCallback((node: HTMLDivElement | null) => {
+    setPortalContainer(node);
+  }, []);
   const [project, setProject] = useState<ProjectData | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -921,6 +926,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* Modal */}
+      <ModalPortalContext.Provider value={portalContainer}>
       <div className="relative bg-white rounded-xl shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-[#e5e5e5] max-w-[650px] w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col dark:bg-gray-800 dark:border-gray-700">
         {/* Header */}
         <div className="flex items-center justify-between p-4 shrink-0">
@@ -1018,8 +1024,8 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
         projectName={project.name}
         currency={project.currency || 'USD'}
         onUpdate={handleAllocationUpdate}
-        projectServices={financeModal.type === 'invoice' ? services : undefined}
         contactId={project.contact_id}
+        projectServices={financeModal.type === 'invoice' ? services : undefined}
         existingEntityIds={
           financeModal.type === 'invoice' ? invoiceAllocations.map(a => a.entity_id).filter(Boolean) as string[] :
           financeModal.type === 'quote' ? quoteAllocations.map(a => a.entity_id).filter(Boolean) as string[] :
@@ -1029,6 +1035,12 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
         }
       />
 
+      {/* Portal container for nested floating elements (dropdowns) inside this modal */}
+      <div
+        ref={portalContainerRef}
+        className="fixed inset-0 pointer-events-none overflow-visible z-[51]"
+      />
+      </ModalPortalContext.Provider>
     </div>
   );
 };

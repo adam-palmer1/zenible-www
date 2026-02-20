@@ -86,7 +86,13 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
     try {
       const params: Record<string, string> = { per_page: '50' };
       if (search) params.search = search;
-      if (contactId) params.contact_id = contactId;
+      if (contactId) {
+        if (entityType === 'project') {
+          params.vendor_id = contactId;
+        } else {
+          params.contact_id = contactId;
+        }
+      }
       const result = await expensesAPI.list(params) as { items?: unknown[] };
       setAllExpenses(result.items || []);
     } catch (error) {
@@ -94,7 +100,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
     } finally {
       setExpensesLoading(false);
     }
-  }, [contactId]);
+  }, [contactId, entityType]);
 
   // Debounced server-side search
   useEffect(() => {

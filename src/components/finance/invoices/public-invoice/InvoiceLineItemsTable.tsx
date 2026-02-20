@@ -51,7 +51,7 @@ const InvoiceLineItemsTable: React.FC<InvoiceLineItemsTableProps> = ({ items, ha
             ) : (
               items.map((item: any, index: number) => {
                 const itemAmount = parseFloat(item.amount || 0);
-                const itemTaxAmount = item.taxes?.reduce((sum: number, t: any) => sum + (t.tax_amount || 0), 0) || 0;
+                const itemTaxAmount = item.taxes?.reduce((sum: number, t: any) => sum + (Number(t.tax_amount) || 0), 0) || 0;
                 const itemTotal = itemAmount + itemTaxAmount;
 
                 return (

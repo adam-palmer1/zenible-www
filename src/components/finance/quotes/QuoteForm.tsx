@@ -350,7 +350,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
   // Calculate item total (amount + item taxes)
   const calculateItemTotal = (item: any) => {
     const amount = parseFloat(item.amount || 0);
-    const taxAmount = item.taxes?.reduce((sum: number, t: any) => sum + (t.tax_amount || 0), 0) || 0;
+    const taxAmount = item.taxes?.reduce((sum: number, t: any) => sum + (Number(t.tax_amount) || 0), 0) || 0;
     return amount + taxAmount;
   };
 
@@ -446,6 +446,13 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
       } else {
         result = await createQuote(quoteData);
         showSuccess('Quote created successfully');
+        // Switch to edit mode so subsequent saves update instead of create
+        setQuote(result);
+        // Update URL to edit route without remounting the component,
+        // so the send modal stays open and browser back/refresh land on the edit page
+        if (!isInModal && result?.id) {
+          window.history.replaceState(null, '', `/finance/quotes/${result.id}/edit`);
+        }
       }
 
       // Only open send modal if explicitly requested (via Save & Send button)

@@ -85,9 +85,7 @@ const IncomeExpenseChart: React.FC<ChartSubProps> = ({ data, loading, currencySy
     datasets: [
       {
         label: 'Income',
-        data: data.map((item: any) =>
-          parseFloat(item.paid_invoices_total || 0) + parseFloat(item.unlinked_payments_total || 0)
-        ),
+        data: data.map((item: any) => parseFloat(item.income_total || 0)),
         backgroundColor: '#bbf7d0',
         borderColor: '#22c55e',
         borderWidth: 1,

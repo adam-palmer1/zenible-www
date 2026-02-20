@@ -50,7 +50,8 @@ export function useHeadlineAnalysis({
     invokeTool,
     sendFollowUpMessage,
     reset,
-    clearConversation
+    clearConversation,
+    setConversationId
   } = useBaseAIAnalysis({
     characterId,
     panelId,
@@ -106,6 +107,7 @@ export function useHeadlineAnalysis({
     generateHeadline,
     sendFollowUpMessage,
     reset,
-    clearConversation
+    clearConversation,
+    setConversationId
   };
 }

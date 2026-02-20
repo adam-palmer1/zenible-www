@@ -21,6 +21,7 @@ interface UseProposalAnalysisConfig {
 interface UseProposalAnalysisReturn extends Omit<UseBaseAIAnalysisReturn, 'invokeTool'> {
   analyzeProposal: (jobPost: string, proposal: string, platform?: string, metadata?: Record<string, unknown>) => Promise<string | null>;
   generateProposal: (jobPost: string, platform?: string, metadata?: Record<string, unknown>) => Promise<string | null>;
+  setConversationId: (id: string | null) => void;
 }
 
 /**
@@ -50,7 +51,8 @@ export function useProposalAnalysis({
     invokeTool,
     sendFollowUpMessage,
     reset,
-    clearConversation
+    clearConversation,
+    setConversationId
   } = useBaseAIAnalysis({
     characterId,
     panelId,
@@ -107,6 +109,7 @@ export function useProposalAnalysis({
     generateProposal,
     sendFollowUpMessage,
     reset,
-    clearConversation
+    clearConversation,
+    setConversationId
   };
 }

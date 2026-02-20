@@ -72,7 +72,19 @@ export default function ProposalInput({ darkMode, proposal, setProposal, jobPost
           className={`px-4 sm:px-6 py-2.5 sm:py-3 bg-zenible-primary text-white rounded-xl font-inter font-medium text-sm sm:text-base transition-all ${
             (!hasResults && (!jobPost || analyzing || !isPanelReady || !isConnected)) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-600'
           }`}
-          title={!hasResults && !jobPost ? 'Please enter a job post first' : !hasResults && !isConnected ? 'Connecting...' : !hasResults && !isPanelReady ? 'Initializing...' : ''}
+          title={
+            !hasResults
+              ? !isConnected
+                ? 'Connecting to server...'
+                : !isPanelReady
+                  ? 'AI panel is loading...'
+                  : !jobPost
+                    ? 'Please enter a job post first'
+                    : analyzing
+                      ? 'Analysis in progress...'
+                      : ''
+              : ''
+          }
         >
           {hasResults ? 'Start Again' : analyzing ? (proposal ? 'Analyzing...' : 'Generating...') : !isConnected ? 'Connecting...' : !isPanelReady ? 'Initializing...' : (proposal ? 'Analyze Proposal' : 'Generate Proposal')}
         </button>

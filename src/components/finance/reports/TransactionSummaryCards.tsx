@@ -41,28 +41,6 @@ const formatCurrencyBreakdown = (currencyArray: any[], defaultCurrencyCode?: str
     .join(' + ');
 };
 
-/**
- * Combine two currency breakdown arrays by currency_code, summing total_amount.
- */
-const combineByC = (a: any[], b: any[]): any[] => {
-  const map: Record<string, { total_amount: number; currency_symbol: string; currency_code: string }> = {};
-
-  for (const item of (a || [])) {
-    const code = item.currency_code;
-    if (!code) continue;
-    if (!map[code]) map[code] = { total_amount: 0, currency_symbol: item.currency_symbol || '$', currency_code: code };
-    map[code].total_amount += parseFloat(item.total_amount || 0);
-  }
-
-  for (const item of (b || [])) {
-    const code = item.currency_code;
-    if (!code) continue;
-    if (!map[code]) map[code] = { total_amount: 0, currency_symbol: item.currency_symbol || '$', currency_code: code };
-    map[code].total_amount += parseFloat(item.total_amount || 0);
-  }
-
-  return Object.values(map);
-};
 
 /**
  * Compute net amount breakdown per currency from income and expense breakdowns.
@@ -131,10 +109,8 @@ const TransactionSummaryCards: React.FC = () => {
   const defaultCode = summary?.default_currency?.code || defaultCurrency?.currency?.code || '';
 
   // Main totals (in default currency)
-  // Total Income = paid_invoices_total + unlinked_payments_total (matches P&L widget formula)
-  const paidInvoicesTotal = parseFloat(String(summary?.paid_invoices_total || '0'));
-  const unlinkedPaymentsTotal = parseFloat(String(summary?.unlinked_payments_total || '0'));
-  const incomeTotal = paidInvoicesTotal + unlinkedPaymentsTotal;
+  // Total Income = income_total from API (based on actual payments, not invoices)
+  const incomeTotal = parseFloat(String(summary?.income_total || '0'));
   const expenseTotal = summary?.expense_total || '0';
   const netAmount = incomeTotal - parseFloat(String(expenseTotal) || '0');
   const outstanding = summary?.outstanding_invoices || '0';
@@ -142,13 +118,10 @@ const TransactionSummaryCards: React.FC = () => {
 
   // Currency breakdowns (for subtitle display)
   // Show breakdown when 2+ currencies, or single currency differs from default
-  const combinedIncomeByC = combineByC(
-    summary?.paid_invoices_by_currency || [],
-    summary?.unlinked_payments_by_currency || []
-  );
-  const incomeBreakdown = formatCurrencyBreakdown(combinedIncomeByC, defaultCode);
+  const incomeByC = (summary?.income_by_currency || []) as any[];
+  const incomeBreakdown = formatCurrencyBreakdown(incomeByC, defaultCode);
   const expenseBreakdown = formatCurrencyBreakdown(summary?.expense_by_currency || [], defaultCode);
-  const netBreakdown = computeNetBreakdown(combinedIncomeByC, summary?.expense_by_currency || [], defaultCode);
+  const netBreakdown = computeNetBreakdown(incomeByC, summary?.expense_by_currency || [], defaultCode);
   const outstandingBreakdown = formatCurrencyBreakdown(summary?.outstanding_by_currency || [], defaultCode);
 
   return (

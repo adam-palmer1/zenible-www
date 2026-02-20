@@ -442,7 +442,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
   // Calculate item total (amount + item taxes)
   const calculateItemTotal = (item: FormLineItem) => {
     const amount = parseFloat(String(item.amount || 0));
-    const taxAmount = item.taxes?.reduce((sum: number, t: FormItemTax) => sum + (t.tax_amount || 0), 0) || 0;
+    const taxAmount = item.taxes?.reduce((sum: number, t: FormItemTax) => sum + (Number(t.tax_amount) || 0), 0) || 0;
     return amount + taxAmount;
   };
 
@@ -734,6 +734,11 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
         showSuccess('Invoice created successfully');
         // Switch to edit mode so subsequent saves update instead of create
         setInvoice(result);
+        // Update URL to edit route without remounting the component,
+        // so the send dialog stays open and browser back/refresh land on the edit page
+        if (result?.id) {
+          window.history.replaceState(null, '', `/finance/invoices/${result.id}/edit`);
+        }
       }
 
       // Save project allocations immediately after invoice creation (links invoice to project)

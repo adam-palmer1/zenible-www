@@ -222,6 +222,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
       setCreatingVendor(true);
       const vendorData = {
         business_name: name,
+        is_vendor: true,
       };
       const newVendor = await createVendorContact(vendorData as Parameters<typeof createVendorContact>[0]);
       showSuccess(`Vendor "${name}" created`);

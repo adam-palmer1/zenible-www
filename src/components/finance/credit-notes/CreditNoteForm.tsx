@@ -304,6 +304,13 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
       } else {
         result = await creditNotesAPI.create(creditNoteData);
         showSuccess('Credit note created successfully');
+        // Switch to edit mode so subsequent saves update instead of create
+        setCreditNote(result);
+        // Update URL to edit route without remounting the component,
+        // so the send modal stays open and browser back/refresh land on the edit page
+        if (result?.id) {
+          window.history.replaceState(null, '', `/finance/credit-notes/${result.id}/edit`);
+        }
       }
 
       if (issueAfterSave) {

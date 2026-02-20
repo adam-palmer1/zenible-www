@@ -98,7 +98,7 @@ const InvoiceLineItems: React.FC<InvoiceLineItemsProps> = ({
   // Calculate item total (amount + item taxes)
   const calculateItemTotal = (item: any) => {
     const amount = parseFloat(item.amount || 0);
-    const taxAmount = item.taxes?.reduce((sum: number, t: any) => sum + (t.tax_amount || 0), 0) || 0;
+    const taxAmount = item.taxes?.reduce((sum: number, t: any) => sum + (Number(t.tax_amount) || 0), 0) || 0;
     return amount + taxAmount;
   };
 
