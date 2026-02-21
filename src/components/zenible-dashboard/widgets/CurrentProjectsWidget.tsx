@@ -19,11 +19,11 @@ const CurrentProjectsWidget = ({ settings = {}, isHovered = false }: CurrentProj
   const navigate = useNavigate();
 
   const handleViewAll = () => {
-    navigate('/crm?tab=projects');
+    navigate('/crm/projects');
   };
 
   const handleProjectClick = (projectId: string) => {
-    navigate(`/crm?tab=projects&projectId=${projectId}`);
+    navigate(`/crm/projects?projectId=${projectId}`);
   };
 
   if (loading) {

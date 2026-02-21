@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Check, Calendar, Clock, User, CreditCard, Loader2, Shield, Phone, Mail, Settings } from 'lucide-react';
+import { X, Check, Calendar, Clock, User, CreditCard, Loader2, Shield, Mail, Settings } from 'lucide-react';
 import { AdminUser, AdminPlan, FilterOption } from './types';
 import { DURATION_OPTIONS, ROLE_OPTIONS } from './constants';
 import PlanSelectorModal from './PlanSelectorModal';
@@ -14,8 +14,6 @@ interface UserActionsModalProps {
   setActionFirstName: (val: string) => void;
   actionLastName: string;
   setActionLastName: (val: string) => void;
-  actionPhone: string;
-  setActionPhone: (val: string) => void;
   actionRole: string;
   actionIsVerified: boolean;
   setActionIsVerified: (val: boolean) => void;
@@ -46,8 +44,6 @@ const UserActionsModal: React.FC<UserActionsModalProps> = ({
   setActionFirstName,
   actionLastName,
   setActionLastName,
-  actionPhone,
-  setActionPhone,
   actionRole,
   actionIsVerified,
   setActionIsVerified,
@@ -124,19 +120,6 @@ const UserActionsModal: React.FC<UserActionsModalProps> = ({
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white text-sm"
                   />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                  <Phone className="h-4 w-4" />
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  value={actionPhone}
-                  onChange={(e) => setActionPhone(e.target.value)}
-                  placeholder="Phone number"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white text-sm"
-                />
               </div>
             </div>
 

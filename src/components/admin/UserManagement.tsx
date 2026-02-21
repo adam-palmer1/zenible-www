@@ -45,7 +45,6 @@ export default function UserManagement() {
   // User actions modal state
   const [actionFirstName, setActionFirstName] = useState<string>('');
   const [actionLastName, setActionLastName] = useState<string>('');
-  const [actionPhone, setActionPhone] = useState<string>('');
   const [actionRole, setActionRole] = useState<string>('');
   const [actionIsVerified, setActionIsVerified] = useState<boolean>(false);
   const [actionPlanId, setActionPlanId] = useState<string>('');
@@ -144,7 +143,6 @@ export default function UserManagement() {
     setSelectedUser(user);
     setActionFirstName(user.first_name || '');
     setActionLastName(user.last_name || '');
-    setActionPhone(user.phone || '');
     setActionRole(user.role || 'USER');
     setActionIsVerified(user.email_verified || false);
     setActionPlanId(user.current_plan_id || '');
@@ -159,7 +157,6 @@ export default function UserManagement() {
     setSelectedUser(null);
     setActionFirstName('');
     setActionLastName('');
-    setActionPhone('');
     setActionRole('');
     setActionIsVerified(false);
     setActionPlanId('');
@@ -183,10 +180,6 @@ export default function UserManagement() {
       if (actionLastName !== (selectedUser.last_name || '')) {
         updateData.last_name = actionLastName;
       }
-      if (actionPhone !== (selectedUser.phone || '')) {
-        updateData.phone = actionPhone;
-      }
-
       // Role - only include if changed
       if (actionRole !== selectedUser.role) {
         updateData.role = actionRole.toLowerCase();
@@ -429,8 +422,6 @@ export default function UserManagement() {
           setActionFirstName={setActionFirstName}
           actionLastName={actionLastName}
           setActionLastName={setActionLastName}
-          actionPhone={actionPhone}
-          setActionPhone={setActionPhone}
           actionRole={actionRole}
           actionIsVerified={actionIsVerified}
           setActionIsVerified={setActionIsVerified}

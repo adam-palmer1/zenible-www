@@ -9,7 +9,6 @@ export interface AdminUser {
   email: string;
   first_name?: string;
   last_name?: string;
-  phone?: string;
   role: string;
   email_verified?: boolean;
   current_plan_id?: string;
