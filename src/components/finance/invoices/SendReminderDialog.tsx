@@ -241,7 +241,7 @@ const SendReminderDialog: React.FC<SendReminderDialogProps> = ({
 
       const sendData = {
         to_email: formData.to_email,
-        additional_recipients: formData.cc_emails.length > 0 ? formData.cc_emails : undefined,
+        cc_emails: formData.cc_emails.length > 0 ? formData.cc_emails : undefined,
         email_subject: formData.email_subject,
         email_body: formData.email_body,
         attach_pdf: formData.attach_pdf,
