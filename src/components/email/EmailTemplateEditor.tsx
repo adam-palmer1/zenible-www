@@ -219,22 +219,13 @@ const EmailTemplateEditor: React.FC<EmailTemplateEditorProps> = ({
       // Preview existing template via API
       previewMutation.mutate({ id: template.id, variables: sampleData });
     } else {
-      // Local preview for new template
-      let previewSubject = formData.subject;
-      let previewBody = formData.body;
-
-      // Replace variables with sample data
-      Object.entries(sampleData).forEach(([key, value]) => {
-        const regex = new RegExp(`{{${key}}}`, 'g');
-        previewSubject = previewSubject.replace(regex, value || key);
-        previewBody = previewBody.replace(regex, value || key);
-      });
-
+      // Preview unsaved template via inline preview endpoint
       previewMutation.mutate({
-        id: '',
-        variables: { subject: previewSubject, body: previewBody }
+        subject: formData.subject,
+        body: formData.body,
+        variables: sampleData,
+        templateType: effectiveTemplateType
       });
-      setShowPreview(true);
     }
   };
 

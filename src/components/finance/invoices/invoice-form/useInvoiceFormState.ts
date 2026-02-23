@@ -170,11 +170,13 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
     loadInvoice();
   }, [id, invoiceProp]);
 
-  // Reset payment options to defaults when creating a new invoice (no invoice loaded).
+  // Reset payment options when creating a new invoice (no invoice loaded).
   // This prevents stale state from a previously-edited invoice persisting if the
   // component is reused without remounting (e.g. Radix Dialog keeping children mounted).
+  // Company defaults will be applied by loadCompanyDefaults below.
   useEffect(() => {
     if (!invoiceProp && !id) {
+      // Temporarily reset to safe defaults; loadCompanyDefaults will overwrite with saved preferences
       setAllowStripePayments(false);
       setAllowPaypalPayments(false);
       setAllowPartialPayments(false);
@@ -354,6 +356,17 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
         }
         if (data?.default_payment_instructions) {
           setCompanyDefaultPaymentInstructions(data.default_payment_instructions);
+        }
+        // Apply invoice settings defaults for new invoices
+        if (!invoice && !id) {
+          setAllowStripePayments(data.default_allow_stripe_payments ?? false);
+          setAllowPaypalPayments(data.default_allow_paypal_payments ?? false);
+          setAllowPartialPayments(data.default_allow_partial_payments ?? false);
+          setAutomaticPaymentEnabled(data.default_automatic_payment_enabled ?? false);
+          setAutomaticEmail(data.default_automatic_email ?? true);
+          setAttachPdfToEmail(data.default_attach_pdf_to_email ?? true);
+          setSendPaymentReceipt(data.default_send_payment_receipt ?? true);
+          setReceivePaymentNotifications(data.default_receive_payment_notifications ?? true);
         }
       } catch (error) {
         console.error('Failed to load company defaults:', error);
@@ -732,6 +745,22 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
       } else {
         result = await createInvoice(invoiceData) as InvoiceFormData;
         showSuccess('Invoice created successfully');
+        // Save invoice settings as company defaults for future invoices
+        try {
+          await companiesAPI.updateCurrent({
+            default_allow_stripe_payments: Boolean(allowStripePayments),
+            default_allow_paypal_payments: Boolean(allowPaypalPayments),
+            default_allow_partial_payments: Boolean(allowPartialPayments),
+            default_automatic_payment_enabled: Boolean(automaticPaymentEnabled),
+            default_automatic_email: automaticEmail !== false,
+            default_attach_pdf_to_email: attachPdfToEmail !== false,
+            default_send_payment_receipt: sendPaymentReceipt !== false,
+            default_receive_payment_notifications: receivePaymentNotifications !== false,
+          });
+        } catch (e) {
+          // Non-critical - don't fail the invoice save
+          console.error('Failed to save invoice settings defaults:', e);
+        }
         // Switch to edit mode so subsequent saves update instead of create
         setInvoice(result);
         // Update URL to edit route without remounting the component,

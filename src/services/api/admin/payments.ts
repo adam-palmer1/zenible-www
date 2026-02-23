@@ -43,7 +43,7 @@ const adminPaymentsAPI = {
   },
 
   async refundPayment(paymentId: string, data: unknown = {}): Promise<unknown> {
-    return request(`/payments/refund/${paymentId}`, {
+    return request(`/payments/admin/refund/${paymentId}`, {
       method: 'POST',
       body: JSON.stringify(data),
     });

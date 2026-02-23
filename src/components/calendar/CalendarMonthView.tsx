@@ -114,7 +114,8 @@ export default function CalendarMonthView({ currentDate, appointments, onAppoint
                 const isCurrentMonth = isSameMonth(day, currentDate);
                 const isToday = isSameDay(day, new Date());
                 const dayAppointments = getCellAppointments(day, weekIndex);
-                const visibleAppointments = dayAppointments.slice(0, maxVisible);
+                const effectiveMax = dayAppointments.length > maxVisible ? Math.max(0, maxVisible - 1) : maxVisible;
+                const visibleAppointments = dayAppointments.slice(0, effectiveMax);
                 const hiddenCount = dayAppointments.length - visibleAppointments.length;
 
                 return (

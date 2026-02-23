@@ -14510,6 +14510,22 @@ export interface components {
             max_quote_reminders: number;
             /** Invoice Reminders Enabled At */
             invoice_reminders_enabled_at?: string | null;
+            /** Default Allow Stripe Payments */
+            default_allow_stripe_payments: boolean;
+            /** Default Allow Paypal Payments */
+            default_allow_paypal_payments: boolean;
+            /** Default Allow Partial Payments */
+            default_allow_partial_payments: boolean;
+            /** Default Automatic Payment Enabled */
+            default_automatic_payment_enabled: boolean;
+            /** Default Automatic Email */
+            default_automatic_email: boolean;
+            /** Default Attach Pdf To Email */
+            default_attach_pdf_to_email: boolean;
+            /** Default Send Payment Receipt */
+            default_send_payment_receipt: boolean;
+            /** Default Receive Payment Notifications */
+            default_receive_payment_notifications: boolean;
             /**
              * Company Taxes
              * @description Default tax rates for this company
@@ -14679,6 +14695,22 @@ export interface components {
             quote_reminders_enabled?: boolean | null;
             /** Max Quote Reminders */
             max_quote_reminders?: number | null;
+            /** Default Allow Stripe Payments */
+            default_allow_stripe_payments?: boolean | null;
+            /** Default Allow Paypal Payments */
+            default_allow_paypal_payments?: boolean | null;
+            /** Default Allow Partial Payments */
+            default_allow_partial_payments?: boolean | null;
+            /** Default Automatic Payment Enabled */
+            default_automatic_payment_enabled?: boolean | null;
+            /** Default Automatic Email */
+            default_automatic_email?: boolean | null;
+            /** Default Attach Pdf To Email */
+            default_attach_pdf_to_email?: boolean | null;
+            /** Default Send Payment Receipt */
+            default_send_payment_receipt?: boolean | null;
+            /** Default Receive Payment Notifications */
+            default_receive_payment_notifications?: boolean | null;
         };
         /**
          * CompanyUserDetailResponse

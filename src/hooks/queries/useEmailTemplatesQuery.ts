@@ -42,8 +42,11 @@ interface UpdateTemplateVariables {
 }
 
 interface PreviewTemplateVariables {
-  id: string;
+  id?: string;
+  subject?: string;
+  body?: string;
   variables: Record<string, unknown>;
+  templateType?: string;
 }
 
 interface EmailTemplateResponseData {
@@ -216,7 +219,12 @@ export function useDeleteEmailTemplate(options: MutationOptions = {}) {
  */
 export function usePreviewEmailTemplate(options: MutationOptions = {}) {
   return useMutation({
-    mutationFn: ({ id, variables }: PreviewTemplateVariables) => emailTemplatesAPI.preview(id, variables),
+    mutationFn: ({ id, subject, body, variables, templateType }: PreviewTemplateVariables) => {
+      if (id) {
+        return emailTemplatesAPI.preview(id, variables);
+      }
+      return emailTemplatesAPI.previewInline(subject!, body!, variables, templateType);
+    },
     ...options,
   });
 }

@@ -123,7 +123,7 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
 
   return (
     <div className="h-full relative">
-      <div ref={scrollContainerRef} className="h-full overflow-y-auto overflow-x-hidden custom-scrollbar">
+      <div ref={scrollContainerRef} className="h-full overflow-y-scroll overflow-x-hidden custom-scrollbar">
         <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
           {/* Date bar */}
           <div className="flex">

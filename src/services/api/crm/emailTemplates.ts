@@ -38,6 +38,12 @@ const emailTemplatesAPI = {
     body: JSON.stringify({ variables }),
   }),
 
+  /** Preview unsaved template with inline subject/body */
+  previewInline: (subject: string, body: string, variables: Record<string, unknown>, templateType?: string) => request('/crm/email-templates/preview', {
+    method: 'POST',
+    body: JSON.stringify({ subject, body, variables, ...(templateType ? { template_type: templateType } : {}) }),
+  }),
+
   /** Get available variables for template type */
   getVariables: (templateType: string) => request(`/crm/email-templates/variables/${templateType}`, {
     method: 'GET',

@@ -129,12 +129,29 @@ export default function PaymentTracking() {
   const handleRefund = async () => {
     if (!refundModal.data) return;
 
+    // Validate refund amount doesn't exceed payment amount
+    if (refundAmount) {
+      const amount = parseFloat(refundAmount);
+      const paymentAmount = parseFloat(refundModal.data.amount);
+      if (isNaN(amount) || amount <= 0) {
+        alert('Please enter a valid refund amount');
+        return;
+      }
+      if (amount > paymentAmount) {
+        alert(`Refund amount cannot exceed the payment amount (${formatCurrency(paymentAmount, refundModal.data.currency)})`);
+        return;
+      }
+    }
+
     setProcessing(true);
     try {
-      const data = {
-        amount: refundAmount || refundModal.data.amount,
-        reason: refundReason
+      const data: Record<string, unknown> = {
+        reason: refundReason || 'requested_by_customer'
       };
+
+      if (refundAmount) {
+        data.amount = parseFloat(refundAmount);
+      }
 
       await adminPaymentsAPI.refundPayment(refundModal.data.id, data);
       refundModal.close();

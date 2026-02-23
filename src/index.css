@@ -103,6 +103,11 @@ body {
 }
 
 /* Custom scrollbar for content areas */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-secondary) var(--bg-secondary);
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -114,12 +119,12 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--border-primary);
+  background: var(--text-secondary);
   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+  background: var(--text-primary);
 }
 
 /* Scrollbar visible only on hover */

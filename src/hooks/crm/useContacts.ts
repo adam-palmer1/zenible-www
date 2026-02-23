@@ -57,6 +57,10 @@ export function useContacts(
       return response;
     },
     enabled: !skipInitialFetch,
+    // Override global refetchOnMount:false so that navigating to a page
+    // that uses contacts (e.g. Invoice form) refetches when the cache was
+    // invalidated (e.g. after creating a new contact in CRM).
+    refetchOnMount: true,
   });
 
   // Update pagination when data changes
