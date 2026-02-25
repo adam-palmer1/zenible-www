@@ -20,7 +20,7 @@ const CurrentProjectsWidget = () => {
         // Fetch active, planning, and on_hold projects
         const response = await projectsAPI.list({
           statuses: [PROJECT_STATUS.ACTIVE, PROJECT_STATUS.PLANNING, PROJECT_STATUS.ON_HOLD]
-        }) as { items?: { id: string; name: string; status: string; start_date?: string; services_count?: number }[] };
+        }) as { items?: { id: string; name: string; status: string; start_date?: string; active_services_count?: number }[] };
         // Sort by start_date (most recent first) and limit to 3
         const sortedProjects = (response.items || [])
           .sort((a: any, b: any) => {
@@ -98,11 +98,11 @@ const CurrentProjectsWidget = () => {
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${PROJECT_STATUS_COLORS[project.status as ProjectStatus]}`}>
                       {PROJECT_STATUS_LABELS[project.status as ProjectStatus]}
                     </span>
-                    {project.services_count > 0 && (
+                    {project.active_services_count > 0 && (
                       <>
                         <span className="text-xs text-gray-300">&bull;</span>
                         <span className="text-xs text-gray-500">
-                          {project.services_count} service{project.services_count !== 1 ? 's' : ''}
+                          {project.active_services_count} service{project.active_services_count !== 1 ? 's' : ''}
                         </span>
                       </>
                     )}

@@ -41,6 +41,7 @@ interface ContactWithFinancials extends ContactResponse {
   paid_total?: number | CurrencyAmountEntry[] | null;
   total_outstanding?: number | CurrencyAmountEntry[] | null;
   total_expenses_paid?: number | CurrencyAmountEntry[] | null;
+  expenses_total?: number | CurrencyAmountEntry[] | null;
   attributed_out_total?: number | CurrencyAmountEntry[] | null;
   attribution_total?: number | CurrencyAmountEntry[] | null;
   financial_currency?: string;
@@ -113,7 +114,12 @@ export function useContactFinancials(contactId: string | undefined) {
       breakdown.payments_total || breakdown.paid_total,
     );
     const outstanding = buildField(totals.total_outstanding, breakdown.total_outstanding);
-    const expenses = buildField(totals.total_expenses_paid, breakdown.total_expenses_paid);
+    const clientExpenses = buildField(totals.expenses_total, breakdown.expenses_total);
+    const vendorExpenses = buildField(totals.total_expenses_paid, breakdown.total_expenses_paid);
+    const expenses: FinancialField = {
+      total: clientExpenses.total + vendorExpenses.total,
+      currencies: [...clientExpenses.currencies, ...vendorExpenses.currencies],
+    };
     const attributedOut = buildField(totals.attributed_out_total, breakdown.attributed_out_total);
     const attributedIn = buildField(totals.attribution_total, breakdown.attribution_total);
 

@@ -89,7 +89,7 @@ const InputField: React.FC<InputFieldProps> = ({
               onClick={onToggleVisibility}
               className="text-zinc-400 dark:text-[#85888e] hover:text-zinc-600 dark:hover:text-[#ededf0] transition-colors"
             >
-              {isVisible ? <EyeOffIcon /> : <EyeIcon />}
+              {isVisible ? <EyeIcon /> : <EyeOffIcon />}
             </button>
           )}
         </div>
@@ -254,7 +254,7 @@ export default function ResetPassword() {
     return {
       title: 'Set New Password',
       subtitle: tokenData?.email ? `for ${tokenData.email}` : null,
-      description: 'Your new password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.',
+      description: 'Enter a new password for your account.',
       buttonText: 'Reset Password',
       loadingText: 'Resetting...',
       successTitle: 'Password Reset Successful!',

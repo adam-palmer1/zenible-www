@@ -87,6 +87,16 @@ const DocumentTotals: React.FC<DocumentTotalsProps> = ({
         </div>
       )}
 
+      {/* Line Item Tax subtotal */}
+      {totals.itemLevelTax > 0 && (
+        <div className="flex items-center justify-between py-2">
+          <span className="text-sm text-gray-600">Tax (Line Items):</span>
+          <span className="text-sm font-medium text-gray-900">
+            {symbol}{formatNumber(totals.itemLevelTax)}
+          </span>
+        </div>
+      )}
+
       {/* Document-level Taxes (applied after discount) */}
       {totals.documentTaxBreakdown && totals.documentTaxBreakdown.length > 0 && (
         <>

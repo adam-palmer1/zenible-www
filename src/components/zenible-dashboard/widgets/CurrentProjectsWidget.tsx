@@ -71,11 +71,11 @@ const CurrentProjectsWidget = ({ settings = {}, isHovered = false }: CurrentProj
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${PROJECT_STATUS_COLORS[project.status as ProjectStatus]}`}>
                       {PROJECT_STATUS_LABELS[project.status as ProjectStatus]}
                     </span>
-                    {project.services_count > 0 && (
+                    {project.active_services_count > 0 && (
                       <>
                         <span className="text-xs text-gray-300">&bull;</span>
                         <span className="text-xs text-gray-500">
-                          {project.services_count} service{project.services_count !== 1 ? 's' : ''}
+                          {project.active_services_count} service{project.active_services_count !== 1 ? 's' : ''}
                         </span>
                       </>
                     )}

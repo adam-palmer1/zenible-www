@@ -91,7 +91,7 @@ interface ProjectData {
   start_date?: string | null;
   end_date?: string | null;
   currency?: string | null;
-  services_count?: number;
+  active_services_count?: number;
   default_hourly_rate?: string | null;
   default_currency_id?: string | null;
   default_currency?: { code?: string } | null;
@@ -347,7 +347,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
         <div className="flex-1 bg-[#fafafa] dark:bg-gray-900 border border-[#e5e5e5] dark:border-gray-700 rounded-xl p-4">
           <p className="text-sm text-[#71717a] dark:text-gray-400 leading-[22px]">Services</p>
           <p className="text-lg font-semibold text-[#09090b] dark:text-white leading-[26px]">
-            {project.services_count || services.length || 0} assigned
+            {project.active_services_count || services.length || 0} assigned
           </p>
         </div>
       </div>

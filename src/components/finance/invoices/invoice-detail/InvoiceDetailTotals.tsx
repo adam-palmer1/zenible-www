@@ -48,7 +48,19 @@ const InvoiceDetailTotals: React.FC<InvoiceDetailTotalsProps> = ({
         </div>
       )}
 
-      {/* Document Taxes - show each tax line */}
+      {/* Line Item Tax */}
+      {(parseFloat(String(invoice.tax_total || 0)) > 0 || totals.itemLevelTax > 0) && (
+        <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] dark:bg-gray-700 text-right">
+          <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b] dark:text-white">
+            Tax (Line Items):
+          </span>
+          <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b] dark:text-white">
+            + {formatCurrency(parseFloat(String(invoice.tax_total || 0)) || totals.itemLevelTax, currencyCode)}
+          </span>
+        </div>
+      )}
+
+      {/* Document Taxes - show each tax line when breakdown exists */}
       {invoice.document_taxes?.length > 0 && invoice.document_taxes.map((tax: InvoiceTaxResponse, index: number) => (
         <div key={tax.id || index} className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] dark:bg-gray-700 text-right">
           <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b] dark:text-white">
@@ -60,20 +72,15 @@ const InvoiceDetailTotals: React.FC<InvoiceDetailTotalsProps> = ({
         </div>
       ))}
 
-      {/* Fallback Tax display if no document_taxes but has tax_total or document_tax_total */}
+      {/* Document Tax fallback - single line when no breakdown but total exists */}
       {(!invoice.document_taxes || invoice.document_taxes.length === 0) &&
-       (parseFloat(String(invoice.document_tax_total || 0)) > 0 || parseFloat(String(invoice.tax_total || 0)) > 0 || totals.itemLevelTax > 0 || totals.documentTax > 0) && (
+       (parseFloat(String(invoice.document_tax_total || 0)) > 0 || totals.documentTax > 0) && (
         <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] dark:bg-gray-700 text-right">
           <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b] dark:text-white">
-            {invoice.tax_label || 'Tax'}:
+            Tax:
           </span>
           <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b] dark:text-white">
-            + {formatCurrency(
-              parseFloat(String(invoice.document_tax_total || 0)) ||
-              parseFloat(String(invoice.tax_total || 0)) ||
-              (totals.itemLevelTax + totals.documentTax),
-              currencyCode
-            )}
+            + {formatCurrency(parseFloat(String(invoice.document_tax_total || 0)) || totals.documentTax, currencyCode)}
           </span>
         </div>
       )}

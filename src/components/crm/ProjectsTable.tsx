@@ -191,7 +191,7 @@ export default function ProjectsTable({ selectedStatuses = [], searchQuery = '',
                   </td>
                   <td className="hidden md:table-cell px-2 md:px-4 py-4">
                     <span className="text-sm text-gray-900 dark:text-white">
-                      {project.services_count || 0} services
+                      {project.active_services_count || 0} services
                     </span>
                   </td>
                   <td className="hidden md:table-cell px-2 md:px-4 py-4 text-sm text-gray-900 dark:text-white">

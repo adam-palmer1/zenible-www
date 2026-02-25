@@ -543,7 +543,19 @@ const QuoteDetail: React.FC = () => {
               </div>
             )}
 
-            {/* Document Taxes - show each tax line */}
+            {/* Line Item Tax */}
+            {(parseFloat(quote.tax_total || 0) > 0 || totals.itemLevelTax > 0) && (
+              <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] dark:bg-gray-700 text-right">
+                <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b] dark:text-white">
+                  Tax (Line Items):
+                </span>
+                <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b] dark:text-white">
+                  + {formatCurrency(parseFloat(quote.tax_total || 0) || totals.itemLevelTax, quote.currency?.code)}
+                </span>
+              </div>
+            )}
+
+            {/* Document Taxes - show each tax line when breakdown exists */}
             {quote.document_taxes?.length > 0 && quote.document_taxes.map((tax: any, index: number) => (
               <div key={tax.id || index} className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] dark:bg-gray-700 text-right">
                 <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b] dark:text-white">
@@ -555,20 +567,15 @@ const QuoteDetail: React.FC = () => {
               </div>
             ))}
 
-            {/* Fallback Tax display if no document_taxes but has tax_total or document_tax_total */}
+            {/* Document Tax fallback - single line when no breakdown but total exists */}
             {(!quote.document_taxes || quote.document_taxes.length === 0) &&
-             (parseFloat(quote.document_tax_total || 0) > 0 || parseFloat(quote.tax_total || 0) > 0 || totals.itemLevelTax > 0 || totals.documentTax > 0) && (
+             (parseFloat(quote.document_tax_total || 0) > 0 || totals.documentTax > 0) && (
               <div className="flex items-center gap-4 px-4 py-2 bg-[#f4f4f5] dark:bg-gray-700 text-right">
                 <span className="w-[150px] text-[16px] font-normal leading-[24px] text-[#09090b] dark:text-white">
-                  {quote.tax_label || 'Tax'}:
+                  Tax:
                 </span>
                 <span className="w-[216px] text-[16px] font-medium leading-[24px] text-[#09090b] dark:text-white">
-                  + {formatCurrency(
-                    parseFloat(quote.document_tax_total || 0) ||
-                    parseFloat(quote.tax_total || 0) ||
-                    (totals.itemLevelTax + totals.documentTax),
-                    quote.currency?.code
-                  )}
+                  + {formatCurrency(parseFloat(quote.document_tax_total || 0) || totals.documentTax, quote.currency?.code)}
                 </span>
               </div>
             )}
