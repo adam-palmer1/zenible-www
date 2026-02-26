@@ -421,20 +421,33 @@ export default function PricingNew() {
     <div className={`flex-1 flex flex-col ${darkMode ? 'bg-zenible-dark-bg' : 'bg-neutral-50'}`}>
       {/* Top Bar */}
       <div className={`h-[64px] relative border-b ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-card' : 'border-neutral-200 bg-white'}`}>
-        <div className="flex items-center gap-4 h-full px-4 py-[10px]">
+        <div className="flex items-center justify-between h-full px-4 py-[10px]">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate(-1)}
+              className={`w-9 h-9 rounded-[10px] flex items-center justify-center border ${
+                darkMode ? 'border-zenible-dark-border hover:bg-zenible-dark-bg' : 'bg-white border-neutral-200 hover:bg-gray-50'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+              Pricing
+            </h1>
+          </div>
           <button
             onClick={() => navigate(-1)}
             className={`w-9 h-9 rounded-[10px] flex items-center justify-center border ${
               darkMode ? 'border-zenible-dark-border hover:bg-zenible-dark-bg' : 'bg-white border-neutral-200 hover:bg-gray-50'
             }`}
+            aria-label="Close"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <h1 className={`text-2xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-            Pricing
-          </h1>
         </div>
       </div>
 

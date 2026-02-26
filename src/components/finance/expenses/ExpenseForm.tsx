@@ -172,9 +172,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
 
   const statusOptions = useMemo(() => [
     { id: 'paid', label: 'Paid' },
-    { id: 'pending', label: 'Pending' },
-    { id: 'completed', label: 'Completed' },
-    { id: 'cancelled', label: 'Cancelled' },
+    { id: 'unpaid', label: 'Unpaid' },
   ], []);
 
   const handleCreateCategory = async (name: string) => {

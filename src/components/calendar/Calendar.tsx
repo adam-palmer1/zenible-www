@@ -55,6 +55,7 @@ interface AppointmentFormData {
 export default function Calendar() {
   const isMobile = useMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedScheduleDate, setSelectedScheduleDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState('weekly');
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const viewContainerRef = useRef<HTMLDivElement>(null);
@@ -692,7 +693,10 @@ export default function Calendar() {
             {/* Mini Calendar */}
             <CalendarMiniCalendar
               currentDate={currentDate}
-              onDateSelect={setCurrentDate}
+              onDateSelect={(day) => {
+                setCurrentDate(day);
+                setSelectedScheduleDate(day);
+              }}
               appointments={filteredAppointments}
             />
 
@@ -700,6 +704,7 @@ export default function Calendar() {
             <CalendarUpcomingSchedule
               appointments={filteredAppointments}
               onAppointmentClick={handleAppointmentClick}
+              selectedDate={selectedScheduleDate}
             />
           </div>
       </div>

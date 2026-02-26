@@ -21,24 +21,18 @@ import ActionMenu from '../../shared/ActionMenu';
 
 // Expense status configuration (matches backend ExpenseStatusEnum)
 const EXPENSE_STATUS: Record<string, string> = {
-  PENDING: 'pending',
+  UNPAID: 'unpaid',
   PAID: 'paid',
-  COMPLETED: 'completed',
-  CANCELLED: 'cancelled',
 };
 
 const EXPENSE_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending',
+  unpaid: 'Unpaid',
   paid: 'Paid',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
 };
 
 const EXPENSE_STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  unpaid: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
   paid: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 };
 
 /**
@@ -435,7 +429,7 @@ const ExpenseList: React.FC = () => {
   }, []);
 
   const handleToggleStatus = useCallback(async (expense: any) => {
-    const newStatus = (expense.status === EXPENSE_STATUS.PAID ? EXPENSE_STATUS.PENDING : EXPENSE_STATUS.PAID) as ExpenseStatusEnum;
+    const newStatus = (expense.status === EXPENSE_STATUS.PAID ? EXPENSE_STATUS.UNPAID : EXPENSE_STATUS.PAID) as ExpenseStatusEnum;
     try {
       await expensesAPI.update(expense.id, { status: newStatus });
       showSuccess(`Expense marked as ${EXPENSE_STATUS_LABELS[newStatus]}`);
@@ -670,28 +664,16 @@ const ExpenseList: React.FC = () => {
                         All Statuses
                       </button>
                       <button
-                        onClick={() => updateFilters({ status: EXPENSE_STATUS.PENDING })}
-                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filters.status === EXPENSE_STATUS.PENDING ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                        onClick={() => updateFilters({ status: EXPENSE_STATUS.UNPAID })}
+                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filters.status === EXPENSE_STATUS.UNPAID ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                       >
-                        Pending
+                        Unpaid
                       </button>
                       <button
                         onClick={() => updateFilters({ status: EXPENSE_STATUS.PAID })}
                         className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filters.status === EXPENSE_STATUS.PAID ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                       >
                         Paid
-                      </button>
-                      <button
-                        onClick={() => updateFilters({ status: EXPENSE_STATUS.COMPLETED })}
-                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filters.status === EXPENSE_STATUS.COMPLETED ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-                      >
-                        Completed
-                      </button>
-                      <button
-                        onClick={() => updateFilters({ status: EXPENSE_STATUS.CANCELLED })}
-                        className={`block w-full text-left px-3 py-1.5 text-sm rounded ${filters.status === EXPENSE_STATUS.CANCELLED ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-                      >
-                        Cancelled
                       </button>
                     </div>
                   </div>
@@ -959,7 +941,7 @@ const ExpenseList: React.FC = () => {
               { label: 'View History', onClick: () => handleViewHistory(expense) },
               { label: 'Allocate', onClick: () => handleOpenAllocation(expense) },
               {
-                label: expense.status === EXPENSE_STATUS.PAID ? 'Mark as Pending' : 'Mark as Paid',
+                label: expense.status === EXPENSE_STATUS.PAID ? 'Mark as Unpaid' : 'Mark as Paid',
                 onClick: () => handleToggleStatus(expense)
               },
               { label: 'Delete', onClick: () => handleDelete(expense), variant: 'danger' },

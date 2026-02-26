@@ -19082,7 +19082,7 @@ export interface components {
          * @description Expense status enumeration (expense-specific)
          * @enum {string}
          */
-        ExpenseStatusEnum: "pending" | "paid" | "completed" | "cancelled";
+        ExpenseStatusEnum: "unpaid" | "paid";
         /**
          * ExpenseUpdate
          * @description Schema for updating an expense

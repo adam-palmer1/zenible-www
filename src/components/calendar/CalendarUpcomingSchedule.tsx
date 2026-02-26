@@ -3,6 +3,7 @@ import {
   format,
   addDays,
   isSameDay,
+  isToday,
   parseISO,
 } from 'date-fns';
 import { getAppointmentKey } from './calendarUtils';
@@ -10,13 +11,28 @@ import { getAppointmentKey } from './calendarUtils';
 interface CalendarUpcomingScheduleProps {
   appointments: any[];
   onAppointmentClick: (appointment: any) => void;
+  selectedDate?: Date | null;
 }
 
-export default function CalendarUpcomingSchedule({ appointments, onAppointmentClick }: CalendarUpcomingScheduleProps) {
-  const upcomingAppointments = appointments
-    .filter((apt: any) => new Date(apt.start_datetime) >= new Date())
-    .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())
-    .slice(0, 5);
+export default function CalendarUpcomingSchedule({ appointments, onAppointmentClick, selectedDate }: CalendarUpcomingScheduleProps) {
+  const showingSpecificDay = selectedDate && !isToday(selectedDate);
+
+  const displayedAppointments = showingSpecificDay
+    ? appointments
+        .filter((apt: any) => isSameDay(parseISO(apt.start_datetime), selectedDate))
+        .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())
+    : appointments
+        .filter((apt: any) => new Date(apt.start_datetime) >= new Date())
+        .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())
+        .slice(0, 5);
+
+  const heading = showingSpecificDay
+    ? `Schedule for ${format(selectedDate, 'MMM d')}`
+    : 'Upcoming Schedule';
+
+  const emptyMessage = showingSpecificDay
+    ? `No appointments on ${format(selectedDate, 'MMM d')}`
+    : 'No upcoming appointments';
 
   const formatDateLabel = (date: Date) => {
     const today = new Date();
@@ -33,13 +49,13 @@ export default function CalendarUpcomingSchedule({ appointments, onAppointmentCl
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 flex-1 overflow-hidden flex flex-col">
-      <h3 className="text-sm font-semibold text-gray-900 mb-4">Upcoming Schedule</h3>
+      <h3 className="text-sm font-semibold text-gray-900 mb-4">{heading}</h3>
 
       <div className="space-y-3 overflow-y-auto flex-1 scrollbar-hide">
-        {upcomingAppointments.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-4">No upcoming appointments</p>
+        {displayedAppointments.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center py-4">{emptyMessage}</p>
         ) : (
-          upcomingAppointments.map((appointment: any) => {
+          displayedAppointments.map((appointment: any) => {
             const startDate = parseISO(appointment.start_datetime);
             return (
               <button
@@ -49,7 +65,7 @@ export default function CalendarUpcomingSchedule({ appointments, onAppointmentCl
               >
                 <p className="text-sm font-medium text-gray-900 truncate">{appointment.title}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {formatDateLabel(startDate)}
+                  {showingSpecificDay ? format(startDate, 'h:mm a') : formatDateLabel(startDate)}
                 </p>
                 {appointment.location && (
                   <p className="text-xs text-gray-400 mt-1 truncate">{appointment.location}</p>
