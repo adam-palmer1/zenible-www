@@ -110,7 +110,7 @@ export default function GoogleCalendarConnector({ isConnected, accounts, primary
           {accounts.map((account: any) => (
             <div
               key={account.id}
-              className="border border-gray-200 rounded-lg px-3 py-2"
+              className={`border rounded-lg px-3 py-2 ${account.is_active === false ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}`}
             >
               <div className="flex items-center gap-3">
                 <input
@@ -260,6 +260,20 @@ export default function GoogleCalendarConnector({ isConnected, accounts, primary
                   </div>
                 )}
               </div>
+
+              {account.is_active === false && editingAccountId !== account.id && (
+                <div className="flex items-center justify-between mt-2 ml-9">
+                  <span className="text-xs font-medium text-amber-700">
+                    Disconnected — sync paused
+                  </span>
+                  <button
+                    onClick={() => onAddAccount(account.is_primary)}
+                    className="text-xs font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2"
+                  >
+                    Reconnect
+                  </button>
+                </div>
+              )}
 
               {editingAccountId !== account.id && (
                 <div className="flex items-center gap-1.5 mt-1 ml-9">

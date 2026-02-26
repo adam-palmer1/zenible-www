@@ -16,6 +16,7 @@ import CalendarMiniCalendar from './CalendarMiniCalendar';
 import CalendarUpcomingSchedule from './CalendarUpcomingSchedule';
 import CalendarSettingsModal from './CalendarSettingsModal';
 import { isRecurringAppointment } from './calendarUtils';
+import { AlertTriangle } from 'lucide-react';
 import {
   format,
   addDays,
@@ -580,6 +581,36 @@ export default function Calendar() {
       <div className="flex-1 flex gap-2 p-2 md:gap-4 md:p-4 overflow-x-auto overflow-y-hidden max-w-[2000px] mx-auto w-full">
           {/* Left: Calendar View */}
           <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm overflow-hidden min-w-0 md:min-w-[640px] min-h-[400px] md:min-h-[500px]">
+            {/* Google Calendar Disconnection Warning */}
+            {googleAccounts.filter(a => !a.is_active).length > 0 && (
+              <div className="px-4 py-3 bg-amber-50 border-b border-amber-200">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <p className="text-sm text-amber-800">
+                      Google Calendar sync paused for{' '}
+                      {googleAccounts
+                        .filter(a => !a.is_active)
+                        .map(a => <strong key={a.id}>{a.email}</strong>)
+                        .reduce<React.ReactNode[]>((acc, el, i) => (i === 0 ? [el] : [...acc, ', ', el]), [])}
+                      . Events won't update until reconnected.
+                    </p>
+                    <button
+                      onClick={() => {
+                        const firstInactive = googleAccounts.find(a => !a.is_active);
+                        if (firstInactive) {
+                          connectGoogleCalendar(firstInactive.is_primary);
+                        }
+                      }}
+                      className="text-sm font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2"
+                    >
+                      Reconnect
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Calendar Header */}
             <CalendarHeader
               currentDate={currentDate}
