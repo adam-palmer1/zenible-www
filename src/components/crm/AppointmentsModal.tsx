@@ -282,6 +282,12 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                                 hour: '2-digit',
                                 minute: '2-digit'
                               })}
+                              {durationLabel && (
+                                <span className="ml-2 inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                  <ClockIcon className="w-3.5 h-3.5" />
+                                  {durationLabel}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
