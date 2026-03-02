@@ -366,7 +366,7 @@ export default function SignUp() {
                   <div className="flex items-center gap-[6px] w-full">
                     <div className="bg-neutral-200 dark:bg-[#1f242f] h-px flex-1" />
                     <span className="font-inter font-normal text-[14px] leading-[22px] text-zinc-400 dark:text-[#85888e]">
-                      Or with Sign up
+                      Or sign up with
                     </span>
                     <div className="bg-neutral-200 dark:bg-[#1f242f] h-px flex-1" />
                   </div>

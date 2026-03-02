@@ -5,10 +5,12 @@ import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { Z_INDEX } from '../../constants/crm';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
 import { getScheduledAppointments, getNextHour, calculateEndDateTime, formatAppointmentTitle } from '../../utils/crm/appointmentUtils';
+import { useQueryClient } from '@tanstack/react-query';
 import { useContactActions } from '../../contexts/ContactActionsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import appointmentsAPI from '../../services/api/crm/appointments';
 import { useNotification } from '../../contexts/NotificationContext';
+import { queryKeys } from '../../lib/query-keys';
 import ConfirmationModal from '../common/ConfirmationModal';
 import DatePickerCalendar from '../shared/DatePickerCalendar';
 import TimePickerInput from '../shared/TimePickerInput';
@@ -63,9 +65,10 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   const [appointmentDate, setAppointmentDate] = useState(new Date().toISOString().split('T')[0]);
   const [appointmentTime, setAppointmentTime] = useState(getNextHour());
   const [duration, setDuration] = useState(60);
-  const { setFollowUp, refreshContacts } = useContactActions();
+  const { setFollowUp } = useContactActions();
   const { showSuccess, showError } = useNotification();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [cancelConfirmModal, setCancelConfirmModal] = useState<{ isOpen: boolean; appointment: AppointmentItem | null }>({ isOpen: false, appointment: null });
   const [sendInviteToContact, setSendInviteToContact] = useState(true);
   const [fetchedAppointments, setFetchedAppointments] = useState<AppointmentItem[]>([]);
@@ -161,11 +164,9 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
 
       showSuccess('Appointment updated successfully');
 
-      // Refresh appointments list and contacts
+      // Refresh appointments list and invalidate contacts cache
       await fetchAppointments();
-      if (refreshContacts) {
-        refreshContacts();
-      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
 
       setMode('list');
     } catch (error: any) {
@@ -189,11 +190,9 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       showSuccess('Appointment cancelled successfully');
       setCancelConfirmModal({ isOpen: false, appointment: null });
 
-      // Refresh appointments list and contacts
+      // Refresh appointments list and invalidate contacts cache
       await fetchAppointments();
-      if (refreshContacts) {
-        refreshContacts();
-      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
     } catch (error: any) {
       console.error('Failed to cancel appointment:', error);
       showError(error.message || 'Failed to cancel appointment');

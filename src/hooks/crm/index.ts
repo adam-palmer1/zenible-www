@@ -18,3 +18,4 @@ export { useContactServices } from './useContactServices';
 export { useServicesFilters } from './useServicesFilters';
 export { useBillableHours } from './useBillableHours';
 export { useServiceEnums } from './useServiceEnums';
+export { useCRMPermissions } from './useCRMPermissions';

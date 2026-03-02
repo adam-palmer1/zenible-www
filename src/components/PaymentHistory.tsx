@@ -541,18 +541,28 @@ export default function PaymentHistory() {
                           {formatDate(invoice.period_start)} - {formatDate(invoice.period_end)}
                         </td>
                         <td className="px-2 md:px-4 py-4">
-                          {invoice.download_url && (
-                            <a
-                              href={invoice.download_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={`text-sm font-medium ${
-                                darkMode ? 'text-zenible-primary hover:text-zenible-primary/80' : 'text-zenible-primary hover:text-zenible-primary/80'
-                              }`}
-                            >
-                              Download
-                            </a>
-                          )}
+                          <div className="flex items-center gap-3">
+                            {invoice.status === 'paid' && (
+                              <span className="inline-flex items-center text-sm font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/20 px-3 py-1 rounded-lg">
+                                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Paid
+                              </span>
+                            )}
+                            {invoice.download_url && (
+                              <a
+                                href={invoice.download_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`text-sm font-medium ${
+                                  darkMode ? 'text-zenible-primary hover:text-zenible-primary/80' : 'text-zenible-primary hover:text-zenible-primary/80'
+                                }`}
+                              >
+                                Download
+                              </a>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

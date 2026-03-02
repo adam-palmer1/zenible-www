@@ -17,6 +17,7 @@ interface CRMTopBarProps {
   setShowCRMSettings: (show: boolean) => void;
   updatePreference: (key: string, value: any, category: string) => Promise<void>;
   activeTab?: string;
+  hasCRMAccess?: boolean;
 }
 
 /**
@@ -31,6 +32,7 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
   setShowCRMSettings,
   updatePreference,
   activeTab = 'crm',
+  hasCRMAccess = true,
 }) => {
   const usageContext = useUsageDashboardOptional();
 
@@ -66,15 +68,15 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
   const getAddButtonConfig = () => {
     switch (activeTab) {
       case 'clients':
-        return { text: 'Add Client', action: () => openContactModal(null, null, 'client') };
+        return { text: 'Add Client', action: () => openContactModal(null, null, 'client'), visible: true };
       case 'vendors':
-        return { text: 'Add Vendor', action: () => openContactModal(null, null, 'vendor') };
+        return { text: 'Add Vendor', action: () => openContactModal(null, null, 'vendor'), visible: true };
       case 'services':
-        return { text: 'Add Service', action: () => openServiceModal() };
+        return { text: 'Add Service', action: () => openServiceModal(), visible: hasCRMAccess };
       case 'projects':
-        return { text: 'Add Project', action: () => openProjectModal() };
+        return { text: 'Add Project', action: () => openProjectModal(), visible: hasCRMAccess };
       default: // 'crm'
-        return { text: 'Add Contact', action: () => openContactModal(null, null, null) };
+        return { text: 'Add Contact', action: () => openContactModal(null, null, null), visible: true };
     }
   };
 
@@ -126,19 +128,21 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
           )}
 
           {/* Add Button (changes based on active tab) */}
-          <button
-            onClick={addButtonConfig.action}
-            disabled={!canCreate}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
-              canCreate
-                ? 'bg-zenible-primary text-white hover:bg-opacity-90'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-            title={!canCreate ? 'Upgrade your plan to add more' : ''}
-          >
-            <PlusIcon className="h-5 w-5" />
-            <span>{addButtonConfig.text}</span>
-          </button>
+          {addButtonConfig.visible && (
+            <button
+              onClick={addButtonConfig.action}
+              disabled={!canCreate}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
+                canCreate
+                  ? 'bg-zenible-primary text-white hover:bg-opacity-90'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+              title={!canCreate ? 'Upgrade your plan to add more' : ''}
+            >
+              <PlusIcon className="h-5 w-5" />
+              <span>{addButtonConfig.text}</span>
+            </button>
+          )}
 
           {/* Settings Button */}
           <button

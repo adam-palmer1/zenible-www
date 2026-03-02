@@ -7,9 +7,10 @@ import { LoadingSpinner } from '../shared';
 
 interface NotesSectionProps {
   contactId: string;
+  readOnly?: boolean;
 }
 
-const NotesSection: React.FC<NotesSectionProps> = ({ contactId }) => {
+const NotesSection: React.FC<NotesSectionProps> = ({ contactId, readOnly = false }) => {
   const { notes, loading, fetchNotes, createNote, updateNote, deleteNote } = useContactNotes(contactId);
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -90,7 +91,7 @@ const NotesSection: React.FC<NotesSectionProps> = ({ contactId }) => {
       {/* Header with Add Button */}
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-gray-900">Notes</h3>
-        {!isAddingNote && (
+        {!readOnly && !isAddingNote && (
           <button
             onClick={() => setIsAddingNote(true)}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-zenible-primary hover:bg-purple-50 rounded-lg transition-colors"
@@ -169,22 +170,24 @@ const NotesSection: React.FC<NotesSectionProps> = ({ contactId }) => {
             >
               <div className="flex items-start justify-between gap-3 mb-2">
                 <h4 className="font-medium text-gray-900 flex-1">{note.title}</h4>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleEdit(note)}
-                    className="p-1.5 text-gray-400 hover:text-zenible-primary hover:bg-purple-50 rounded transition-colors"
-                    title="Edit note"
-                  >
-                    <PencilIcon className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(note.id)}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                    title="Delete note"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
-                </div>
+                {!readOnly && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleEdit(note)}
+                      className="p-1.5 text-gray-400 hover:text-zenible-primary hover:bg-purple-50 rounded transition-colors"
+                      title="Edit note"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(note.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Delete note"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
               </div>
               <p className="text-sm text-gray-600 whitespace-pre-wrap">{note.content}</p>
               {note.created_at && (

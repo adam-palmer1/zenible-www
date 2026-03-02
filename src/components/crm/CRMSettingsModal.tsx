@@ -5,6 +5,7 @@ import Dropdown from '../ui/dropdown/Dropdown';
 import statusesAPI from '../../services/api/crm/statuses';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useModalState } from '../../hooks/useModalState';
+import { useCRMPermissions } from '../../hooks/crm/useCRMPermissions';
 import type { SimpleStatusResponse, AvailableStatuses, StatusRolesResponse } from '../../types/crm';
 
 interface StatusData extends SimpleStatusResponse {
@@ -24,6 +25,7 @@ interface StatusRowProps {
   onDelete?: () => void;
   role?: string | null;
   onRoleChange?: (role: string | null) => void;
+  readOnly?: boolean;
 }
 
 interface StatusFormModalProps {
@@ -71,6 +73,7 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
   const [editingStatus, setEditingStatus] = useState<StatusData | null>(null);
   const [deletingStatus, setDeletingStatus] = useState<SimpleStatusResponse | null>(null);
   const { showError } = useNotification();
+  const { hasWriteAccess } = useCRMPermissions();
 
   // Fetch statuses
   const fetchStatuses = async () => {
@@ -155,6 +158,7 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
                           onEdit={() => setEditingStatus({ ...status, isGlobal: true })}
                           role={getRoleForStatus(status.id, roles)}
                           onRoleChange={(role) => handleRoleChange(status.id, role)}
+                          readOnly={!hasWriteAccess}
                         />
                       ))}
                     </div>
@@ -171,13 +175,15 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
                           Custom statuses for your company's workflow
                         </p>
                       </div>
-                      <button
-                        onClick={() => createModal.open()}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:bg-opacity-90 transition-colors"
-                      >
-                        <PlusIcon className="w-4 h-4" />
-                        Create
-                      </button>
+                      {hasWriteAccess && (
+                        <button
+                          onClick={() => createModal.open()}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:bg-opacity-90 transition-colors"
+                        >
+                          <PlusIcon className="w-4 h-4" />
+                          Create
+                        </button>
+                      )}
                     </div>
 
                     {customStatuses.length === 0 ? (
@@ -197,6 +203,7 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
                             onDelete={() => setDeletingStatus(status)}
                             role={getRoleForStatus(status.id, roles)}
                             onRoleChange={(role) => handleRoleChange(status.id, role)}
+                            readOnly={!hasWriteAccess}
                           />
                         ))}
                       </div>
@@ -253,7 +260,7 @@ function roleTriggerLabel(role: string | null | undefined): string {
 }
 
 // Status Row Component - Figma Design
-const StatusRow: React.FC<StatusRowProps> = ({ status, isSystem, onEdit, onDelete, role, onRoleChange }) => {
+const StatusRow: React.FC<StatusRowProps> = ({ status, isSystem, onEdit, onDelete, role, onRoleChange, readOnly = false }) => {
   return (
     <div className="flex items-center justify-between py-3.5 px-4 bg-white dark:bg-gray-800">
       {/* Left: color dot + name */}
@@ -269,8 +276,8 @@ const StatusRow: React.FC<StatusRowProps> = ({ status, isSystem, onEdit, onDelet
 
       {/* Right: role dropdown, color code, edit/delete icons */}
       <div className="flex items-center gap-3 flex-shrink-0">
-        {/* Role Dropdown (styled Radix) */}
-        {onRoleChange && (
+        {/* Role Dropdown (styled Radix) — disabled for read-only users */}
+        {onRoleChange && !readOnly && (
           <Dropdown
             align="end"
             side="bottom"
@@ -298,18 +305,26 @@ const StatusRow: React.FC<StatusRowProps> = ({ status, isSystem, onEdit, onDelet
             ))}
           </Dropdown>
         )}
+        {/* Read-only role label */}
+        {onRoleChange && readOnly && role && (
+          <span className="inline-flex items-center text-xs px-2 py-1 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+            {roleTriggerLabel(role)}
+          </span>
+        )}
 
         <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
           {status.color?.toUpperCase()}
         </span>
-        <button
-          onClick={onEdit}
-          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-          title="Edit status"
-        >
-          <PencilIcon className="w-4 h-4" />
-        </button>
-        {!isSystem && (
+        {!readOnly && (
+          <button
+            onClick={onEdit}
+            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            title="Edit status"
+          >
+            <PencilIcon className="w-4 h-4" />
+          </button>
+        )}
+        {!isSystem && !readOnly && (
           <button
             onClick={onDelete}
             className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"

@@ -253,6 +253,25 @@ export default function OnboardingQuestions() {
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    if (activeTab === 'statistics' && answersPage >= 1) {
+      loadAnswers(answersPage);
+    }
+  }, [answersPage]);
+
+  const loadAnswers = async (page: number) => {
+    try {
+      const answersData = await adminAPI.getRecentAnswers({ page: String(page), per_page: '10' }) as {
+        answers?: OnboardingAnswer[];
+        total?: number;
+      };
+      setAnswers(answersData.answers || []);
+      setTotalAnswers(answersData.total || 0);
+    } catch (err: any) {
+      console.error('Failed to load answers:', err);
+    }
+  };
+
   const loadQuestions = async () => {
     setLoading(true);
     setError(null);
@@ -273,10 +292,9 @@ export default function OnboardingQuestions() {
       const stats = await adminAPI.getCustomizationQuestionsStats() as OnboardingStatistics;
       setStatistics(stats);
 
-      // Load recent answers - Since getAllAnswers doesn't exist, we'll need to handle this differently
-      // For now, just set empty answers
-      setAnswers([]);
-      setTotalAnswers(0);
+      // Load recent answers and reset to page 1
+      setAnswersPage(1);
+      await loadAnswers(1);
     } catch (err: any) {
       console.error('Failed to load statistics:', err);
     } finally {

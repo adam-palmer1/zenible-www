@@ -31,9 +31,10 @@ type ContactData = Partial<ContactWithExtras> & { id: string };
 interface ContactDetailsPanelProps {
   contact: ContactData | (Record<string, unknown> & { id: string });
   onClose: () => void;
+  readOnly?: boolean;
 }
 
-const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: initialContact, onClose }) => {
+const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: initialContact, onClose, readOnly = false }) => {
   const [activeTab, setActiveTab] = useState('notes');
   const [contact, setContact] = useState<ContactData>(initialContact as ContactData);
   const [, setLoadingContact] = useState(false);
@@ -289,7 +290,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
           {/* Tab Content */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6">
             {activeTab === 'notes' ? (
-              <NotesSection contactId={contact.id} />
+              <NotesSection contactId={contact.id} readOnly={readOnly} />
             ) : activeTab === 'services' ? (
               /* Services Tab */
               <div className="space-y-6">
@@ -300,20 +301,22 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
                   </p>
                 </div>
 
-                <InlineServiceForm
-                  services={contact.services || []}
-                  currencies={currencies || []}
-                  defaultCurrency={getContactDefaultCurrency()}
-                  onAdd={handleAssignService}
-                  onUpdate={handleUpdateService}
-                  onRemove={handleRemoveService}
-                />
+                {!readOnly && (
+                  <InlineServiceForm
+                    services={contact.services || []}
+                    currencies={currencies || []}
+                    defaultCurrency={getContactDefaultCurrency()}
+                    onAdd={handleAssignService}
+                    onUpdate={handleUpdateService}
+                    onRemove={handleRemoveService}
+                  />
+                )}
 
                 {contact.services && contact.services.length > 0 && (
                   <div className="pt-4 border-t border-gray-200">
                     <ServicesList
                       services={contact.services}
-                      onDelete={handleRemoveService}
+                      onDelete={readOnly ? undefined : handleRemoveService}
                       onServiceClick={handleServiceClick}
                     />
                   </div>
@@ -388,7 +391,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
               <ContactFinancialsTab contactId={contact.id} />
             ) : activeTab === 'files' ? (
               /* Files Tab */
-              <ContactFilesTab contactId={contact.id} projects={contact.projects || []} />
+              <ContactFilesTab contactId={contact.id} projects={contact.projects || []} readOnly={readOnly} />
             ) : null}
           </div>
       </div>

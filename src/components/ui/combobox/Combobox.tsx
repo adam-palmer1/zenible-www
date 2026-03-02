@@ -69,7 +69,8 @@ const Combobox: React.FC<ComboboxProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
-  const insideModal = useModalPortal() !== null;
+  const modalPortal = useModalPortal();
+  const insideModal = modalPortal !== null;
 
   // Find selected option
   const selectedOption = options.find(opt => opt.id === value);
@@ -79,9 +80,9 @@ const Combobox: React.FC<ComboboxProps> = ({
     opt.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Calculate dropdown position (only used when NOT inside a modal)
+  // Calculate dropdown position using fixed positioning (works for both modal and non-modal)
   const updateDropdownPosition = useCallback(() => {
-    if (!triggerRef.current || insideModal) return;
+    if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const dropdownHeight = 300; // approximate max height
@@ -96,11 +97,11 @@ const Combobox: React.FC<ComboboxProps> = ({
         : { top: rect.bottom + 4 }),
       zIndex: 9999,
     });
-  }, [insideModal]);
+  }, []);
 
-  // Update position when open and on scroll/resize (portal mode only)
+  // Update position when open and on scroll/resize
   useEffect(() => {
-    if (!isOpen || insideModal) return;
+    if (!isOpen) return;
     updateDropdownPosition();
 
     const handleScrollOrResize = () => updateDropdownPosition();
@@ -110,7 +111,7 @@ const Combobox: React.FC<ComboboxProps> = ({
       window.removeEventListener('scroll', handleScrollOrResize, true);
       window.removeEventListener('resize', handleScrollOrResize);
     };
-  }, [isOpen, insideModal, updateDropdownPosition]);
+  }, [isOpen, updateDropdownPosition]);
 
   // Handle click outside
   useEffect(() => {
@@ -151,24 +152,6 @@ const Combobox: React.FC<ComboboxProps> = ({
       setNewItemName('');
     }
   }, [isOpen]);
-
-  // When inside a modal, temporarily set overflow:visible on the scrollable ancestor
-  // so the absolutely positioned dropdown isn't clipped by the modal body.
-  useEffect(() => {
-    if (!isOpen || !insideModal || !containerRef.current) return;
-
-    let scrollParent: HTMLElement | null = containerRef.current.parentElement;
-    while (scrollParent) {
-      const { overflowY } = window.getComputedStyle(scrollParent);
-      if (overflowY === 'auto' || overflowY === 'scroll') break;
-      scrollParent = scrollParent.parentElement;
-    }
-    if (!scrollParent) return;
-
-    const original = scrollParent.style.overflow;
-    scrollParent.style.overflow = 'visible';
-    return () => { scrollParent.style.overflow = original; };
-  }, [isOpen, insideModal]);
 
   const handleSelect = useCallback((optionId: string) => {
     onChange(optionId);
@@ -226,10 +209,8 @@ const Combobox: React.FC<ComboboxProps> = ({
   const dropdownInner = (
     <div
       ref={dropdownRef}
-      style={insideModal ? undefined : dropdownStyle}
-      className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden ${
-        insideModal ? 'absolute left-0 right-0 top-full mt-1 z-[100]' : ''
-      }`}
+      style={dropdownStyle}
+      className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden"
     >
       {/* Create Form */}
       {showCreateForm ? (
@@ -388,11 +369,18 @@ const Combobox: React.FC<ComboboxProps> = ({
         </div>
       </button>
 
-      {/* Inside a modal: render inline to avoid focus trap / event issues.
-          Outside a modal: portal to document.body to escape overflow containers. */}
-      {isOpen && (insideModal
-        ? dropdownInner
-        : createPortal(dropdownInner, document.body)
+      {/* Portal dropdown to modal container (if in modal) or document.body */}
+      {isOpen && createPortal(
+        insideModal ? (
+          <div
+            style={{ pointerEvents: 'auto' }}
+            onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          >
+            {dropdownInner}
+          </div>
+        ) : dropdownInner,
+        insideModal ? modalPortal! : document.body
       )}
     </div>
   );

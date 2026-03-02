@@ -5,6 +5,7 @@ interface CRMHeaderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   children?: React.ReactNode;
+  hasCRMAccess?: boolean;
 }
 
 /**
@@ -14,6 +15,7 @@ const CRMHeader: React.FC<CRMHeaderProps> = ({
   activeTab,
   setActiveTab: _setActiveTab,
   children,
+  hasCRMAccess = true,
 }) => {
   return (
     <div className="bg-white border-b border-gray-200 px-4 py-2 lg:px-6 lg:py-3">
@@ -50,26 +52,30 @@ const CRMHeader: React.FC<CRMHeaderProps> = ({
           >
             Vendors
           </Link>
-          <Link
-            to="/crm/services"
-            className={`px-4 py-3 lg:py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-              activeTab === 'services'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Services
-          </Link>
-          <Link
-            to="/crm/projects"
-            className={`px-4 py-3 lg:py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-              activeTab === 'projects'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Projects
-          </Link>
+          {hasCRMAccess && (
+            <Link
+              to="/crm/services"
+              className={`px-4 py-3 lg:py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === 'services'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Services
+            </Link>
+          )}
+          {hasCRMAccess && (
+            <Link
+              to="/crm/projects"
+              className={`px-4 py-3 lg:py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === 'projects'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Projects
+            </Link>
+          )}
         </div>
 
         {/* Right: Filters */}

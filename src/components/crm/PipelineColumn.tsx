@@ -19,6 +19,7 @@ interface PipelineColumnProps {
   customStatuses?: any[];
   onStatusUpdate?: () => void;
   isDraggingContact?: boolean;
+  readOnly?: boolean;
 }
 
 const PipelineColumn: React.FC<PipelineColumnProps> = ({
@@ -31,6 +32,7 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
   customStatuses: _customStatuses = [],
   onStatusUpdate,
   isDraggingContact = false,
+  readOnly = false,
 }) => {
   const { showSuccess, showError } = useNotification();
 
@@ -264,21 +266,23 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
                 <p className="font-medium text-sm leading-[22px] text-gray-900 dark:text-white truncate">
                   {displayName}
                 </p>
-                {/* Count badge — hidden on hover, replaced by pencil */}
-                <div className="bg-white dark:bg-gray-800 rounded-md px-1.5 py-[3px] flex items-center justify-center min-w-[20px] h-5 shrink-0 group-hover:hidden">
+                {/* Count badge — hidden on hover when editable, replaced by pencil */}
+                <div className={`bg-white dark:bg-gray-800 rounded-md px-1.5 py-[3px] flex items-center justify-center min-w-[20px] h-5 shrink-0${readOnly ? '' : ' group-hover:hidden'}`}>
                   <p className="font-medium text-[10px] leading-[14px] text-gray-900 dark:text-white text-center">
                     {contacts.length}
                   </p>
                 </div>
-                {/* Edit pencil — replaces count badge on hover */}
-                <button
-                  onClick={handleStartEdit}
-                  onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
-                  className="hidden group-hover:flex items-center justify-center min-w-[20px] h-5 shrink-0 text-gray-600 hover:text-zenible-primary transition-colors"
-                  title="Rename column"
-                >
-                  <PencilIcon className="h-3.5 w-3.5" />
-                </button>
+                {/* Edit pencil — replaces count badge on hover (hidden for read-only users) */}
+                {!readOnly && (
+                  <button
+                    onClick={handleStartEdit}
+                    onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+                    className="hidden group-hover:flex items-center justify-center min-w-[20px] h-5 shrink-0 text-gray-600 hover:text-zenible-primary transition-colors"
+                    title="Rename column"
+                  >
+                    <PencilIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* Spacer */}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import planAPI from '../../services/planAPI';
 import UsageDashboard from '../UsageDashboard';
@@ -30,12 +31,16 @@ export default function SubscriptionSettingsTab({
   formatDate,
   fetchUserProfile: _fetchUserProfile,
 }: SubscriptionSettingsTabProps) {
+  const { user } = useAuth();
   const { darkMode } = usePreferences();
   const navigate = useNavigate();
 
   // Plan features state
   const [planFeatures, setPlanFeatures] = useState<any[]>([]);
   const [loadingFeatures, setLoadingFeatures] = useState(false);
+
+  // Determine if this user's subscription is managed by their company admin
+  const isCompanyManagedSubscription = !!(user?.company_id && !user?.is_billing_owner);
 
   // Fetch display features for the current plan
   useEffect(() => {
@@ -62,6 +67,47 @@ export default function SubscriptionSettingsTab({
     if (feature.name) return String(feature.name);
     return '';
   };
+
+  // Company-managed subscription: show read-only notice
+  if (isCompanyManagedSubscription) {
+    return (
+      <div className="space-y-6">
+        <div className={`rounded-xl shadow-sm border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-neutral-200'}`}>
+          <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+            <h2 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+              Subscription
+            </h2>
+          </div>
+
+          <div className="p-6">
+            <div className={`p-4 rounded-lg border ${
+              darkMode
+                ? 'bg-blue-900/20 border-blue-800'
+                : 'bg-blue-50 border-blue-200'
+            }`}>
+              <div className="flex items-start gap-3">
+                <svg className={`w-6 h-6 shrink-0 mt-0.5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h4 className={`font-medium mb-1 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                    Managed by Company Administrator
+                  </h4>
+                  <p className={`text-sm ${darkMode ? 'text-blue-200' : 'text-blue-600'}`}>
+                    Your subscription and plan are managed by your company administrator.
+                    To make changes to your plan, please contact your company admin.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Still show usage dashboard - members should see their usage */}
+        <UsageDashboard />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

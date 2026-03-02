@@ -5,7 +5,7 @@ import CRMTopBar from './layout/CRMTopBar';
 import CRMHeader from './layout/CRMHeader';
 import CRMTabContent from './layout/CRMTabContent';
 import { useCRM } from '../../contexts/CRMContext';
-import { useContacts, useContactStatuses, useServices } from '../../hooks/crm';
+import { useContacts, useContactStatuses, useServices, useCRMPermissions } from '../../hooks/crm';
 import contactsAPI from '../../services/api/crm/contacts';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useCRMFilters } from '../../hooks/crm/useCRMFilters';
@@ -34,8 +34,12 @@ const CRMDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Permissions
+  const { hasCRMAccess, hasWriteAccess } = useCRMPermissions();
+
   // Validate tab value and determine active tab
-  const validTabs = ['crm', 'clients', 'vendors', 'services', 'projects'];
+  const allTabs = ['crm', 'clients', 'vendors', 'services', 'projects'];
+  const validTabs = hasCRMAccess ? allTabs : allTabs.filter(t => t !== 'services' && t !== 'projects');
   const activeTab = tab && validTabs.includes(tab) ? tab : 'crm';
 
   // Function to change tabs (updates URL)
@@ -47,12 +51,12 @@ const CRMDashboard: React.FC = () => {
     }
   }, [navigate]);
 
-  // Redirect to default if invalid tab
+  // Redirect to default if invalid tab or user lacks permission
   useEffect(() => {
     if (tab && !validTabs.includes(tab)) {
       navigate('/crm', { replace: true });
     }
-  }, [tab, navigate]);
+  }, [tab, navigate, validTabs]);
 
   const [showCRMSettings, setShowCRMSettings] = useState(false);
 
@@ -209,12 +213,14 @@ const CRMDashboard: React.FC = () => {
             setShowCRMSettings={setShowCRMSettings}
             updatePreference={updatePreference}
             activeTab={activeTab}
+            hasCRMAccess={hasCRMAccess}
           />
 
           {/* Page Header with Tabs */}
           <CRMHeader
             activeTab={activeTab}
             setActiveTab={setActiveTab}
+            hasCRMAccess={hasCRMAccess}
           >
             {/* CRM tab filters */}
             {activeTab === 'crm' && (
@@ -352,6 +358,7 @@ const CRMDashboard: React.FC = () => {
         servicesFilters={servicesFilters}
         columnOrder={columnOrder}
         handleColumnReorder={handleColumnReorder}
+        readOnly={!hasWriteAccess}
       />
 
       {/* Modals - lazy-loaded, only rendered when open */}
@@ -388,7 +395,7 @@ const CRMDashboard: React.FC = () => {
       {/* Contact Details Panel */}
       {!!selectedContact && (
         <Suspense fallback={null}>
-          <ContactDetailsPanel contact={selectedContact as Record<string, unknown> & { id: string }} onClose={clearSelectedContact} />
+          <ContactDetailsPanel contact={selectedContact as Record<string, unknown> & { id: string }} onClose={clearSelectedContact} readOnly={!hasWriteAccess} />
         </Suspense>
       )}
 

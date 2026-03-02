@@ -63,6 +63,9 @@ export default function PricingNew() {
     billingCycle: string;
   } | null>(null);
 
+  // Determine if this user's subscription is managed by their company admin
+  const isCompanyManagedSubscription = !!(user?.company_id && !user?.is_billing_owner);
+
   useEffect(() => {
     fetchData();
   }, [user]);
@@ -295,6 +298,7 @@ export default function PricingNew() {
 
   const getButtonAction = (plan: any) => {
     if (isCurrentPlan(plan.id)) return null;
+    if (isCompanyManagedSubscription) return null;
     if (isFreePlan(plan) && !currentSubscription) return () => handleFreeSubscribe(plan.id);
     if (!currentSubscription) return () => handleSubscribe(plan.id);
     return () => handleChangePlan(plan.id);
@@ -302,6 +306,7 @@ export default function PricingNew() {
 
   const getButtonText = (plan: any) => {
     if (isCurrentPlan(plan.id)) return 'Current Plan';
+    if (isCompanyManagedSubscription) return 'Managed by Admin';
     if (isFreePlan(plan)) return 'Go with Free for Now';
     if (!currentSubscription) return 'Subscribe';
 
@@ -492,6 +497,24 @@ export default function PricingNew() {
         ) : null}
       </div>
 
+      {/* Company-managed subscription notice */}
+      {isCompanyManagedSubscription && (
+        <div className={`mx-4 md:mx-12 lg:mx-[156px] mb-4 p-4 rounded-lg border ${
+          darkMode
+            ? 'bg-blue-900/20 border-blue-800'
+            : 'bg-blue-50 border-blue-200'
+        }`}>
+          <div className="flex items-start gap-3">
+            <svg className={`w-5 h-5 shrink-0 mt-0.5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className={`text-sm ${darkMode ? 'text-blue-200' : 'text-blue-700'}`}>
+              Your plan is managed by your company administrator. Contact your admin to request plan changes.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Content Section */}
       <div className="flex-1 flex flex-wrap items-start justify-center gap-[14px] px-4 pb-4">
         {plans.filter(plan =>
@@ -599,9 +622,9 @@ export default function PricingNew() {
               {/* Button */}
               <button
                 onClick={getButtonAction(plan) ?? undefined}
-                disabled={currentPlan || processingAction}
+                disabled={currentPlan || processingAction || isCompanyManagedSubscription}
                 className={`w-full py-3 rounded-xl font-medium text-base transition-all mb-6 ${
-                  currentPlan
+                  currentPlan || isCompanyManagedSubscription
                     ? darkMode
                       ? 'border border-zenible-dark-border text-zenible-dark-text-secondary bg-zenible-dark-card cursor-not-allowed'
                       : 'border border-neutral-200 text-zinc-500 bg-white cursor-not-allowed'

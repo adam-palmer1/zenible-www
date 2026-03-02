@@ -73,11 +73,10 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
     const data = periodData.slice(-periodMonths);
     if (data.length === 0) return null;
 
-    // Calculate max value considering total bars (paid + unpaid)
+    // Calculate max value considering total bars (paid + unpaid for expenses only)
     const maxValue = Math.max(
       ...data.map((d: any) => {
-        const totalIncome = parseFloat(d.income_total || 0) +
-                           parseFloat(d.outstanding_invoices || 0);
+        const totalIncome = parseFloat(d.income_total || 0);
         const totalExpenses = parseFloat(d.paid_expenses || d.expense_total || 0) +
                              parseFloat(d.unpaid_expenses || 0);
         return Math.max(totalIncome, totalExpenses);
@@ -169,13 +168,10 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
           {/* Bars and X-axis labels */}
           {data.map((month: any, i: number) => {
             const paidIncome = parseFloat(month.income_total || 0);
-            const unpaidIncome = parseFloat(month.outstanding_invoices || 0);
             const paidExpenses = parseFloat(month.paid_expenses || month.expense_total || 0);
             const unpaidExpenses = parseFloat(month.unpaid_expenses || 0);
 
             const paidIncomeHeight = (paidIncome / maxValue) * chartHeight;
-            const unpaidIncomeHeight = (unpaidIncome / maxValue) * chartHeight;
-            const totalIncomeHeight = paidIncomeHeight + unpaidIncomeHeight;
 
             const paidExpenseHeight = (paidExpenses / maxValue) * chartHeight;
             const unpaidExpenseHeight = (unpaidExpenses / maxValue) * chartHeight;
@@ -191,21 +187,6 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
 
             return (
               <g key={i}>
-                {unpaidIncome > 0 && (
-                  <rect
-                    x={groupX}
-                    y={paddingTop + chartHeight - totalIncomeHeight}
-                    width={barWidth}
-                    height={Math.max(unpaidIncomeHeight, 2)}
-                    className="fill-gray-300 hover:fill-gray-400 transition-colors duration-200 cursor-pointer"
-                    rx="1"
-                    onClick={() => setSelectedPeriod(month.period)}
-                    onMouseEnter={(e) => handleBarHover(e, month, 'Income', unpaidIncome, false)}
-                    onMouseMove={(e) => handleBarHover(e, month, 'Income', unpaidIncome, false)}
-                    onMouseLeave={() => setHoveredBar(null)}
-                  />
-                )}
-
                 {paidIncome > 0 && (
                   <rect
                     x={groupX}
@@ -373,7 +354,7 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
         </div>
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 bg-gray-300 rounded" />
-          <span className="text-[10px] text-gray-500">Unpaid</span>
+          <span className="text-[10px] text-gray-500">Expenses (Unpaid)</span>
         </div>
       </div>
 

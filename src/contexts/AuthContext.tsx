@@ -15,6 +15,9 @@ export interface User {
   current_plan_id?: string | null;
   email_verified?: boolean;
   is_active?: boolean;
+  company_id?: string | null;
+  is_billing_owner?: boolean;
+  subscription_status?: string | null;
   [key: string]: unknown;
 }
 

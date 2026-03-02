@@ -37,10 +37,11 @@ export default function ProtectedDashboard() {
         // Check if it's time to show the reminder
         const now = new Date();
         const reminder = new Date(reminderDate as string);
-        setShowFirstSignIn(now >= reminder);
+        setShowFirstSignIn(user.is_billing_owner === true && now >= reminder);
       } else {
         // For null, undefined, or any other value - show the modal
-        setShowFirstSignIn(true);
+        // Only for billing owner (company creator); invited team members skip onboarding
+        setShowFirstSignIn(!!user.is_billing_owner);
       }
     }
   }, [user, loading, prefsLoading, initialized, preferences]);

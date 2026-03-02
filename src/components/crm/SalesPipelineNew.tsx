@@ -42,6 +42,7 @@ interface SalesPipelineNewProps {
   sortOrder?: string | null;
   onStatusUpdate?: (...args: any[]) => void;
   onColumnReorder?: (newOrder: string[]) => void;
+  readOnly?: boolean;
   [key: string]: any;
 }
 
@@ -65,6 +66,7 @@ const SalesPipelineNew: React.FC<SalesPipelineNewProps> = ({
   sortOrder = null,
   onStatusUpdate,
   onColumnReorder,
+  readOnly = false,
 }) => {
   const { openContactModal } = useCRM();
   const { showError } = useNotification();
@@ -288,6 +290,7 @@ const SalesPipelineNew: React.FC<SalesPipelineNewProps> = ({
               customStatuses={customStatuses}
               onStatusUpdate={onStatusUpdate}
               isDraggingContact={activeType === 'contact'}
+              readOnly={readOnly}
             />
           ))}
         </div>

@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNotification } from './NotificationContext';
 import { useAuth } from './AuthContext';
 import { getContactDisplayName } from '../utils/crm/contactUtils';
 import appointmentsAPI from '../services/api/crm/appointments';
 import { prepareAppointmentData } from '../utils/crm/appointmentUtils';
+import { queryKeys } from '../lib/query-keys';
 
 /** Minimal contact shape used throughout contact actions */
 interface ContactActionContact {
@@ -94,6 +96,7 @@ export const ContactActionsProvider = ({
 }: ContactActionsProviderProps) => {
   const { showSuccess, showError } = useNotification();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   /**
    * Mark contact as lost
@@ -322,10 +325,8 @@ export const ContactActionsProvider = ({
         { duration: 3000 }
       );
 
-      // Refresh contacts to get updated next_appointment
-      if (onRefreshContacts) {
-        onRefreshContacts();
-      }
+      // Invalidate contacts cache to get updated next_appointment
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
 
       return { success: true };
     } catch (error) {
@@ -333,7 +334,7 @@ export const ContactActionsProvider = ({
       showError((error as Error).message || 'Failed to schedule appointment. Please try again.');
       return { success: false, error };
     }
-  }, [user, onRefreshContacts, showSuccess, showError]);
+  }, [user, queryClient, showSuccess, showError]);
 
   /**
    * Dismiss follow-up date for contact
@@ -358,10 +359,8 @@ export const ContactActionsProvider = ({
 
       showSuccess(`Appointment dismissed for ${displayName}`, { duration: 3000 });
 
-      // Refresh to get updated appointments list (backend recalculates)
-      if (onRefreshContacts) {
-        onRefreshContacts();
-      }
+      // Invalidate contacts cache so backend recalculates next_appointment
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
 
       return { success: true };
     } catch (error) {
@@ -369,7 +368,7 @@ export const ContactActionsProvider = ({
       showError((error as Error).message || 'Failed to dismiss appointment. Please try again.');
       return { success: false, error };
     }
-  }, [onRefreshContacts, showSuccess, showError]);
+  }, [queryClient, showSuccess, showError]);
 
   const value: ContactActionsContextValue = {
     // Quick actions

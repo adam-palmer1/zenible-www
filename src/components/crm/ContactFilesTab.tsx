@@ -68,12 +68,13 @@ interface FileItemProps {
   onEdit: (fileId: string, data: ContactFileUpdateRequest) => Promise<void>;
   onDelete: (file: ContactFileResponse) => void;
   onDownload: (file: ContactFileResponse) => void;
+  readOnly?: boolean;
 }
 
 /**
  * Single file item component
  */
-const FileItem: React.FC<FileItemProps> = ({ file, projects, onEdit, onDelete, onDownload }) => {
+const FileItem: React.FC<FileItemProps> = ({ file, projects, onEdit, onDelete, onDownload, readOnly = false }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editDescription, setEditDescription] = useState(file.description || '');
   const [editProjectId, setEditProjectId] = useState(file.project_id || '');
@@ -150,20 +151,24 @@ const FileItem: React.FC<FileItemProps> = ({ file, projects, onEdit, onDelete, o
                 >
                   <ArrowDownTrayIcon className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                  title="Edit"
-                >
-                  <PencilIcon className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onDelete(file)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                  title="Delete"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                </button>
+                {!readOnly && (
+                  <>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                      title="Edit"
+                    >
+                      <PencilIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(file)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Delete"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -254,13 +259,14 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ file, isOpen, o
 interface ContactFilesTabProps {
   contactId: string;
   projects?: ContactProject[];
+  readOnly?: boolean;
 }
 
 /**
  * Contact Files Tab Component
  * Displays and manages files for a contact
  */
-const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects = [] }) => {
+const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects = [], readOnly = false }) => {
   const { showSuccess, showError } = useNotification();
 
   const [files, setFiles] = useState<ContactFileResponse[]>([]);
@@ -458,50 +464,52 @@ const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects =
       </div>
 
       {/* Upload Area */}
-      <div
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`relative border-2 border-dashed rounded-lg transition-colors ${
-          isDragging
-            ? 'border-zenible-primary bg-purple-50'
-            : 'border-gray-300 hover:border-gray-400'
-        } ${isUploading ? 'pointer-events-none opacity-50' : ''}`}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          onChange={handleFileInputChange}
-          className="hidden"
-        />
+      {!readOnly && (
+        <div
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`relative border-2 border-dashed rounded-lg transition-colors ${
+            isDragging
+              ? 'border-zenible-primary bg-purple-50'
+              : 'border-gray-300 hover:border-gray-400'
+          } ${isUploading ? 'pointer-events-none opacity-50' : ''}`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFileInputChange}
+            className="hidden"
+          />
 
-        {isUploading ? (
-          <div className="p-6 text-center">
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-              <div
-                className="bg-zenible-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${uploadProgress}%` }}
-              />
+          {isUploading ? (
+            <div className="p-6 text-center">
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                <div
+                  className="bg-zenible-primary h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <p className="text-sm text-gray-600">Uploading... {uploadProgress}%</p>
             </div>
-            <p className="text-sm text-gray-600">Uploading... {uploadProgress}%</p>
-          </div>
-        ) : (
-          <div className="p-6 text-center">
-            <DocumentIcon className="mx-auto h-10 w-10 text-gray-400 mb-2" />
-            <p className="text-sm text-gray-600 mb-1">
-              Drag and drop a file here, or{' '}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="text-zenible-primary hover:text-purple-600 font-medium"
-              >
-                browse
-              </button>
-            </p>
-            <p className="text-xs text-gray-500">Max file size: 10MB</p>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="p-6 text-center">
+              <DocumentIcon className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+              <p className="text-sm text-gray-600 mb-1">
+                Drag and drop a file here, or{' '}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-zenible-primary hover:text-purple-600 font-medium"
+                >
+                  browse
+                </button>
+              </p>
+              <p className="text-xs text-gray-500">Max file size: 10MB</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Files List */}
       {files.length === 0 ? (
@@ -521,6 +529,7 @@ const ContactFilesTab: React.FC<ContactFilesTabProps> = ({ contactId, projects =
               onEdit={handleEdit}
               onDelete={setDeleteFile}
               onDownload={handleDownload}
+              readOnly={readOnly}
             />
           ))}
         </div>

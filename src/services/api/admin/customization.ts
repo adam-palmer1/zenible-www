@@ -53,6 +53,14 @@ const adminCustomizationAPI = {
     return request('/admin/customization/stats/overview');
   },
 
+  async getRecentAnswers(params: Record<string, string> = {}): Promise<unknown> {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString
+      ? `/admin/customization/stats/recent-answers?${queryString}`
+      : '/admin/customization/stats/recent-answers';
+    return request(endpoint);
+  },
+
   async getCustomizationCategories(): Promise<unknown> {
     return request('/admin/customization/categories');
   },

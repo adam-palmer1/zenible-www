@@ -45,6 +45,7 @@ interface CRMTabContentProps {
   servicesFilters: any;
   columnOrder?: string[];
   handleColumnReorder: (order: string[]) => void;
+  readOnly?: boolean;
 }
 
 /**
@@ -78,6 +79,7 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
   servicesFilters,
   columnOrder = [],
   handleColumnReorder,
+  readOnly = false,
 }) => {
   // Apply column order to statuses
   const orderedStatuses = useMemo(() => {
@@ -135,6 +137,7 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
                 onStatusUpdate={handleStatusUpdate}
                 onRefresh={refreshWithScrollPreservation}
                 onColumnReorder={handleColumnReorder}
+                readOnly={readOnly}
               />
             </Suspense>
           </ContactActionsProvider>

@@ -486,7 +486,7 @@ export default function SignIn() {
             <div className="flex gap-[6px] items-center w-full">
               <div className="bg-neutral-200 dark:bg-[#1f242f] h-px flex-1" />
               <span className="font-inter font-normal text-[14px] text-zinc-400 dark:text-[#85888e]">
-                Or with Sign In
+                Or sign in with
               </span>
               <div className="bg-neutral-200 dark:bg-[#1f242f] h-px flex-1" />
             </div>

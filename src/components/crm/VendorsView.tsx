@@ -438,10 +438,10 @@ const VendorsView: React.FC<VendorsViewProps> = ({
         message={
           <div>
             <p className="mb-2">
-              Are you sure you want to permanently delete {deleteConfirmation.item ? getContactDisplayName(deleteConfirmation.item) : 'this vendor'}?
+              Are you sure you want to delete {deleteConfirmation.item ? getContactDisplayName(deleteConfirmation.item) : 'this vendor'}?
             </p>
             <p className="text-sm text-red-600 dark:text-red-400 font-medium">
-              Warning: This action cannot be undone. All data associated with this vendor will be permanently deleted.
+              Warning: This action can not be undone. Historic data will be preserved.
             </p>
           </div>
         }
