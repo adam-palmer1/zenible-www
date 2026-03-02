@@ -4,6 +4,8 @@ import planAPI from '../services/planAPI';
 import { LoadingSpinner } from './shared';
 import DatePickerCalendar from './shared/DatePickerCalendar';
 
+import { API_BASE_URL } from '@/config/api';
+
 export default function PaymentHistory() {
   const { darkMode } = usePreferences();
   const [payments, setPayments] = useState<any[]>([]);
@@ -27,6 +29,7 @@ export default function PaymentHistory() {
   // Dropdown visibility state
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
 
   // Filter options
   const statusOptions = [
@@ -168,6 +171,43 @@ export default function PaymentHistory() {
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+    }
+  };
+
+  const handleDownloadInvoicePdf = async (invoice: any) => {
+    try {
+      setDownloadingInvoiceId(invoice.id);
+      const accessToken = localStorage.getItem('access_token');
+      if (!accessToken) {
+        setError('Authentication required');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/payments/invoices/${invoice.stripe_invoice_id || invoice.id}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${invoice.stripe_invoice_id || invoice.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error downloading invoice PDF:', err);
+      setError('Failed to download invoice PDF');
+    } finally {
+      setDownloadingInvoiceId(null);
     }
   };
 
@@ -550,18 +590,17 @@ export default function PaymentHistory() {
                                 Paid
                               </span>
                             )}
-                            {invoice.download_url && (
-                              <a
-                                href={invoice.download_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`text-sm font-medium ${
-                                  darkMode ? 'text-zenible-primary hover:text-zenible-primary/80' : 'text-zenible-primary hover:text-zenible-primary/80'
-                                }`}
-                              >
-                                Download
-                              </a>
-                            )}
+                            <button
+                              onClick={() => handleDownloadInvoicePdf(invoice)}
+                              disabled={downloadingInvoiceId === invoice.id}
+                              className={`text-sm font-medium ${
+                                downloadingInvoiceId === invoice.id
+                                  ? 'opacity-50 cursor-not-allowed'
+                                  : ''
+                              } ${darkMode ? 'text-zenible-primary hover:text-zenible-primary/80' : 'text-zenible-primary hover:text-zenible-primary/80'}`}
+                            >
+                              {downloadingInvoiceId === invoice.id ? 'Downloading...' : 'Download'}
+                            </button>
                           </div>
                         </td>
                       </tr>

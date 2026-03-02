@@ -20,8 +20,9 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
   const monthlyGoal = settings.monthlyGoal || 5000;
   const currency = settings.currency || companyDefaultCurrency?.currency?.code || 'GBP';
 
-  // Get values from summary (revenue = income_total from API, based on actual payments)
-  const paymentsCollected = parseFloat(summary?.income_total || 0);
+  // Accrual-basis: paid invoices attributed to their issue month + unlinked payments
+  const paymentsCollected = parseFloat(summary?.paid_invoices_total || 0)
+                           + parseFloat(summary?.unlinked_payments_total || 0);
   const outstandingInvoices = parseFloat(summary?.outstanding_invoices || 0);
 
   // Calculate percentages (uncapped — can exceed 100%)

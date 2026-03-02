@@ -134,7 +134,18 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       setAppointmentTime(`${hours}:${minutes}`);
     }
     setAppointmentType(appointment.appointment_type || 'call');
-    setDuration(60);
+    // Calculate duration from start/end datetimes, or use duration_minutes from API
+    const durationMinutes = (appointment as Record<string, unknown>).duration_minutes as number | undefined;
+    if (durationMinutes) {
+      setDuration(durationMinutes);
+    } else if (appointment.start_datetime && (appointment as Record<string, unknown>).end_datetime) {
+      const start = new Date(appointment.start_datetime);
+      const end = new Date((appointment as Record<string, unknown>).end_datetime as string);
+      const calculatedDuration = Math.round((end.getTime() - start.getTime()) / 60000);
+      setDuration(calculatedDuration > 0 ? calculatedDuration : 60);
+    } else {
+      setDuration(60);
+    }
     setSendInviteToContact(!!contact?.email && (appointment as Record<string, unknown>).send_invite_to_contact !== false);
   };
 
@@ -235,6 +246,14 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                   {scheduledAppointments.map((appointment) => {
                     const isCall = appointment.appointment_type === 'call';
                     const date = new Date(appointment.start_datetime ?? '');
+                    const apptDuration = (appointment as Record<string, unknown>).duration_minutes as number | undefined;
+                    let durationLabel: string | null = null;
+                    if (apptDuration) {
+                      durationLabel = apptDuration >= 60 ? `${apptDuration / 60}h` : `${apptDuration} min`;
+                    } else if (appointment.start_datetime && (appointment as Record<string, unknown>).end_datetime) {
+                      const mins = Math.round((new Date((appointment as Record<string, unknown>).end_datetime as string).getTime() - date.getTime()) / 60000);
+                      if (mins > 0) durationLabel = mins >= 60 ? `${mins / 60}h` : `${mins} min`;
+                    }
 
                     return (
                       <div

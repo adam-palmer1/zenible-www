@@ -57,7 +57,8 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
   // Revenue = paid invoices + unlinked payments (already reduced by credit notes on the backend)
   // Expenses = all expenses
   // Profit = revenue - expenses
-  const revenue = parseFloat(displayMonthData?.income_total || 0);
+  const revenue = parseFloat(displayMonthData?.paid_invoices_total || 0)
+                + parseFloat(displayMonthData?.unlinked_payments_total || 0);
   const expenses = parseFloat(displayMonthData?.expense_total || 0);
   const profit = revenue - expenses;
 
@@ -167,7 +168,8 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
 
           {/* Bars and X-axis labels */}
           {data.map((month: any, i: number) => {
-            const paidIncome = parseFloat(month.income_total || 0);
+            const paidIncome = parseFloat(month.paid_invoices_total || 0)
+                             + parseFloat(month.unlinked_payments_total || 0);
             const paidExpenses = parseFloat(month.paid_expenses || month.expense_total || 0);
             const unpaidExpenses = parseFloat(month.unpaid_expenses || 0);
 
