@@ -450,8 +450,8 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
         setQuote(result);
         // Update URL to edit route without remounting the component,
         // so the send modal stays open and browser back/refresh land on the edit page
-        if (!isInModal && result?.id) {
-          window.history.replaceState(null, '', `/finance/quotes/${result.id}/edit`);
+        if (!isInModal && (result as any)?.id) {
+          window.history.replaceState(null, '', `/finance/quotes/${(result as any).id}/edit`);
         }
       }
 

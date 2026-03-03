@@ -7,6 +7,17 @@ import appointmentsAPI from '../services/api/crm/appointments';
 import { prepareAppointmentData } from '../utils/crm/appointmentUtils';
 import { queryKeys } from '../lib/query-keys';
 
+/** Check if an error is a feature limit exceeded error */
+function isFeatureLimitError(error: unknown): boolean {
+  if (error && typeof error === 'object') {
+    const data = (error as Record<string, unknown>).data;
+    if (data && typeof data === 'object') {
+      return (data as Record<string, unknown>).type === 'feature_limit_exceeded';
+    }
+  }
+  return false;
+}
+
 /** Minimal contact shape used throughout contact actions */
 interface ContactActionContact {
   id: string;
@@ -261,7 +272,11 @@ export const ContactActionsProvider = ({
       return result;
     } catch (error) {
       console.error('Failed to toggle hidden state:', error);
-      showError('Failed to update contact visibility. Please try again.');
+      if (isFeatureLimitError(error)) {
+        showError('Unable to unhide, usage limit has been exceeded.');
+      } else {
+        showError('Failed to update contact visibility. Please try again.');
+      }
       return { success: false, error };
     }
   }, [onUpdateStatus, showSuccess, showError]);
@@ -294,7 +309,11 @@ export const ContactActionsProvider = ({
       return result;
     } catch (error) {
       console.error('Failed to toggle client status:', error);
-      showError('Failed to update client status. Please try again.');
+      if (isFeatureLimitError(error)) {
+        showError('Failed to update client status, usage limit has been exceeded.');
+      } else {
+        showError('Failed to update client status. Please try again.');
+      }
       return { success: false, error };
     }
   }, [onUpdateStatus, showError]);

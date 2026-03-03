@@ -374,6 +374,7 @@ const Combobox: React.FC<ComboboxProps> = ({
         insideModal ? (
           <div
             style={{ pointerEvents: 'auto' }}
+            onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
             onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >

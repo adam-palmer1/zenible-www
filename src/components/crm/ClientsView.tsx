@@ -138,7 +138,12 @@ const ClientsView: React.FC<ClientsViewProps> = ({
       fetchContacts();
     } catch (error) {
       console.error('Error updating client visibility:', error);
-      showError('Failed to update client visibility');
+      const data = error && typeof error === 'object' ? (error as Record<string, unknown>).data : null;
+      if (data && typeof data === 'object' && (data as Record<string, unknown>).type === 'feature_limit_exceeded') {
+        showError('Unable to unhide, usage limit has been exceeded.');
+      } else {
+        showError('Failed to update client visibility');
+      }
     }
   };
 
@@ -594,7 +599,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
               {deleteConfirmation.item ? getContactDisplayName(deleteConfirmation.item) : 'this client'}?
             </p>
             <p className="text-sm text-red-600 dark:text-red-400 font-medium">
-              Warning: This action cannot be undone. All data associated with this client will be permanently deleted.
+              Warning: This action cannot be undone. Historic data will be preserved.
             </p>
           </div>
         }

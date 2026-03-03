@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useInvoices } from '../../../contexts/InvoiceContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { INVOICE_STATUS } from '../../../constants/finance';
 import { formatCurrency } from '../../../utils/currency';
 import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
+import { queryKeys } from '../../../lib/query-keys';
 import invoicesAPI from '../../../services/api/finance/invoices';
 import companiesAPI from '../../../services/api/crm/companies';
 import SendInvoiceDialog from './SendInvoiceDialog';
@@ -36,6 +38,7 @@ import type { InvoiceDetailData, ConfirmationConfig } from './invoice-detail';
 const InvoiceDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { deleteInvoice, cloneInvoice, updateInvoice, refresh } = useInvoices();
   const { showSuccess, showError } = useNotification();
   const { getCountryById } = useCRMReferenceData();
@@ -208,6 +211,7 @@ const InvoiceDetail: React.FC = () => {
   const handlePaymentSuccess = () => {
     loadInvoice();
     refresh();
+    queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
   };
 
   const handleMarkAsSent = () => {
