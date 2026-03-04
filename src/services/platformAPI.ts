@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '@/config/api';
+import { ZBI_API_BASE_URL } from '@/config/api';
 import logger from '../utils/logger';
 
 // Cache for platforms to avoid repeated API calls
@@ -28,7 +28,7 @@ export const platformAPI = {
         params.append('character_id', characterId);
       }
 
-      const response = await fetch(`${API_BASE_URL}/platforms/?${params.toString()}`, {
+      const response = await fetch(`${ZBI_API_BASE_URL}/platforms/?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ export const platformAPI = {
    */
   async getPlatformBySystemId(systemId: string): Promise<Record<string, unknown> | null> {
     try {
-      const response = await fetch(`${API_BASE_URL}/platforms/by-system/${systemId}`, {
+      const response = await fetch(`${ZBI_API_BASE_URL}/platforms/by-system/${systemId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

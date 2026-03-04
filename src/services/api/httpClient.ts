@@ -3,7 +3,7 @@
  * Consolidates common request logic, error handling, and utilities
  */
 
-import { API_BASE_URL } from '@/config/api';
+import { API_BASE_URL, ZBI_API_BASE_URL } from '@/config/api';
 import logger from '@/utils/logger';
 import { ApiError } from './ApiError';
 import { NetworkError } from './NetworkError';
@@ -72,11 +72,11 @@ export interface RequestOptions extends Omit<RequestInit, 'headers'> {
 type RequestFn = <T = unknown>(endpoint: string, options?: RequestOptions) => Promise<T>;
 
 /**
- * Create an API request function with optional context for logging
+ * Create an API request function with a given base URL and optional context for logging
  */
-export const createRequest = (context = 'API'): RequestFn => {
+const createRequestWithBase = (baseUrl: string, context: string): RequestFn => {
   return async <T = unknown>(endpoint: string, options: RequestOptions = {}): Promise<T> => {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${baseUrl}${endpoint}`;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -128,6 +128,16 @@ export const createRequest = (context = 'API'): RequestFn => {
     }
   };
 };
+
+/**
+ * Create an API request function targeting zcore (API_BASE_URL)
+ */
+export const createRequest = (context = 'API'): RequestFn => createRequestWithBase(API_BASE_URL, context);
+
+/**
+ * Create an API request function targeting ZBI (ZBI_API_BASE_URL)
+ */
+export const createZbiRequest = (context = 'ZBI_API'): RequestFn => createRequestWithBase(ZBI_API_BASE_URL, context);
 
 /**
  * Default request function for simple use cases
@@ -208,6 +218,7 @@ export class BaseAPI {
 export default {
   request,
   createRequest,
+  createZbiRequest,
   cleanParams,
   buildQueryString,
   BaseAPI,

@@ -29,6 +29,7 @@ interface OpenAIModel {
 }
 
 interface OpenAIModelListResponse {
+  items?: OpenAIModel[];
   models?: OpenAIModel[];
   total_pages?: number;
 }
@@ -94,8 +95,9 @@ export default function AIModelsManagement() {
       }
 
       const typedResponse = response as OpenAIModelListResponse;
-      if (typedResponse.models) {
-        setModels(typedResponse.models);
+      const modelList = typedResponse.items || typedResponse.models;
+      if (modelList) {
+        setModels(modelList);
         setTotalPages(typedResponse.total_pages || 1);
       } else {
         setModels([]);

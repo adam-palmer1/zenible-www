@@ -1,10 +1,10 @@
 // API service for User endpoints
-import { API_BASE_URL } from '@/config/api';
+import { API_BASE_URL, ZBI_API_BASE_URL } from '@/config/api';
 import logger from '../utils/logger';
 
 class UserAPI {
-  private async request<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+  private async requestWithBase<T = unknown>(baseUrl: string, endpoint: string, options: RequestInit = {}): Promise<T> {
+    const url = `${baseUrl}${endpoint}`;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -33,6 +33,14 @@ class UserAPI {
       logger.error('User API request failed:', error);
       throw error;
     }
+  }
+
+  private async request<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    return this.requestWithBase<T>(API_BASE_URL, endpoint, options);
+  }
+
+  private async zbiRequest<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    return this.requestWithBase<T>(ZBI_API_BASE_URL, endpoint, options);
   }
 
   // Get current user profile
@@ -67,7 +75,7 @@ class UserAPI {
   async getUserConversations(params: Record<string, string> = {}): Promise<unknown> {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = queryString ? `/ai/conversations/?${queryString}` : '/ai/conversations/';
-    return this.request(endpoint, { method: 'GET' });
+    return this.zbiRequest(endpoint, { method: 'GET' });
   }
 
   // Get messages for a specific conversation with pagination and filtering
@@ -76,17 +84,17 @@ class UserAPI {
     const endpoint = queryString
       ? `/ai/conversations/${conversationId}/messages?${queryString}`
       : `/ai/conversations/${conversationId}/messages`;
-    return this.request(endpoint, { method: 'GET' });
+    return this.zbiRequest(endpoint, { method: 'GET' });
   }
 
   // Get detailed conversation with messages
   async getUserConversation(conversationId: string): Promise<unknown> {
-    return this.request(`/ai/conversations/${conversationId}`, { method: 'GET' });
+    return this.zbiRequest(`/ai/conversations/${conversationId}`, { method: 'GET' });
   }
 
   // Export user conversation in specified format
   async exportUserConversation(conversationId: string, format: string = 'json'): Promise<unknown> {
-    const response = await this.request<unknown>(`/ai/conversations/${conversationId}/export`, {
+    const response = await this.zbiRequest<unknown>(`/ai/conversations/${conversationId}/export`, {
       method: 'GET',
       headers: {
         'Accept': format === 'csv' ? 'text/csv' : format === 'txt' ? 'text/plain' : 'application/json'

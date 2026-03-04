@@ -3,9 +3,9 @@
  * Handles platform management and character-platform configurations
  */
 
-import { createRequest } from '../httpClient';
+import { createZbiRequest } from '../httpClient';
 
-const request = createRequest('AdminPlatformsAPI');
+const request = createZbiRequest('AdminPlatformsAPI');
 
 const adminPlatformsAPI = {
   // Platform management endpoints

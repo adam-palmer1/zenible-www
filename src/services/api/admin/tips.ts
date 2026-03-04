@@ -3,9 +3,9 @@
  * Handles tips management, bulk operations, analytics, and engagement
  */
 
-import { createRequest } from '../httpClient';
+import { createZbiRequest } from '../httpClient';
 
-const request = createRequest('AdminTipsAPI');
+const request = createZbiRequest('AdminTipsAPI');
 
 const adminTipsAPI = {
   async getTips(params: Record<string, string> = {}): Promise<unknown> {

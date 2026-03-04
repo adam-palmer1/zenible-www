@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserMinusIcon, EyeSlashIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useContacts, useCompanyCurrencies } from '../../hooks/crm';
+import { ApiError } from '../../services/api/ApiError';
 import { useNotification } from '../../contexts/NotificationContext';
 import { formatCurrencyWithCommas } from '../../utils/currency';
 import Dropdown from '../ui/dropdown/Dropdown';
@@ -142,7 +143,11 @@ const VendorsView: React.FC<VendorsViewProps> = ({
         showSuccess(`${displayName} deleted permanently`);
       } catch (error) {
         console.error('Error deleting vendor:', error);
-        showError('Failed to delete vendor');
+        if (error instanceof ApiError && error.isInsufficientPermissions) {
+          showError('Insufficient permission to perform the requested action.');
+        } else {
+          showError('Failed to delete vendor');
+        }
         throw error;
       }
     });

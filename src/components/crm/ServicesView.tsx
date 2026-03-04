@@ -5,6 +5,8 @@ import ContactServicesTable from './ContactServicesTable';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { useContactServices } from '../../hooks/crm/useContactServices';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
+import { useNotification } from '../../contexts/NotificationContext';
+import { ApiError } from '../../services/api/ApiError';
 import contactsAPI from '../../services/api/crm/contacts';
 
 interface ServicesViewProps {
@@ -12,7 +14,7 @@ interface ServicesViewProps {
   services: any[];
   servicesLoading: boolean;
   onEditService?: (service: any) => void;
-  onDeleteService?: (service: any) => void;
+  onDeleteService?: (service: any) => void | Promise<void>;
   // Filter state from useServicesFilters
   activeSubtab: string;
   searchQuery: string;
@@ -51,6 +53,8 @@ const ServicesView: React.FC<ServicesViewProps> = ({
   // Refresh key
   refreshKey = 0,
 }) => {
+  const { showError } = useNotification();
+
   // Delete confirmation modal state (for default services)
   const deleteConfirm = useDeleteConfirmation<any>();
 
@@ -91,9 +95,18 @@ const ServicesView: React.FC<ServicesViewProps> = ({
   };
 
   // Handle confirmed delete
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deleteConfirm.item && onDeleteService) {
-      onDeleteService(deleteConfirm.item);
+      try {
+        await onDeleteService(deleteConfirm.item);
+      } catch (error) {
+        console.error('Failed to delete service:', error);
+        if (error instanceof ApiError && error.isInsufficientPermissions) {
+          showError('Insufficient permission to perform the requested action.');
+        } else {
+          showError('Failed to delete service. Please try again.');
+        }
+      }
     }
     deleteConfirm.cancelDelete();
   };
@@ -119,6 +132,11 @@ const ServicesView: React.FC<ServicesViewProps> = ({
         refreshContactServices();
       } catch (error) {
         console.error('Failed to remove contact service:', error);
+        if (error instanceof ApiError && error.isInsufficientPermissions) {
+          showError('Insufficient permission to perform the requested action.');
+        } else {
+          showError('Failed to remove service. Please try again.');
+        }
       }
     }
     contactServiceDeleteConfirm.cancelDelete();

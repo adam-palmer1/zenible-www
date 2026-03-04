@@ -3,10 +3,10 @@
  * Handles AI characters, categories, OpenAI models, tools, and shortcodes
  */
 
-import { API_BASE_URL } from '@/config/api';
-import { createRequest } from '../httpClient';
+import { ZBI_API_BASE_URL } from '@/config/api';
+import { createZbiRequest } from '../httpClient';
 
-const request = createRequest('AdminAI_API');
+const request = createZbiRequest('AdminAI_API');
 
 const adminAI_API = {
   // AI Character management endpoints
@@ -43,7 +43,7 @@ const adminAI_API = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const url = `${API_BASE_URL}/ai/characters/${characterId}/avatar`;
+    const url = `${ZBI_API_BASE_URL}/ai/characters/${characterId}/avatar`;
     const token = localStorage.getItem('access_token');
 
     const response = await fetch(url, {
@@ -65,7 +65,7 @@ const adminAI_API = {
 
   // Delete avatar for AI character
   async deleteAICharacterAvatar(characterId: string): Promise<unknown> {
-    const url = `${API_BASE_URL}/ai/characters/${characterId}/avatar`;
+    const url = `${ZBI_API_BASE_URL}/ai/characters/${characterId}/avatar`;
     const token = localStorage.getItem('access_token');
 
     const response = await fetch(url, {

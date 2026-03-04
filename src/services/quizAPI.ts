@@ -1,5 +1,5 @@
 // API service for Quiz Management endpoints
-import { API_BASE_URL } from '@/config/api';
+import { ZBI_API_BASE_URL } from '@/config/api';
 import logger from '../utils/logger';
 
 interface ApiError extends Error {
@@ -29,7 +29,7 @@ const getHeaders = (): Record<string, string> => {
 
 class QuizAPI {
   private async request<T = unknown>(endpoint: string, options: RequestInit & { headers?: Record<string, string> } = {}): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${ZBI_API_BASE_URL}${endpoint}`;
     const config: RequestInit = {
       ...options,
       headers: {

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNotification } from './NotificationContext';
 import { useAuth } from './AuthContext';
+import { ApiError } from '../services/api/ApiError';
 import { getContactDisplayName } from '../utils/crm/contactUtils';
 import appointmentsAPI from '../services/api/crm/appointments';
 import { prepareAppointmentData } from '../utils/crm/appointmentUtils';
@@ -231,7 +232,11 @@ export const ContactActionsProvider = ({
       return { success: true };
     } catch (error) {
       console.error('Failed to delete contact:', error);
-      showError('Failed to delete contact. Please try again.');
+      if (error instanceof ApiError && error.isInsufficientPermissions) {
+        showError('Insufficient permission to perform the requested action.');
+      } else {
+        showError('Failed to delete contact. Please try again.');
+      }
       return { success: false, error };
     }
   }, [onDelete, showSuccess, showError]);

@@ -2,7 +2,7 @@
  * Tool Discovery API Service
  * Fetches available AI tools for characters
  */
-import { API_BASE_URL } from '@/config/api';
+import { ZBI_API_BASE_URL } from '@/config/api';
 import logger from '../utils/logger';
 
 interface ValidationError {
@@ -48,7 +48,7 @@ export const getCharacterTools = async (characterId: string): Promise<CharacterT
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/ai/characters/${characterId}/tools?include_questions=true`, {
+    const response = await fetch(`${ZBI_API_BASE_URL}/ai/characters/${characterId}/tools?include_questions=true`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

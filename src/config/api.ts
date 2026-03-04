@@ -10,9 +10,11 @@ if (!import.meta.env.VITE_API_BASE_URL) {
 }
 
 export const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL;
+export const ZBI_API_BASE_URL: string = import.meta.env.VITE_ZBI_API_BASE_URL || API_BASE_URL;
 
 // Derive WebSocket URL from API_BASE_URL (replace http/https with ws/wss)
 export const WS_URL: string = API_BASE_URL.replace(/^http/, 'ws');
+export const ZBI_WS_URL: string = import.meta.env.VITE_ZBI_WS_URL || WS_URL;
 
 // API Headers
 const getHeaders = (includeAuth = true): Record<string, string> => {

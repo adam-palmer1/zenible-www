@@ -3,9 +3,9 @@
  * Handles thread management, messages, and conversation admin operations
  */
 
-import { createRequest } from '../httpClient';
+import { createZbiRequest } from '../httpClient';
 
-const request = createRequest('AdminThreadsAPI');
+const request = createZbiRequest('AdminThreadsAPI');
 
 const adminThreadsAPI = {
   // Thread management endpoints

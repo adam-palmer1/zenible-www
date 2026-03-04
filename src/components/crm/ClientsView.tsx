@@ -7,6 +7,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import { useContacts, useCompanyCurrencies } from '../../hooks/crm';
+import { ApiError } from '../../services/api/ApiError';
 import { useNotification } from '../../contexts/NotificationContext';
 import { formatCurrency } from '../../utils/currency';
 import Dropdown from '../ui/dropdown/Dropdown';
@@ -169,7 +170,11 @@ const ClientsView: React.FC<ClientsViewProps> = ({
         showSuccess(`${displayName} deleted permanently`);
       } catch (error) {
         console.error('Error deleting client:', error);
-        showError('Failed to delete client');
+        if (error instanceof ApiError && error.isInsufficientPermissions) {
+          showError('Insufficient permission to perform the requested action.');
+        } else {
+          showError('Failed to delete client');
+        }
         throw error;
       }
     });

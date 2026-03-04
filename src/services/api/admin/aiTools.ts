@@ -3,10 +3,10 @@
  * Handles AI tools management, character tool instructions, and completion questions
  */
 
-import { createRequest } from '../httpClient';
+import { createZbiRequest } from '../httpClient';
 import logger from '../../../utils/logger';
 
-const request = createRequest('AdminAIToolsAPI');
+const request = createZbiRequest('AdminAIToolsAPI');
 
 const adminAIToolsAPI = {
   // AI Tools Management endpoints

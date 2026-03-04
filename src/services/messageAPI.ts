@@ -1,12 +1,12 @@
 import { makeAuthenticatedRequest } from '../utils/auth';
-import { API_BASE_URL } from '@/config/api';
+import { ZBI_API_BASE_URL } from '@/config/api';
 
 export const messageAPI = {
   /**
    * Update a message in a conversation
    */
   async updateMessage(conversationId: string, messageId: string, data: unknown): Promise<unknown> {
-    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/ai/conversations/${conversationId}/messages/${messageId}`, {
+    const response = await makeAuthenticatedRequest(`${ZBI_API_BASE_URL}/ai/conversations/${conversationId}/messages/${messageId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -25,7 +25,7 @@ export const messageAPI = {
    * Rate a message
    */
   async rateMessage(conversationId: string, messageId: string, rating: 'good' | 'bad' | null): Promise<unknown> {
-    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/ai/conversations/${conversationId}/messages/${messageId}`, {
+    const response = await makeAuthenticatedRequest(`${ZBI_API_BASE_URL}/ai/conversations/${conversationId}/messages/${messageId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -44,7 +44,7 @@ export const messageAPI = {
    * Update message metadata
    */
   async updateMessageMetadata(conversationId: string, messageId: string, metadata: unknown): Promise<unknown> {
-    const response = await makeAuthenticatedRequest(`${API_BASE_URL}/ai/conversations/${conversationId}/messages/${messageId}`, {
+    const response = await makeAuthenticatedRequest(`${ZBI_API_BASE_URL}/ai/conversations/${conversationId}/messages/${messageId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

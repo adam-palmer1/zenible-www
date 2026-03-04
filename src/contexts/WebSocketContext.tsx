@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import WebSocketService from '../services/WebSocketService';
 import ConversationStreamingManager from '../services/ConversationStreamingManager';
 import StableWebSocketConnection from '../services/StableWebSocketConnection';
-import { WS_URL } from '@/config/api';
+import { ZBI_WS_URL } from '@/config/api';
 import logger from '../utils/logger';
 
 interface ConnectionHealth {
@@ -65,7 +65,7 @@ export const WebSocketProvider = ({ children }: { children: React.ReactNode }) =
     setConnectionError(null);
 
     try {
-      const wsUrl = import.meta.env.VITE_WS_URL || WS_URL;
+      const wsUrl = import.meta.env.VITE_ZBI_WS_URL || ZBI_WS_URL;
 
       const wsService = new WebSocketService({
         baseUrl: wsUrl,

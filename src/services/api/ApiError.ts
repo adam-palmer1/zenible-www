@@ -37,6 +37,11 @@ export class ApiError extends Error {
     return this.status === 403;
   }
 
+  get isInsufficientPermissions(): boolean {
+    const dataRecord = this.data as Record<string, unknown>;
+    return this.isForbidden && !!this.data && typeof this.data === 'object' && dataRecord.type === 'insufficient_permissions';
+  }
+
   get isValidationError(): boolean {
     return this.status === 422;
   }
@@ -49,6 +54,7 @@ export class ApiError extends Error {
     // Return a user-friendly message, hiding internal details
     if (this.isNotFound) return 'The requested resource was not found.';
     if (this.isUnauthorized) return 'Please sign in to continue.';
+    if (this.isInsufficientPermissions) return 'Insufficient permission to perform the requested action.';
     if (this.isForbidden) return 'You do not have permission to perform this action.';
     if (this.isValidationError && this.validationErrors?.length) {
       return this.validationErrors.map(e => e.msg || e.message).join(', ');

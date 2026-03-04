@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import contactsAPI from '../../services/api/crm/contacts';
+import { ApiError } from '../../services/api/ApiError';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
 import Dropdown from '../ui/dropdown/Dropdown';
@@ -56,7 +57,11 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
         showSuccess('Contact deleted successfully');
       } catch (error) {
         console.error('Error deleting contact:', error);
-        showError('Failed to delete contact');
+        if (error instanceof ApiError && error.isInsufficientPermissions) {
+          showError('Insufficient permission to perform the requested action.');
+        } else {
+          showError('Failed to delete contact');
+        }
         throw error;
       }
     });

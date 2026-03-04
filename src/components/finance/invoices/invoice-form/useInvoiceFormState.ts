@@ -10,6 +10,7 @@ import { calculateInvoiceTotal } from '../../../../utils/invoiceCalculations';
 import { useCompanyCurrencies } from '../../../../hooks/crm/useCompanyCurrencies';
 import companiesAPI from '../../../../services/api/crm/companies';
 import contactsAPI from '../../../../services/api/crm/contacts';
+import { ApiError } from '../../../../services/api/ApiError';
 import invoicesAPI from '../../../../services/api/finance/invoices';
 import billableHoursAPI from '../../../../services/api/crm/billableHours';
 import type { InvoiceItemResponse, NumberFormatResponse, CompanyResponse } from '../../../../types';
@@ -804,7 +805,11 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
       }
     } catch (error: unknown) {
       console.error('Error saving invoice:', error);
-      showError((error as Error).message || 'Failed to save invoice');
+      if (error instanceof ApiError && error.isInsufficientPermissions) {
+        showError('Insufficient permission to perform the requested action.');
+      } else {
+        showError((error as Error).message || 'Failed to save invoice');
+      }
     } finally {
       setSaving(false);
     }

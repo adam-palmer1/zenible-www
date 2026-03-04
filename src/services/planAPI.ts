@@ -1,5 +1,5 @@
 // Public plan API service for pricing page
-import { API_BASE_URL } from '@/config/api';
+import { API_BASE_URL, ZBI_API_BASE_URL } from '@/config/api';
 import logger from '../utils/logger';
 
 class PlanAPI {
@@ -409,7 +409,7 @@ class PlanAPI {
         ...params
       });
 
-      const response = await fetch(`${API_BASE_URL}/ai/characters/?${queryParams}`, {
+      const response = await fetch(`${ZBI_API_BASE_URL}/ai/characters/?${queryParams}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -430,7 +430,7 @@ class PlanAPI {
 
   async getPublicCharacterCategories(): Promise<unknown> {
     try {
-      const response = await fetch(`${API_BASE_URL}/ai/characters/categories/`, {
+      const response = await fetch(`${ZBI_API_BASE_URL}/ai/characters/categories/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

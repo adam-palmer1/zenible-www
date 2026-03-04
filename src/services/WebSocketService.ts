@@ -33,7 +33,7 @@ class WebSocketService {
       }
 
       this.socket = io(this.config.baseUrl, {
-        path: '/socket.io',
+        path: '/zbi/socket.io',
         transports: ['websocket', 'polling'],
         auth: {
           token: token
