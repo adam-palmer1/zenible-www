@@ -16,7 +16,8 @@ const getServiceProgress = (service: any) => {
 
   const totalAttributed = parseFloat(service.total_attributed) || 0;
   const totalInvoiced = parseFloat(service.total_invoiced) || 0;
-  const amountRemaining = parseFloat(service.amount_remaining) ?? price;
+  const isIndefiniteRecurring = service.recurring_number === -1;
+  const amountRemaining = service.amount_remaining != null ? parseFloat(service.amount_remaining) : null;
 
   const attributedPercent = (totalAttributed / price) * 100;
   const invoicedPercent = (totalInvoiced / price) * 100;
@@ -26,6 +27,7 @@ const getServiceProgress = (service: any) => {
     totalAttributed,
     totalInvoiced,
     amountRemaining,
+    isIndefiniteRecurring,
     attributedPercent,
     invoicedPercent,
     totalPercent,
@@ -116,16 +118,19 @@ const ServicesList: React.FC<ServicesListProps> = ({ services = [], onEdit, onDe
                       {service.time_period}
                     </span>
                   )}
-                  {/* Remaining Amount Text */}
+                  {/* Remaining / Total Invoiced Text */}
                   {progress?.hasProgress && (
                     <span className="text-xs text-gray-500 dark:text-gray-400">
-                      Remaining: {formatCurrency(progress.amountRemaining, service.currency?.code)}
+                      {progress.isIndefiniteRecurring
+                        ? `Total Invoiced: ${formatCurrency(progress.totalInvoiced, service.currency?.code)}`
+                        : `Remaining: ${formatCurrency(progress.amountRemaining ?? 0, service.currency?.code)}`
+                      }
                     </span>
                   )}
                 </div>
 
-                {/* Progress Bar */}
-                {progress?.hasProgress && (
+                {/* Progress Bar (hidden for indefinite recurring - no finite total) */}
+                {progress?.hasProgress && !progress.isIndefiniteRecurring && (
                   <div className="mt-2 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div className="h-full flex">
                       {/* Invoiced portion (green) */}

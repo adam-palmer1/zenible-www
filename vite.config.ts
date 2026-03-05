@@ -21,6 +21,9 @@ export default defineConfig(({ mode }) => {
       port: parseInt(env.VITE_PORT) || 3000,
       strictPort: true,
       allowedHosts: ['app.zenible.com', 'demo.zenible.com'],
+      watch: {
+        ignored: ['**/Dockerfile', '**/.dockerignore'],
+      },
     }
   }
 })

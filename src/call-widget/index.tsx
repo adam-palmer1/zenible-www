@@ -8,7 +8,7 @@ declare const __ZENIBLE_API_URL__: string | undefined;
 // API URL baked in at build time
 const DEFAULT_API_URL = typeof __ZENIBLE_API_URL__ !== 'undefined'
   ? __ZENIBLE_API_URL__
-  : 'https://api.zenible.com/api/v1';
+  : 'https://app.zenible.com/api/v1';
 
 interface WidgetOptions {
   username?: string;

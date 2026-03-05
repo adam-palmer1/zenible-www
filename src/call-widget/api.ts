@@ -13,7 +13,7 @@ class WidgetAPI {
   baseUrl: string;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || 'https://api.zenible.com/api/v1';
+    this.baseUrl = baseUrl || 'https://app.zenible.com/api/v1';
   }
 
   async request(endpoint: string, options: RequestOptions = {}): Promise<any> {

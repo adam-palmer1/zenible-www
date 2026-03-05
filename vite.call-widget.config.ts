@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       'process.env.NODE_ENV': JSON.stringify(mode),
-      '__ZENIBLE_API_URL__': JSON.stringify(env.VITE_API_BASE_URL || 'https://api.zenible.com/api/v1'),
+      '__ZENIBLE_API_URL__': JSON.stringify(env.VITE_API_BASE_URL || 'https://app.zenible.com/api/v1'),
     },
     build: {
       lib: {
