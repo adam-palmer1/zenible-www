@@ -238,18 +238,29 @@ const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
                 </div>
               </div>
               {savedCards.length > 0 && (
-                <button
-                  onClick={() => handleDeleteCard(savedCards[0].id)}
-                  disabled={deletingCard === savedCards[0].id}
-                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
-                  title="Remove card"
-                >
-                  {deletingCard === savedCards[0].id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
+                <div className="flex items-center gap-1">
+                  {canSetupAutomaticPayments && (
+                    <button
+                      onClick={() => setPaymentMethod('setup_card')}
+                      className="p-1.5 text-gray-400 hover:text-[#8e51ff] hover:bg-[#f5f0ff] rounded transition-colors"
+                      title="Update card"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </button>
                   )}
-                </button>
+                  <button
+                    onClick={() => handleDeleteCard(savedCards[0].id)}
+                    disabled={deletingCard === savedCards[0].id}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                    title="Remove card"
+                  >
+                    {deletingCard === savedCards[0].id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               )}
             </div>
           </div>

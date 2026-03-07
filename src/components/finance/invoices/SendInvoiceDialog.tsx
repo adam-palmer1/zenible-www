@@ -10,6 +10,7 @@ interface SendInvoiceDialogProps {
   invoice: any;
   contact: any;
   onSuccess?: () => void;
+  skipAutoBilling?: boolean;
 }
 
 const SendInvoiceDialog: React.FC<SendInvoiceDialogProps> = ({
@@ -17,7 +18,8 @@ const SendInvoiceDialog: React.FC<SendInvoiceDialogProps> = ({
   onClose,
   invoice,
   contact,
-  onSuccess
+  onSuccess,
+  skipAutoBilling = false,
 }) => {
   const { sendInvoice } = useInvoices();
 
@@ -37,10 +39,11 @@ const SendInvoiceDialog: React.FC<SendInvoiceDialogProps> = ({
         email_body: formData.email_body,
         attach_pdf: formData.attach_pdf,
         template_id: formData.template_id,
+        skip_auto_billing: skipAutoBilling,
       };
       await sendInvoice(invoice.id, sendData);
     },
-    [invoice?.id, sendInvoice]
+    [invoice?.id, sendInvoice, skipAutoBilling]
   );
 
   // ---- Document info section ----

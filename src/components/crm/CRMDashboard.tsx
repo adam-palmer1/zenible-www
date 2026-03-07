@@ -38,7 +38,7 @@ const CRMDashboard: React.FC = () => {
   const { hasCRMAccess, hasWriteAccess } = useCRMPermissions();
 
   // Validate tab value and determine active tab
-  const allTabs = ['crm', 'clients', 'vendors', 'services', 'projects'];
+  const allTabs = ['crm', 'clients', 'vendors', 'services', 'projects', 'meetings'];
   const validTabs = hasCRMAccess ? allTabs : allTabs.filter(t => t !== 'services' && t !== 'projects');
   const activeTab = tab && validTabs.includes(tab) ? tab : 'crm';
 
@@ -216,8 +216,8 @@ const CRMDashboard: React.FC = () => {
             hasCRMAccess={hasCRMAccess}
           />
 
-          {/* Page Header with Tabs */}
-          <CRMHeader
+          {/* Page Header with Tabs - Hidden on Services/Projects/Meetings */}
+          {!['services', 'projects', 'meetings'].includes(activeTab) && <CRMHeader
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             hasCRMAccess={hasCRMAccess}
@@ -325,7 +325,7 @@ const CRMDashboard: React.FC = () => {
                 />
               </Suspense>
             )}
-          </CRMHeader>
+          </CRMHeader>}
         </>
       }
     >

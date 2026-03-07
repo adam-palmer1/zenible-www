@@ -75,10 +75,14 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
   const [categoryId, setCategoryId] = useState(expense?.expense_category_id || expense?.category_id || '');
   const [vendorId, setVendorId] = useState(expense?.vendor_id || '');
   const [contactId, setContactId] = useState(expense?.contact_id || '');
-  const [projectId, setProjectId] = useState(expense?.project_id || '');
+  const [projectId, setProjectId] = useState(() => {
+    if (expense?.project_id) return expense.project_id;
+    const projectAlloc = expense?.allocations?.find((a: any) => a.entity_type === 'project');
+    return projectAlloc?.entity_id || '';
+  });
   const [description, setDescription] = useState(expense?.description || '');
   const [paymentMethod, setPaymentMethod] = useState(expense?.payment_method || '');
-  const [reference, setReference] = useState(expense?.reference || '');
+  const [reference, setReference] = useState(expense?.reference_number || '');
   const [notes, setNotes] = useState(expense?.notes || '');
   const [saving, setSaving] = useState(false);
   const [creatingCategory, setCreatingCategory] = useState(false);
@@ -481,7 +485,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
         expense_category_id: categoryId || undefined,
         vendor_id: vendorId || undefined,
         contact_id: contactId || undefined,
-        project_id: projectId || undefined,
+
         description: description || undefined,
         payment_method: paymentMethod || undefined,
         reference_number: reference || undefined,
@@ -511,6 +515,36 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
       } else {
         result = await createExpense(expenseData);
         showSuccess('Expense created successfully');
+      }
+
+      // Handle project allocation via allocations API
+      const savedExpenseId = expense?.id || (result as any)?.id;
+      if (savedExpenseId) {
+        try {
+          if (projectId) {
+            // Preserve existing non-project allocations and add/update project
+            const currentAllocations = expense?.allocations || [];
+            const nonProjectAllocations = currentAllocations
+              .filter((a: any) => a.entity_type !== 'project')
+              .map((a: any) => ({ entity_type: a.entity_type, entity_id: a.entity_id, percentage: a.percentage }));
+            await expensesAPI.updateAllocations(savedExpenseId, [
+              ...nonProjectAllocations,
+              { entity_type: 'project', entity_id: projectId, percentage: 100 }
+            ]);
+          } else if (expense?.id) {
+            // Editing and project was cleared — remove project allocation
+            const currentAllocations = expense?.allocations || [];
+            const hadProject = currentAllocations.some((a: any) => a.entity_type === 'project');
+            if (hadProject) {
+              const nonProjectAllocations = currentAllocations
+                .filter((a: any) => a.entity_type !== 'project')
+                .map((a: any) => ({ entity_type: a.entity_type, entity_id: a.entity_id, percentage: a.percentage }));
+              await expensesAPI.updateAllocations(savedExpenseId, nonProjectAllocations);
+            }
+          }
+        } catch (allocError) {
+          console.error('Failed to update project allocation:', allocError);
+        }
       }
 
       if (onSuccess) {

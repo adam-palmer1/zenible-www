@@ -236,7 +236,9 @@ export default function PricingNew() {
     // Free-to-paid upgrade: need to collect payment first
     if (!currentSubscription?.stripe_subscription_id && planChangeModal.preview?.direction === 'upgrade') {
       const planName = planChangeModal.preview?.new_plan_name || 'New Plan';
-      const price = String(planChangeModal.preview?.new_price || '');
+      const price = planChangeModal.preview?.new_price
+        ? parseFloat(String(planChangeModal.preview.new_price)).toFixed(2).replace(/\.00$/, '')
+        : '';
       // Close preview modal and save pending upgrade info
       setPlanChangeModal({ isOpen: false, planId: null, preview: null, loading: false, confirming: false, error: null });
       setPendingUpgrade({ planId: planChangeModal.planId, planName, price, billingCycle });
@@ -251,7 +253,9 @@ export default function PricingNew() {
       await planAPI.changeSubscription(planChangeModal.planId, { billingCycle });
       // Close modal and show success
       const planName = planChangeModal.preview?.new_plan_name || 'New Plan';
-      const price = String(planChangeModal.preview?.new_price || '');
+      const price = planChangeModal.preview?.new_price
+        ? parseFloat(String(planChangeModal.preview.new_price)).toFixed(2).replace(/\.00$/, '')
+        : '';
       setPlanChangeModal({ isOpen: false, planId: null, preview: null, loading: false, confirming: false, error: null });
       setSuccessModal({ isOpen: true, planName, price, billingCycle });
       await Promise.all([fetchData(), checkAuth()]);

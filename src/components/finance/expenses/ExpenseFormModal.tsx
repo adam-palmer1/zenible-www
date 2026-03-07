@@ -21,6 +21,30 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({ isOpen, onClose, ex
     setPortalContainer(node);
   }, []);
 
+  // Prevent Radix FocusScope from stealing focus from portaled dropdowns.
+  // FocusScope listens for focus events and pulls focus back into
+  // Dialog.Content. We intercept both focusin and focusout in capture phase
+  // to prevent FocusScope from detecting focus changes to/from the portal.
+  useEffect(() => {
+    if (!portalContainer) return;
+    const handleFocusIn = (e: FocusEvent) => {
+      if (portalContainer.contains(e.target as Node)) {
+        e.stopImmediatePropagation();
+      }
+    };
+    const handleFocusOut = (e: FocusEvent) => {
+      if (e.relatedTarget && portalContainer.contains(e.relatedTarget as Node)) {
+        e.stopImmediatePropagation();
+      }
+    };
+    document.addEventListener('focusin', handleFocusIn, true);
+    document.addEventListener('focusout', handleFocusOut, true);
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn, true);
+      document.removeEventListener('focusout', handleFocusOut, true);
+    };
+  }, [portalContainer]);
+
   useEffect(() => {
     const fetchExpense = async () => {
       if (!expenseId) {
@@ -62,6 +86,16 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({ isOpen, onClose, ex
         <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
 
         <Dialog.Content
+          onPointerDownOutside={(e) => {
+            if (portalContainer?.contains(e.target as Node)) {
+              e.preventDefault();
+            }
+          }}
+          onFocusOutside={(e) => {
+            if (portalContainer?.contains(e.target as Node)) {
+              e.preventDefault();
+            }
+          }}
           className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] w-full max-w-[95vw] md:max-w-4xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl focus:outline-none overflow-y-auto"
         >
           <ModalPortalContext.Provider value={portalContainer}>

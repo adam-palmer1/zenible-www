@@ -54,9 +54,32 @@ export default function Sidebar() {
     },
     {
       icon: ContactsIcon,
-      label: 'CRM',
+      label: 'Contacts',
       path: '/crm',
-      isActive: location.pathname.startsWith('/crm')
+      hasSubmenu: true,
+      isActive: location.pathname.startsWith('/crm'),
+      submenuItems: [
+        {
+          label: 'CRM',
+          path: '/crm',
+          isActive: location.pathname === '/crm'
+        },
+        {
+          label: 'Services',
+          path: '/crm/services',
+          isActive: location.pathname.startsWith('/crm/services')
+        },
+        {
+          label: 'Projects',
+          path: '/crm/projects',
+          isActive: location.pathname.startsWith('/crm/projects')
+        },
+        {
+          label: 'Meetings',
+          path: '/crm/meetings',
+          isActive: location.pathname.startsWith('/crm/meetings')
+        }
+      ]
     },
     {
       icon: CalendarIcon,

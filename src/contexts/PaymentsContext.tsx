@@ -86,7 +86,7 @@ export const PaymentsContext = createContext<PaymentsContextValue | null>(null);
 
 export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  const { getPreference, updatePreference } = usePreferences();
+  const { getPreference, updatePreference, initialized: prefsReady } = usePreferences();
   const queryClient = useQueryClient();
   const usageDashboard = useUsageDashboardOptional();
   const financeEnabled = usageDashboard?.isFeatureEnabled('finance_features') ?? false;
@@ -137,7 +137,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
 
   // Load filters from preferences
   useEffect(() => {
-    if (user && !preferencesLoaded) {
+    if (user && prefsReady && !preferencesLoaded) {
       const savedFilters = {
         status: getPreference('payment_filter_status', null) as string | null,
         sort_by: getPreference('payment_sort_by', 'payment_date') as string,
@@ -146,7 +146,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
       setFilters(prev => ({ ...prev, ...savedFilters }));
       setPreferencesLoaded(true);
     }
-  }, [user, getPreference, preferencesLoaded]);
+  }, [user, prefsReady, getPreference, preferencesLoaded]);
 
   // Build API params
   const apiParams = useMemo(() => {

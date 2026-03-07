@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import infoIcon from '../../assets/icons/info.svg';
 // Removed SVG imports - will use inline SVG components instead
 import brandIcon from '../../assets/icons/brand-icon.svg';
 import AICharacterTypingIndicator, { TypingDots } from '../ai/AICharacterTypingIndicator';
@@ -142,12 +141,13 @@ export default function AIFeedbackSection({
     // 1. User hasn't manually scrolled up, OR
     // 2. User is already at the bottom
     if (!isUserScrolling || isScrolledToBottom()) {
+      const isActivelyStreaming = isStreaming || isFollowUpStreaming;
       scrollContainerRef.current.scrollTo({
         top: scrollContainerRef.current.scrollHeight,
-        behavior: 'smooth'
+        behavior: isActivelyStreaming ? 'instant' : 'smooth'
       });
     }
-  }, [displayContent, followUpStreamingContent, followUpMessages, isUserScrolling, isScrolledToBottom]);
+  }, [displayContent, followUpStreamingContent, followUpMessages, isUserScrolling, isScrolledToBottom, isStreaming, isFollowUpStreaming]);
 
   // Cleanup scroll timeout on unmount
   useEffect(() => {
@@ -279,13 +279,13 @@ export default function AIFeedbackSection({
   };
 
   return (
-    <div className={`rounded-xl border shadow-sm h-full flex flex-col min-h-[300px] sm:min-h-[400px] max-h-full ${
+    <div className={`rounded-xl border shadow-sm h-full flex-1 flex flex-col min-h-[300px] sm:min-h-[400px] overflow-hidden ${
       darkMode
         ? 'bg-[#1e1e1e] border-[#333333]'
         : 'bg-white border-neutral-200'
     }`}>
       {/* Header */}
-      <div className={`p-3 sm:p-4 border-b flex items-center justify-between ${
+      <div className={`p-3 sm:p-4 border-b flex items-center justify-between flex-shrink-0 ${
         darkMode ? 'border-[#333333]' : 'border-neutral-200'
       }`}>
         <h3 className={`font-inter font-semibold text-base sm:text-lg ${
@@ -305,7 +305,6 @@ export default function AIFeedbackSection({
               Cancel
             </button>
           )}
-          <img src={infoIcon} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
       </div>
 
@@ -313,7 +312,7 @@ export default function AIFeedbackSection({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 p-3 sm:p-4 overflow-auto overflow-y-auto overflow-x-visible"
+        className="flex-1 p-3 sm:p-4 overflow-y-auto overflow-x-hidden min-h-0 scrollbar-hover"
       >
         {!feedback && !analyzing && !isProcessing && !rawAnalysis && (
           <EmptyState

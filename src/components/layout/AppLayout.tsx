@@ -34,7 +34,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
       {/* Main content area */}
       <div
-        className={`min-h-screen-safe flex flex-col transition-all duration-300 ${className}`}
+        className={`min-h-screen-safe h-screen-safe flex flex-col transition-all duration-300 ${className}`}
         style={{ marginLeft: 'var(--sidebar-width, 0px)' }}
       >
         {/* Mobile header (hidden on lg+) */}

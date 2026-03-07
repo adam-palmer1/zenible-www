@@ -102,7 +102,7 @@ export default function CalendarMonthView({ currentDate, appointments, onAppoint
         ))}
       </div>
 
-      <div ref={gridRef} className="flex-1 min-h-0 overflow-hidden" style={{ display: 'grid', gridTemplateRows: `repeat(${numWeeks}, 1fr)` }}>
+      <div ref={gridRef} className="flex-1 min-h-0 overflow-hidden" style={{ display: 'grid', gridTemplateRows: `repeat(${numWeeks}, minmax(0, 1fr))` }}>
         {weeks.map((weekDays, weekIndex) => {
           const weekLayout = weekLayouts[weekIndex];
           const maxVisible = getMaxVisible(weekIndex);

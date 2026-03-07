@@ -10,9 +10,11 @@ import {
   convertToExpenseFormat,
   generateCSVTemplate,
   downloadCSV,
-  generateErrorCSV
+  generateErrorCSV,
+  getVendorDisplayName
 } from '../../../utils/csvParser';
 import expensesAPI from '../../../services/api/finance/expenses';
+import contactsAPI from '../../../services/api/crm/contacts';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 
 const STEPS = {
@@ -55,6 +57,19 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, onOpenChange }) =
     }
   }, [open, currencies, defaultCurrencyAssoc, selectedCurrency]);
 
+  // Re-validate when createMissing option changes
+  React.useEffect(() => {
+    if (parsedData.length === 0) return;
+    const errors: Array<{ rowIndex: number; row: Record<string, string>; errors: string[] }> = [];
+    parsedData.forEach((row, index) => {
+      const validation = validateExpenseRow(row, { categories, vendors, createMissing });
+      if (!validation.valid) {
+        errors.push({ rowIndex: index + 2, row, errors: validation.errors });
+      }
+    });
+    setValidationErrors(errors);
+  }, [createMissing, parsedData, categories, vendors]);
+
   const handleClose = () => {
     setCurrentStep(STEPS.UPLOAD);
     setFile(null);
@@ -77,7 +92,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, onOpenChange }) =
 
       const errors: Array<{ rowIndex: number; row: Record<string, string>; errors: string[] }> = [];
       data.forEach((row: Record<string, string>, index: number) => {
-        const validation = validateExpenseRow(row, { categories, vendors: vendors as Array<{ name?: string }> });
+        const validation = validateExpenseRow(row, { categories, vendors });
         if (!validation.valid) {
           errors.push({
             rowIndex: index + 2,
@@ -140,12 +155,47 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, onOpenChange }) =
       return !validationErrors.some((e) => e.rowIndex === index + 2);
     });
 
+    // Create missing categories and vendors before importing expenses
+    let allCategories = categories;
+    let allVendors = vendors;
+
+    if (createMissing) {
+      // Collect unique unknown category names
+      const existingCatNames = new Set(categories.map((c: any) => c.name?.toLowerCase()));
+      const unknownCategories = [...new Set(
+        validRows.map(r => r.category).filter(name => name && !existingCatNames.has(name.toLowerCase()))
+      )];
+      const newCategories: Array<{ id: string; name: string }> = [];
+      for (const name of unknownCategories) {
+        try {
+          const created = await expensesAPI.createCategory({ name });
+          newCategories.push(created as any);
+        } catch { /* skip if creation fails */ }
+      }
+
+      // Collect unique unknown vendor names
+      const existingVendorNames = new Set(allVendors.map((v: any) => getVendorDisplayName(v).toLowerCase()));
+      const unknownVendors = [...new Set(
+        validRows.map(r => r.vendor).filter(name => name && !existingVendorNames.has(name.toLowerCase()))
+      )];
+      const newVendors: Array<any> = [];
+      for (const name of unknownVendors) {
+        try {
+          const created = await contactsAPI.create({ business_name: name, is_vendor: true } as any);
+          newVendors.push(created);
+        } catch { /* skip if creation fails */ }
+      }
+
+      allCategories = [...categories, ...newCategories];
+      allVendors = [...vendors, ...newVendors];
+    }
+
     for (let i = 0; i < validRows.length; i++) {
       try {
         const row = validRows[i];
         const expenseData = convertToExpenseFormat(row, {
-          categories,
-          vendors,
+          categories: allCategories,
+          vendors: allVendors,
           currencies,
           createMissing,
         });

@@ -23,7 +23,7 @@ export default function ChatInput({
   onSend,
 }: ChatInputProps) {
   return (
-    <div className="p-1.5 sm:p-2">
+    <div className="p-1.5 sm:p-2 flex-shrink-0">
       <div className={`border rounded-xl flex items-center pl-3 sm:pl-4 pr-1 sm:pr-1.5 py-1 sm:py-1.5 ${
         darkMode
           ? 'bg-[#2d2d2d] border-[#4a4a4a]'

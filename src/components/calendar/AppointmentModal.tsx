@@ -83,6 +83,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
     meeting_link: '',
     all_day: false,
     send_invite_to_contact: true,
+    zmi_enabled: null as boolean | null,
   });
 
   // Recurring appointment state
@@ -129,6 +130,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
           meeting_link: fullAppointment.meeting_link || '',
           all_day: fullAppointment.all_day || false,
           send_invite_to_contact: fullAppointment.send_invite_to_contact ?? true,
+          zmi_enabled: fullAppointment.zmi_enabled ?? null,
         });
 
         // Initialize recurrence state from full appointment
@@ -345,6 +347,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
         contact_id: formData.contact_id,
         location: formData.location,
         meeting_link: formData.meeting_link,
+        zmi_enabled: formData.zmi_enabled,
       };
 
       // Only include send_invite_to_contact if a contact is selected
@@ -785,6 +788,30 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                       <p className="mt-1 text-sm text-red-600">{errors.meeting_link}</p>
                     )}
                   </div>
+
+                  {/* Meeting Intelligence toggle — only show when meeting_link is set */}
+                  {formData.meeting_link && formData.meeting_link.trim() && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Meeting Intelligence
+                      </label>
+                      <select
+                        value={formData.zmi_enabled === null ? 'default' : formData.zmi_enabled ? 'true' : 'false'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormData({
+                            ...formData,
+                            zmi_enabled: val === 'default' ? null : val === 'true',
+                          });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="default">Default (use account setting)</option>
+                        <option value="true">Enabled for this meeting</option>
+                        <option value="false">Disabled for this meeting</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 {/* Recurring Section */}

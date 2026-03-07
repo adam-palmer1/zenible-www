@@ -113,14 +113,14 @@ export const contactSchema = z.object({
   }
 ).refine(
   (data) => {
-    // Email required for clients and vendors
-    if ((data.is_client || data.is_vendor) && !data.email) {
+    // Email required for clients
+    if (data.is_client && !data.email) {
       return false;
     }
     return true;
   },
   {
-    message: 'Email is required for clients and vendors',
+    message: 'Email is required for clients',
     path: ['email'],
   }
 );

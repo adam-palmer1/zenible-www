@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useInvoices } from '../../../contexts/InvoiceContext';
@@ -18,6 +18,7 @@ import AddPaymentModal from './AddPaymentModal';
 import LinkPaymentModal from './LinkPaymentModal';
 import ConfirmationModal from '../../shared/ConfirmationModal';
 import AssignExpenseModal from '../expenses/AssignExpenseModal';
+import AutoBillingConfirmModal from './AutoBillingConfirmModal';
 import { ProjectAllocationModal } from '../allocations';
 import type { InvoiceResponse, InvoiceViewHistoryResponse, CompanyResponse } from '../../../types';
 
@@ -60,6 +61,10 @@ const InvoiceDetail: React.FC = () => {
     transaction_id?: string;
   } | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  // Auto-billing confirmation state
+  const [showBillingConfirm, setShowBillingConfirm] = useState(false);
+  const skipAutoBillingRef = useRef(false);
 
   // Charge card modal state
   const [showChargeCardModal, setShowChargeCardModal] = useState(false);
@@ -344,7 +349,17 @@ const InvoiceDetail: React.FC = () => {
         onBack={() => navigate('/finance/invoices')}
         onDownloadPdf={handleDownloadPdf}
         onAddPayment={() => setShowPaymentModal(true)}
-        onSendEmail={() => setShowSendModal(true)}
+        onSendEmail={() => {
+          const willAutoBill = invoice.automatic_payment_enabled &&
+            invoice.has_saved_payment_method === true &&
+            invoice.pricing_type !== 'recurring';
+          if (willAutoBill) {
+            setShowBillingConfirm(true);
+          } else {
+            skipAutoBillingRef.current = false;
+            setShowSendModal(true);
+          }
+        }}
         onEdit={() => navigate(`/finance/invoices/${id}/edit`)}
         onClone={handleClone}
         onDelete={handleDelete}
@@ -419,6 +434,7 @@ const InvoiceDetail: React.FC = () => {
         invoice={invoice}
         contact={invoice.contact}
         onSuccess={loadInvoice}
+        skipAutoBilling={skipAutoBillingRef.current}
       />
 
       <SendReminderDialog
@@ -485,6 +501,21 @@ const InvoiceDetail: React.FC = () => {
         currency={invoice.currency?.code || 'GBP'}
         currentAllocations={invoice.project_allocations || []}
         onUpdate={loadInvoice}
+      />
+
+      <AutoBillingConfirmModal
+        isOpen={showBillingConfirm}
+        onBillNow={() => {
+          setShowBillingConfirm(false);
+          skipAutoBillingRef.current = false;
+          setShowSendModal(true);
+        }}
+        onSendWithoutBilling={() => {
+          setShowBillingConfirm(false);
+          skipAutoBillingRef.current = true;
+          setShowSendModal(true);
+        }}
+        onCancel={() => setShowBillingConfirm(false)}
       />
 
       {/* Charge Card Amount Selection Modal */}

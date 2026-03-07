@@ -189,20 +189,6 @@ const InvoiceListTable: React.FC<InvoiceListTableProps> = ({
                           </span>
                         )}
 
-                        {/* Outstanding balance badge */}
-                        {invoice.outstanding_balance && parseFloat(invoice.outstanding_balance) !== 0 && (
-                          <span className={`px-2 py-1 text-xs font-medium rounded ${
-                            parseFloat(invoice.outstanding_balance) > 0
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                              : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                          }`}>
-                            {parseFloat(invoice.outstanding_balance) > 0
-                              ? `${invoice.currency?.symbol || getCurrencySymbol(invoice.currency?.code)}${formatNumber(parseFloat(invoice.outstanding_balance))} Due`
-                              : `${invoice.currency?.symbol || getCurrencySymbol(invoice.currency?.code)}${formatNumber(Math.abs(parseFloat(invoice.outstanding_balance)))} Credit`
-                            }
-                          </span>
-                        )}
-
                         {/* Auto-billing failed badge */}
                         {invoice.auto_billing_failed && (
                           <span className="px-2 py-1 text-xs font-medium rounded bg-red-600 text-white inline-flex items-center gap-1">

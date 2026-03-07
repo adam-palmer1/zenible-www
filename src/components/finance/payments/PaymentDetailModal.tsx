@@ -111,7 +111,7 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, onClose
     return payment.currency?.code || 'USD';
   };
 
-  const canRefund = payment.status === 'completed' || payment.status === 'succeeded';
+  const canRefund = payment.status === 'completed' || payment.status === 'succeeded' || payment.status === 'partially_refunded';
 
   const handleRefund = () => {
     onClose();

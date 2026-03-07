@@ -29,7 +29,22 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     this.props.onError?.(error, errorInfo);
   }
 
+  private isChunkLoadError(error: Error | null): boolean {
+    if (!error) return false;
+    const msg = error.message;
+    return (
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Loading chunk') ||
+      msg.includes('Loading CSS chunk') ||
+      msg.includes('Unable to preload CSS')
+    );
+  }
+
   handleReset = (): void => {
+    if (this.isChunkLoadError(this.state.error)) {
+      window.location.reload();
+      return;
+    }
     this.setState({ hasError: false, error: null });
   };
 

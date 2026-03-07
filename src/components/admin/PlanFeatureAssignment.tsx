@@ -102,7 +102,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
     setError(null);
     try {
       const [plansResponse, displayResponse, systemResponse, charactersResponse] = await Promise.all([
-        adminAPI.getPlans() as Promise<Record<string, unknown>>,
+        adminAPI.getPlans({ per_page: '100' }) as Promise<Record<string, unknown>>,
         adminAPI.getDisplayFeatures() as Promise<Record<string, unknown>>,
         adminAPI.getSystemFeatures() as Promise<Record<string, unknown>>,
         planAPI.getPublicCharacters({ per_page: '100' }) as Promise<Record<string, unknown>>,

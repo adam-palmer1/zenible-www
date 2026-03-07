@@ -17,6 +17,7 @@ import {
   EnvelopeIcon,
   CalendarDaysIcon,
   UsersIcon,
+  MicrophoneIcon,
 } from '@heroicons/react/24/outline';
 
 interface SettingsSidebarProps {
@@ -68,6 +69,7 @@ export default function SettingsSidebar({ activeTab, setActiveTab }: SettingsSid
     { id: 'subscription', label: 'Subscription', icon: CreditCardIcon },
     { id: 'customization', label: 'AI Intelligence', icon: PaintBrushIcon },
     { id: 'booking', label: 'Call Booking', icon: CalendarDaysIcon },
+    { id: 'meeting-intelligence', label: 'Meeting Intelligence', icon: MicrophoneIcon },
   ];
 
   const companySettings = [

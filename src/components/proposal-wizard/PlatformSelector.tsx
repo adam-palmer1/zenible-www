@@ -48,10 +48,10 @@ export default function PlatformSelector({ darkMode, selectedPlatform, setSelect
     }
   };
   return (
-    <div className={`px-4 pt-4 pb-0 border-b ${
-      darkMode ? 'bg-[#1a1a1a] border-[#333333]' : 'bg-white border-neutral-200'
+    <div className={`rounded-xl border shadow-sm p-3 sm:p-4 ${
+      darkMode ? 'bg-[#1e1e1e] border-[#333333]' : 'bg-white border-neutral-200'
     }`}>
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <h2 className={`font-inter font-semibold text-lg ${
           darkMode ? 'text-white' : 'text-zinc-950'
         }`}>Choose Your Platform</h2>

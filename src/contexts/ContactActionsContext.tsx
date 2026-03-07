@@ -315,9 +315,9 @@ export const ContactActionsProvider = ({
     } catch (error) {
       console.error('Failed to toggle client status:', error);
       if (isFeatureLimitError(error)) {
-        showError('Failed to update client status, usage limit has been exceeded.');
+        showError('Failed to update contact status, usage limit has been exceeded.');
       } else {
-        showError('Failed to update client status. Please try again.');
+        showError('Failed to update contact status. Please try again.');
       }
       return { success: false, error };
     }

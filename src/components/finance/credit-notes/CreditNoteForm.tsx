@@ -81,7 +81,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [linkedInvoice, setLinkedInvoice] = useState<any>(null);
-  const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState<string | null>(null);
 
   const getSaveButtonText = (): string => {
     if (creditNote?.status && creditNote.status !== 'draft') {
@@ -269,7 +269,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
     }
   };
 
-  const handleSave = async (_saveStatus: string = CREDIT_NOTE_STATUS.DRAFT, openSendModal: boolean = false, issueAfterSave: boolean = false) => {
+  const handleSave = async (_saveStatus: string = CREDIT_NOTE_STATUS.DRAFT, openSendModal: boolean = false, issueAfterSave: boolean = false, actionName: string = 'draft') => {
     if (!contactId) { showError('Please select a client'); return; }
     if (!issueDate) { showError('Please select an issue date'); return; }
     if (!currency) { showError('Please select a currency'); return; }
@@ -278,7 +278,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
     if (hasEmptyItems) { showError('Please provide a description for all line items'); return; }
 
     try {
-      setSaving(true);
+      setSavingAction(actionName);
 
       const creditNoteData: any = {
         contact_id: contactId,
@@ -339,7 +339,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
       console.error('Error saving credit note:', error);
       showError(error.message || 'Failed to save credit note');
     } finally {
-      setSaving(false);
+      setSavingAction(null);
     }
   };
 
@@ -486,18 +486,18 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
 
       {isInModal && (
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-          <button onClick={() => handleSave(creditNote?.status && creditNote.status !== 'draft' ? creditNote.status : CREDIT_NOTE_STATUS.DRAFT)} disabled={saving} className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
-            {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
+          <button onClick={() => handleSave(creditNote?.status && creditNote.status !== 'draft' ? creditNote.status : CREDIT_NOTE_STATUS.DRAFT, false, false, 'draft')} disabled={savingAction !== null} className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
+            {savingAction === 'draft' ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
             {getSaveButtonText()}
           </button>
           {(!creditNote?.status || creditNote.status === 'draft') && (
-            <button onClick={() => handleSave(CREDIT_NOTE_STATUS.DRAFT, false, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors">
-              {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
+            <button onClick={() => handleSave(CREDIT_NOTE_STATUS.DRAFT, false, true, 'issue')} disabled={savingAction !== null} className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors">
+              {savingAction === 'issue' ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
               Save & Issue
             </button>
           )}
-          <button onClick={() => handleSave(CREDIT_NOTE_STATUS.ISSUED, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
-            {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
+          <button onClick={() => handleSave(CREDIT_NOTE_STATUS.ISSUED, true, false, 'send')} disabled={savingAction !== null} className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
+            {savingAction === 'send' ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
             Save & Send
           </button>
         </div>
@@ -528,18 +528,18 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button onClick={() => handleSave(creditNote?.status && creditNote.status !== 'draft' ? creditNote.status : CREDIT_NOTE_STATUS.DRAFT)} disabled={saving} className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
+              <button onClick={() => handleSave(creditNote?.status && creditNote.status !== 'draft' ? creditNote.status : CREDIT_NOTE_STATUS.DRAFT, false, false, 'draft')} disabled={savingAction !== null} className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                {savingAction === 'draft' ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
                 {getSaveButtonText()}
               </button>
               {(!creditNote?.status || creditNote.status === 'draft') && (
-                <button onClick={() => handleSave(CREDIT_NOTE_STATUS.DRAFT, false, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors">
-                  {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
+                <button onClick={() => handleSave(CREDIT_NOTE_STATUS.DRAFT, false, true, 'issue')} disabled={savingAction !== null} className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors">
+                  {savingAction === 'issue' ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
                   Save & Issue
                 </button>
               )}
-              <button onClick={() => handleSave(CREDIT_NOTE_STATUS.ISSUED, true)} disabled={saving} className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
-                {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
+              <button onClick={() => handleSave(CREDIT_NOTE_STATUS.ISSUED, true, false, 'send')} disabled={savingAction !== null} className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
+                {savingAction === 'send' ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
                 Save & Send
               </button>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useInvoices } from '../../../../contexts/InvoiceContext';
 import { useContacts } from '../../../../hooks/crm/useContacts';
@@ -139,6 +139,10 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
   const [markingAsBilled, setMarkingAsBilled] = useState(false);
   const [pendingInvoiceResult, setPendingInvoiceResult] = useState<InvoiceFormData | null>(null);
   const [pendingOpenSendDialog, setPendingOpenSendDialog] = useState(false);
+
+  // Auto-billing confirmation
+  const [showBillingConfirm, setShowBillingConfirm] = useState(false);
+  const skipAutoBillingRef = useRef(false);
 
   // Saving
   const [saving, setSaving] = useState(false);
@@ -595,7 +599,12 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
     // Continue with normal flow
     if (openSendDialog) {
       setSavedInvoice(result!);
-      setShowSendDialog(true);
+      if (automaticPaymentEnabled && pricingType !== 'recurring') {
+        setShowBillingConfirm(true);
+      } else {
+        skipAutoBillingRef.current = false;
+        setShowSendDialog(true);
+      }
     } else {
       if (onSuccess && result) {
         onSuccess(result);
@@ -652,6 +661,23 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
     } else {
       navigate('/finance/invoices');
     }
+  };
+
+  const handleBillNow = () => {
+    setShowBillingConfirm(false);
+    skipAutoBillingRef.current = false;
+    setShowSendDialog(true);
+  };
+
+  const handleSendWithoutBilling = () => {
+    setShowBillingConfirm(false);
+    skipAutoBillingRef.current = true;
+    setShowSendDialog(true);
+  };
+
+  const handleCancelBilling = () => {
+    setShowBillingConfirm(false);
+    setSavedInvoice(null);
   };
 
   const handleSave = async (saveStatus: InvoiceStatus = INVOICE_STATUS.DRAFT, openSendDialog = false) => {
@@ -795,7 +821,12 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
       // Only open send dialog if explicitly requested (via Save & Send button)
       if (openSendDialog) {
         setSavedInvoice(result!);
-        setShowSendDialog(true);
+        if (automaticPaymentEnabled && pricingType !== 'recurring') {
+          setShowBillingConfirm(true);
+        } else {
+          skipAutoBillingRef.current = false;
+          setShowSendDialog(true);
+        }
       } else {
         if (onSuccess && result) {
           onSuccess(result);
@@ -965,6 +996,13 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
     setUnbilledHoursData,
     pendingBillableHourIds,
     showMarkBilledModal,
+
+    // Auto-billing confirmation
+    showBillingConfirm,
+    skipAutoBillingRef,
+    handleBillNow,
+    handleSendWithoutBilling,
+    handleCancelBilling,
 
     // Handlers
     getSaveButtonText,

@@ -86,7 +86,9 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
     <div className="bg-white border-b border-gray-200 px-4 py-3 lg:px-6 lg:py-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         {/* Left: Title */}
-        <h1 className="text-xl lg:text-2xl font-bold text-gray-900">CRM</h1>
+        <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
+          {activeTab === 'services' ? 'Services' : activeTab === 'projects' ? 'Projects' : activeTab === 'meetings' ? 'Meetings' : 'CRM'}
+        </h1>
 
         {/* Right: View Toggle + Actions */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -144,14 +146,16 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
             </button>
           )}
 
-          {/* Settings Button */}
-          <button
-            onClick={() => setShowCRMSettings(true)}
-            className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            title="CRM Settings"
-          >
-            <Cog6ToothIcon className="w-6 h-6" />
-          </button>
+          {/* Settings Button - Only on CRM tab */}
+          {activeTab === 'crm' && (
+            <button
+              onClick={() => setShowCRMSettings(true)}
+              className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="CRM Settings"
+            >
+              <Cog6ToothIcon className="w-6 h-6" />
+            </button>
+          )}
         </div>
       </div>
     </div>

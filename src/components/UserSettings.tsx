@@ -19,6 +19,7 @@ import BookingSettingsTab from './user-settings/BookingSettingsTab';
 import IntegrationsSettingsTab from './user-settings/IntegrationsSettingsTab';
 import UsersSettingsTab from './user-settings/UsersSettingsTab';
 import AdvancedSettingsTab from './user-settings/AdvancedSettingsTab';
+import MeetingIntelligenceSettingsTab from './user-settings/MeetingIntelligenceSettingsTab';
 import CancelSubscriptionModal from './user-settings/CancelSubscriptionModal';
 import PasswordResetModal from './user-settings/PasswordResetModal';
 
@@ -273,6 +274,8 @@ export default function UserSettings() {
           <EmailTemplatesSettingsTab />
         ) : activeTab === 'booking' ? (
           <BookingSettingsTab />
+        ) : activeTab === 'meeting-intelligence' ? (
+          <MeetingIntelligenceSettingsTab />
         ) : activeTab === 'integrations' ? (
           <IntegrationsSettingsTab />
         ) : activeTab === 'users' ? (

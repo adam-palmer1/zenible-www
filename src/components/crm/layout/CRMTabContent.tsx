@@ -8,6 +8,7 @@ const ClientsView = React.lazy(() => import('../ClientsView'));
 const VendorsView = React.lazy(() => import('../VendorsView'));
 const ServicesView = React.lazy(() => import('../ServicesView'));
 const ProjectsTable = React.lazy(() => import('../ProjectsTable'));
+const MeetingsPage = React.lazy(() => import('../meetings/MeetingsPage'));
 
 function TabLoadingFallback() {
   return (
@@ -216,6 +217,16 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
             showHiddenContacts={projectsFilters?.showHiddenContacts || false}
             showLostContacts={projectsFilters?.showLostContacts || false}
           />
+        </div>
+      </Suspense>
+    );
+  }
+
+  if (activeTab === 'meetings') {
+    return (
+      <Suspense fallback={<TabLoadingFallback />}>
+        <div className="bg-white rounded-lg shadow p-4 h-full overflow-hidden">
+          <MeetingsPage />
         </div>
       </Suspense>
     );

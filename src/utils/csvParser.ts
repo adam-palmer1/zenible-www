@@ -149,13 +149,22 @@ export const detectColumnMapping = (headers: string[]): ColumnMapping => {
   return mapping;
 };
 
+export const getVendorDisplayName = (v: any): string => {
+  if (!v) return '';
+  if (v.display_name) return v.display_name;
+  if (v.business_name) return v.business_name;
+  const fullName = `${v.first_name || ''} ${v.last_name || ''}`.trim();
+  return fullName || v.email || v.name || '';
+};
+
 interface ValidationOptions {
   categories?: Array<{ name?: string }>;
-  vendors?: Array<{ name?: string }>;
+  vendors?: Array<any>;
+  createMissing?: boolean;
 }
 
 export const validateExpenseRow = (row: Record<string, string>, options: ValidationOptions = {}): { valid: boolean; errors: string[] } => {
-  const { categories = [], vendors = [] } = options;
+  const { categories = [], vendors = [], createMissing = false } = options;
   const errors: string[] = [];
 
   // Required: Amount
@@ -173,8 +182,8 @@ export const validateExpenseRow = (row: Record<string, string>, options: Validat
     }
   }
 
-  // Optional but validate if provided: Category
-  if (row.category && categories.length > 0) {
+  // Optional but validate if provided: Category (skip check if createMissing is enabled)
+  if (!createMissing && row.category && categories.length > 0) {
     const categoryExists = categories.some(
       cat => cat?.name?.toLowerCase() === row.category.toLowerCase()
     );
@@ -183,10 +192,10 @@ export const validateExpenseRow = (row: Record<string, string>, options: Validat
     }
   }
 
-  // Optional but validate if provided: Vendor
-  if (row.vendor && vendors.length > 0) {
+  // Optional but validate if provided: Vendor (skip check if createMissing is enabled)
+  if (!createMissing && row.vendor && vendors.length > 0) {
     const vendorExists = vendors.some(
-      v => v?.name?.toLowerCase() === row.vendor.toLowerCase()
+      v => getVendorDisplayName(v).toLowerCase() === row.vendor.toLowerCase()
     );
     if (!vendorExists) {
       errors.push(`Vendor "${row.vendor}" not found`);
@@ -210,7 +219,7 @@ export const validateExpenseRow = (row: Record<string, string>, options: Validat
 
 interface ConversionOptions {
   categories?: Array<{ id: string; name?: string }>;
-  vendors?: Array<{ id: string; name?: string }>;
+  vendors?: Array<any>;
   currencies?: Array<{ currency?: { id: string; code?: string } }>;
   createMissing?: boolean;
 }
@@ -249,7 +258,7 @@ export const convertToExpenseFormat = (row: Record<string, string>, options: Con
   // Vendor
   if (row.vendor) {
     const vendor = vendors.find(
-      v => v?.name?.toLowerCase() === row.vendor.toLowerCase()
+      v => getVendorDisplayName(v).toLowerCase() === row.vendor.toLowerCase()
     );
     if (vendor) {
       expenseData.vendor_id = vendor.id;

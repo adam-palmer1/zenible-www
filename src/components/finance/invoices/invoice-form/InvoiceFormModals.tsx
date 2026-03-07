@@ -4,6 +4,7 @@ import DiscountModal from '../DiscountModal';
 import DepositModal from '../DepositModal';
 import { LineItemTaxModal } from '../../shared';
 import SendInvoiceDialog from '../SendInvoiceDialog';
+import AutoBillingConfirmModal from '../AutoBillingConfirmModal';
 import InvoiceSettingsModal from '../InvoiceSettingsModal';
 import UnbilledHoursModal from '../UnbilledHoursModal';
 import MarkHoursBilledModal from '../MarkHoursBilledModal';
@@ -74,12 +75,19 @@ interface InvoiceFormModalsProps {
   settingsContact: any;
   onSettingsChange: (updates: InvoiceSettingsUpdate) => void;
 
+  // Auto-billing confirmation
+  showBillingConfirm: boolean;
+  onBillNow: () => void;
+  onSendWithoutBilling: () => void;
+  onCancelBilling: () => void;
+
   // Send dialog
   showSendDialog: boolean;
   onCloseSendDialog: () => void;
   savedInvoice: InvoiceFormData | null;
   sendContact: any;
   onSendSuccess: () => void;
+  skipAutoBilling: boolean;
 
   // Unbilled hours modal
   showUnbilledHoursModal: boolean;
@@ -152,11 +160,16 @@ const InvoiceFormModals: React.FC<InvoiceFormModalsProps> = ({
   nextReminderDueAt,
   settingsContact,
   onSettingsChange,
+  showBillingConfirm,
+  onBillNow,
+  onSendWithoutBilling,
+  onCancelBilling,
   showSendDialog,
   onCloseSendDialog,
   savedInvoice,
   sendContact,
   onSendSuccess,
+  skipAutoBilling,
   showUnbilledHoursModal,
   onCloseUnbilledHoursModal,
   onConfirmUnbilledHours,
@@ -248,6 +261,14 @@ const InvoiceFormModals: React.FC<InvoiceFormModalsProps> = ({
         onChange={onSettingsChange}
       />
 
+      {/* Auto-Billing Confirmation */}
+      <AutoBillingConfirmModal
+        isOpen={showBillingConfirm}
+        onBillNow={onBillNow}
+        onSendWithoutBilling={onSendWithoutBilling}
+        onCancel={onCancelBilling}
+      />
+
       {/* Send Invoice Dialog */}
       <SendInvoiceDialog
         isOpen={showSendDialog}
@@ -255,6 +276,7 @@ const InvoiceFormModals: React.FC<InvoiceFormModalsProps> = ({
         invoice={savedInvoice}
         contact={sendContact}
         onSuccess={onSendSuccess}
+        skipAutoBilling={skipAutoBilling}
       />
 
       {/* Unbilled Hours Modal */}

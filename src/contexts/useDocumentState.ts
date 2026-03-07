@@ -213,7 +213,7 @@ export function useDocumentState<TFilters extends object>(
   } = config;
 
   const { user } = useAuth();
-  const { getPreference, updatePreference } = usePreferences();
+  const { getPreference, updatePreference, initialized: prefsReady } = usePreferences();
   const queryClient = useQueryClient();
   const usageDashboard = useUsageDashboardOptional();
 
@@ -253,7 +253,7 @@ export function useDocumentState<TFilters extends object>(
   // Load preferences on mount
   // -------------------------------------------------------------------------
   useEffect(() => {
-    if (user && !preferencesLoaded) {
+    if (user && prefsReady && !preferencesLoaded) {
       const savedSearch = getPreference(`${preferencePrefix}_search`, '') as string;
       const savedStatus = getPreference(`${preferencePrefix}_filter_status`, null) as string | null;
       const savedSort = getPreference(`${preferencePrefix}_sort_by`, defaultSort) as string;
@@ -272,7 +272,7 @@ export function useDocumentState<TFilters extends object>(
       setPreferencesLoaded(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, preferencesLoaded]);
+  }, [user, prefsReady, preferencesLoaded]);
 
   // -------------------------------------------------------------------------
   // Build API params from current state

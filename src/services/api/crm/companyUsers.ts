@@ -133,6 +133,24 @@ const companyUsersAPI = {
       permission_codes: permissionCodes,
     }),
   }),
+
+  // ============================================================================
+  // Invitations
+  // ============================================================================
+
+  /**
+   * Cancel a pending invitation
+   * @param {string} invitationId - Invitation ID
+   * @returns {Promise<{status: string, message: string, invitation_id: string}>}
+   */
+  cancelInvitation: (invitationId: string) => request(`/crm/company/invitations/${invitationId}`, { method: 'DELETE' }),
+
+  /**
+   * Resend an invitation email
+   * @param {string} invitationId - Invitation ID
+   * @returns {Promise<{success: boolean, invitation_id: string, email: string, new_expires_at: string}>}
+   */
+  resendInvitation: (invitationId: string) => request(`/crm/company/invitations/${invitationId}/resend`, { method: 'POST' }),
 };
 
 export default companyUsersAPI;

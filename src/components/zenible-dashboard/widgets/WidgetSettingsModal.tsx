@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Modal from '../../ui/modal/Modal';
 import { WIDGET_REGISTRY, getDefaultWidgetSettings, AVAILABLE_CURRENCIES } from './WidgetRegistry';
 import type { WidgetSettingsField } from './WidgetRegistry';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
+import { useModalPortal } from '../../../contexts/ModalPortalContext';
 import { ChevronDownIcon, CheckIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 interface WidgetSettingsModalProps {
@@ -158,8 +160,12 @@ interface StyledSelectProps {
 const StyledSelect = ({ label, value, options, onChange, getOptionLabel, getOptionValue, searchable = false, searchPlaceholder = "Search..." }: StyledSelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const modalPortal = useModalPortal();
+  const portalTarget = modalPortal || document.body;
 
   // Get display value
   const selectedOption = options.find(opt => {
@@ -177,6 +183,18 @@ const StyledSelect = ({ label, value, options, onChange, getOptionLabel, getOpti
         return optLabel.toLowerCase().includes(searchQuery.toLowerCase());
       })
     : options;
+
+  // Calculate dropdown position when opening
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+  }, [isOpen]);
 
   // Close on click outside
   useEffect(() => {
@@ -236,59 +254,78 @@ const StyledSelect = ({ label, value, options, onChange, getOptionLabel, getOpti
           <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
 
-        {isOpen && (
+        {isOpen && createPortal(
           <div
-            ref={dropdownRef}
-            className="absolute z-50 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden"
+            style={{ pointerEvents: 'auto' }}
+            onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
-            {/* Search Input */}
-            {searchable && (
-              <div className="p-2 border-b border-gray-200">
-                <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder={searchPlaceholder}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8e51ff] focus:border-transparent"
-                    autoFocus
-                  />
-                </div>
-              </div>
-            )}
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0"
+              onClick={() => { setIsOpen(false); setSearchQuery(''); }}
+            />
 
-            {/* Options List */}
-            <div className="max-h-48 overflow-y-auto py-1">
-              {filteredOptions.length === 0 ? (
-                <div className="px-3 py-4 text-center text-sm text-gray-500">
-                  No options found
+            {/* Dropdown */}
+            <div
+              ref={dropdownRef}
+              className="fixed bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden"
+              style={{
+                top: dropdownPosition.top,
+                left: dropdownPosition.left,
+                width: dropdownPosition.width,
+              }}
+            >
+              {/* Search Input */}
+              {searchable && (
+                <div className="p-2 border-b border-gray-200">
+                  <div className="relative">
+                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder={searchPlaceholder}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8e51ff] focus:border-transparent"
+                      autoFocus
+                    />
+                  </div>
                 </div>
-              ) : (
-                filteredOptions.map((opt, index) => {
-                  const optValue = getOptionValue ? getOptionValue(opt) : opt;
-                  const optLabel = getOptionLabel ? getOptionLabel(opt) : String(opt);
-                  const isSelected = optValue === value;
-
-                  return (
-                    <button
-                      key={optValue ?? index}
-                      type="button"
-                      onClick={() => handleSelect(opt)}
-                      className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between transition-colors ${
-                        isSelected ? 'bg-purple-50' : ''
-                      }`}
-                    >
-                      <span className="text-gray-900">{optLabel}</span>
-                      {isSelected && (
-                        <CheckIcon className="h-4 w-4 text-[#8e51ff]" />
-                      )}
-                    </button>
-                  );
-                })
               )}
+
+              {/* Options List */}
+              <div className="max-h-48 overflow-y-auto py-1">
+                {filteredOptions.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-sm text-gray-500">
+                    No options found
+                  </div>
+                ) : (
+                  filteredOptions.map((opt, index) => {
+                    const optValue = getOptionValue ? getOptionValue(opt) : opt;
+                    const optLabel = getOptionLabel ? getOptionLabel(opt) : String(opt);
+                    const isSelected = optValue === value;
+
+                    return (
+                      <button
+                        key={optValue ?? index}
+                        type="button"
+                        onClick={() => handleSelect(opt)}
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between transition-colors ${
+                          isSelected ? 'bg-purple-50' : ''
+                        }`}
+                      >
+                        <span className="text-gray-900">{optLabel}</span>
+                        {isSelected && (
+                          <CheckIcon className="h-4 w-4 text-[#8e51ff]" />
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>
+          </div>,
+          portalTarget
         )}
       </div>
     </div>

@@ -52,30 +52,6 @@ const CRMHeader: React.FC<CRMHeaderProps> = ({
           >
             Vendors
           </Link>
-          {hasCRMAccess && (
-            <Link
-              to="/crm/services"
-              className={`px-4 py-3 lg:py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === 'services'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Services
-            </Link>
-          )}
-          {hasCRMAccess && (
-            <Link
-              to="/crm/projects"
-              className={`px-4 py-3 lg:py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === 'projects'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Projects
-            </Link>
-          )}
         </div>
 
         {/* Right: Filters */}

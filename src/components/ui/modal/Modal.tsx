@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { ModalPortalContext } from '../../../contexts/ModalPortalContext';
@@ -51,6 +51,22 @@ const Modal: React.FC<ModalProps> = ({
     setPortalContainer(node);
   }, []);
 
+  // Prevent Radix FocusScope from stealing focus from portaled dropdowns.
+  // FocusScope listens for 'focusin' on document (bubble phase) and pulls
+  // focus back into Dialog.Content. We intercept in capture phase first.
+  useEffect(() => {
+    if (!portalContainer) return;
+    const handleFocusIn = (e: FocusEvent) => {
+      if (portalContainer.contains(e.target as Node)) {
+        e.stopImmediatePropagation();
+      }
+    };
+    document.addEventListener('focusin', handleFocusIn, true);
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn, true);
+    };
+  }, [portalContainer]);
+
   // Whether this size should go fullscreen on small screens
   const isLargeSize = ['lg', 'xl', '2xl', '3xl', '4xl', 'full'].includes(size);
 
@@ -74,6 +90,16 @@ const Modal: React.FC<ModalProps> = ({
 
         {/* Content */}
         <Dialog.Content
+          onPointerDownOutside={(e) => {
+            if (portalContainer?.contains(e.target as Node)) {
+              e.preventDefault();
+            }
+          }}
+          onFocusOutside={(e) => {
+            if (portalContainer?.contains(e.target as Node)) {
+              e.preventDefault();
+            }
+          }}
           className={`
             fixed z-50 flex flex-col
             bg-white dark:bg-gray-800 shadow-lg

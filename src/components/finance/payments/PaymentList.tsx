@@ -283,8 +283,8 @@ const PaymentList: React.FC = () => {
 
   // Handle refund
   const handleRefund = (payment: PaymentItem) => {
-    if (payment.status !== PAYMENT_STATUS.COMPLETED && payment.status !== PAYMENT_STATUS.SUCCEEDED) {
-      showError('Only completed payments can be refunded');
+    if (payment.status !== PAYMENT_STATUS.COMPLETED && payment.status !== PAYMENT_STATUS.SUCCEEDED && payment.status !== PAYMENT_STATUS.PARTIALLY_REFUNDED) {
+      showError('Only completed or partially refunded payments can be refunded');
       return;
     }
     openRefundModal(payment);
@@ -593,7 +593,7 @@ const PaymentList: React.FC = () => {
                               {
                                 label: 'Refund',
                                 onClick: () => handleRefund(payment),
-                                condition: payment.status === PAYMENT_STATUS.COMPLETED || payment.status === PAYMENT_STATUS.SUCCEEDED,
+                                condition: payment.status === PAYMENT_STATUS.COMPLETED || payment.status === PAYMENT_STATUS.SUCCEEDED || payment.status === PAYMENT_STATUS.PARTIALLY_REFUNDED,
                                 variant: 'warning'
                               },
                               { label: 'Delete', onClick: () => handleDeleteClick(payment), variant: 'danger' },

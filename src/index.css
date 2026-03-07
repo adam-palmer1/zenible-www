@@ -127,6 +127,12 @@ body {
   background: var(--text-primary);
 }
 
+.custom-scrollbar::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
 /* Scrollbar visible only on hover */
 .scrollbar-hover {
   -ms-overflow-style: none;

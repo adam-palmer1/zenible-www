@@ -15,6 +15,7 @@ import SendReminderDialog from './SendReminderDialog';
 
 const SendInvoiceDialogComponent = SendInvoiceDialog;
 const SendReminderDialogComponent = SendReminderDialog;
+import AutoBillingConfirmModal from './AutoBillingConfirmModal';
 import ConfirmationModal from '../../shared/ConfirmationModal';
 import invoicesAPI from '../../../services/api/finance/invoices';
 import InvoiceKPICards from './InvoiceKPICards';
@@ -92,6 +93,8 @@ const InvoiceList: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<any>(null); // 'bulk' or invoice object
   const [isDownloading, setIsDownloading] = useState(false);
   const [parentTemplateInfo, setParentTemplateInfo] = useState<any>(null);
+  const [showBillingConfirm, setShowBillingConfirm] = useState(false);
+  const skipAutoBillingRef = useRef(false);
 
   // Track previous parentInvoiceId to detect changes from value -> null
   const prevParentIdRef = useRef(parentInvoiceId);
@@ -503,9 +506,18 @@ const InvoiceList: React.FC = () => {
   }, [deleteTarget, handleBulkDeleteConfirm, deleteInvoice, showSuccess, showError]);
 
   const handleSend = useCallback((invoice: any) => {
-    setInvoiceToSend(invoice);
-    setShowSendDialog(true);
     setOpenActionMenuId(null);
+    const willAutoBill = invoice.automatic_payment_enabled &&
+      invoice.has_saved_payment_method === true &&
+      invoice.pricing_type !== 'recurring';
+    if (willAutoBill) {
+      setInvoiceToSend(invoice);
+      setShowBillingConfirm(true);
+    } else {
+      skipAutoBillingRef.current = false;
+      setInvoiceToSend(invoice);
+      setShowSendDialog(true);
+    }
   }, []);
 
   const handleSendReminder = useCallback((invoice: any) => {
@@ -689,6 +701,25 @@ const InvoiceList: React.FC = () => {
         />
       </div>
 
+      {/* Auto-Billing Confirmation Modal */}
+      <AutoBillingConfirmModal
+        isOpen={showBillingConfirm}
+        onBillNow={() => {
+          setShowBillingConfirm(false);
+          skipAutoBillingRef.current = false;
+          setShowSendDialog(true);
+        }}
+        onSendWithoutBilling={() => {
+          setShowBillingConfirm(false);
+          skipAutoBillingRef.current = true;
+          setShowSendDialog(true);
+        }}
+        onCancel={() => {
+          setShowBillingConfirm(false);
+          setInvoiceToSend(null);
+        }}
+      />
+
       {/* Send Invoice Dialog */}
       <SendInvoiceDialogComponent
         isOpen={showSendDialog}
@@ -696,6 +727,7 @@ const InvoiceList: React.FC = () => {
         invoice={invoiceToSend}
         contact={invoiceToSend?.contact}
         onSuccess={handleSendSuccess}
+        skipAutoBilling={skipAutoBillingRef.current}
       />
 
       {/* Send Reminder Dialog */}

@@ -741,28 +741,35 @@ export default function ProposalWizard() {
                 characterId={selectedCharacterId}
               />
 
-              <JobPostSection
-                darkMode={darkMode}
-                jobPost={jobPost}
-                setJobPost={setJobPost}
-              />
+              {/* Purple container wrapping Job Post and Your Proposal */}
+              <div className={`rounded-xl border border-dashed shadow-sm flex flex-col flex-1 min-h-0 p-3 sm:p-4 gap-4 ${
+                darkMode
+                  ? 'bg-[#4c3d7a] border-[#6b5b95]'
+                  : 'bg-violet-50 border-[#c4b4ff]'
+              }`}>
+                <JobPostSection
+                  darkMode={darkMode}
+                  jobPost={jobPost}
+                  setJobPost={setJobPost}
+                />
 
-              <ProposalInput
-                darkMode={darkMode}
-                proposal={proposal}
-                setProposal={setProposal}
-                jobPost={jobPost}
-                analyzing={analyzing}
-                onAnalyze={handleAnalyze}
-                onStartAgain={handleStartAgain}
-                hasResults={!!(feedback && !feedback.isProcessing && !analyzing)}
-                isPanelReady={isConnected}
-                isConnected={isConnected}
-              />
+                <ProposalInput
+                  darkMode={darkMode}
+                  proposal={proposal}
+                  setProposal={setProposal}
+                  jobPost={jobPost}
+                  analyzing={analyzing}
+                  onAnalyze={handleAnalyze}
+                  onStartAgain={handleStartAgain}
+                  hasResults={!!(feedback && !feedback.isProcessing && !analyzing)}
+                  isPanelReady={isConnected}
+                  isConnected={isConnected}
+                />
+              </div>
             </div>
 
             {/* Right Column - AI Feedback */}
-            <div className="w-full lg:w-1/2 h-full min-h-0 lg:min-h-[400px]">
+            <div className="w-full lg:w-1/2 flex flex-col min-h-0 lg:min-h-[400px]">
               <AIFeedbackSection
                 darkMode={darkMode}
                 feedback={feedback ? { ...feedback, analysis: feedback.analysis as FeedbackData['analysis'] } as FeedbackData : null}

@@ -65,6 +65,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
   const [expensesLoading, setExpensesLoading] = useState(true);
   const [showAddSection, setShowAddSection] = useState(false);
   const [allocationCache, setAllocationCache] = useState<Record<string, any[]>>({});
+  const [initialExpenseIds, setInitialExpenseIds] = useState<Set<string>>(new Set());
   // Tracks converted amounts keyed by `${expenseId}-${percentage}` for invoice cap
   const [convertedAmounts, setConvertedAmounts] = useState<Record<string, number>>({});
   // Tracks expenses already allocated from other sources (not shown in this modal)
@@ -170,6 +171,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
 
       setAllocationCache(newCache);
       setAssignedExpenses(assignments);
+      setInitialExpenseIds(new Set(assignments.map((a: any) => a.expense_id)));
     } catch (error) {
       console.error('Failed to load assignments:', error);
       showError('Failed to load expense assignments');
@@ -329,7 +331,23 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
         );
       });
 
-      await Promise.all(updatePromises);
+      // Remove allocations for expenses that were unassigned
+      const currentExpenseIds = new Set(assignedExpenses.map((a: any) => a.expense_id));
+      const removedExpenseIds = [...initialExpenseIds].filter(id => !currentExpenseIds.has(id));
+
+      const removePromises = removedExpenseIds.map((expenseId) => {
+        const cachedAllocations = allocationCache[expenseId] || [];
+        const filteredAllocations = cachedAllocations
+          .filter((a: any) => !(a.entity_type === entityType && a.entity_id === entityId))
+          .map(({ entity_type, entity_id, percentage }: any) => ({
+            entity_type,
+            entity_id,
+            percentage: parseFloat(percentage),
+          }));
+        return expensesAPI.updateAllocations(expenseId, filteredAllocations);
+      });
+
+      await Promise.all([...updatePromises, ...removePromises]);
 
       showSuccess('Expense assignments saved successfully');
       onUpdate?.();

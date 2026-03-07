@@ -125,7 +125,7 @@ export default function Calendar() {
     syncAccount,
   } = useCalendar();
 
-  const { getPreference, updatePreference } = usePreferences();
+  const { getPreference, updatePreference, initialized: prefsReady } = usePreferences();
 
   // Get enum metadata from context
   const {
@@ -155,29 +155,31 @@ export default function Calendar() {
 
   // Update visible types when appointment types load
   useEffect(() => {
-    if (!enumsLoading && appointmentTypes.length > 0) {
-      const allTypeValues = appointmentTypes.map((t: EnumItem) => t.value);
-      const currentVisible = getPreference('calendar_visible_types', allTypeValues) as string[];
-      setVisibleTypes(currentVisible);
-    }
-  }, [enumsLoading, appointmentTypes, getPreference]);
+    if (!prefsReady || enumsLoading || appointmentTypes.length === 0) return;
+    const allTypeValues = appointmentTypes.map((t: EnumItem) => t.value);
+    const currentVisible = getPreference('calendar_visible_types', allTypeValues) as string[];
+    setVisibleTypes(currentVisible);
+  }, [prefsReady, enumsLoading, appointmentTypes, getPreference]);
 
   // Load view mode from preferences
   useEffect(() => {
+    if (!prefsReady) return;
     const savedViewMode = getPreference('calendar_view_mode', 'weekly') as string;
     setViewMode(savedViewMode);
-  }, [getPreference]);
+  }, [prefsReady, getPreference]);
 
   // Sync local state with preferences when they change
   useEffect(() => {
+    if (!prefsReady) return;
     const allTypeValues = appointmentTypes.map((t: EnumItem) => t.value);
     setVisibleTypes(getPreference('calendar_visible_types', allTypeValues.length > 0 ? allTypeValues : ['manual', 'call', 'follow_up']) as string[]);
     setTypeColors(getPreference('calendar_type_colors', DEFAULT_APPOINTMENT_COLORS) as Record<string, string>);
-  }, [getPreference, appointmentTypes, DEFAULT_APPOINTMENT_COLORS]);
+  }, [prefsReady, getPreference, appointmentTypes, DEFAULT_APPOINTMENT_COLORS]);
 
   // Migrate user preferences when enums load (Phase 9: Preference Migration)
   useEffect(() => {
-    if (!enumsLoading && appointmentTypes.length > 0) {
+    if (!prefsReady || enumsLoading || appointmentTypes.length === 0) return;
+
       // Migrate colors - add new types from backend with their default colors
       const currentColors = getPreference('calendar_type_colors', {}) as Record<string, string>;
       const mergedColors: Record<string, string> = {};
@@ -202,8 +204,7 @@ export default function Calendar() {
         updatePreference('calendar_visible_types', merged, 'calendar');
         setVisibleTypes(merged);
       }
-    }
-  }, [enumsLoading, appointmentTypes, getPreference, updatePreference]);
+  }, [prefsReady, enumsLoading, appointmentTypes, getPreference, updatePreference]);
 
   // Fetch appointments when date or view mode changes
   useEffect(() => {
@@ -578,10 +579,10 @@ export default function Calendar() {
   };
 
   return (
-    <AppLayout pageTitle="Calendar">
-      <div className="flex-1 flex gap-2 p-2 md:gap-4 md:p-4 overflow-x-auto overflow-y-hidden max-w-[2000px] mx-auto w-full">
+    <AppLayout pageTitle="Calendar" rawContent>
+      <div className="flex-1 flex gap-2 p-2 md:gap-4 md:p-4 overflow-x-auto overflow-y-hidden max-w-[2000px] mx-auto w-full min-h-0">
           {/* Left: Calendar View */}
-          <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm overflow-hidden min-w-0 md:min-w-[640px] min-h-[400px] md:min-h-[500px]">
+          <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm overflow-hidden min-w-0 md:min-w-[640px] min-h-0">
             {/* Google Calendar Disconnection Warning */}
             {googleAccounts.filter(a => !a.is_active).length > 0 && (
               <div className="px-4 py-3 bg-amber-50 border-b border-amber-200">
@@ -624,7 +625,7 @@ export default function Calendar() {
             />
 
             {/* Calendar View */}
-            <div ref={viewContainerRef} className="flex-1 overflow-hidden relative min-h-[300px] md:min-h-[400px]">
+            <div ref={viewContainerRef} className="flex-1 overflow-hidden relative min-h-0">
               {viewMode === 'weekly' && <CalendarWeekView
                 currentDate={currentDate}
                 appointments={filteredAppointments}

@@ -195,8 +195,8 @@ export default function SubscriptionManagement() {
 
   const fetchPlans = async () => {
     try {
-      const response = await adminPlansAPI.getPlans({ is_active: 'true' }) as PlanList & { items?: PlanResponse[] };
-      setPlans(response.items || []);
+      const response = await adminPlansAPI.getPlans({ is_active: 'true', per_page: '100' }) as PlanList & { plans?: PlanResponse[] };
+      setPlans(response.plans || []);
     } catch (err: any) {
       console.error('Error fetching plans:', err);
     }

@@ -16,13 +16,9 @@ interface ProposalInputProps {
 export default function ProposalInput({ darkMode, proposal, setProposal, jobPost, onAnalyze, onStartAgain, hasResults, analyzing, isPanelReady, isConnected }: ProposalInputProps) {
 
   return (
-    <div className={`rounded-xl border border-dashed shadow-sm flex flex-col h-full ${
-      darkMode
-        ? 'bg-[#4c3d7a] border-[#6b5b95]'
-        : 'bg-violet-50 border-[#c4b4ff]'
-    }`}>
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Header */}
-      <div className="p-3 sm:p-4 flex-shrink-0">
+      <div className="flex-shrink-0">
         <h3 className={`font-inter font-semibold text-base sm:text-lg ${
           darkMode ? 'text-white' : 'text-zinc-950'
         }`}>Your Proposal</h3>
@@ -34,7 +30,7 @@ export default function ProposalInput({ darkMode, proposal, setProposal, jobPost
       </div>
 
       {/* Textarea */}
-      <div className="flex-1 px-3 sm:px-4 min-h-0">
+      <div className="flex-1 mt-2 min-h-0">
         <div className={`h-full rounded-[10px] border p-3 sm:p-4 min-h-[200px] ${
           darkMode
             ? 'bg-[#2d2d2d] border-[#4a4a4a]'
@@ -53,7 +49,7 @@ export default function ProposalInput({ darkMode, proposal, setProposal, jobPost
       </div>
 
       {/* Analyze Button */}
-      <div className="p-3 sm:p-4 flex justify-end flex-shrink-0">
+      <div className="pt-3 sm:pt-4 flex justify-end flex-shrink-0">
         <button
           onClick={() => {
             if (hasResults) {

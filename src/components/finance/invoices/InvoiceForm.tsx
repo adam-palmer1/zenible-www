@@ -214,11 +214,16 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice: invoiceProp = null, 
         nextReminderDueAt={state.nextReminderDueAt}
         settingsContact={state.allContacts.find((c) => c.id === state.contactId)}
         onSettingsChange={handleSettingsChange}
+        showBillingConfirm={state.showBillingConfirm}
+        onBillNow={state.handleBillNow}
+        onSendWithoutBilling={state.handleSendWithoutBilling}
+        onCancelBilling={state.handleCancelBilling}
         showSendDialog={state.showSendDialog}
         onCloseSendDialog={() => state.setShowSendDialog(false)}
         savedInvoice={state.savedInvoice}
         sendContact={state.savedInvoice ? state.allContacts.find((c) => c.id === state.savedInvoice!.contact_id) : undefined}
         onSendSuccess={state.handleSendSuccess}
+        skipAutoBilling={state.skipAutoBillingRef.current}
         showUnbilledHoursModal={state.showUnbilledHoursModal}
         onCloseUnbilledHoursModal={() => {
           state.setShowUnbilledHoursModal(false);

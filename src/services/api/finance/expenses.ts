@@ -92,7 +92,7 @@ const expensesAPI = {
    */
   async updateCategory(categoryId: string, categoryData: unknown): Promise<ExpenseCategoryResponse> {
     return baseCRUD.request(`${categoriesEndpoint}/${categoryId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(categoryData),
     });
   },
