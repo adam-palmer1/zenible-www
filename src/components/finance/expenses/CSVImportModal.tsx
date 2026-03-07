@@ -200,7 +200,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, onOpenChange }) =
           createMissing,
         });
 
-        if (!expenseData.currency_id && selectedCurrency) {
+        if (!expenseData.currency_id && !expenseData.currency_code && selectedCurrency) {
           expenseData.currency_id = selectedCurrency;
         }
 

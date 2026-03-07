@@ -220,7 +220,7 @@ export const validateExpenseRow = (row: Record<string, string>, options: Validat
 interface ConversionOptions {
   categories?: Array<{ id: string; name?: string }>;
   vendors?: Array<any>;
-  currencies?: Array<{ currency?: { id: string; code?: string } }>;
+  currencies?: Array<{ currency?: { id: string; code?: string; symbol?: string } }>;
   createMissing?: boolean;
 }
 
@@ -237,11 +237,15 @@ export const convertToExpenseFormat = (row: Record<string, string>, options: Con
 
   // Currency
   if (row.currency) {
+    const currencyValue = row.currency.trim().toLowerCase();
     const currency = currencies.find(
-      c => c?.currency?.code?.toLowerCase() === row.currency.toLowerCase()
+      c => c?.currency?.code?.toLowerCase() === currencyValue
+        || c?.currency?.symbol?.toLowerCase() === currencyValue
     );
     if (currency) {
       expenseData.currency_id = currency.currency!.id;
+    } else if (/^[a-z]{3}$/i.test(row.currency.trim())) {
+      expenseData.currency_code = row.currency.trim().toUpperCase();
     }
   }
 

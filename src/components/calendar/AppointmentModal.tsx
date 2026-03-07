@@ -13,6 +13,7 @@ import type { EnumItem } from '../../contexts/CRMReferenceDataContext';
 
 /** Extended appointment data that may include a nested recurrence config from the API. */
 interface AppointmentWithRecurrence extends AppointmentResponse {
+  zmi_enabled?: boolean | null;
   recurrence?: {
     recurring_type?: string | null;
     recurring_interval?: number | null;
@@ -210,6 +211,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
           meeting_link: '',
           all_day: false,
           send_invite_to_contact: true,
+          zmi_enabled: null,
         });
         setSelectedContact(null);
 

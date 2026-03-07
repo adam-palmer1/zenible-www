@@ -8,3 +8,5 @@ dist/
 .idea/
 *.md
 .claude/
+Dockerfile
+.dockerignore
