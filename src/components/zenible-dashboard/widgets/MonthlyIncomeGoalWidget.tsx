@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TrophyIcon } from '@heroicons/react/24/outline';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { formatCurrency } from '../../../utils/currency';
@@ -16,6 +16,7 @@ interface MonthlyIncomeGoalWidgetProps {
 const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps) => {
   const { defaultCurrency: companyDefaultCurrency } = useCompanyCurrencies();
   const { data: summary, isLoading: loading, error } = useDashboardWidget('monthlyIncomeGoal');
+  const [hoveringOutstanding, setHoveringOutstanding] = useState(false);
 
   const monthlyGoal = settings.monthlyGoal || 5000;
   const currency = settings.currency || companyDefaultCurrency?.currency?.code || 'GBP';
@@ -24,18 +25,30 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
   const paymentsCollected = parseFloat(summary?.paid_invoices_total || 0)
                            + parseFloat(summary?.unlinked_payments_total || 0);
   const outstandingInvoices = parseFloat(summary?.outstanding_invoices || 0);
+  const totalWithOutstanding = paymentsCollected + outstandingInvoices;
 
   // Calculate percentages (uncapped — can exceed 100%)
   const circumference = 2 * Math.PI * 40; // ~251
   const paymentsPercent = monthlyGoal > 0 ? (paymentsCollected / monthlyGoal) * 100 : 0;
 
+  // Outstanding ring math — segment starts where payments end
+  const outstandingPercent = monthlyGoal > 0 ? (outstandingInvoices / monthlyGoal) * 100 : 0;
+  const outstandingRingPercent = Math.min(outstandingPercent, Math.max(100 - Math.min(paymentsPercent, 100), 0));
+  const outstandingDash = (outstandingRingPercent / 100) * circumference;
+
   // Ring segment capped at 100% visually
   const paymentsRingPercent = Math.min(paymentsPercent, 100);
   const paymentsDash = (paymentsRingPercent / 100) * circumference;
 
+  // Display values change on hover
+  const displayPercent = hoveringOutstanding
+    ? (monthlyGoal > 0 ? (totalWithOutstanding / monthlyGoal) * 100 : 0)
+    : paymentsPercent;
+  const currentAmount = hoveringOutstanding ? totalWithOutstanding : paymentsCollected;
+
   const isGoalMet = paymentsCollected >= monthlyGoal;
-  const remaining = Math.max(monthlyGoal - paymentsCollected, 0);
-  const overGoalBy = Math.max(paymentsCollected - monthlyGoal, 0);
+  const remaining = Math.max(monthlyGoal - currentAmount, 0);
+  const overGoalBy = Math.max(currentAmount - monthlyGoal, 0);
 
   const monthName = new Date().toLocaleDateString('en-US', { month: 'long' });
 
@@ -93,11 +106,41 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
               strokeDasharray={`${paymentsDash} ${circumference}`}
               className="transition-all duration-500"
             />
+            {/* Outstanding invoices segment */}
+            {outstandingInvoices > 0 && !isGoalMet && (
+              <>
+                <circle
+                  cx="48"
+                  cy="48"
+                  r="40"
+                  stroke={hoveringOutstanding ? '#8e51ff' : '#c4a5ff'}
+                  strokeWidth="8"
+                  fill="none"
+                  strokeDasharray={`0 ${paymentsDash} ${outstandingDash} ${circumference}`}
+                  className="transition-all duration-300"
+                  style={{ cursor: 'pointer' }}
+                />
+                {/* Wider invisible hit target for hover */}
+                <circle
+                  cx="48"
+                  cy="48"
+                  r="40"
+                  stroke={hoveringOutstanding ? '#8e51ff' : '#c4a5ff'}
+                  strokeWidth="16"
+                  fill="none"
+                  opacity={0.01}
+                  strokeDasharray={`0 ${paymentsDash} ${outstandingDash} ${circumference}`}
+                  onMouseEnter={() => setHoveringOutstanding(true)}
+                  onMouseLeave={() => setHoveringOutstanding(false)}
+                  style={{ cursor: 'pointer' }}
+                />
+              </>
+            )}
           </svg>
-          {/* Center text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          {/* Center text — pointer-events-none so hover passes through to SVG */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <p className={`text-xl font-bold ${isGoalMet ? 'text-green-600' : 'text-gray-900'}`}>
-              {Math.round(paymentsPercent)}%
+              {Math.round(displayPercent)}%
             </p>
           </div>
         </div>
@@ -111,7 +154,7 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
             <span className="text-gray-400"> collected</span>
           </p>
           {outstandingInvoices > 0 && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className={`text-xs mt-1 ${hoveringOutstanding ? 'text-purple-600' : 'text-gray-500'}`}>
               +{formatCurrency(outstandingInvoices, currency)} outstanding
             </p>
           )}
@@ -120,7 +163,7 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
               {formatCurrency(remaining, currency)} to go
             </p>
           )}
-          {isGoalMet && overGoalBy > 0 && (
+          {(isGoalMet || (hoveringOutstanding && currentAmount >= monthlyGoal)) && overGoalBy > 0 && (
             <p className="text-xs text-green-600 mt-1">
               {formatCurrency(overGoalBy, currency)} over goal
             </p>
