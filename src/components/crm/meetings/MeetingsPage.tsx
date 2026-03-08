@@ -223,28 +223,41 @@ const MeetingsPage: React.FC = () => {
           ) : (
             pastMeetings.map((meeting) => (
               <div
-                key={meeting.session_id}
+                key={meeting.id}
                 className={`flex items-center justify-between p-4 rounded-lg border ${
                   darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'
                 }`}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-zenible-dark-border text-zenible-dark-text-secondary' : 'bg-gray-100 text-gray-600'}`}>
-                      {PLATFORM_ICONS[meeting.platform] || meeting.platform}
-                    </span>
-                    <BotStatusBadge status={meeting.status} />
+                    <h4 className={`text-sm font-medium truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {meeting.title || 'Untitled Meeting'}
+                    </h4>
+                    {meeting.source && (
+                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-zenible-dark-border text-zenible-dark-text-secondary' : 'bg-gray-100 text-gray-600'}`}>
+                        {meeting.source}
+                      </span>
+                    )}
+                    {meeting.transcript_count > 0 && (
+                      <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+                        {meeting.transcript_count} transcript{meeting.transcript_count !== 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
-                  <p className={`text-xs mt-1 truncate ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                    {meeting.meeting_url}
-                  </p>
-                  {meeting.started_at && (
-                    <p className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-400'}`}>
-                      {formatTime(meeting.started_at)}
-                      {meeting.ended_at && ` - ${formatTime(meeting.ended_at)}`}
-                    </p>
-                  )}
+                  <div className={`flex items-center gap-3 mt-1 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                    {meeting.start_time && (
+                      <span>{formatTime(meeting.start_time)}</span>
+                    )}
+                    {meeting.duration_ms != null && meeting.duration_ms > 0 && (
+                      <span>{Math.round(meeting.duration_ms / 60000)} min</span>
+                    )}
+                  </div>
                 </div>
+                {meeting.is_processed && (
+                  <span className={`text-xs px-2 py-0.5 rounded ml-4 ${darkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-600'}`}>
+                    Processed
+                  </span>
+                )}
               </div>
             ))
           )}

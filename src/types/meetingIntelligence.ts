@@ -29,12 +29,15 @@ export interface BotStatus {
 }
 
 export interface MeetingListItem {
-  session_id: string;
-  meeting_url: string;
-  platform: string;
-  status: string;
-  started_at: string | null;
-  ended_at: string | null;
+  id: string;
+  title: string | null;
+  start_time: string | null;
+  duration_ms: number | null;
+  source: string | null;
+  is_processed: boolean;
+  transcript_count: number;
+  system_audio_path: string | null;
+  mic_audio_path: string | null;
 }
 
 export interface TranscriptEntry {
