@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSidebar } from '../../contexts/SidebarContext';
 import brandIcon from '../../assets/icons/brand-icon.svg';
+import NotificationBell from '../notifications/NotificationBell';
 
 interface MobileHeaderProps {
   title?: string;
@@ -37,6 +38,11 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ title }) => {
           {title}
         </span>
       )}
+
+      {/* Notification Bell - pushed to far right */}
+      <div className="ml-auto">
+        <NotificationBell />
+      </div>
     </header>
   );
 };

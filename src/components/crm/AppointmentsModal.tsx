@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { CalendarIcon, PhoneIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon, ClockIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon, ClockIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { Z_INDEX } from '../../constants/crm';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
@@ -27,7 +27,6 @@ const DURATION_OPTIONS = [
 interface AppointmentItem {
   id: string;
   start_datetime?: string | null;
-  appointment_type?: string;
   deleted_at?: string | null;
   [key: string]: unknown;
 }
@@ -60,7 +59,6 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
 
   const [mode, setMode] = useState<'list' | 'create' | 'edit'>('list');
   const [editingAppointment, setEditingAppointment] = useState<AppointmentItem | null>(null);
-  const [appointmentType, setAppointmentType] = useState('call');
   const [appointmentTitle, setAppointmentTitle] = useState('');
   const [appointmentDate, setAppointmentDate] = useState(new Date().toISOString().split('T')[0]);
   const [appointmentTime, setAppointmentTime] = useState(getNextHour());
@@ -73,6 +71,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   const [sendInviteToContact, setSendInviteToContact] = useState(true);
   const [fetchedAppointments, setFetchedAppointments] = useState<AppointmentItem[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
 
   const displayName = getContactDisplayName(contact);
   const scheduledAppointments = getScheduledAppointments(fetchedAppointments) as AppointmentItem[];
@@ -99,6 +98,9 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       setMode('list');
       setEditingAppointment(null);
       fetchAppointments();
+      appointmentsAPI.getGoogleStatus<{ accounts?: unknown[] }>()
+        .then((status) => setGoogleConnected((status?.accounts?.length ?? 0) > 0))
+        .catch(() => setGoogleConnected(false));
     } else {
       setFetchedAppointments([]);
     }
@@ -110,7 +112,6 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
     setEditingAppointment(null);
     setAppointmentDate(new Date().toISOString().split('T')[0]);
     setAppointmentTime(getNextHour());
-    setAppointmentType('call');
     setAppointmentTitle('');
     setDuration(60);
     setSendInviteToContact(!!contact?.email);
@@ -133,7 +134,6 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       const minutes = String(date.getMinutes()).padStart(2, '0');
       setAppointmentTime(`${hours}:${minutes}`);
     }
-    setAppointmentType(appointment.appointment_type || 'call');
     // Calculate duration from start/end datetimes, or use duration_minutes from API
     const durationMinutes = (appointment as Record<string, unknown>).duration_minutes as number | undefined;
     if (durationMinutes) {
@@ -152,7 +152,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   // Handle creating new appointment
   const handleSaveNew = async () => {
     const dateTimeValue = new Date(`${appointmentDate}T${appointmentTime}:00`).toISOString();
-    await setFollowUp(contact, dateTimeValue, appointmentType, duration, sendInviteToContact, appointmentTitle.trim() || null);
+    await setFollowUp(contact, dateTimeValue, duration, sendInviteToContact, appointmentTitle.trim() || null);
     await fetchAppointments();
     setMode('list');
   };
@@ -166,10 +166,9 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       const endISO = calculateEndDateTime(startISO, duration);
 
       await appointmentsAPI.update(editingAppointment.id, {
-        title: appointmentTitle.trim() || formatAppointmentTitle(contact, appointmentType, user),
+        title: appointmentTitle.trim() || formatAppointmentTitle(contact, user),
         start_datetime: startISO,
         end_datetime: endISO,
-        appointment_type: appointmentType,
         send_invite_to_contact: sendInviteToContact
       });
 
@@ -244,7 +243,6 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                 </h4>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {scheduledAppointments.map((appointment) => {
-                    const isCall = appointment.appointment_type === 'call';
                     const date = new Date(appointment.start_datetime ?? '');
                     const apptDuration = (appointment as Record<string, unknown>).duration_minutes as number | undefined;
                     let durationLabel: string | null = null;
@@ -261,14 +259,10 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                         className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
                         <div className="flex items-center gap-3 flex-1">
-                          {isCall ? (
-                            <PhoneIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
-                          ) : (
-                            <CalendarIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                          )}
+                          <CalendarIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                           <div className="flex-1">
-                            <div className={`font-medium ${isCall ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}`}>
-                              {(appointment as Record<string, unknown>).title as string || (isCall ? 'Call' : 'Follow-up')}
+                            <div className="font-medium text-blue-700 dark:text-blue-300">
+                              {(appointment as Record<string, unknown>).title as string || 'Appointment'}
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">
                               {date.toLocaleDateString('en-US', {
@@ -334,38 +328,6 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Type
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {([
-                  { value: 'call', label: 'Call', icon: <PhoneIcon className="h-5 w-5" /> },
-                  { value: 'follow_up', label: 'Follow Up', icon: <CalendarIcon className="h-5 w-5" /> },
-                ] as const).map((option) => {
-                  const isSelected = appointmentType === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setAppointmentType(option.value)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all ${
-                        isSelected
-                          ? 'border-zenible-primary bg-blue-50 dark:bg-blue-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                      }`}
-                    >
-                      <span className={isSelected ? 'text-zenible-primary' : 'text-gray-500 dark:text-gray-400'}>
-                        {option.icon}
-                      </span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {option.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Title
               </label>
               <input
@@ -377,7 +339,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary transition-colors"
               />
               <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                Leave blank to auto-generate from type and contact name
+                Leave blank to auto-generate from contact name
               </p>
             </div>
             <div className="grid grid-cols-3 gap-3">
@@ -438,14 +400,17 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                 id="send_invite_to_contact"
                 checked={sendInviteToContact}
                 onChange={(e) => setSendInviteToContact(e.target.checked)}
-                disabled={!contact?.email}
+                disabled={!contact?.email || googleConnected === false}
                 className="w-4 h-4 text-zenible-primary border-gray-300 dark:border-gray-600 rounded focus:ring-zenible-primary disabled:opacity-50"
               />
-              <label htmlFor="send_invite_to_contact" className={`ml-2 text-sm ${contact?.email ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
+              <label htmlFor="send_invite_to_contact" className={`ml-2 text-sm ${contact?.email && googleConnected !== false ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
                 Send Google Calendar invite to contact
               </label>
               {!contact?.email && (
                 <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">(no email on file)</span>
+              )}
+              {contact?.email && googleConnected === false && (
+                <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">(no calendar connected)</span>
               )}
             </div>
             <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 dark:border-gray-700">

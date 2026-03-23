@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import ZMIWebSocketService from '../../../services/ZMIWebSocketService';
 import BotStatusBadge from './BotStatusBadge';
+import meetingIntelligenceAPI from '../../../services/api/crm/meetingIntelligence';
 import type { TranscriptEntry } from '../../../types/meetingIntelligence';
 
 interface LiveTranscriptionProps {
@@ -17,6 +18,10 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
   const [botStatus, setBotStatus] = useState('connecting');
   const [entries, setEntries] = useState<TranscriptEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [recordingLoading, setRecordingLoading] = useState(false);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<ZMIWebSocketService | null>(null);
 
@@ -70,6 +75,54 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [entries]);
 
+  // Recording duration timer
+  useEffect(() => {
+    if (isRecording) {
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setRecordingDuration(0);
+    }
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    };
+  }, [isRecording]);
+
+  const handleStartRecording = async () => {
+    setRecordingLoading(true);
+    try {
+      await meetingIntelligenceAPI.startRecording(sessionId);
+      setIsRecording(true);
+    } catch (err: any) {
+      setError(`Failed to start recording: ${err.message || 'Unknown error'}`);
+    } finally {
+      setRecordingLoading(false);
+    }
+  };
+
+  const handleStopRecording = async () => {
+    setRecordingLoading(true);
+    try {
+      await meetingIntelligenceAPI.stopRecording(sessionId);
+      setIsRecording(false);
+    } catch (err: any) {
+      setError(`Failed to stop recording: ${err.message || 'Unknown error'}`);
+    } finally {
+      setRecordingLoading(false);
+    }
+  };
+
+  const formatRecordingTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className={`flex flex-col h-full rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
       {/* Header */}
@@ -81,15 +134,54 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
           <BotStatusBadge status={botStatus} />
           {/* Connection indicator */}
           <span className={`inline-flex h-2 w-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+          {/* Recording indicator */}
+          {isRecording && (
+            <span className="flex items-center gap-1.5 text-xs font-medium text-red-500">
+              <span className="inline-flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+              REC {formatRecordingTime(recordingDuration)}
+            </span>
+          )}
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className={`text-sm px-2 py-1 rounded ${darkMode ? 'text-zenible-dark-text-secondary hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            Close
-          </button>
-        )}
+        {/* Recording controls */}
+        <div className="flex items-center gap-2">
+          {botStatus === 'in_meeting' && (
+            <button
+              onClick={isRecording ? handleStopRecording : handleStartRecording}
+              disabled={recordingLoading}
+              className={`text-xs px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 ${
+                isRecording
+                  ? darkMode
+                    ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50'
+                    : 'bg-red-50 text-red-600 hover:bg-red-100'
+                  : darkMode
+                    ? 'bg-zenible-primary/20 text-zenible-primary hover:bg-zenible-primary/30'
+                    : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+              } disabled:opacity-50`}
+            >
+              {recordingLoading ? (
+                <span className="inline-flex h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : isRecording ? (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" /></svg>
+                  Stop Recording
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /></svg>
+                  Start Recording
+                </>
+              )}
+            </button>
+          )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className={`text-sm px-2 py-1 rounded ${darkMode ? 'text-zenible-dark-text-secondary hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Close
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Error */}

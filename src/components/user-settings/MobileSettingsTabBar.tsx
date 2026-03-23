@@ -25,7 +25,7 @@ const allTabs = [
   { id: 'subscription', label: 'Subscription', icon: CreditCardIcon },
   { id: 'customization', label: 'AI Intelligence', icon: PaintBrushIcon },
   { id: 'booking', label: 'Call Booking', icon: CalendarDaysIcon },
-  { id: 'meeting-intelligence', label: 'Meetings', icon: MicrophoneIcon },
+  { id: 'meeting-intelligence', label: 'Meeting Intelligence', icon: MicrophoneIcon },
   { id: 'company', label: 'Company', icon: BuildingOfficeIcon },
   { id: 'localization', label: 'Localization', icon: GlobeAltIcon },
   { id: 'email-templates', label: 'Email', icon: EnvelopeIcon },

@@ -26,7 +26,7 @@ interface UserLike {
   email?: string | null;
 }
 
-export const formatAppointmentTitle = (contact: ContactLike | null | undefined, _appointmentType: string, user?: UserLike | null): string => {
+export const formatAppointmentTitle = (contact: ContactLike | null | undefined, user?: UserLike | null): string => {
   // CLIENT: contact's first name, or business name if no first name
   const clientName = contact?.first_name || contact?.business_name || 'Contact';
 
@@ -43,17 +43,15 @@ export const formatAppointmentTitle = (contact: ContactLike | null | undefined, 
 export const prepareAppointmentData = (
   contact: ContactLike,
   startDateTime: string,
-  appointmentType: string,
   customTitle: string | null = null,
   durationMinutes = 60,
   user?: UserLike | null
 ) => {
   return {
     contact_id: contact.id,
-    title: customTitle || formatAppointmentTitle(contact, appointmentType, user),
+    title: customTitle || formatAppointmentTitle(contact, user),
     start_datetime: startDateTime,
     end_datetime: calculateEndDateTime(startDateTime, durationMinutes),
-    appointment_type: appointmentType,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
   };
 };

@@ -129,10 +129,28 @@ export const WebSocketProvider = ({ children }: { children: React.ReactNode }) =
       }
     };
 
+    const handleTokenChanged = (e: Event) => {
+      const token = (e as CustomEvent).detail?.token;
+      setAccessToken(token);
+      if (token && !initializationRef.current) {
+        initWebSocket();
+      } else if (!token && initializationRef.current) {
+        if (healthIntervalRef.current) {
+          clearInterval(healthIntervalRef.current);
+        }
+        stableConnectionRef.current?.destroy();
+        wsServiceRef.current?.disconnect();
+        initializationRef.current = false;
+        setIsConnected(false);
+      }
+    };
+
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('zenible_token_changed', handleTokenChanged);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('zenible_token_changed', handleTokenChanged);
     };
   }, [initWebSocket]);
 

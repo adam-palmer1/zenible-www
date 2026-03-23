@@ -31,7 +31,7 @@ export default function ProposalInput({ darkMode, proposal, setProposal, jobPost
 
       {/* Textarea */}
       <div className="flex-1 mt-2 min-h-0">
-        <div className={`h-full rounded-[10px] border p-3 sm:p-4 min-h-[200px] ${
+        <div className={`h-full rounded-[10px] border p-3 sm:p-4 ${
           darkMode
             ? 'bg-[#2d2d2d] border-[#4a4a4a]'
             : 'bg-white border-[#ddd6ff]'

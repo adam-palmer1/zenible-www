@@ -26,6 +26,7 @@ export interface StructuredAnalysisData {
   strengths?: string[];
   weaknesses?: string[];
   improvements?: string[];
+  proposal_text?: string;
 }
 
 export interface FeedbackData {

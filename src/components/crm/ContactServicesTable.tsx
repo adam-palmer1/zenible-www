@@ -54,10 +54,7 @@ const ContactServicesTable: React.FC<ContactServicesTableProps> = ({
           <thead>
             <tr className="border-b border-[#e5e5e5] dark:border-gray-700">
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                Service Name
-              </th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                Client
+                Service
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                 Price
@@ -89,14 +86,7 @@ const ContactServicesTable: React.FC<ContactServicesTableProps> = ({
                 onClick={() => onServiceClick && onServiceClick(service)}
               >
                 <td className="px-4 py-4 whitespace-nowrap">
-                  <div className="font-medium text-gray-900 dark:text-white">{service.name}</div>
-                  {service.description && (
-                    <div className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">
-                      {service.description}
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{service.name}</div>
                   <button
                     onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
@@ -106,11 +96,6 @@ const ContactServicesTable: React.FC<ContactServicesTableProps> = ({
                   >
                     {service.contact_name}
                   </button>
-                  {service.contact_business_name && service.contact_name !== service.contact_business_name && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {service.contact_business_name}
-                    </div>
-                  )}
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap">
                   {service.price ? (

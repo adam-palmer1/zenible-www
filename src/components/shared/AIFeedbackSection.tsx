@@ -1,17 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 // Removed SVG imports - will use inline SVG components instead
 import brandIcon from '../../assets/icons/brand-icon.svg';
-import AICharacterTypingIndicator, { TypingDots } from '../ai/AICharacterTypingIndicator';
+import AICharacterTypingIndicator from '../ai/AICharacterTypingIndicator';
 import { messageAPI } from '../../services/messageAPI';
 import { markdownToPlainText } from './ai-feedback/utils';
-import { getMarkdownComponents } from './ai-feedback/markdownComponents';
 import EmptyState from './ai-feedback/EmptyState';
 import ConversationHistory from './ai-feedback/ConversationHistory';
-import StructuredAnalysis from './ai-feedback/StructuredAnalysis';
 import MetricsDisplay from './ai-feedback/MetricsDisplay';
-import FeedbackActions from './ai-feedback/FeedbackActions';
 import CompletionQuestions from './ai-feedback/CompletionQuestions';
 import ChatInput from './ai-feedback/ChatInput';
 import type { AIFeedbackSectionProps } from './ai-feedback/types';
@@ -33,7 +28,6 @@ export default function AIFeedbackSection({
   messageId,
   onCancel,
   onSendMessage,
-  characterId: _characterId,
   characterName = 'AI Assistant',
   characterAvatarUrl = null,
   characterDescription = '',
@@ -45,9 +39,6 @@ export default function AIFeedbackSection({
   analysisHistory = []
 }: AIFeedbackSectionProps) {
   const [question, setQuestion] = useState('');
-  const [displayContent, setDisplayContent] = useState('');
-  const [messageRating, setMessageRating] = useState<string | null>(null);
-  const [ratingLoading, setRatingLoading] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: string; content: string; timestamp: string }>>([]);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
@@ -59,35 +50,15 @@ export default function AIFeedbackSection({
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
-  // Update display content when analysis or streaming is available
-  useEffect(() => {
-    if (isStreaming && streamingContent) {
-      setDisplayContent(streamingContent);
-    } else if (streamingContent && !isStreaming) {
-      setDisplayContent(streamingContent);
-    } else if (rawAnalysis) {
-      setDisplayContent(rawAnalysis);
-    } else if (feedback?.raw) {
-      setDisplayContent(feedback.raw);
-    } else if (feedback?.analysis?.raw) {
-      setDisplayContent(feedback.analysis.raw);
-    } else if (!isStreaming && !streamingContent && !rawAnalysis && !feedback?.raw && !feedback?.analysis?.raw) {
-      setDisplayContent('');
-    }
-
-  }, [isStreaming, streamingContent, rawAnalysis, feedback]);
-
-  // Clear display content when new analysis starts
-  useEffect(() => {
-    if (analyzing) {
-      setDisplayContent('');
-    }
-  }, [analyzing]);
-
-  // Reset rating when message changes
-  useEffect(() => {
-    setMessageRating(null);
-  }, [messageId]);
+  const displayContent = useMemo(() => {
+    if (analyzing) return '';
+    if (isStreaming && streamingContent) return streamingContent;
+    if (streamingContent && !isStreaming) return streamingContent;
+    if (rawAnalysis) return rawAnalysis;
+    if (feedback?.raw) return feedback.raw;
+    if (feedback?.analysis?.raw) return feedback.analysis.raw;
+    return '';
+  }, [analyzing, isStreaming, streamingContent, rawAnalysis, feedback]);
 
   // Reset questionsSent when new analysis starts
   useEffect(() => {
@@ -237,21 +208,6 @@ export default function AIFeedbackSection({
     onSuccess(finalRating);
   }, [conversationId]);
 
-  const handleRating = async (rating: string) => {
-    if (!conversationId || !messageId || ratingLoading) {
-      return;
-    }
-
-    setRatingLoading(true);
-    try {
-      await toggleRating(messageId, messageRating, rating, setMessageRating);
-    } catch {
-      // Silent failure - rating not critical
-    } finally {
-      setRatingLoading(false);
-    }
-  };
-
   const handleMessageRating = async (msgId: string, rating: string) => {
     if (!conversationId || !msgId) {
       return;
@@ -358,51 +314,6 @@ export default function AIFeedbackSection({
                 />
               )}
 
-              {/* Main AI Analysis Response - NOW SHOWN IN CONVERSATION HISTORY BELOW */}
-              {/* eslint-disable-next-line no-constant-binary-expression -- dead code kept for reference */}
-              {false && Boolean(displayContent || isStreaming || analyzing) && (
-                <div className={`rounded-xl p-2.5 sm:p-3 ${
-                  darkMode ? 'bg-[#2d2d2d]' : 'bg-zinc-100'
-                }`}>
-                  {/* Raw markdown content */}
-                  {(displayContent || isStreaming || analyzing) && (
-                    <>
-                      <div className={`prose prose-sm max-w-none ${
-                        darkMode
-                          ? 'prose-invert prose-pre:bg-gray-800 prose-pre:text-gray-200'
-                          : 'prose-pre:bg-gray-100 prose-pre:text-gray-800'
-                      } font-inter font-normal text-xs sm:text-sm leading-[20px] sm:leading-[22px] ${
-                        darkMode ? 'text-white' : 'text-zinc-950'
-                      }`}>
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={getMarkdownComponents(darkMode, 'analysis')}
-                        >
-                          {displayContent}
-                        </ReactMarkdown>
-                        {(isStreaming || (analyzing && !isProcessing && !displayContent)) && (
-                          <span className="inline-flex ml-1">
-                            <TypingDots darkMode={darkMode} size="sm" />
-                          </span>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* 2. Structured Analysis - Outside as separate section */}
-              {(structuredAnalysis != null || feedback?.structured != null) && !analyzing && !isProcessing && !isStreaming && (
-                <div className="mt-1">
-                  <StructuredAnalysis
-                    darkMode={darkMode}
-                    structuredAnalysis={structuredAnalysis}
-                    feedbackStructured={feedback?.structured}
-                    feedbackAnalysisStructured={feedback?.analysis?.structured}
-                  />
-                </div>
-              )}
-
               {/* 3. Metrics - Small info text */}
               {!analyzing && !isProcessing && !isStreaming && (
                 <MetricsDisplay
@@ -424,38 +335,7 @@ export default function AIFeedbackSection({
                 </div>
               )}
 
-              {/* Feedback Actions */}
-              {(displayContent || structuredAnalysis != null) && !analyzing && !isProcessing && !isStreaming && messageId && (
-                <FeedbackActions
-                  darkMode={darkMode}
-                  messageRating={messageRating}
-                  ratingLoading={ratingLoading}
-                  onRate={handleRating}
-                />
-              )}
-
-              {/* Completion Question Buttons - Show after any completed analysis */}
-              {(() => {
-                const hasCompletedAnalysis = messageId || analysisHistory.length > 0;
-                const shouldShow = hasCompletedAnalysis &&
-                  !analyzing &&
-                  !isProcessing &&
-                  !isStreaming &&
-                  !feedback?.error &&
-                  !questionsSent &&
-                  completionQuestions.length > 0;
-
-                return shouldShow && (
-                  <CompletionQuestions
-                    darkMode={darkMode}
-                    completionQuestions={completionQuestions}
-                    isSendingMessage={isSendingMessage}
-                    onSuggestionClick={handleSuggestionClick}
-                  />
-                );
-              })()}
-
-              {/* 4. Conversation History - Chat bubbles */}
+              {/* Conversation History - Chat bubbles (ratings are inline per message) */}
               <ConversationHistory
                 darkMode={darkMode}
                 characterAvatarUrl={characterAvatarUrl}
@@ -477,6 +357,27 @@ export default function AIFeedbackSection({
                 onMessageRate={handleMessageRating}
                 onCopyMessage={handleCopyMessage}
               />
+
+              {/* Completion Question Buttons - Show after conversation history */}
+              {(() => {
+                const hasCompletedAnalysis = messageId || analysisHistory.length > 0;
+                const shouldShow = hasCompletedAnalysis &&
+                  !analyzing &&
+                  !isProcessing &&
+                  !isStreaming &&
+                  !feedback?.error &&
+                  !questionsSent &&
+                  completionQuestions.length > 0;
+
+                return shouldShow && (
+                  <CompletionQuestions
+                    darkMode={darkMode}
+                    completionQuestions={completionQuestions}
+                    isSendingMessage={isSendingMessage}
+                    onSuggestionClick={handleSuggestionClick}
+                  />
+                );
+              })()}
 
               <div ref={contentEndRef} />
             </div>

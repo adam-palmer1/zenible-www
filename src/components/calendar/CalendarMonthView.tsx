@@ -22,11 +22,9 @@ interface CalendarMonthViewProps {
   getAppointmentColor: (appointment: any) => string;
   isRecurringAppointment: (appointments: any[], appointmentId: any) => boolean;
   isAppointmentReadOnly: (appointment: any) => boolean;
-  getStatusColor: (status: string) => string;
-  getStatusLabel: (status: string) => string;
 }
 
-export default function CalendarMonthView({ currentDate, appointments, onAppointmentClick, onNewAppointment, getAppointmentColor, isRecurringAppointment, isAppointmentReadOnly, getStatusColor, getStatusLabel }: CalendarMonthViewProps) {
+export default function CalendarMonthView({ currentDate, appointments, onAppointmentClick, onNewAppointment, getAppointmentColor, isRecurringAppointment, isAppointmentReadOnly }: CalendarMonthViewProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [cellHeight, setCellHeight] = useState(0);
 
@@ -163,15 +161,6 @@ export default function CalendarMonthView({ currentDate, appointments, onAppoint
                               {isReadOnly && <LockClosedIcon className="w-3 h-3 flex-shrink-0" />}
                               {isRecurring && <ArrowPathIcon className="w-3 h-3 flex-shrink-0" />}
                               <span className="truncate">{apt.all_day ? '' : `${format(parseISO(apt.start_datetime), 'h:mm a')} `}{apt.title}</span>
-                              {apt.status && apt.status !== 'scheduled' && (
-                                <span
-                                  className="text-[10px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
-                                  style={{ color: getStatusColor(apt.status) }}
-                                  title={getStatusLabel(apt.status)}
-                                >
-                                  {getStatusLabel(apt.status)}
-                                </span>
-                              )}
                             </div>
                           </div>
                         );
@@ -221,15 +210,6 @@ export default function CalendarMonthView({ currentDate, appointments, onAppoint
                     {isReadOnly && <LockClosedIcon className="w-3 h-3 flex-shrink-0" />}
                     {isRecurring && <ArrowPathIcon className="w-3 h-3 flex-shrink-0" />}
                     <span className="truncate">{event.title}</span>
-                    {event.status && event.status !== 'scheduled' && (
-                      <span
-                        className="text-[10px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
-                        style={{ color: getStatusColor(event.status) }}
-                        title={getStatusLabel(event.status)}
-                      >
-                        {getStatusLabel(event.status)}
-                      </span>
-                    )}
                   </div>
                 );
               })}

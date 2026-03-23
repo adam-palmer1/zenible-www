@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useBaseAIAnalysis, UseBaseAIAnalysisReturn } from './useBaseAIAnalysis';
 
 interface UseViralPostAnalysisConfig {
@@ -31,6 +31,9 @@ export function useViralPostAnalysis({
   onStreamingChunk,
   onError
 }: UseViralPostAnalysisConfig): UseViralPostAnalysisReturn {
+  // Stable reference to avoid recreating registerEventHandlers on every render
+  const supportedTools = useMemo(() => ['linkedin_post_from_draft', 'linkedin_strategy_from_topic_goal_audience'], []);
+
   // Configure base hook with viral post-specific settings
   const {
     conversationId,
@@ -51,7 +54,7 @@ export function useViralPostAnalysis({
   } = useBaseAIAnalysis({
     characterId,
     panelId,
-    supportedTools: ['linkedin_post_from_draft', 'linkedin_strategy_from_topic_goal_audience'],
+    supportedTools,
     structuredAnalysisMapper: null, // No mapping needed - pass through raw structured data
     onAnalysisStarted,
     onAnalysisComplete,

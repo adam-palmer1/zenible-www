@@ -1,18 +1,22 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { PhoneIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { PhoneIcon, CalendarIcon, BellIcon } from '@heroicons/react/24/outline';
 import ServiceValueDisplay from './ServiceValueDisplay';
 import ContactActionMenu from './ContactActionMenu';
 import AppointmentsModal from './AppointmentsModal';
+import FollowUpDetailsModal from './FollowUpDetailsModal';
+import FollowUpReminderModal from './FollowUpReminderModal';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
 import { useModalState } from '../../hooks/useModalState';
+import { useContactActions } from '../../contexts/ContactActionsContext';
 
 interface PipelineContactCardContentProps {
   contact: any;
   isDragging?: boolean;
   onClick?: () => void;
   onAppointmentClick?: () => void;
+  onBellClick?: () => void;
 }
 
 /**
@@ -24,6 +28,7 @@ const PipelineContactCardContentInner: React.FC<PipelineContactCardContentProps>
   isDragging = false,
   onClick,
   onAppointmentClick,
+  onBellClick,
 }) => {
   // Use the next_appointment field from the backend (already computed)
   const nextAppointment = contact.next_appointment;
@@ -40,20 +45,34 @@ const PipelineContactCardContentInner: React.FC<PipelineContactCardContentProps>
 
   return (
     <div
-      className={`w-full border rounded-[12px] shadow-sm cursor-move select-none overflow-hidden transition-all duration-200 ${
+      className={`w-full border rounded-[12px] shadow-sm cursor-pointer select-none overflow-hidden transition-all duration-200 ${
         isAppointmentOverdue
           ? 'bg-red-50 border-red-300 dark:bg-red-900/20 dark:border-red-700'
           : 'bg-white dark:bg-gray-800 border-[#e5e5e5] dark:border-gray-700'
       } ${isDragging ? 'shadow-[0_0_0_3px_rgba(138,43,225,0.5)] scale-105' : 'hover:shadow-md'}`}
       onClick={onClick}
     >
-      {/* Header: Badges/Name + Action Menu - Figma Design */}
-      {contact.is_client || contact.is_vendor ? (
-        <>
-          {/* If has badges: Show badges row, then name below */}
-          <div className="flex items-center justify-between p-4 w-full">
-            {/* Client/Vendor Badges - Top Left */}
-            <div className="flex gap-2 items-center">
+      {/* Header: Name + Badges + Action Menu */}
+      <div className="flex items-start justify-between p-4 pb-2 w-full">
+        {/* Name + Badges */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 flex-1 min-w-0">
+          {contact.follow_up_reminder_at && (
+            <button
+              type="button"
+              onClick={(e: React.MouseEvent) => { e.stopPropagation(); onBellClick?.(); }}
+              className="shrink-0 hover:scale-110 transition-transform"
+              aria-label="View follow-up reminder"
+            >
+              <BellIcon className="h-4 w-4 text-amber-500" />
+            </button>
+          )}
+          <p
+            className={`font-medium text-base leading-6 text-[#09090b] dark:text-white truncate max-w-full ${contact.is_hidden_crm ? 'line-through opacity-60' : ''}`}
+          >
+            {displayName}
+          </p>
+          {(contact.is_client || contact.is_vendor) && (
+            <div className="flex gap-1.5 items-center">
               {contact.is_client && (
                 <div className="bg-zenible-primary px-2 py-0.5 rounded-md h-6 flex items-center justify-center">
                   <p className="font-medium text-xs leading-5 text-white whitespace-nowrap">
@@ -69,51 +88,20 @@ const PipelineContactCardContentInner: React.FC<PipelineContactCardContentProps>
                 </div>
               )}
             </div>
+          )}
+        </div>
 
-            {/* Action Menu - Top Right */}
-            <div
-              className="flex items-center justify-center px-1 py-0.5 rounded-md h-6"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              <ContactActionMenu contact={contact} />
-            </div>
-          </div>
-
-          {/* Name below badges */}
-          <div className="px-4 pb-0 w-full">
-            <p
-              className={`font-medium text-base leading-6 text-[#09090b] dark:text-white truncate w-full ${contact.is_hidden_crm ? 'line-through opacity-60' : ''}`}
-            >
-              {displayName}
-            </p>
-          </div>
-        </>
-      ) : (
-        <>
-          {/* If no badges: Show name and action menu in same row */}
-          <div className="flex items-center justify-between p-4 pb-2 w-full">
-            {/* Name - Top Left */}
-            <div className="flex flex-col items-start flex-1 min-w-0">
-              <p
-                className={`font-medium text-base leading-6 text-[#09090b] dark:text-white truncate w-full ${contact.is_hidden_crm ? 'line-through opacity-60' : ''}`}
-              >
-                {displayName}
-              </p>
-            </div>
-
-            {/* Action Menu - Top Right */}
-            <div
-              className="flex items-center justify-center px-1 py-0.5 rounded-md h-6 ml-2"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              <ContactActionMenu contact={contact} />
-            </div>
-          </div>
-        </>
-      )}
+        {/* Action Menu - Top Right */}
+        <div
+          className="flex items-center justify-center px-1 py-0.5 rounded-md h-6 ml-2 shrink-0"
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
+          <ContactActionMenu contact={contact} />
+        </div>
+      </div>
 
       {/* Contact Info - Plain Text */}
-      <div className={`px-4 pb-3 w-full ${contact.is_client || contact.is_vendor ? 'pt-1' : ''}`}>
+      <div className="px-4 pb-3 w-full">
         <div className="flex flex-col gap-1 items-start w-full">
           {contact.business_name && contact.first_name && (
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate w-full">
@@ -266,6 +254,9 @@ interface PipelineContactCardProps {
  */
 const PipelineContactCard: React.FC<PipelineContactCardProps> = ({ contact, onClick, status }) => {
   const appointmentsModal = useModalState();
+  const followUpDetailsModal = useModalState();
+  const followUpEditModal = useModalState();
+  const { dismissReminder, setReminder } = useContactActions();
 
   // Sortable hook for drag functionality
   const {
@@ -298,6 +289,7 @@ const PipelineContactCard: React.FC<PipelineContactCardProps> = ({ contact, onCl
           isDragging={isDragging}
           onClick={onClick}
           onAppointmentClick={() => appointmentsModal.open()}
+          onBellClick={() => followUpDetailsModal.open()}
         />
       </div>
 
@@ -306,6 +298,23 @@ const PipelineContactCard: React.FC<PipelineContactCardProps> = ({ contact, onCl
         isOpen={appointmentsModal.isOpen}
         onClose={appointmentsModal.close}
         contact={contact}
+      />
+
+      {/* Follow-Up Details Modal */}
+      <FollowUpDetailsModal
+        isOpen={followUpDetailsModal.isOpen}
+        onClose={followUpDetailsModal.close}
+        contact={contact}
+        onDismiss={() => dismissReminder(contact)}
+        onEdit={() => followUpEditModal.open()}
+      />
+
+      {/* Follow-Up Edit Modal */}
+      <FollowUpReminderModal
+        isOpen={followUpEditModal.isOpen}
+        onClose={followUpEditModal.close}
+        onConfirm={(reminderAt) => setReminder(contact, reminderAt)}
+        contactName={getContactDisplayName(contact, 'Contact')}
       />
     </>
   );

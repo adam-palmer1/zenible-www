@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AppLayout from '../layout/AppLayout';
 import { useMobile } from '../../hooks/useMobile';
 import { useCalendar } from '../../hooks/useCalendar';
@@ -54,6 +55,7 @@ interface AppointmentFormData {
 
 export default function Calendar() {
   const isMobile = useMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState('weekly');
@@ -89,6 +91,7 @@ export default function Calendar() {
   const [draggingAppointment, setDraggingAppointment] = useState<CalendarAppointmentResponse | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [scrollToHour, setScrollToHour] = useState<number | undefined>(undefined);
 
   // Recurring scope dialog state
   const [showRecurringScopeDialog, setShowRecurringScopeDialog] = useState(false);
@@ -107,6 +110,9 @@ export default function Calendar() {
     }
   }, [isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Track whether we've already handled the deep-link so we don't re-trigger
+  const deepLinkHandled = useRef(false);
+
   const {
     appointments,
     googleConnected,
@@ -123,6 +129,7 @@ export default function Calendar() {
     updateAccountColor,
     toggleAccountReadOnly,
     syncAccount,
+    getAppointment,
   } = useCalendar();
 
   const { getPreference, updatePreference, initialized: prefsReady } = usePreferences();
@@ -130,9 +137,7 @@ export default function Calendar() {
   // Get enum metadata from context
   const {
     appointmentTypes,
-    appointmentStatuses,
     loading: enumsLoading,
-    getStatusColor
   } = useCRMReferenceData();
 
   // Build dynamic default colors from appointment types
@@ -226,6 +231,32 @@ export default function Calendar() {
 
     return () => clearInterval(pollInterval);
   }, [currentDate, viewMode, fetchAppointmentsForDateRange]);
+
+  // Handle deep-link: /calendar?appointment={id}
+  useEffect(() => {
+    const appointmentId = searchParams.get('appointment');
+    if (!appointmentId || deepLinkHandled.current) return;
+    deepLinkHandled.current = true;
+
+    (async () => {
+      const result = await getAppointment(appointmentId);
+      if (result.success && result.appointment) {
+        const apt = result.appointment as CalendarAppointmentResponse;
+        // Switch to day view on the appointment's date
+        setCurrentDate(parseISO(apt.start_datetime));
+        setViewMode('daily');
+        // Scroll to the appointment's hour
+        setScrollToHour(parseISO(apt.start_datetime).getHours());
+        // Open the appointment modal
+        setSelectedAppointment(apt);
+        setShowAppointmentModal(true);
+      }
+      // Clear the query param
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('appointment');
+      setSearchParams(newParams, { replace: true });
+    })();
+  }, [searchParams, setSearchParams, getAppointment]);
 
   // Get date range based on view mode
   const getDateRange = () => {
@@ -572,12 +603,6 @@ export default function Calendar() {
 
   const timeSlots = Array.from({ length: 24 }, (_, i) => i);
 
-  // Helper to get status label (used in sub-components)
-  const getStatusLabel = (status: string) => {
-    const statusObj = appointmentStatuses?.find((s: EnumItem) => s.value === status);
-    return statusObj?.label || status;
-  };
-
   return (
     <AppLayout pageTitle="Calendar" rawContent>
       <div className="flex-1 flex gap-2 p-2 md:gap-4 md:p-4 overflow-x-auto overflow-y-hidden max-w-[2000px] mx-auto w-full min-h-0">
@@ -641,8 +666,7 @@ export default function Calendar() {
                 getAppointmentColor={getAppointmentColor}
                 isRecurringAppointment={isRecurringAppointment}
                 isAppointmentReadOnly={isAppointmentReadOnly}
-                getStatusColor={getStatusColor}
-                getStatusLabel={getStatusLabel}
+                scrollToHour={scrollToHour}
               />}
               {viewMode === 'monthly' && <CalendarMonthView
                 currentDate={currentDate}
@@ -652,8 +676,7 @@ export default function Calendar() {
                 getAppointmentColor={getAppointmentColor}
                 isRecurringAppointment={isRecurringAppointment}
                 isAppointmentReadOnly={isAppointmentReadOnly}
-                getStatusColor={getStatusColor}
-                getStatusLabel={getStatusLabel}
+
               />}
               {viewMode === 'daily' && <CalendarDayView
                 currentDate={currentDate}
@@ -670,8 +693,7 @@ export default function Calendar() {
                 getAppointmentColor={getAppointmentColor}
                 isRecurringAppointment={isRecurringAppointment}
                 isAppointmentReadOnly={isAppointmentReadOnly}
-                getStatusColor={getStatusColor}
-                getStatusLabel={getStatusLabel}
+                scrollToHour={scrollToHour}
               />}
 
               {/* Drag Preview Tooltip */}
@@ -718,6 +740,7 @@ export default function Calendar() {
           setSelectedAppointment(null);
           setSelectedDate(null);
           setSelectedEditScope(null);
+          setScrollToHour(undefined);
         }}
         onSave={handleAppointmentSave}
         onDelete={(appointment) => handleAppointmentDelete(appointment as CalendarAppointmentResponse)}

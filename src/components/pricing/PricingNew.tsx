@@ -140,6 +140,26 @@ export default function PricingNew() {
     const plan = plans.find(p => p.id === planId);
     if (!plan) return;
 
+    // No-card trial: create subscription directly without payment
+    if (plan.trial_enabled && plan.trial_duration_days && !plan.trial_requires_card) {
+      setProcessingAction(true);
+      try {
+        await planAPI.createSubscription(planId, billingCycle);
+        setSuccessModal({
+          isOpen: true,
+          planName: plan.name,
+          price: '0',
+          billingCycle
+        });
+        await Promise.all([fetchData(), checkAuth()]);
+      } catch (err: unknown) {
+        setError((err as Error).message || 'Failed to start trial');
+      } finally {
+        setProcessingAction(false);
+      }
+      return;
+    }
+
     const price = billingCycle === 'monthly'
       ? parseFloat(plan.monthly_price).toFixed(2).replace(/\.00$/, '')
       : parseFloat(plan.annual_price || plan.monthly_price * 12).toFixed(2).replace(/\.00$/, '');
@@ -312,6 +332,9 @@ export default function PricingNew() {
     if (isCurrentPlan(plan.id)) return 'Current Plan';
     if (isCompanyManagedSubscription) return 'Managed by Admin';
     if (isFreePlan(plan)) return 'Go with Free for Now';
+    if (!currentSubscription && plan.trial_enabled && plan.trial_duration_days) {
+      return `Start ${plan.trial_duration_days}-Day Free Trial`;
+    }
     if (!currentSubscription) return 'Subscribe';
 
     const currentPrice = billingCycle === 'monthly'
@@ -641,6 +664,13 @@ export default function PricingNew() {
               >
                 {getButtonText(plan)}
               </button>
+
+              {/* Trial subtitle */}
+              {plan.trial_enabled && plan.trial_duration_days && !currentPlan && !isFreePlan(plan) && (
+                <p className="text-sm text-center -mt-4 mb-4 text-zinc-400">
+                  {plan.trial_requires_card ? 'Credit card required' : 'No credit card required'}
+                </p>
+              )}
 
               {/* Features */}
               <div className="flex-1 flex flex-col gap-4">

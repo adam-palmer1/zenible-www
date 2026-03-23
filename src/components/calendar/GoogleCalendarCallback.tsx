@@ -24,6 +24,16 @@ const GoogleCalendarCallback: React.FC = () => {
       const state = searchParams.get('state');
       const errorParam = searchParams.get('error');
 
+      // Bot calendar OAuth flow: redirect to admin page with params
+      if (state?.startsWith('bot:')) {
+        const params = new URLSearchParams();
+        if (code) params.set('code', code);
+        if (state) params.set('state', state);
+        if (errorParam) params.set('error', errorParam);
+        navigate(`/admin/bot-calendar?${params.toString()}`, { replace: true });
+        return;
+      }
+
       // Check for errors from Google
       if (errorParam) {
         setStatus('error');

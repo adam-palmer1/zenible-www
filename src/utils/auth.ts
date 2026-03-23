@@ -22,10 +22,12 @@ export const tokenStorage = {
   setTokens: (accessToken: string, refreshToken: string): void => {
     localStorage.setItem('access_token', accessToken);
     localStorage.setItem('refresh_token', refreshToken);
+    window.dispatchEvent(new CustomEvent('zenible_token_changed', { detail: { token: accessToken } }));
   },
   clearTokens: (): void => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    window.dispatchEvent(new CustomEvent('zenible_token_changed', { detail: { token: null } }));
   }
 };
 

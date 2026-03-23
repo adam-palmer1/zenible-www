@@ -599,7 +599,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
     // Continue with normal flow
     if (openSendDialog) {
       setSavedInvoice(result!);
-      if (automaticPaymentEnabled && pricingType !== 'recurring') {
+      if (automaticPaymentEnabled && result?.has_saved_payment_method && pricingType !== 'recurring') {
         setShowBillingConfirm(true);
       } else {
         skipAutoBillingRef.current = false;
@@ -821,7 +821,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
       // Only open send dialog if explicitly requested (via Save & Send button)
       if (openSendDialog) {
         setSavedInvoice(result!);
-        if (automaticPaymentEnabled && pricingType !== 'recurring') {
+        if (automaticPaymentEnabled && result?.has_saved_payment_method && pricingType !== 'recurring') {
           setShowBillingConfirm(true);
         } else {
           skipAutoBillingRef.current = false;

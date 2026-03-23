@@ -23,6 +23,7 @@ interface CharacterTableProps {
   onEdit: (character: any) => void;
   onClone: (character: any) => void;
   onDelete: (characterId: string) => void;
+  onPermanentlyDelete: (characterId: string) => void;
   onSync: (character: any) => void;
   onPlatformConfig: (character: any) => void;
   darkMode: boolean;
@@ -37,6 +38,7 @@ export default function CharacterTable({
   onEdit,
   onClone,
   onDelete,
+  onPermanentlyDelete,
   onSync,
   onPlatformConfig,
   darkMode
@@ -68,7 +70,7 @@ export default function CharacterTable({
     <div className={`rounded-lg overflow-visible ${
       darkMode ? 'bg-zenible-dark-card' : 'bg-white'
     }`}>
-      <div className="overflow-x-auto">
+      <div className="overflow-visible">
       <table className="w-full">
         <thead className={`${
           darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'
@@ -300,6 +302,19 @@ export default function CharacterTable({
                             }`}
                           >
                             Archive
+                          </button>
+                          <button
+                            onClick={() => {
+                              onPermanentlyDelete(character.id);
+                              setActionDropdown(null);
+                            }}
+                            className={`block px-4 py-2 text-sm w-full text-left ${
+                              darkMode
+                                ? 'text-red-500 hover:bg-red-900/20'
+                                : 'text-red-700 hover:bg-red-50'
+                            }`}
+                          >
+                            Delete Permanently
                           </button>
                         </div>
                       </div>

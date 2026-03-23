@@ -19,6 +19,9 @@ export default function ModelSettingsFields({
   setModalError,
   darkMode
 }: ModelSettingsFieldsProps) {
+  const isAnthropic = characterForm.backend_provider === 'anthropic_chat';
+  const tempMax = isAnthropic ? 1 : 2;
+
   return (
     <>
       <div>
@@ -44,12 +47,12 @@ export default function ModelSettingsFields({
         <label className={`block text-sm font-medium mb-1 ${
           darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
         }`}>
-          Temperature ({characterForm.metadata.temperature})
+          Temperature ({characterForm.metadata.temperature}){isAnthropic ? ' — max 1.0 for Anthropic' : ''}
         </label>
         <input
           type="range"
           min="0"
-          max="2"
+          max={tempMax}
           step="0.1"
           value={characterForm.metadata.temperature}
           onChange={(e) => setCharacterForm({

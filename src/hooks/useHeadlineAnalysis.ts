@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useBaseAIAnalysis, UseBaseAIAnalysisReturn } from './useBaseAIAnalysis';
 
 interface HeadlineStructuredAnalysis {
@@ -35,6 +35,18 @@ export function useHeadlineAnalysis({
   onStreamingChunk,
   onError
 }: UseHeadlineAnalysisConfig): UseHeadlineAnalysisReturn {
+  // Stable references to avoid recreating registerEventHandlers on every render
+  const supportedTools = useMemo(() => ['analyze_headline', 'generate_headline'], []);
+  const structuredAnalysisMapper = useCallback((data: unknown): HeadlineStructuredAnalysis => {
+    const d = data as Record<string, unknown>;
+    return {
+      score: d.score,
+      strengths: (d.strengths as unknown[]) || [],
+      weaknesses: (d.weaknesses as unknown[]) || [],
+      improvements: (d.improvements as unknown[]) || []
+    };
+  }, []);
+
   // Configure base hook with headline-specific settings
   const {
     conversationId,
@@ -55,17 +67,8 @@ export function useHeadlineAnalysis({
   } = useBaseAIAnalysis({
     characterId,
     panelId,
-    supportedTools: ['analyze_headline', 'generate_headline'],
-    structuredAnalysisMapper: (data: unknown): HeadlineStructuredAnalysis => {
-      const d = data as Record<string, unknown>;
-      // Extract only the fields we need: score, strengths, weaknesses, improvements
-      return {
-        score: d.score,
-        strengths: (d.strengths as unknown[]) || [],
-        weaknesses: (d.weaknesses as unknown[]) || [],
-        improvements: (d.improvements as unknown[]) || []
-      };
-    },
+    supportedTools,
+    structuredAnalysisMapper,
     onAnalysisStarted,
     onAnalysisComplete,
     onStreamingStarted,

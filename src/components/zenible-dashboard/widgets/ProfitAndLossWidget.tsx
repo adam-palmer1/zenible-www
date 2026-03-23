@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 import { ChartBarIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
@@ -8,6 +8,7 @@ import { useDashboardWidget } from '../../../contexts/DashboardDataContext';
 
 interface ProfitAndLossWidgetProps {
   settings?: Record<string, any>;
+  onTitleChange?: (title: string) => void;
 }
 
 interface HoveredBar {
@@ -23,7 +24,7 @@ interface HoveredBar {
  * Profit and Loss Widget for Dashboard
  * Shows revenue vs expenses with net profit/loss chart
  */
-const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
+const ProfitAndLossWidget = ({ settings = {}, onTitleChange }: ProfitAndLossWidgetProps) => {
   const { defaultCurrency } = useCompanyCurrencies();
   const { data: summary, isLoading: loading, error } = useDashboardWidget('profitAndLoss');
   const [hoveredBar, setHoveredBar] = useState<HoveredBar | null>(null);
@@ -50,6 +51,12 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
   };
 
   const displayMonthName = getMonthName(displayPeriodKey);
+
+  useEffect(() => {
+    if (displayMonthName && onTitleChange) {
+      onTitleChange(`Profit & Loss (${displayMonthName})`);
+    }
+  }, [displayMonthName, onTitleChange]);
 
   // Get selected month's data from period data
   const displayMonthData = periodData.find((p: any) => p.period === displayPeriodKey) || {};
@@ -312,19 +319,19 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
       {/* Summary Stats */}
       <div className="grid grid-cols-4 gap-2 mb-2">
         <div className="text-center">
-          <p className="text-xs text-gray-500">{displayMonthName} Revenue</p>
+          <p className="text-xs text-gray-500">Revenue</p>
           <p className="text-sm font-semibold text-green-600">
             {formatCurrency(revenue, currency)}
           </p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-gray-500">{displayMonthName} Expenses</p>
+          <p className="text-xs text-gray-500">Expenses</p>
           <p className="text-sm font-semibold text-red-600">
             {formatCurrency(expenses, currency)}
           </p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-gray-500">{displayMonthName} Profit</p>
+          <p className="text-xs text-gray-500">Profit</p>
           <div className="flex items-center justify-center gap-1">
             {isProfit ? (
               <ArrowTrendingUpIcon className="w-3 h-3 text-green-600" />
@@ -368,19 +375,11 @@ const ProfitAndLossWidget = ({ settings = {} }: ProfitAndLossWidgetProps) => {
       <div className="flex items-center justify-center gap-3 mt-2 flex-wrap">
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 bg-green-200 rounded" />
-          <span className="text-[10px] text-gray-500">Income (Paid)</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 bg-gray-300 rounded" />
-          <span className="text-[10px] text-gray-500">Income (Unpaid)</span>
+          <span className="text-[10px] text-gray-500">Income</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 bg-red-200 rounded" />
-          <span className="text-[10px] text-gray-500">Expenses (Paid)</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 bg-gray-300 rounded" />
-          <span className="text-[10px] text-gray-500">Expenses (Unpaid)</span>
+          <span className="text-[10px] text-gray-500">Expenses</span>
         </div>
       </div>
 

@@ -121,6 +121,50 @@ export default function SubscriptionSettingsTab({
           </div>
 
           <div className="p-6 space-y-6">
+            {/* Trial Banner */}
+            {currentSubscription.is_trial && currentSubscription.trial_end && (
+              <div className={`p-4 rounded-lg border ${
+                darkMode
+                  ? 'bg-blue-900/20 border-blue-800'
+                  : 'bg-blue-50 border-blue-200'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <svg className={`w-6 h-6 shrink-0 mt-0.5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <h4 className={`font-medium mb-1 ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                      Free Trial - {currentSubscription.plan?.name}
+                    </h4>
+                    <p className={`text-sm ${darkMode ? 'text-blue-200' : 'text-blue-600'}`}>
+                      {currentSubscription.days_until_trial_end !== null && currentSubscription.days_until_trial_end !== undefined
+                        ? `${currentSubscription.days_until_trial_end} day${currentSubscription.days_until_trial_end !== 1 ? 's' : ''} remaining.`
+                        : ''
+                      }
+                      {' '}Trial ends on {formatDate(currentSubscription.trial_end)}.
+                    </p>
+                    {currentSubscription.stripe_subscription_id ? (
+                      <p className={`text-sm mt-1 ${darkMode ? 'text-blue-200' : 'text-blue-600'}`}>
+                        Your card will be charged when the trial ends on {formatDate(currentSubscription.trial_end)}.
+                      </p>
+                    ) : (
+                      <div className="mt-3">
+                        <button
+                          onClick={() => setShowUpdatePaymentModal(true)}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+                        >
+                          Add Payment Method
+                        </button>
+                        <p className={`text-xs mt-1 ${darkMode ? 'text-blue-300' : 'text-blue-500'}`}>
+                          You won't be charged until your trial ends
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Subscription Details */}
             <div className={`p-4 rounded-lg border ${
               darkMode
@@ -139,6 +183,8 @@ export default function SubscriptionSettingsTab({
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   currentSubscription.cancel_at_period_end
                     ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                    : currentSubscription.is_trial
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
                     : currentSubscription.status === 'active'
                     ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                     : currentSubscription.status === 'canceled'
@@ -147,6 +193,8 @@ export default function SubscriptionSettingsTab({
                 }`}>
                   {currentSubscription.cancel_at_period_end
                     ? 'Pending Cancellation'
+                    : currentSubscription.is_trial
+                    ? 'Free Trial'
                     : currentSubscription.status === 'active'
                     ? 'Active'
                     : currentSubscription.status}

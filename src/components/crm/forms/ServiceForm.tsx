@@ -155,6 +155,7 @@ interface ServiceFormProps {
   onCancel?: () => void;
   loading?: boolean;
   submitError?: string | null;
+  onFrequencyTypeChange?: (type: string) => void;
 }
 
 /**
@@ -168,6 +169,7 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
   onCancel,
   loading = false,
   submitError = null,
+  onFrequencyTypeChange,
 }) => {
   const methods = useForm({
     resolver: zodResolver(serviceSchema),
@@ -178,14 +180,15 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
   const frequencyType = watch('frequency_type');
   const timePeriod = watch('time_period');
 
-  // Clear recurring fields when switching to one_off
+  // Clear recurring fields when switching to one_off & notify parent
   useEffect(() => {
     if (frequencyType === 'one_off') {
       setValue('time_period', '');
       setValue('custom_every', '');
       setValue('custom_period', '');
     }
-  }, [frequencyType, setValue]);
+    onFrequencyTypeChange?.(frequencyType);
+  }, [frequencyType, setValue, onFrequencyTypeChange]);
 
   // Set defaults or clear custom fields based on time period selection
   useEffect(() => {
@@ -212,192 +215,216 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
   }));
 
   return (
-    <Form methods={methods} onSubmit={onSubmit} className="space-y-4">
-      {/* General Error */}
-      {submitError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-600">{submitError}</p>
-        </div>
-      )}
+    <Form methods={methods} onSubmit={onSubmit} className="">
+      <div className={`flex ${frequencyType === 'recurring' ? 'gap-0' : ''}`}>
+        {/* Left side: Main form fields */}
+        <div className="space-y-4 w-[28rem] flex-shrink-0">
+          {/* General Error */}
+          {submitError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{submitError}</p>
+            </div>
+          )}
 
-      {/* Service Name */}
-      <FormField
-        name="name"
-        label="Service Name"
-        type="text"
-        required
-      />
-
-      {/* Description */}
-      <FormTextarea
-        name="description"
-        label="Description"
-        rows={3}
-      />
-
-      {/* Price and Currency */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <FormField
-          name="price"
-          label="Price"
-          type="number"
-          required
-          registerOptions={{ min: 0 }}
-        />
-
-        <div className="relative">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Currency
-            <span className="text-red-500 ml-1">*</span>
-          </label>
-          <button
-            ref={currencyButtonRef}
-            type="button"
-            onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
-            className={`w-full px-3 py-2 text-sm rounded-lg border ${
-              errors.currency_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-            } bg-white dark:bg-gray-900 text-left flex items-center justify-between outline-none focus:border-zenible-primary focus:ring-1 focus:ring-zenible-primary cursor-pointer hover:border-gray-400 dark:hover:border-gray-500`}
-          >
-            {(() => {
-              const selectedCurrency = companyCurrencies.find(
-                (cc: any) => cc.currency.id === watch('currency_id')
-              );
-              if (selectedCurrency) {
-                return (
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-700 dark:text-gray-300 font-medium">
-                      {selectedCurrency.currency.symbol}
-                    </span>
-                    <span className="text-gray-900 dark:text-white">
-                      {selectedCurrency.currency.code}
-                    </span>
-                    {selectedCurrency.is_default && (
-                      <span className="text-xs text-purple-600 dark:text-purple-400">
-                        (Default)
-                      </span>
-                    )}
-                  </div>
-                );
-              }
-              return (
-                <span className="text-gray-500 dark:text-gray-400">
-                  {companyCurrencies.length === 0
-                    ? 'No currencies available'
-                    : 'Select currency...'}
-                </span>
-              );
-            })()}
-            <ChevronDownIcon
-              className={`h-4 w-4 text-gray-400 transition-transform ${
-                showCurrencyDropdown ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
-          <CurrencySelectorModal
-            isOpen={showCurrencyDropdown}
-            onClose={() => setShowCurrencyDropdown(false)}
-            onSelect={(currencyId: string) => {
-              setValue('currency_id', currencyId, { shouldValidate: true });
-            }}
-            selectedCurrencyId={watch('currency_id')}
-            currencies={companyCurrencies}
-            anchorRef={currencyButtonRef as React.RefObject<HTMLElement>}
+          {/* Service Name */}
+          <FormField
+            name="name"
+            label="Service Name"
+            type="text"
+            required
           />
-          {companyCurrencies.length === 0 && (
-            <p className="mt-1 text-xs text-amber-600">
-              No currencies configured. Please add currencies in CRM Settings.
-            </p>
-          )}
-          {errors.currency_id && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.currency_id.message as string}
-            </p>
-          )}
-        </div>
-      </div>
 
-      {/* Frequency Type */}
-      <OptionDropdown
-        name="frequency_type"
-        label="Frequency"
-        options={[
-          { value: 'one_off', label: 'One-off' },
-          { value: 'recurring', label: 'Recurring' },
-        ]}
-        required
-      />
+          {/* Description */}
+          <FormTextarea
+            name="description"
+            label="Description"
+            rows={3}
+          />
 
-      {/* Time Period (conditional) */}
-      {frequencyType === 'recurring' && (
-        <OptionDropdown
-          name="time_period"
-          label="Time Period"
-          options={[
-            { value: 'weekly', label: 'Weekly' },
-            { value: 'monthly', label: 'Monthly' },
-            { value: 'yearly', label: 'Yearly' },
-            { value: 'custom', label: 'Custom' },
-          ]}
-          placeholder="Select..."
-        />
-      )}
-
-      {/* Custom Frequency (conditional) */}
-      {frequencyType === 'recurring' && timePeriod === 'custom' && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Custom Frequency
-          </label>
-          <div className="flex gap-2 items-start">
-            <span className="text-sm text-gray-700 dark:text-gray-300 py-2 flex-shrink-0">
-              Every
-            </span>
-            <OptionDropdown
-              name="custom_every"
-              options={customEveryOptions}
-              placeholder="—"
-              className="w-20 flex-shrink-0"
+          {/* Price and Currency */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              name="price"
+              label="Price"
+              type="number"
+              required
+              registerOptions={{ min: 0 }}
             />
-            <OptionDropdown
-              name="custom_period"
-              options={[
-                { value: 'days', label: 'Days' },
-                { value: 'weeks', label: 'Weeks' },
-                { value: 'months', label: 'Months' },
-                { value: 'years', label: 'Years' },
-              ]}
-              placeholder="Period"
-              className="flex-1"
-            />
+
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Currency
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <button
+                ref={currencyButtonRef}
+                type="button"
+                onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
+                className={`w-full px-3 py-2 text-sm rounded-lg border ${
+                  errors.currency_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                } bg-white dark:bg-gray-900 text-left flex items-center justify-between outline-none focus:border-zenible-primary focus:ring-1 focus:ring-zenible-primary cursor-pointer hover:border-gray-400 dark:hover:border-gray-500`}
+              >
+                {(() => {
+                  const selectedCurrency = companyCurrencies.find(
+                    (cc: any) => cc.currency.id === watch('currency_id')
+                  );
+                  if (selectedCurrency) {
+                    return (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-700 dark:text-gray-300 font-medium">
+                          {selectedCurrency.currency.symbol}
+                        </span>
+                        <span className="text-gray-900 dark:text-white">
+                          {selectedCurrency.currency.code}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <span className="text-gray-500 dark:text-gray-400">
+                      {companyCurrencies.length === 0
+                        ? 'No currencies available'
+                        : 'Select currency...'}
+                    </span>
+                  );
+                })()}
+                <ChevronDownIcon
+                  className={`h-4 w-4 text-gray-400 transition-transform ${
+                    showCurrencyDropdown ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              <CurrencySelectorModal
+                isOpen={showCurrencyDropdown}
+                onClose={() => setShowCurrencyDropdown(false)}
+                onSelect={(currencyId: string) => {
+                  setValue('currency_id', currencyId, { shouldValidate: true });
+                }}
+                selectedCurrencyId={watch('currency_id')}
+                currencies={companyCurrencies}
+                anchorRef={currencyButtonRef as React.RefObject<HTMLElement>}
+              />
+              {companyCurrencies.length === 0 && (
+                <p className="mt-1 text-xs text-amber-600">
+                  No currencies configured. Please add currencies in CRM Settings.
+                </p>
+              )}
+              {errors.currency_id && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.currency_id.message as string}
+                </p>
+              )}
+            </div>
           </div>
-          {errors.custom_every && (
-            <p className="mt-1 text-sm text-red-600">
-              {errors.custom_every.message as string}
-            </p>
-          )}
-        </div>
-      )}
 
-      {/* Footer Buttons */}
-      <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-        {onCancel ? (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-        ) : (
-          <div />
+          {/* Frequency Toggle */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Frequency
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <button
+                type="button"
+                onClick={() => setValue('frequency_type', 'one_off', { shouldValidate: true })}
+                className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  frequencyType === 'one_off'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                One-off
+              </button>
+              <button
+                type="button"
+                onClick={() => setValue('frequency_type', 'recurring', { shouldValidate: true })}
+                className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  frequencyType === 'recurring'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Recurring
+              </button>
+            </div>
+          </div>
+
+          {/* Footer Buttons */}
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+            {onCancel ? (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            ) : (
+              <div />
+            )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:bg-opacity-90 disabled:opacity-50 transition-colors"
+            >
+              {loading ? 'Saving...' : service ? 'Update' : 'Create'}
+            </button>
+          </div>
+        </div>
+
+        {/* Right side: Recurring options */}
+        {frequencyType === 'recurring' && (
+          <div className="flex-1 space-y-4 border-l border-gray-200 pl-6">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Recurring Settings</h3>
+
+            <OptionDropdown
+              name="time_period"
+              label="Time Period"
+              options={[
+                { value: 'weekly', label: 'Weekly' },
+                { value: 'monthly', label: 'Monthly' },
+                { value: 'yearly', label: 'Yearly' },
+                { value: 'custom', label: 'Custom' },
+              ]}
+              placeholder="Select..."
+            />
+
+            {timePeriod === 'custom' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Custom Frequency
+                </label>
+                <div className="flex gap-2 items-start">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 py-2 flex-shrink-0">
+                    Every
+                  </span>
+                  <OptionDropdown
+                    name="custom_every"
+                    options={customEveryOptions}
+                    placeholder="—"
+                    className="w-20 flex-shrink-0"
+                  />
+                  <OptionDropdown
+                    name="custom_period"
+                    options={[
+                      { value: 'days', label: 'Days' },
+                      { value: 'weeks', label: 'Weeks' },
+                      { value: 'months', label: 'Months' },
+                      { value: 'years', label: 'Years' },
+                    ]}
+                    placeholder="Period"
+                    className="flex-1"
+                  />
+                </div>
+                {errors.custom_every && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.custom_every.message as string}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         )}
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-4 py-2 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:bg-opacity-90 disabled:opacity-50 transition-colors"
-        >
-          {loading ? 'Saving...' : service ? 'Update' : 'Create'}
-        </button>
       </div>
     </Form>
   );

@@ -25,13 +25,14 @@ interface CalendarDayViewProps {
   getAppointmentColor: (appointment: any) => string;
   isRecurringAppointment: (appointments: any[], appointmentId: any) => boolean;
   isAppointmentReadOnly: (appointment: any) => boolean;
-  getStatusColor: (status: string) => string;
-  getStatusLabel: (status: string) => string;
+  scrollToHour?: number;
 }
 
-export default function CalendarDayView({ currentDate, appointments, timeSlots, onAppointmentClick, onNewAppointment, onDragStart, onDragOver, onDrop, onDragEnd, draggingAppointment, dragPreview, getAppointmentColor, isRecurringAppointment, isAppointmentReadOnly, getStatusColor, getStatusLabel }: CalendarDayViewProps) {
+export default function CalendarDayView({ currentDate, appointments, timeSlots, onAppointmentClick, onNewAppointment, onDragStart, onDragOver, onDrop, onDragEnd, draggingAppointment, dragPreview, getAppointmentColor, isRecurringAppointment, isAppointmentReadOnly, scrollToHour }: CalendarDayViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [appointmentsBelow, setAppointmentsBelow] = useState<any[]>([]);
+  const [appointmentsAbove, setAppointmentsAbove] = useState<any[]>([]);
+  const stickyHeaderRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -43,11 +44,13 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
 
   useEffect(() => {
     if (scrollContainerRef.current) {
-      const previousHour = Math.max(0, new Date().getHours() - 1);
-      const scrollPosition = previousHour * 64;
+      const targetHour = scrollToHour !== undefined
+        ? Math.max(0, scrollToHour - 1)
+        : Math.max(0, new Date().getHours() - 1);
+      const scrollPosition = targetHour * 64;
       scrollContainerRef.current.scrollTop = scrollPosition;
     }
-  }, []);
+  }, [scrollToHour]);
 
   const dayAppointments = useMemo(() => {
     return appointments.filter((apt: any) => {
@@ -87,6 +90,20 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
       });
 
       setAppointmentsBelow(below);
+
+      const headerHeight = stickyHeaderRef.current?.offsetHeight || 0;
+      const visibleTop = container.scrollTop + headerHeight;
+
+      const above = dayAppointments.filter((apt: any) => {
+        const endDate = parseISO(apt.end_datetime);
+        const endHour = getHours(endDate);
+        const endMinute = getMinutes(endDate);
+        const effectiveEndHour = (endHour === 0 && endMinute === 0) ? 24 : endHour;
+        const appointmentBottom = effectiveEndHour * 64 + (endMinute / 60) * 64;
+        return appointmentBottom < visibleTop + 32;
+      });
+
+      setAppointmentsAbove(above);
     };
 
     checkAppointmentsBelow();
@@ -124,7 +141,7 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
   return (
     <div className="h-full relative">
       <div ref={scrollContainerRef} className="h-full overflow-y-auto overflow-x-hidden custom-scrollbar">
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+        <div ref={stickyHeaderRef} className="sticky top-0 z-20 bg-white border-b border-gray-200">
           {/* Date bar */}
           <div className="flex">
             <div className="w-24 flex-shrink-0 border-r border-gray-200"></div>
@@ -162,15 +179,6 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
                         {isReadOnly && <LockClosedIcon className="w-4 h-4 flex-shrink-0" />}
                         {isRecurring && <ArrowPathIcon className="w-4 h-4 flex-shrink-0" />}
                         <span>{apt.title}</span>
-                        {apt.status && apt.status !== 'scheduled' && (
-                          <span
-                            className="text-[10px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
-                            style={{ color: getStatusColor(apt.status) }}
-                            title={getStatusLabel(apt.status)}
-                          >
-                            {getStatusLabel(apt.status)}
-                          </span>
-                        )}
                       </div>
                     </div>
                   );
@@ -244,7 +252,7 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
                     opacity: isReadOnly ? 0.5 : (isDragging ? 0.4 : 0.9),
                     top: `${startIndex * 64 + (startMinute / 60) * 64}px`,
                     height: `${duration * 64 - 4}px`,
-                    minHeight: '60px',
+                    minHeight: '28px',
                     left: `calc(${leftPercent}% + 8px)`,
                     width: `calc(${widthPercent}% - 16px)`,
                   }}
@@ -254,15 +262,6 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
                     {isReadOnly && <LockClosedIcon className="w-4 h-4 text-white flex-shrink-0" />}
                     {isRecurring && <ArrowPathIcon className="w-4 h-4 text-white flex-shrink-0" />}
                     <p className="text-white text-xs font-normal truncate">{appointment.title}</p>
-                    {appointment.status && appointment.status !== 'scheduled' && (
-                      <span
-                        className="text-[9px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
-                        style={{ color: getStatusColor(appointment.status) }}
-                        title={getStatusLabel(appointment.status)}
-                      >
-                        {getStatusLabel(appointment.status)}
-                      </span>
-                    )}
                   </div>
                   <p className="text-white text-[11px] font-light opacity-90">
                     {format(startDate, 'h:mm a')} - {format(endDate, 'h:mm a')}
@@ -296,7 +295,7 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
                       borderColor: color,
                       top: `${previewStartIndex * 64 + (previewStartMinute / 60) * 64}px`,
                       height: `${previewDuration * 64 - 4}px`,
-                      minHeight: '60px',
+                      minHeight: '28px',
                       left: '8px',
                       right: '8px',
                     }}
@@ -319,7 +318,7 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
               const timePosition = currentHour * 64 + (currentMinute / 60) * 64;
               return (
                 <div
-                  className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
+                  className="absolute left-0 right-0 z-10 pointer-events-none flex items-center"
                   style={{ top: `${timePosition}px` }}
                 >
                   <div className="w-2 h-2 rounded-full bg-purple-600 -ml-1"></div>
@@ -330,6 +329,21 @@ export default function CalendarDayView({ currentDate, appointments, timeSlots, 
           </div>
         </div>
       </div>
+
+      {appointmentsAbove.length > 0 && (
+        <div
+          className="absolute left-24 right-0 h-2 flex pointer-events-none z-30"
+          style={{ top: `${stickyHeaderRef.current?.offsetHeight || 0}px` }}
+        >
+          {[...new Set(appointmentsAbove.map((apt: any) => getAppointmentColor(apt)))].map((color: string, index: number) => (
+            <div
+              key={index}
+              className="flex-1 h-full"
+              style={{ backgroundColor: color }}
+            />
+          ))}
+        </div>
+      )}
 
       {appointmentsBelow.length > 0 && (
         <div className="absolute bottom-0 left-24 right-0 h-2 flex pointer-events-none z-30">

@@ -16293,6 +16293,16 @@ export interface components {
             current_global_status_id?: string | null;
             /** Current Custom Status Id */
             current_custom_status_id?: string | null;
+            /**
+             * Follow Up Reminder At
+             * @description Datetime for follow-up reminder
+             */
+            follow_up_reminder_at?: string | null;
+            /**
+             * Follow Up Reminder Action
+             * @description Action for clearing reminder: 'completed' or 'dismissed'
+             */
+            follow_up_reminder_action?: string | null;
         };
         /**
          * ConversationCreate
@@ -23966,6 +23976,11 @@ export interface components {
              * @default 0
              */
             credit_notes_count: number;
+            /**
+             * Active Services Count
+             * @default 0
+             */
+            active_services_count: number;
         };
         /**
          * ProjectListItemResponse
@@ -24003,10 +24018,10 @@ export interface components {
              */
             created_at: string;
             /**
-             * Services Count
+             * Active Services Count
              * @default 0
              */
-            services_count: number;
+            active_services_count: number;
             /**
              * Invoices Count
              * @default 0

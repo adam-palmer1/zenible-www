@@ -3,6 +3,67 @@ import { usePreferences } from '../../contexts/PreferencesContext';
 import meetingIntelligenceAPI from '../../services/api/crm/meetingIntelligence';
 import type { ZMISettings } from '../../types/meetingIntelligence';
 
+const TEAMS_CAPTION_LANGUAGES = [
+  { label: 'Default (English US)', value: '' },
+  { label: 'Albanian (Albania)', value: 'Albanian (Albania)' },
+  { label: 'Arabic (Saudi Arabia)', value: 'Arabic (Saudi Arabia)' },
+  { label: 'Arabic (UAE)', value: 'Arabic (United Arab Emirates)' },
+  { label: 'Bulgarian (Bulgaria)', value: 'Bulgarian (Bulgaria)' },
+  { label: 'Catalan', value: 'Catalan (Catalan)' },
+  { label: 'Chinese (Simplified)', value: 'Chinese (Simplified, China)' },
+  { label: 'Chinese (Traditional, HK)', value: 'Chinese (Traditional, Hong Kong SAR)' },
+  { label: 'Chinese (Traditional, Taiwan)', value: 'Chinese (Traditional, Taiwan)' },
+  { label: 'Croatian (Croatia)', value: 'Croatian (Croatia)' },
+  { label: 'Czech (Czechia)', value: 'Czech (Czechia)' },
+  { label: 'Danish (Denmark)', value: 'Danish (Denmark)' },
+  { label: 'Dutch (Belgium)', value: 'Dutch (Belgium)' },
+  { label: 'Dutch (Netherlands)', value: 'Dutch (Netherlands)' },
+  { label: 'English (Australia)', value: 'English (Australia)' },
+  { label: 'English (Canada)', value: 'English (Canada)' },
+  { label: 'English (India)', value: 'English (India)' },
+  { label: 'English (New Zealand)', value: 'English (New Zealand)' },
+  { label: 'English (UK)', value: 'English (UK)' },
+  { label: 'English (US)', value: 'English (US)' },
+  { label: 'Estonian (Estonia)', value: 'Estonian (Estonia)' },
+  { label: 'Filipino (Philippines)', value: 'Filipino (Philippines)' },
+  { label: 'Finnish (Finland)', value: 'Finnish (Finland)' },
+  { label: 'French (Canada)', value: 'French (Canada)' },
+  { label: 'French (France)', value: 'French (France)' },
+  { label: 'German (Germany)', value: 'German (Germany)' },
+  { label: 'German (Switzerland)', value: 'German (Switzerland)' },
+  { label: 'Greek (Greece)', value: 'Greek (Greece)' },
+  { label: 'Hebrew (Israel)', value: 'Hebrew (Israel)' },
+  { label: 'Hindi (India)', value: 'Hindi (India)' },
+  { label: 'Hungarian (Hungary)', value: 'Hungarian (Hungary)' },
+  { label: 'Icelandic (Iceland)', value: 'Icelandic (Iceland)' },
+  { label: 'Indonesian (Indonesia)', value: 'Indonesian (Indonesia)' },
+  { label: 'Italian (Italy)', value: 'Italian (Italy)' },
+  { label: 'Japanese (Japan)', value: 'Japanese (Japan)' },
+  { label: 'Kazakh (Kazakhstan)', value: 'Kazakh (Kazakhstan)' },
+  { label: 'Korean (Korea)', value: 'Korean (Korea)' },
+  { label: 'Latvian (Latvia)', value: 'Latvian (Latvia)' },
+  { label: 'Lithuanian (Lithuania)', value: 'Lithuanian (Lithuania)' },
+  { label: 'Malay (Malaysia)', value: 'Malay (Malaysia)' },
+  { label: 'Maltese (Malta)', value: 'Maltese (Malta)' },
+  { label: 'Norwegian (Norway)', value: 'Norwegian (Norway)' },
+  { label: 'Polish (Poland)', value: 'Polish (Poland)' },
+  { label: 'Portuguese (Brazil)', value: 'Portuguese (Brazil)' },
+  { label: 'Portuguese (Portugal)', value: 'Portuguese (Portugal)' },
+  { label: 'Romanian (Romania)', value: 'Romanian (Romania)' },
+  { label: 'Russian (Russia)', value: 'Russian (Russia)' },
+  { label: 'Serbian (Cyrillic)', value: 'Serbian (Cyrillic, Serbia)' },
+  { label: 'Slovak (Slovakia)', value: 'Slovak (Slovakia)' },
+  { label: 'Slovenian (Slovenia)', value: 'Slovenian (Slovenia)' },
+  { label: 'Spanish (Mexico)', value: 'Spanish (Mexico)' },
+  { label: 'Spanish (Spain)', value: 'Spanish (Spain)' },
+  { label: 'Swedish (Sweden)', value: 'Swedish (Sweden)' },
+  { label: 'Thai (Thailand)', value: 'Thai (Thailand)' },
+  { label: 'Turkish (Turkey)', value: 'Turkish (Turkey)' },
+  { label: 'Ukrainian (Ukraine)', value: 'Ukrainian (Ukraine)' },
+  { label: 'Vietnamese (Vietnam)', value: 'Vietnamese (Vietnam)' },
+  { label: 'Welsh (United Kingdom)', value: 'Welsh (United Kingdom)' },
+];
+
 const MeetingIntelligenceSettingsTab: React.FC = () => {
   const { darkMode } = usePreferences();
   const [settings, setSettings] = useState<ZMISettings | null>(null);
@@ -30,6 +91,8 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
           minutes_used: 0,
           minutes_limit: null,
           minutes_remaining: null,
+          caption_language: null,
+          recording_enabled: false,
         });
       } else {
         setError(msg);
@@ -44,8 +107,38 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
     try {
       setSaving(true);
       setError(null);
+      const data = await meetingIntelligenceAPI.updateSettings({ enabled: !settings.enabled }) as ZMISettings;
+      setSettings(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRecordingToggle = async () => {
+    if (!settings) return;
+    try {
+      setSaving(true);
+      setError(null);
       const data = await meetingIntelligenceAPI.updateSettings({
-        enabled: !settings.enabled,
+        recording_enabled: !settings.recording_enabled,
+      }) as ZMISettings;
+      setSettings(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCaptionLanguageChange = async (value: string) => {
+    if (!settings) return;
+    try {
+      setSaving(true);
+      setError(null);
+      const data = await meetingIntelligenceAPI.updateSettings({
+        caption_language: value,
       }) as ZMISettings;
       setSettings(data);
     } catch (err: unknown) {
@@ -126,6 +219,67 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Teams Caption Language */}
+      {settings?.feature_available && (
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+          <h3 className={`text-sm font-medium mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Teams Spoken Language
+          </h3>
+          <p className={`text-sm mb-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+            Set the spoken language for Microsoft Teams captions. Only applies to Teams meetings.
+          </p>
+          <select
+            value={settings.caption_language || ''}
+            onChange={(e) => handleCaptionLanguageChange(e.target.value)}
+            disabled={saving}
+            className={`w-full max-w-sm px-3 py-2 text-sm rounded-lg border ${
+              darkMode
+                ? 'bg-zenible-dark-bg border-zenible-dark-border text-white'
+                : 'bg-white border-gray-300 text-gray-900'
+            } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {TEAMS_CAPTION_LANGUAGES.map((lang) => (
+              <option key={lang.value} value={lang.value}>
+                {lang.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Auto-record toggle */}
+      {settings?.feature_available && (
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Auto-Record Meetings
+              </h3>
+              <p className={`text-sm mt-0.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                Automatically start video recording when the bot joins a meeting
+              </p>
+            </div>
+            <button
+              onClick={handleRecordingToggle}
+              disabled={saving}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-zenible-primary focus:ring-offset-2 ${
+                settings?.recording_enabled
+                  ? 'bg-zenible-primary'
+                  : darkMode
+                    ? 'bg-zenible-dark-border'
+                    : 'bg-gray-200'
+              } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  settings?.recording_enabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Usage */}
       {settings?.feature_available && (

@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import planAPI from '../../services/planAPI';
 import type { PlanDetailResponse } from '../../types';
 import brandIcon from '../../assets/icons/brand-icon.svg';
+import NotificationBell from '../notifications/NotificationBell';
 
 interface SidebarHeaderProps {
   isCollapsed: boolean;
@@ -54,12 +55,17 @@ export default function SidebarHeader({ isCollapsed, onToggle, isMobile = false 
           )}
         </div>
 
-        {/* Toggle / Close Button */}
-        <button
-          onClick={onToggle}
-          className="p-2 rounded-md hover:bg-gray-100 transition-colors duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center lg:p-1 lg:min-h-0 lg:min-w-0"
-          title={isMobile ? "Close menu" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
+        {/* Right side: toggle + notification bell */}
+        <div className={`flex items-center ${isCollapsed ? '' : 'gap-1'}`}>
+          {/* Notification Bell */}
+          {!isMobile && <NotificationBell collapsed={isCollapsed} />}
+
+          {/* Toggle / Close Button */}
+          <button
+            onClick={onToggle}
+            className="p-2 rounded-md hover:bg-gray-100 transition-colors duration-200 min-h-[44px] min-w-[44px] flex items-center justify-center lg:p-1 lg:min-h-0 lg:min-w-0"
+            title={isMobile ? "Close menu" : isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
           {isMobile ? (
             // X close icon for mobile
             <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,7 +85,8 @@ export default function SidebarHeader({ isCollapsed, onToggle, isMobile = false 
               )}
             </svg>
           )}
-        </button>
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -473,8 +473,8 @@ export default function ProposalWizard() {
     setIsFollowUpStreaming(false);
     setAnalysisHistory([]);
 
-    // Reset conversation
-    resetAnalysis();
+    // Fully clear conversation (including conversationId)
+    clearConversation();
   };
 
   // Load conversation history
@@ -642,9 +642,10 @@ export default function ProposalWizard() {
   };
 
   return (
-    <AppLayout pageTitle="Proposals">
+    <AppLayout pageTitle="Proposals" rawContent>
+      <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-        <div className={`h-16 border-b flex items-center justify-between px-4 sm:px-6 ${
+        <div className={`h-16 border-b flex items-center justify-between px-4 sm:px-6 flex-shrink-0 ${
           darkMode
             ? 'bg-[#1e1e1e] border-[#333333]'
             : 'bg-white border-neutral-200'
@@ -725,7 +726,7 @@ export default function ProposalWizard() {
         </div>
 
         {/* Personalize AI Banner */}
-        <div className="px-4 sm:px-6 pt-4">
+        <div className="px-4 sm:px-6 pt-4 flex-shrink-0">
           <PersonalizeAIBanner darkMode={darkMode} />
         </div>
 
@@ -733,7 +734,7 @@ export default function ProposalWizard() {
         <div className="flex-1 overflow-hidden">
           <div className="h-full flex flex-col lg:flex-row gap-4 p-4 sm:p-6">
             {/* Left Column - Input */}
-            <div className="w-full lg:w-1/2 flex flex-col gap-4 overflow-y-auto">
+            <div className="w-full lg:w-1/2 flex flex-col gap-4 min-h-0">
               <PlatformSelector
                 darkMode={darkMode}
                 selectedPlatform={selectedPlatform}
@@ -769,7 +770,7 @@ export default function ProposalWizard() {
             </div>
 
             {/* Right Column - AI Feedback */}
-            <div className="w-full lg:w-1/2 flex flex-col min-h-0 lg:min-h-[400px]">
+            <div className="w-full lg:w-1/2 flex flex-col min-h-[400px] lg:min-h-0 lg:flex-1 lg:overflow-hidden">
               <AIFeedbackSection
                 darkMode={darkMode}
                 feedback={feedback ? { ...feedback, analysis: feedback.analysis as FeedbackData['analysis'] } as FeedbackData : null}
@@ -803,6 +804,7 @@ export default function ProposalWizard() {
             </div>
           </div>
         </div>
+      </div>
 
       {/* History Modal */}
       {historyModal.isOpen && (

@@ -35,7 +35,6 @@ interface AppointmentSaveData extends Record<string, unknown> {
   end_datetime: string;
   contact_id: string | null;
   timezone: string;
-  appointment_type: string;
   location: string | null;
   meeting_link: string | null;
   all_day: boolean;
@@ -66,7 +65,6 @@ interface AppointmentModalProps {
 const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, onSave, onDelete, appointment = null, initialDate = null, isReadOnly = false }) => {
   // Get enum metadata from context
   const {
-    appointmentTypes,
     recurringTypes
   } = useCRMReferenceData();
 
@@ -79,7 +77,6 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
     end_datetime: '',
     contact_id: null as string | null,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    appointment_type: 'manual',
     location: '',
     meeting_link: '',
     all_day: false,
@@ -104,6 +101,9 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
   const [showContactSelector, setShowContactSelector] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [generatingMeetLink, setGeneratingMeetLink] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
+  const [generateMeetLink, setGenerateMeetLink] = useState(false);
   const contactButtonRef = React.useRef<HTMLButtonElement>(null);
 
   // Initialize form data when editing
@@ -126,7 +126,6 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
           end_datetime: formatDateTimeLocal(appointment.end_datetime),
           contact_id: fullAppointment.contact_id || null,
           timezone: fullAppointment.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-          appointment_type: fullAppointment.appointment_type || 'manual',
           location: fullAppointment.location || '',
           meeting_link: fullAppointment.meeting_link || '',
           all_day: fullAppointment.all_day || false,
@@ -206,7 +205,6 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
           end_datetime: endDateTime,
           contact_id: null,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          appointment_type: 'manual',
           location: '',
           meeting_link: '',
           all_day: false,
@@ -233,6 +231,12 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
 
     if (isOpen) {
       initializeForm();
+      // Check Google Calendar connection status
+      appointmentsAPI.getGoogleStatus<{ accounts?: unknown[] }>()
+        .then((status) => setGoogleConnected((status?.accounts?.length ?? 0) > 0))
+        .catch(() => setGoogleConnected(false));
+    } else {
+      setGenerateMeetLink(false);
     }
   }, [appointment, isOpen, initialDate]);
 
@@ -371,6 +375,21 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
         submitData.meeting_link = null;
       }
 
+      // Generate Google Meet link if requested
+      if (generateMeetLink && !submitData.meeting_link) {
+        try {
+          const result = await appointmentsAPI.generateMeetLink();
+          submitData.meeting_link = result.meeting_link;
+        } catch (err: unknown) {
+          setErrors((prev) => ({
+            ...prev,
+            meeting_link: err instanceof Error ? err.message : 'Failed to generate Google Meet link',
+          }));
+          setLoading(false);
+          return;
+        }
+      }
+
       // Add recurrence configuration if recurring
       const recurrenceConfig = buildRecurrenceConfig();
       if (recurrenceConfig) {
@@ -413,7 +432,6 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
   };
 
   // Get label for a type value
-  const getTypeLabel = (value: string) => appointmentTypes.find((t: EnumItem) => t.value === value)?.label || value;
 
   // Read-only view component
   const ReadOnlyView = () => (
@@ -445,12 +463,6 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
             <p className="text-gray-900 whitespace-pre-wrap">{formData.description}</p>
           </div>
         )}
-
-        {/* Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-500 mb-1">Type</label>
-          <p className="text-gray-900">{getTypeLabel(formData.appointment_type)}</p>
-        </div>
 
         {/* Date & Time */}
         <div className="grid grid-cols-2 gap-4">
@@ -526,7 +538,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
           />
 
           {/* Modal */}
-          <div className="inline-block w-full max-w-2xl my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-lg">
+          <div className="inline-block w-full max-w-2xl my-8 overflow-visible text-left align-middle transition-all transform bg-white shadow-xl rounded-lg">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">
@@ -589,27 +601,20 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                   />
                 </div>
 
-                {/* Type & Contact Row */}
+                {/* Location & Contact Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Appointment Type */}
+                  {/* Location */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Type <span className="text-red-500">*</span>
+                      Location
                     </label>
-                    <Combobox
-                      options={appointmentTypes.map((type: EnumItem) => ({ id: type.value, label: type.label }))}
-                      value={formData.appointment_type || ''}
-                      onChange={(value: string) => setFormData({ ...formData, appointment_type: value })}
-                      placeholder="Select type..."
-                      searchPlaceholder="Search types..."
-                      disabled={isReadOnly}
-                      allowClear={false}
+                    <input
+                      type="text"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="e.g., Office - Room 3"
                     />
-                    {!!appointmentTypes.find((t: EnumItem) => t.value === formData.appointment_type)?.description && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        {String(appointmentTypes.find((t: EnumItem) => t.value === formData.appointment_type)?.description)}
-                      </p>
-                    )}
                   </div>
 
                   {/* Contact Selection */}
@@ -647,14 +652,17 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                       id="send_invite_to_contact"
                       checked={formData.send_invite_to_contact}
                       onChange={(e) => setFormData({ ...formData, send_invite_to_contact: e.target.checked })}
-                      disabled={!selectedContact?.email}
+                      disabled={!selectedContact?.email || googleConnected === false}
                       className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 disabled:opacity-50"
                     />
-                    <label htmlFor="send_invite_to_contact" className={`ml-2 text-sm ${selectedContact?.email ? 'text-gray-700' : 'text-gray-400'}`}>
+                    <label htmlFor="send_invite_to_contact" className={`ml-2 text-sm ${selectedContact?.email && googleConnected !== false ? 'text-gray-700' : 'text-gray-400'}`}>
                       Send Google Calendar invite to contact
                     </label>
                     {!selectedContact?.email && (
                       <span className="ml-1 text-xs text-gray-400">(no email on file)</span>
+                    )}
+                    {selectedContact?.email && googleConnected === false && (
+                      <span className="ml-1 text-xs text-gray-400">(no calendar connected)</span>
                     )}
                   </div>
                 )}
@@ -756,22 +764,8 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                   </label>
                 </div>
 
-                {/* Location & Meeting Link Row */}
+                {/* Meeting Link & Intelligence Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Location */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Location
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="e.g., Office - Room 3"
-                    />
-                  </div>
-
                   {/* Meeting Link */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -789,31 +783,48 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
                     {errors.meeting_link && (
                       <p className="mt-1 text-sm text-red-600">{errors.meeting_link}</p>
                     )}
+                    <div className="flex items-center mt-2">
+                      <input
+                        type="checkbox"
+                        id="generate_meet_link"
+                        checked={generateMeetLink}
+                        onChange={(e) => setGenerateMeetLink(e.target.checked)}
+                        disabled={googleConnected === false || !!formData.meeting_link.trim()}
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 disabled:opacity-50"
+                      />
+                      <label htmlFor="generate_meet_link" className={`ml-2 text-sm ${googleConnected !== false && !formData.meeting_link.trim() ? 'text-gray-700' : 'text-gray-400'}`}>
+                        Generate Google Meet link
+                      </label>
+                      {googleConnected === false && (
+                        <span className="ml-1 text-xs text-gray-400">(no calendar connected)</span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Meeting Intelligence toggle — only show when meeting_link is set */}
-                  {formData.meeting_link && formData.meeting_link.trim() && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Meeting Intelligence
-                      </label>
-                      <select
-                        value={formData.zmi_enabled === null ? 'default' : formData.zmi_enabled ? 'true' : 'false'}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setFormData({
-                            ...formData,
-                            zmi_enabled: val === 'default' ? null : val === 'true',
-                          });
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      >
-                        <option value="default">Default (use account setting)</option>
-                        <option value="true">Enabled for this meeting</option>
-                        <option value="false">Disabled for this meeting</option>
-                      </select>
-                    </div>
-                  )}
+                  {/* Meeting Intelligence toggle — greyed out if no meeting link */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-1 ${formData.meeting_link?.trim() ? 'text-gray-700' : 'text-gray-400'}`}>
+                      Meeting Intelligence
+                    </label>
+                    <Combobox
+                      options={[
+                        { id: 'default', label: 'Default (use account setting)' },
+                        { id: 'true', label: 'Enabled for this meeting' },
+                        { id: 'false', label: 'Disabled for this meeting' },
+                      ]}
+                      value={formData.zmi_enabled === null ? 'default' : formData.zmi_enabled ? 'true' : 'false'}
+                      onChange={(value: string) => {
+                        setFormData({
+                          ...formData,
+                          zmi_enabled: value === 'default' ? null : value === 'true',
+                        });
+                      }}
+                      placeholder="Select..."
+                      allowClear={false}
+                      searchable={false}
+                      disabled={!formData.meeting_link?.trim()}
+                    />
+                  </div>
                 </div>
 
                 {/* Recurring Section */}

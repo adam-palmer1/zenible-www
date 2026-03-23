@@ -15,6 +15,7 @@ import { PaymentIntegrationsProvider } from './contexts/PaymentIntegrationsConte
 import { CRMReferenceDataProvider } from './contexts/CRMReferenceDataContext';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import NetworkErrorOverlay from './components/shared/NetworkErrorOverlay';
+import CookieConsentBanner from './components/shared/CookieConsentBanner';
 
 // Auth pages (eager - critical path, first pages users see)
 import SignIn from './pages/signin/SignIn';
@@ -54,12 +55,8 @@ const ProfileAnalyzer = React.lazy(() => import('./components/profile-analyzer/P
 const HeadlineAnalyzer = React.lazy(() => import('./components/headline-analyzer/HeadlineAnalyzer'));
 const ViralPostGenerator = React.lazy(() => import('./components/viral-post-generator/ViralPostGenerator'));
 const Boardroom = React.lazy(() => import('./components/boardroom/Boardroom'));
-const LiveQA = React.lazy(() => import('./components/live-qa/LiveQA'));
-const KnowledgeQuizzes = React.lazy(() => import('./components/quizzes/KnowledgeQuizzes'));
-const QuizAttemptPage = React.lazy(() => import('./components/quizzes/QuizAttemptPage'));
-const QuizResultsPage = React.lazy(() => import('./components/quizzes/QuizResultsPage'));
-const QuizHistoryPage = React.lazy(() => import('./components/quizzes/QuizHistoryPage'));
 const Pricing = React.lazy(() => import('./components/pricing/PricingNew'));
+const NotificationsPage = React.lazy(() => import('./pages/NotificationsPage'));
 
 // Finance routes (heavy, many sub-components)
 const InvoiceDashboard = React.lazy(() => import('./components/finance/invoices/InvoiceDashboard'));
@@ -67,6 +64,7 @@ const InvoiceForm = React.lazy(() => import('./components/finance/invoices/Invoi
 const InvoiceDetail = React.lazy(() => import('./components/finance/invoices/InvoiceDetail'));
 const RecurringInvoices = React.lazy(() => import('./components/finance/invoices/RecurringInvoices'));
 const PublicInvoiceView = React.lazy(() => import('./components/finance/invoices/PublicInvoiceView'));
+const PublicRecordingPage = React.lazy(() => import('./pages/PublicRecordingPage'));
 const QuoteDashboard = React.lazy(() => import('./components/finance/quotes/QuoteDashboard'));
 const QuoteForm = React.lazy(() => import('./components/finance/quotes/QuoteForm'));
 const QuoteDetail = React.lazy(() => import('./components/finance/quotes/QuoteDetail'));
@@ -102,15 +100,12 @@ const AICharacterManagement = React.lazy(() => import('./components/admin/AIChar
 const ThreadManagement = React.lazy(() => import('./components/admin/ThreadManagement'));
 const FeatureManagement = React.lazy(() => import('./components/admin/FeatureManagement'));
 const AdminSettings = React.lazy(() => import('./components/admin/AdminSettings'));
+const BotCalendarManagement = React.lazy(() => import('./components/admin/BotCalendarManagement'));
 const AIModelsManagement = React.lazy(() => import('./components/admin/AIModelsManagement'));
 const ConversationManagement = React.lazy(() => import('./components/admin/ConversationManagement'));
 const OnboardingQuestions = React.lazy(() => import('./components/admin/OnboardingQuestions'));
 const AIToolsManager = React.lazy(() => import('./components/admin/AIToolsManager'));
 const TipsManagement = React.lazy(() => import('./components/admin/TipsManagement'));
-const EventsManagement = React.lazy(() => import('./components/admin/EventsManagement'));
-const HostsManagement = React.lazy(() => import('./components/admin/HostsManagement'));
-const QuizzesManagement = React.lazy(() => import('./components/admin/QuizzesManagement'));
-const QuizTagsManagement = React.lazy(() => import('./components/admin/QuizTagsManagement'));
 
 // ---------------------------------------------------------------------------
 // Loading fallback for lazy-loaded route components
@@ -234,46 +229,6 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: 'freelancer-academy/live-qa',
-        element: (
-          <ProtectedRoute>
-            <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><LiveQA /></Suspense></ErrorBoundary>
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'freelancer-academy/quizzes',
-        element: (
-          <ProtectedRoute>
-            <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><KnowledgeQuizzes /></Suspense></ErrorBoundary>
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'freelancer-academy/quizzes/:attemptId/take',
-        element: (
-          <ProtectedRoute>
-            <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><QuizAttemptPage /></Suspense></ErrorBoundary>
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'freelancer-academy/quizzes/:attemptId/results',
-        element: (
-          <ProtectedRoute>
-            <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><QuizResultsPage /></Suspense></ErrorBoundary>
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: 'freelancer-academy/quizzes/history',
-        element: (
-          <ProtectedRoute>
-            <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><QuizHistoryPage /></Suspense></ErrorBoundary>
-          </ProtectedRoute>
-        )
-      },
-      {
         path: 'pricing',
         element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><Pricing /></Suspense></ErrorBoundary>
       },
@@ -290,6 +245,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><SupportPage /></Suspense></ErrorBoundary>
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'notifications',
+        element: (
+          <ProtectedRoute>
+            <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><NotificationsPage /></Suspense></ErrorBoundary>
           </ProtectedRoute>
         )
       },
@@ -353,6 +316,10 @@ const router = createBrowserRouter([
       {
         path: 'pay/:shareCode',
         element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><PublicInvoiceView /></Suspense></ErrorBoundary>
+      },
+      {
+        path: 'recording/:shareCode',
+        element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><PublicRecordingPage /></Suspense></ErrorBoundary>
       },
       {
         path: 'finance/quotes',
@@ -560,20 +527,8 @@ const router = createBrowserRouter([
             element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><TipsManagement /></Suspense></ErrorBoundary>
           },
           {
-            path: 'events',
-            element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><EventsManagement /></Suspense></ErrorBoundary>
-          },
-          {
-            path: 'hosts',
-            element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><HostsManagement /></Suspense></ErrorBoundary>
-          },
-          {
-            path: 'quizzes',
-            element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><QuizzesManagement /></Suspense></ErrorBoundary>
-          },
-          {
-            path: 'quiz-tags',
-            element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><QuizTagsManagement /></Suspense></ErrorBoundary>
+            path: 'bot-calendar',
+            element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><BotCalendarManagement /></Suspense></ErrorBoundary>
           }
         ]
       },
@@ -618,6 +573,7 @@ function AppWithNetworkStatus(): React.ReactElement {
     <>
       {!isOnline && <NetworkErrorOverlay />}
       <RouterProvider router={router} />
+      <CookieConsentBanner />
     </>
   );
 }

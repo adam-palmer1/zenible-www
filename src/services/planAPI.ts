@@ -660,6 +660,35 @@ class PlanAPI {
       throw error;
     }
   }
+  async addPaymentMethodDuringTrial(paymentMethodId: string): Promise<unknown> {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/subscriptions/current/add-payment-method`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          payment_method_id: paymentMethodId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      logger.error('Failed to add payment method during trial:', error);
+      throw error;
+    }
+  }
 }
 
 export const planAPI = new PlanAPI();

@@ -26,7 +26,8 @@ interface AdminOutletContext {
 const backendProviders = [
   { value: 'openai_chat', label: 'OpenAI Chat', description: 'Simple Q&A, basic conversations' },
   { value: 'openai_assistant', label: 'OpenAI Assistant', description: 'Complex tasks with tools' },
-  { value: 'openai_rag', label: 'OpenAI RAG', description: 'Document-based Q&A' }
+  { value: 'openai_rag', label: 'OpenAI RAG', description: 'Document-based Q&A' },
+  { value: 'anthropic_chat', label: 'Anthropic Chat', description: 'Claude models for conversations' },
 ];
 
 export default function AICharacterManagement() {
@@ -58,6 +59,9 @@ export default function AICharacterManagement() {
   const [editingCharacter, setEditingCharacter] = useState<any>(null);
   const [editingCategory, setEditingCategory] = useState<any>(null);
   const [syncingCharacter, setSyncingCharacter] = useState<any>(null);
+  const [archiveCharacter, setArchiveCharacter] = useState<any>(null);
+  const [permanentDeleteCharacter, setPermanentDeleteCharacter] = useState<any>(null);
+  const [permanentDeleteConfirmText, setPermanentDeleteConfirmText] = useState('');
   const [isCloning, setIsCloning] = useState(false);
 
   // Filter and search states
@@ -114,19 +118,24 @@ export default function AICharacterManagement() {
     }
   }, [showCharacterModal]);
 
-  const fetchOpenAIModels = async () => {
+  const fetchOpenAIModels = async (providerFilter?: string) => {
     setModelsLoading(true);
     try {
-      const response = await adminAPI.getOpenAIModels({
+      const params: Record<string, string> = {
         is_active: 'true',
         per_page: '100'
-      }) as OpenAIModelList;
+      };
+      if (providerFilter) {
+        params.provider = providerFilter;
+      }
+      const response = await adminAPI.getOpenAIModels(params) as OpenAIModelList;
 
       const chatModels: any[] = [];
       const embedModels: any[] = [];
 
-      if (response.models && Array.isArray(response.models)) {
-        response.models.forEach((model: any) => {
+      const models = (response as any).items || (response as any).models || [];
+      if (Array.isArray(models)) {
+        models.forEach((model: any) => {
           if (model.supports_embedding) {
             embedModels.push({
               value: model.model_id,
@@ -285,14 +294,37 @@ export default function AICharacterManagement() {
     setShowCharacterModal(true);
   };
 
-  const handleDeleteCharacter = async (characterId: string) => {
-    if (confirm('Are you sure you want to archive this character? It will be marked as inactive.')) {
-      try {
-        await adminAPI.deleteAICharacter(characterId);
-        fetchCharacters();
-      } catch (err: any) {
-        alert(`Error archiving character: ${err.message}`);
-      }
+  const handleDeleteCharacter = (characterId: string) => {
+    const character = characters.find((c: any) => c.id === characterId);
+    setArchiveCharacter(character || { id: characterId, name: 'this character' });
+  };
+
+  const confirmArchive = async () => {
+    if (!archiveCharacter) return;
+    try {
+      await adminAPI.deleteAICharacter(archiveCharacter.id);
+      setArchiveCharacter(null);
+      fetchCharacters();
+    } catch (err: any) {
+      alert(`Error archiving character: ${err.message}`);
+    }
+  };
+
+  const handlePermanentlyDeleteCharacter = (characterId: string) => {
+    const character = characters.find((c: any) => c.id === characterId);
+    setPermanentDeleteCharacter(character || { id: characterId, name: 'this character' });
+    setPermanentDeleteConfirmText('');
+  };
+
+  const confirmPermanentDelete = async () => {
+    if (!permanentDeleteCharacter) return;
+    try {
+      await adminAPI.permanentlyDeleteAICharacter(permanentDeleteCharacter.id);
+      setPermanentDeleteCharacter(null);
+      setPermanentDeleteConfirmText('');
+      fetchCharacters();
+    } catch (err: any) {
+      alert(`Error deleting character: ${err.message}`);
     }
   };
 
@@ -392,6 +424,7 @@ export default function AICharacterManagement() {
             onEdit={handleEditCharacter}
             onClone={handleCloneCharacter}
             onDelete={handleDeleteCharacter}
+            onPermanentlyDelete={handlePermanentlyDeleteCharacter}
             onSync={handleShowSyncModal}
             onPlatformConfig={handlePlatformConfig}
             darkMode={darkMode}
@@ -502,6 +535,107 @@ export default function AICharacterManagement() {
           }}
           darkMode={darkMode}
         />
+      )}
+
+      {/* Archive Confirmation Modal */}
+      {archiveCharacter && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 ${
+            darkMode ? 'bg-zenible-dark-card' : 'bg-white'
+          }`}>
+            <h3 className={`text-lg font-bold mb-2 ${
+              darkMode ? 'text-zenible-dark-text' : 'text-gray-900'
+            }`}>
+              Archive Character
+            </h3>
+            <p className={`text-sm mb-4 ${
+              darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'
+            }`}>
+              Are you sure you want to archive <strong>{archiveCharacter.name}</strong>? It will be marked as inactive.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setArchiveCharacter(null)}
+                className={`px-4 py-2 rounded-lg border text-sm ${
+                  darkMode
+                    ? 'border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-bg'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmArchive}
+                className="px-4 py-2 rounded-lg text-sm text-white bg-orange-500 hover:bg-orange-600"
+              >
+                Archive
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Delete Confirmation Modal */}
+      {permanentDeleteCharacter && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 ${
+            darkMode ? 'bg-zenible-dark-card' : 'bg-white'
+          }`}>
+            <h3 className={`text-lg font-bold mb-2 ${
+              darkMode ? 'text-red-400' : 'text-red-600'
+            }`}>
+              Permanently Delete Character
+            </h3>
+            <p className={`text-sm mb-4 ${
+              darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'
+            }`}>
+              This will permanently delete <strong>{permanentDeleteCharacter.name}</strong> and all associated data. This action cannot be undone.
+            </p>
+            <p className={`text-sm mb-2 ${
+              darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'
+            }`}>
+              Type <strong>DELETE</strong> to confirm:
+            </p>
+            <input
+              type="text"
+              value={permanentDeleteConfirmText}
+              onChange={(e) => setPermanentDeleteConfirmText(e.target.value)}
+              className={`w-full px-3 py-2 rounded-lg border mb-4 text-sm ${
+                darkMode
+                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                  : 'bg-white border-gray-300 text-gray-900'
+              }`}
+              placeholder="DELETE"
+              autoFocus
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setPermanentDeleteCharacter(null);
+                  setPermanentDeleteConfirmText('');
+                }}
+                className={`px-4 py-2 rounded-lg border text-sm ${
+                  darkMode
+                    ? 'border-zenible-dark-border text-zenible-dark-text hover:bg-zenible-dark-bg'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPermanentDelete}
+                disabled={permanentDeleteConfirmText !== 'DELETE'}
+                className={`px-4 py-2 rounded-lg text-sm text-white ${
+                  permanentDeleteConfirmText === 'DELETE'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-red-300 cursor-not-allowed'
+                }`}
+              >
+                Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

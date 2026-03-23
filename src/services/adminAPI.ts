@@ -20,6 +20,7 @@ import adminPlatformsAPI from './api/admin/platforms';
 import adminAIToolsAPI from './api/admin/aiTools';
 import adminPreferencesAPI from './api/admin/preferences';
 import adminTipsAPI from './api/admin/tips';
+import adminBotCalendarAPI from './api/admin/botCalendar';
 
 const adminAPI = {
   ...adminDashboardAPI,
@@ -35,6 +36,7 @@ const adminAPI = {
   ...adminAIToolsAPI,
   ...adminPreferencesAPI,
   ...adminTipsAPI,
+  ...adminBotCalendarAPI,
 };
 
 export { adminAPI };
@@ -55,4 +57,5 @@ export {
   adminAIToolsAPI,
   adminPreferencesAPI,
   adminTipsAPI,
+  adminBotCalendarAPI,
 };

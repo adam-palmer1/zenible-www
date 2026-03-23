@@ -178,6 +178,13 @@ class AppointmentsAPI {
     });
   }
 
+  // Generate a Google Meet link
+  async generateMeetLink(): Promise<{ meeting_link: string }> {
+    return this.request<{ meeting_link: string }>('/crm/appointments/generate-meet-link', {
+      method: 'POST',
+    });
+  }
+
   // ========== Calendar View ==========
 
   // Get appointments for calendar display (optimized, includes contact info)

@@ -14,7 +14,6 @@ interface CalendarFilters {
   end_date: string | null;
   appointment_type: string | null;
   contact_id: string | null;
-  status: string | null;
 }
 
 interface GoogleOAuthInitiateResponse {
@@ -76,7 +75,6 @@ export function useCalendar() {
     end_date: null,
     appointment_type: null,
     contact_id: null,
-    status: 'scheduled',
   });
 
   // Google Calendar status query (replaces useEffect + checkGoogleConnection on mount)
@@ -131,14 +129,9 @@ export function useCalendar() {
     setError(null);
 
     try {
-      const filterParams: Record<string, string> = {};
-      if (filters.status) {
-        filterParams.status = filters.status;
-      }
       const response = await appointmentsAPI.getCalendarAppointments<CalendarAppointmentsResponse>(
         startDate.toISOString(),
-        endDate.toISOString(),
-        filterParams
+        endDate.toISOString()
       );
       setAppointments(response.appointments || []);
       setTotalAppointments(response.total || 0);
@@ -150,7 +143,7 @@ export function useCalendar() {
     } finally {
       setFetchLoading(false);
     }
-  }, [filters.status]);
+  }, []);
 
   // Create appointment mutation
   const createMutation = useMutation({
@@ -412,7 +405,6 @@ export function useCalendar() {
       end_date: null,
       appointment_type: null,
       contact_id: null,
-      status: 'scheduled',
     });
     setCurrentPage(1);
   };

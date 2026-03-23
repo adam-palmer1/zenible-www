@@ -63,7 +63,6 @@ export interface EnumItem {
 /** Shape of the appointment enums API response (superset of generated AppointmentEnumsResponse) */
 interface AppointmentEnumsData {
   appointment_types?: EnumItem[];
-  appointment_statuses?: EnumItem[];
   sync_statuses?: EnumItem[];
   recurring_types?: EnumItem[];
   recurring_statuses?: EnumItem[];
@@ -80,7 +79,6 @@ interface CRMReferenceDataState {
   vendorTypes: VendorType[];
   numberFormats: NumberFormat[];
   appointmentTypes: EnumItem[];
-  appointmentStatuses: EnumItem[];
   syncStatuses: EnumItem[];
   recurringTypes: EnumItem[];
   recurringStatuses: EnumItem[];
@@ -100,8 +98,6 @@ interface CRMReferenceDataContextValue extends CRMReferenceDataState {
   getNumberFormatById: (id: string) => NumberFormat | undefined;
   getVendorTypeById: (id: string) => VendorType | undefined;
   getTypeLabel: (value: string) => string;
-  getStatusLabel: (value: string) => string;
-  getStatusColor: (value: string) => string;
   refresh: () => Promise<void>;
 }
 
@@ -143,7 +139,6 @@ async function fetchAllReferenceData(calendarEnabled: boolean) {
     vendorTypes: (vendorTypesData as VendorType[]) || [],
     numberFormats: (numberFormatsData as NumberFormat[]) || [],
     appointmentTypes: enums?.appointment_types || [],
-    appointmentStatuses: enums?.appointment_statuses || [],
     syncStatuses: enums?.sync_statuses || [],
     recurringTypes: enums?.recurring_types || [],
     recurringStatuses: enums?.recurring_statuses || [],
@@ -177,7 +172,6 @@ export const CRMReferenceDataProvider = ({ children }: { children: React.ReactNo
     vendorTypes: data?.vendorTypes || [],
     numberFormats: data?.numberFormats || [],
     appointmentTypes: data?.appointmentTypes || [],
-    appointmentStatuses: data?.appointmentStatuses || [],
     syncStatuses: data?.syncStatuses || [],
     recurringTypes: data?.recurringTypes || [],
     recurringStatuses: data?.recurringStatuses || [],
@@ -198,9 +192,7 @@ export const CRMReferenceDataProvider = ({ children }: { children: React.ReactNo
     getEmployeeRangeById: (id: string) => state.employeeRanges.find(e => e.id === id),
     getNumberFormatById: (id: string) => state.numberFormats.find(n => n.id === id),
     getVendorTypeById: (id: string) => state.vendorTypes.find(v => v.id === id),
-    getTypeLabel: (value: string) => state.appointmentTypes.find(t => t.value === value)?.label || value,
-    getStatusLabel: (value: string) => state.appointmentStatuses.find(s => s.value === value)?.label || value,
-    getStatusColor: (value: string) => state.appointmentStatuses.find(s => s.value === value)?.color || '#6B7280'
+    getTypeLabel: (value: string) => state.appointmentTypes.find(t => t.value === value)?.label || value
   }), [state]);
 
   const refresh = useCallback(async () => {

@@ -87,7 +87,7 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         {/* Left: Title */}
         <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-          {activeTab === 'services' ? 'Services' : activeTab === 'projects' ? 'Projects' : activeTab === 'meetings' ? 'Meetings' : 'CRM'}
+          {activeTab === 'services' ? 'Services' : activeTab === 'projects' ? 'Projects' : activeTab === 'meetings' ? 'Meeting Intelligence' : 'Contacts'}
         </h1>
 
         {/* Right: View Toggle + Actions */}

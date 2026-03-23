@@ -25,6 +25,7 @@ interface ComboboxProps {
   onCreate?: (name: string) => Promise<{ id: string } | null | undefined>;
   createLabel?: string;
   creating?: boolean;
+  searchable?: boolean;
 }
 
 /**
@@ -58,6 +59,7 @@ const Combobox: React.FC<ComboboxProps> = ({
   onCreate,
   createLabel = 'Create new',
   creating = false,
+  searchable = true,
 }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newItemName, setNewItemName] = useState('');
@@ -253,21 +255,23 @@ const Combobox: React.FC<ComboboxProps> = ({
       ) : (
         <>
           {/* Search Input */}
-          <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 design-text-secondary" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={searchPlaceholder}
-                autoComplete="off"
-                className="w-full pl-9 pr-3 py-2 text-sm design-input rounded-md"
-              />
+          {searchable && (
+            <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 design-text-secondary" />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={searchPlaceholder}
+                  autoComplete="off"
+                  className="w-full pl-9 pr-3 py-2 text-sm design-input rounded-md"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Options List */}
           <div className="max-h-60 overflow-y-auto p-1">

@@ -145,7 +145,7 @@ const ServicesView: React.FC<ServicesViewProps> = ({
   return (
     <>
       {activeSubtab === 'default' ? (
-        <div className="bg-white rounded-lg shadow h-full overflow-hidden">
+        <div className="bg-white rounded-lg shadow">
           <ServicesTable
             services={filteredDefaultServices}
             onEdit={onEditService}
@@ -154,7 +154,7 @@ const ServicesView: React.FC<ServicesViewProps> = ({
           />
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow h-full overflow-hidden">
+        <div className="bg-white rounded-lg shadow">
           <ContactServicesTable
             services={filteredContactServices}
             onClientClick={onClientClick}

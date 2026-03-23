@@ -216,11 +216,13 @@ const CRMDashboard: React.FC = () => {
             hasCRMAccess={hasCRMAccess}
           />
 
-          {/* Page Header with Tabs - Hidden on Services/Projects/Meetings */}
-          {!['services', 'projects', 'meetings'].includes(activeTab) && <CRMHeader
+          {/* Page Header with Tabs - Hidden on Projects/Meetings */}
+          {!['projects', 'meetings'].includes(activeTab) && <CRMHeader
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             hasCRMAccess={hasCRMAccess}
+            servicesSubtab={servicesFilters.activeSubtab}
+            onServicesSubtabChange={servicesFilters.setActiveSubtab}
           >
             {/* CRM tab filters */}
             {activeTab === 'crm' && (

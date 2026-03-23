@@ -506,6 +506,14 @@ export default function SubscriptionManagement() {
                       </td>
                       <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                         {formatDate(sub.current_period_end)}
+                        {sub.trial_end && sub.status?.toLowerCase() === 'trialing' && (
+                          <div className="text-xs text-blue-600 mt-0.5">
+                            Trial ends: {formatDate(sub.trial_end)}
+                            {sub.days_until_trial_end !== null && sub.days_until_trial_end !== undefined && (
+                              <span className="ml-1">({sub.days_until_trial_end}d left)</span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <button

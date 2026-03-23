@@ -214,21 +214,21 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     defaultSize: { w: 1, h: 2 },
   },
 
-  upcomingCalls: {
-    id: 'upcomingCalls',
-    name: 'Upcoming Calls',
-    description: 'Your scheduled calls',
-    component: 'UpcomingCallsWidget',
-    defaultVisible: false,
+  upcomingFollowups: {
+    id: 'upcomingFollowups',
+    name: 'Upcoming Follow-Ups',
+    description: 'Contacts flagged for follow-up',
+    component: 'UpcomingFollowupsWidget',
+    defaultVisible: true,
     defaultOrder: 11,
     hasSettings: true,
     settingsSchema: {
-      days: { type: 'number', default: 7, min: 1, max: 30, label: 'Days ahead' },
-      limit: { type: 'number', default: 5, min: 3, max: 10, label: 'Max calls' },
+      limit: { type: 'number', default: 10, min: 3, max: 20, label: 'Max follow-ups' },
     },
-    category: 'calendar',
+    category: 'crm',
     defaultSize: { w: 1, h: 2 },
   },
+
 };
 
 /**

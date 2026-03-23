@@ -38,8 +38,8 @@ export default function SystemInstructionsSection({
         placeholder="You are a helpful assistant..."
       />
 
-      {/* Shortcodes section - only show for OpenAI Chat */}
-      {characterForm.backend_provider === 'openai_chat' && (
+      {/* Shortcodes section - show for chat providers (OpenAI Chat & Anthropic Chat) */}
+      {(characterForm.backend_provider === 'openai_chat' || characterForm.backend_provider === 'anthropic_chat') && (
         <div className={`mt-3 p-3 rounded-lg border ${
           darkMode
             ? 'bg-zenible-dark-bg border-zenible-dark-border'

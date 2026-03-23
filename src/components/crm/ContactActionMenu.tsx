@@ -6,6 +6,7 @@ import {
   XCircleIcon,
   EyeSlashIcon,
   EyeIcon,
+  BellIcon,
   BellSlashIcon,
   UserPlusIcon,
   UserMinusIcon,
@@ -16,6 +17,7 @@ import { useContactActions } from '../../contexts/ContactActionsContext';
 import ConfirmationModal from '../common/ConfirmationModal';
 import SuccessModal from '../common/SuccessModal';
 import ContactMergeModal from './ContactMergeModal';
+import FollowUpReminderModal from './FollowUpReminderModal';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
 import { useModalState } from '../../hooks/useModalState';
 
@@ -33,8 +35,9 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
   const successModal = useModalState();
   const [successContactName, setSuccessContactName] = useState('');
   const mergeModal = useModalState();
+  const reminderModal = useModalState();
 
-  const { editContact, deleteContact, markAsLost, toggleHidden, dismissFollowUp, toggleClient, refreshContacts, statusRoles } = useContactActions();
+  const { editContact, deleteContact, markAsLost, toggleHidden, dismissFollowUp, toggleClient, setReminder, dismissReminder, refreshContacts, statusRoles } = useContactActions();
 
   // Get display name using shared utility
   const displayName = getContactDisplayName(contact, 'Contact');
@@ -136,6 +139,17 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
       icon: BellSlashIcon,
       onClick: () => dismissFollowUp(contact),
     } : null,
+    contact.follow_up_reminder_at ? {
+      id: 'dismiss_reminder',
+      label: 'Dismiss Follow-Up Reminder',
+      icon: BellSlashIcon,
+      onClick: () => setConfirmationModal('dismiss_reminder'),
+    } : {
+      id: 'set_reminder',
+      label: 'Set Follow-Up Reminder',
+      icon: BellIcon,
+      onClick: () => reminderModal.open(),
+    },
     {
       id: 'delete',
       label: 'Delete Contact',
@@ -230,6 +244,27 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
         title="Added to Client List!"
         message={`${successContactName} has been successfully added to your client list.`}
         buttonText="OK"
+      />
+
+      {/* Dismiss Follow-Up Reminder Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmationModal === 'dismiss_reminder'}
+        onClose={() => setConfirmationModal(null)}
+        onConfirm={() => dismissReminder(contact)}
+        title="Dismiss Follow-Up Reminder?"
+        message={`Dismiss the follow-up reminder for ${displayName}? This will be logged in the contact's activity history.`}
+        confirmText="Dismiss"
+        confirmColor="orange"
+        icon={BellSlashIcon}
+        iconColor="text-orange-600"
+      />
+
+      {/* Follow-Up Reminder Modal */}
+      <FollowUpReminderModal
+        isOpen={reminderModal.isOpen}
+        onClose={reminderModal.close}
+        onConfirm={(reminderAt) => setReminder(contact, reminderAt)}
+        contactName={displayName}
       />
 
       {/* Contact Merge Modal */}

@@ -31,6 +31,7 @@ interface ContactActionContact {
   is_hidden_vendor?: boolean;
   is_client?: boolean;
   next_appointment?: { id: string; title?: string; start_datetime?: string; appointment_type?: string } | null;
+  follow_up_reminder_at?: string | null;
   [key: string]: unknown;
 }
 
@@ -76,8 +77,11 @@ interface ContactActionsContextValue {
   deleteContact: (contact: ContactActionContact) => Promise<ContactActionResult>;
   toggleHidden: (contact: ContactActionContact, context?: 'crm' | 'client' | 'vendor') => Promise<ContactActionResult>;
   toggleClient: (contact: ContactActionContact, showSuccessModal?: boolean) => Promise<ContactActionResult>;
-  setFollowUp: (contact: ContactActionContact, followUpDateTime: string, appointmentType?: string, durationMinutes?: number, sendInviteToContact?: boolean, customTitle?: string | null) => Promise<ContactActionResult>;
+  setFollowUp: (contact: ContactActionContact, followUpDateTime: string, durationMinutes?: number, sendInviteToContact?: boolean, customTitle?: string | null) => Promise<ContactActionResult>;
   dismissFollowUp: (contact: ContactActionContact) => Promise<ContactActionResult>;
+  setReminder: (contact: ContactActionContact, reminderAt: string) => Promise<ContactActionResult>;
+  completeReminder: (contact: ContactActionContact) => Promise<ContactActionResult>;
+  dismissReminder: (contact: ContactActionContact) => Promise<ContactActionResult>;
   refreshContacts?: () => void;
   statusRoles?: StatusRoles;
 }
@@ -327,16 +331,14 @@ export const ContactActionsProvider = ({
    * Set follow-up date for contact
    * @param contact - The contact to update
    * @param followUpDateTime - The follow-up date/time (ISO 8601 format)
-   * @param appointmentType - The appointment type ('call' or 'follow_up')
    */
-  const setFollowUp = useCallback(async (contact: ContactActionContact, followUpDateTime: string, appointmentType = 'follow_up', durationMinutes = 60, sendInviteToContact = true, customTitle: string | null = null): Promise<ContactActionResult> => {
+  const setFollowUp = useCallback(async (contact: ContactActionContact, followUpDateTime: string, durationMinutes = 60, sendInviteToContact = true, customTitle: string | null = null): Promise<ContactActionResult> => {
     const displayName = getContactDisplayName(contact, 'Contact');
-    const isCall = appointmentType === 'call';
 
     try {
       // Prepare appointment data
       const appointmentData = {
-        ...prepareAppointmentData(contact, followUpDateTime, appointmentType, customTitle, durationMinutes, user),
+        ...prepareAppointmentData(contact, followUpDateTime, customTitle, durationMinutes, user),
         send_invite_to_contact: sendInviteToContact,
       };
 
@@ -345,7 +347,7 @@ export const ContactActionsProvider = ({
 
       // Show success message
       showSuccess(
-        isCall ? `Call scheduled for ${displayName}` : `Follow-up scheduled for ${displayName}`,
+        `Appointment scheduled for ${displayName}`,
         { duration: 3000 }
       );
 
@@ -376,10 +378,8 @@ export const ContactActionsProvider = ({
         return { success: false, error: 'No appointment found' };
       }
 
-      // Cancel appointment (status: 'cancelled' preserves history)
-      await appointmentsAPI.update(nextAppointment.id as string, {
-        status: 'cancelled'
-      });
+      // Dismiss appointment (soft-delete via DELETE endpoint)
+      await appointmentsAPI.delete(nextAppointment.id as string);
 
       showSuccess(`Appointment dismissed for ${displayName}`, { duration: 3000 });
 
@@ -393,6 +393,75 @@ export const ContactActionsProvider = ({
       return { success: false, error };
     }
   }, [queryClient, showSuccess, showError]);
+
+  /**
+   * Set follow-up reminder on contact
+   */
+  const setReminder = useCallback(async (contact: ContactActionContact, reminderAt: string): Promise<ContactActionResult> => {
+    const displayName = getContactDisplayName(contact, 'Contact');
+
+    try {
+      const result = await onUpdateStatus(contact.id, { follow_up_reminder_at: reminderAt });
+
+      if (result.success) {
+        showSuccess(`Follow-up reminder set for ${displayName}`, { duration: 3000 });
+        queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Failed to set follow-up reminder:', error);
+      showError((error as Error).message || 'Failed to set reminder. Please try again.');
+      return { success: false, error };
+    }
+  }, [onUpdateStatus, queryClient, showSuccess, showError]);
+
+  /**
+   * Complete follow-up reminder on contact
+   */
+  const completeReminder = useCallback(async (contact: ContactActionContact): Promise<ContactActionResult> => {
+    const displayName = getContactDisplayName(contact, 'Contact');
+
+    try {
+      const result = await onUpdateStatus(contact.id, { follow_up_reminder_at: null, follow_up_reminder_action: 'completed' });
+
+      if (result.success) {
+        showSuccess(`Follow-up completed for ${displayName}`, { duration: 3000 });
+        queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Failed to complete follow-up reminder:', error);
+      showError((error as Error).message || 'Failed to complete reminder. Please try again.');
+      return { success: false, error };
+    }
+  }, [onUpdateStatus, queryClient, showSuccess, showError]);
+
+  /**
+   * Dismiss follow-up reminder on contact
+   */
+  const dismissReminder = useCallback(async (contact: ContactActionContact): Promise<ContactActionResult> => {
+    const displayName = getContactDisplayName(contact, 'Contact');
+
+    try {
+      const result = await onUpdateStatus(contact.id, { follow_up_reminder_at: null, follow_up_reminder_action: 'dismissed' });
+
+      if (result.success) {
+        showSuccess(`Follow-up reminder dismissed for ${displayName}`, { duration: 3000 });
+        queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Failed to dismiss follow-up reminder:', error);
+      showError((error as Error).message || 'Failed to dismiss reminder. Please try again.');
+      return { success: false, error };
+    }
+  }, [onUpdateStatus, queryClient, showSuccess, showError]);
 
   const value: ContactActionsContextValue = {
     // Quick actions
@@ -411,6 +480,11 @@ export const ContactActionsProvider = ({
     // Follow-up actions
     setFollowUp,
     dismissFollowUp,
+
+    // Reminder actions
+    setReminder,
+    completeReminder,
+    dismissReminder,
 
     // Refresh callback
     refreshContacts: onRefreshContacts,

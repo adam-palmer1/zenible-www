@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useBaseAIAnalysis, UseBaseAIAnalysisReturn } from './useBaseAIAnalysis';
 
 interface ProfileStructuredAnalysis {
@@ -35,6 +35,18 @@ export function useProfileAnalysis({
   onStreamingChunk,
   onError
 }: UseProfileAnalysisConfig): UseProfileAnalysisReturn {
+  // Stable references to avoid recreating registerEventHandlers on every render
+  const supportedTools = useMemo(() => ['analyze_profile', 'generate_profile'], []);
+  const structuredAnalysisMapper = useCallback((data: unknown): ProfileStructuredAnalysis => {
+    const d = data as Record<string, unknown>;
+    return {
+      score: d.score,
+      strengths: (d.strengths as unknown[]) || [],
+      weaknesses: (d.weaknesses as unknown[]) || [],
+      improvements: (d.improvements as unknown[]) || []
+    };
+  }, []);
+
   // Configure base hook with profile-specific settings
   const {
     conversationId,
@@ -55,17 +67,8 @@ export function useProfileAnalysis({
   } = useBaseAIAnalysis({
     characterId,
     panelId,
-    supportedTools: ['analyze_profile', 'generate_profile'],
-    structuredAnalysisMapper: (data: unknown): ProfileStructuredAnalysis => {
-      const d = data as Record<string, unknown>;
-      // Extract only the fields we need: score, strengths, weaknesses, improvements
-      return {
-        score: d.score,
-        strengths: (d.strengths as unknown[]) || [],
-        weaknesses: (d.weaknesses as unknown[]) || [],
-        improvements: (d.improvements as unknown[]) || []
-      };
-    },
+    supportedTools,
+    structuredAnalysisMapper,
     onAnalysisStarted,
     onAnalysisComplete,
     onStreamingStarted,

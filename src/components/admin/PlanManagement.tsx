@@ -17,6 +17,10 @@ interface PlanResponse {
   stripe_product_id?: string | null;
   created_at: string;
   updated_at?: string | null;
+  trial_enabled?: boolean;
+  trial_duration_days?: number | null;
+  trial_requires_card?: boolean;
+  trial_reminder_schedule?: number[];
 }
 
 interface PlanFormData {
@@ -31,6 +35,10 @@ interface PlanFormData {
   features: string[];
   is_free?: boolean;
   is_active: boolean;
+  trial_enabled?: boolean;
+  trial_duration_days?: string;
+  trial_requires_card?: boolean;
+  trial_reminder_schedule?: string;
 }
 
 interface ValidationError {
@@ -92,6 +100,18 @@ export default function PlanManagement() {
     }
   };
 
+  const buildTrialData = () => {
+    const trialData: Record<string, any> = {
+      trial_enabled: formData.trial_enabled || false,
+      trial_requires_card: formData.trial_requires_card || false,
+      trial_duration_days: formData.trial_duration_days ? parseInt(formData.trial_duration_days) : null,
+      trial_reminder_schedule: formData.trial_reminder_schedule
+        ? formData.trial_reminder_schedule.split(',').map((s: string) => parseInt(s.trim())).filter((n: number) => !isNaN(n))
+        : [],
+    };
+    return trialData;
+  };
+
   const handleCreatePlan = async () => {
     setModalError(null);
     try {
@@ -103,6 +123,7 @@ export default function PlanManagement() {
         old_monthly_price: formData.old_monthly_price || null,
         old_annual_price: formData.old_annual_price || null,
         is_recommended: formData.is_recommended || false,
+        ...buildTrialData(),
       };
       await adminAPI.createPlan(data);
       setShowCreateModal(false);
@@ -142,6 +163,7 @@ export default function PlanManagement() {
         old_monthly_price: formData.old_monthly_price || null,
         old_annual_price: formData.old_annual_price || null,
         is_recommended: formData.is_recommended || false,
+        ...buildTrialData(),
       };
       await adminAPI.updatePlan(selectedPlan.id, data);
       setShowEditModal(false);
@@ -226,6 +248,10 @@ export default function PlanManagement() {
       features: [],
       is_free: false,
       is_active: true,
+      trial_enabled: false,
+      trial_duration_days: '',
+      trial_requires_card: false,
+      trial_reminder_schedule: '',
     });
     setSelectedPlan(null);
     setModalError(null);
@@ -243,6 +269,10 @@ export default function PlanManagement() {
       is_recommended: plan.is_recommended || false,
       features: plan.features || [],
       is_active: plan.is_active,
+      trial_enabled: plan.trial_enabled || false,
+      trial_duration_days: plan.trial_duration_days?.toString() || '',
+      trial_requires_card: plan.trial_requires_card || false,
+      trial_reminder_schedule: plan.trial_reminder_schedule?.join(', ') || '',
     });
     setShowEditModal(true);
   };
@@ -301,6 +331,11 @@ export default function PlanManagement() {
                       {plan.is_recommended && (
                         <span className="inline-block px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
                           Recommended
+                        </span>
+                      )}
+                      {plan.trial_enabled && (
+                        <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                          {plan.trial_duration_days}-Day Trial
                         </span>
                       )}
                     </div>
@@ -528,6 +563,58 @@ export default function PlanManagement() {
                   />
                   <span className={darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}>Recommended</span>
                 </label>
+              </div>
+
+              {/* Free Trial Section */}
+              <div className={`p-4 rounded-lg border ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-bg' : 'border-gray-200 bg-gray-50'}`}>
+                <label className="flex items-center mb-3">
+                  <input
+                    type="checkbox"
+                    checked={formData.trial_enabled}
+                    onChange={(e) => setFormData({ ...formData, trial_enabled: e.target.checked })}
+                    className="mr-2"
+                  />
+                  <span className={`font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>Enable Free Trial</span>
+                </label>
+                {formData.trial_enabled && (
+                  <div className="space-y-3 mt-2">
+                    <div>
+                      <label className={`block text-sm mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                        Trial Duration (days)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="365"
+                        placeholder="e.g. 14"
+                        value={formData.trial_duration_days}
+                        onChange={(e) => setFormData({ ...formData, trial_duration_days: e.target.value })}
+                        className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
+                      />
+                    </div>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.trial_requires_card}
+                        onChange={(e) => setFormData({ ...formData, trial_requires_card: e.target.checked })}
+                        className="mr-2"
+                      />
+                      <span className={`text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>Require credit card</span>
+                    </label>
+                    <div>
+                      <label className={`block text-sm mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                        Reminder Schedule (days before expiry, comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 7, 3, 1"
+                        value={formData.trial_reminder_schedule}
+                        onChange={(e) => setFormData({ ...formData, trial_reminder_schedule: e.target.value })}
+                        className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
               {modalError && (
                 <div className={`p-3 rounded-lg ${

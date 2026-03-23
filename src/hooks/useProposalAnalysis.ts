@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useBaseAIAnalysis, UseBaseAIAnalysisReturn } from './useBaseAIAnalysis';
 
 interface ProposalStructuredAnalysis {
@@ -6,6 +6,7 @@ interface ProposalStructuredAnalysis {
   strengths: unknown[];
   weaknesses: unknown[];
   improvements: unknown[];
+  proposal_text?: string;
 }
 
 interface UseProposalAnalysisConfig {
@@ -36,6 +37,19 @@ export function useProposalAnalysis({
   onStreamingChunk,
   onError
 }: UseProposalAnalysisConfig): UseProposalAnalysisReturn {
+  // Stable references to avoid recreating registerEventHandlers on every render
+  const supportedTools = useMemo(() => ['analyze_proposal', 'generate_proposal'], []);
+  const structuredAnalysisMapper = useCallback((data: unknown): ProposalStructuredAnalysis => {
+    const d = data as Record<string, unknown>;
+    return {
+      score: d.score,
+      strengths: (d.strengths as unknown[]) || [],
+      weaknesses: (d.weaknesses as unknown[]) || [],
+      improvements: (d.improvements as unknown[]) || [],
+      proposal_text: (d.proposal_text as string) || undefined
+    };
+  }, []);
+
   // Configure base hook with proposal-specific settings
   const {
     conversationId,
@@ -56,17 +70,8 @@ export function useProposalAnalysis({
   } = useBaseAIAnalysis({
     characterId,
     panelId,
-    supportedTools: ['analyze_proposal', 'generate_proposal'],
-    structuredAnalysisMapper: (data: unknown): ProposalStructuredAnalysis => {
-      const d = data as Record<string, unknown>;
-      // Extract only the fields we need: score, strengths, weaknesses, improvements
-      return {
-        score: d.score,
-        strengths: (d.strengths as unknown[]) || [],
-        weaknesses: (d.weaknesses as unknown[]) || [],
-        improvements: (d.improvements as unknown[]) || []
-      };
-    },
+    supportedTools,
+    structuredAnalysisMapper,
     onAnalysisStarted,
     onAnalysisComplete,
     onStreamingStarted,

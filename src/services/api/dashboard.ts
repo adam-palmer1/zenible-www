@@ -17,6 +17,7 @@ export interface DashboardWidgetData {
   recent_invoices: any[] | null;
   recent_clients: any[] | null;
   upcoming_appointments: any[] | null;
+  upcoming_followups: any[] | null;
 }
 
 export interface DashboardResponse {
@@ -34,6 +35,7 @@ export interface DashboardWidgetParams {
   appointments_days?: number;
   appointments_limit?: number;
   invoices_limit?: number;
+  followups_limit?: number;
 }
 
 /**
@@ -50,6 +52,7 @@ async function getWidgets(params: DashboardWidgetParams): Promise<DashboardRespo
     appointments_days: params.appointments_days,
     appointments_limit: params.appointments_limit,
     invoices_limit: params.invoices_limit,
+    followups_limit: params.followups_limit,
   };
 
   const qs = buildQueryString(queryParams as Record<string, any>);

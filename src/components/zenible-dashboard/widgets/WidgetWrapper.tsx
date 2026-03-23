@@ -15,7 +15,7 @@ const widgetComponents: Record<string, React.LazyExoticComponent<React.Component
   RecentPaymentsWidget: lazy(() => import('./RecentPaymentsWidget')),
   CurrencyExchangeWidget: lazy(() => import('./CurrencyExchangeWidget')),
   UpcomingAppointmentsWidget: lazy(() => import('./UpcomingAppointmentsWidget')),
-  UpcomingCallsWidget: lazy(() => import('./UpcomingCallsWidget')),
+  UpcomingFollowupsWidget: lazy(() => import('./UpcomingFollowupsWidget')),
   MonthlyIncomeGoalWidget: lazy(() => import('./MonthlyIncomeGoalWidget')),
   ProfitAndLossWidget: lazy(() => import('./ProfitAndLossWidget')),
 };
@@ -53,6 +53,7 @@ const WidgetWrapper = ({
   isDragging = false,
 }: WidgetWrapperProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [dynamicTitle, setDynamicTitle] = useState<string | null>(null);
   const { getPreference } = usePreferences();
   const config = WIDGET_REGISTRY[widgetId];
 
@@ -83,7 +84,7 @@ const WidgetWrapper = ({
         {/* Header with drag handle and action menu */}
         <div className="flex items-center justify-between px-3 py-2 cursor-grab active:cursor-grabbing select-none flex-shrink-0">
           <h3 className="text-sm font-medium text-zinc-700 truncate">
-            {config.name}
+            {dynamicTitle || config.name}
           </h3>
 
           {/* 3-dot action menu - stops propagation to prevent drag while clicking */}
@@ -122,7 +123,7 @@ const WidgetWrapper = ({
         {/* Widget content - fills remaining space */}
         <div className="px-3 pb-3 flex-1 min-h-0 overflow-hidden">
           <Suspense fallback={<WidgetSkeleton />}>
-            <WidgetComponent settings={widgetSettings} isHovered={isHovered} widgetId={widgetId} />
+            <WidgetComponent settings={widgetSettings} isHovered={isHovered} widgetId={widgetId} onTitleChange={setDynamicTitle} />
           </Suspense>
         </div>
       </div>

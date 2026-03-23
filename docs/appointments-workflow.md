@@ -60,7 +60,6 @@ https://demo-api.zenible.com/api/v1
       "start_datetime": "2026-01-12T14:00:00Z",
       "end_datetime": "2026-01-12T15:00:00Z",
       "appointment_type": "follow_up",
-      "status": "scheduled",
       "contact_id": "contact-uuid",
       "all_day": false,
       "location": null,
@@ -72,9 +71,8 @@ https://demo-api.zenible.com/api/v1
 ```
 
 **Key Points:**
-- `appointments` is an **array** of all appointments for the contact
-- Frontend uses `getNextAppointment()` utility to find the **soonest scheduled** appointment to display on cards
-- Only appointments with `status: "scheduled"` are considered
+- `appointments` is an **array** of all non-deleted appointments for the contact
+- Frontend uses `getNextAppointment()` utility to find the **soonest upcoming** appointment to display on cards
 
 ### Appointment Object (from `/crm/appointments/`)
 ```json
@@ -87,7 +85,6 @@ https://demo-api.zenible.com/api/v1
   "contact_id": "contact-uuid",
   "timezone": "America/New_York",
   "appointment_type": "follow_up",
-  "status": "scheduled",
   "location": "Office 101",
   "meeting_link": "https://meet.example.com/xyz",
   "all_day": false,
@@ -211,8 +208,7 @@ Request Body:
   "title": "Follow-up: John Doe",          // Auto-generated
   "start_datetime": "2026-01-12T14:00:00", // ISO 8601 format
   "end_datetime": "2026-01-12T15:00:00",   // +1 hour default
-  "appointment_type": "follow_up",         // or "call"
-  "status": "scheduled"
+  "appointment_type": "follow_up"          // or "call"
 }
 
 Response: New appointment object
@@ -283,41 +279,31 @@ Response: Updated appointment object
 ```javascript
 // AppointmentsModal.jsx
 
-PATCH /crm/appointments/{appointment_id}
+DELETE /crm/appointments/{appointment_id}
 
-Request Body:
-{
-  "status": "cancelled"  // Soft delete
-}
-
-Response: Updated appointment with status "cancelled"
+Response: 204 No Content
 ```
 
 **Alternative: Dismiss from Menu**
 ```javascript
 // ContactActionMenu.jsx → dismissFollowUp()
 
-// Same PATCH request as above
 // Only dismisses the NEXT/SOONEST appointment
 const nextAppointment = getNextAppointment(contact.appointments);
 
-PATCH /crm/appointments/{nextAppointment.id}
-Body: { "status": "cancelled" }
+DELETE /crm/appointments/{nextAppointment.id}
 ```
 
 #### Post-Deletion
 ```javascript
-// After successful cancellation:
+// After successful deletion:
 1. Show success notification
-2. Reload page: window.location.reload()
-3. Backend excludes cancelled appointments from appointments array
-   (or frontend filters them out using status !== 'cancelled')
+2. Invalidate contacts query cache so backend recalculates next_appointment
 ```
 
-**Soft Delete Behavior:**
-- Appointments are **never hard-deleted** from CRM
-- Status changed to "cancelled" to preserve history
-- Frontend filters out cancelled appointments when finding next appointment
+**Delete Behavior:**
+- Appointments are soft-deleted (sets `deleted_at` timestamp)
+- Backend excludes deleted appointments from all queries
 
 ---
 
@@ -336,7 +322,7 @@ Body: { "status": "cancelled" }
 ```javascript
 // Calendar.jsx → useCalendar hook
 
-GET /crm/appointments/calendar?start_date=2026-01-01T00:00:00Z&end_date=2026-01-31T23:59:59Z&status=scheduled
+GET /crm/appointments/calendar?start_date=2026-01-01T00:00:00Z&end_date=2026-01-31T23:59:59Z
 
 Response:
 {
@@ -347,7 +333,6 @@ Response:
       "start_datetime": "2026-01-12T14:00:00Z",
       "end_datetime": "2026-01-12T15:00:00Z",
       "appointment_type": "follow_up",
-      "status": "scheduled",
       "contact_id": "contact-uuid",
       "contact": {  // Contact details included for display
         "first_name": "John",
@@ -398,7 +383,6 @@ const getDateRange = () => {
 - Color-coded by appointment_type (user-customizable colors)
 - Time shown in user's local timezone
 - Contact name shown on appointment
-- Status indicators (scheduled, completed, cancelled)
 - Recurring appointments expanded into multiple instances
 ```
 
@@ -410,15 +394,14 @@ const getDateRange = () => {
 ```javascript
 // Calendar supports multiple filters:
 
-GET /crm/appointments/calendar?start_date=...&end_date=...&appointment_type=call&contact_id=contact-uuid&status=scheduled
+GET /crm/appointments/calendar?start_date=...&end_date=...&appointment_type=call&contact_id=contact-uuid
 
 Query Parameters:
 {
   "start_date": "2026-01-01T00:00:00Z",  // Required
   "end_date": "2026-01-31T23:59:59Z",    // Required
   "appointment_type": "call",             // Optional: filter by type
-  "contact_id": "contact-uuid",           // Optional: filter by contact
-  "status": "scheduled"                   // Optional: filter by status
+  "contact_id": "contact-uuid"            // Optional: filter by contact
 }
 ```
 
@@ -426,7 +409,6 @@ Query Parameters:
 ```javascript
 // Calendar settings modal allows filtering by:
 - Appointment Types: Toggle visibility of call/follow_up/manual types
-- Status: Show scheduled, completed, or cancelled
 - Contact: Not directly implemented (would require contact selector)
 
 // Client-side filtering applied after fetching:
@@ -447,7 +429,6 @@ const filteredAppointments = appointments.filter(apt => {
    - Description (optional)
    - Contact (optional - search and select)
    - Type (manual/call/follow_up)
-   - Status (scheduled/completed/cancelled)
    - Location (optional)
    - Meeting Link (optional)
    - All Day toggle
@@ -475,7 +456,6 @@ Request Body:
   "contact_id": "contact-uuid",              // Optional
   "timezone": "America/New_York",
   "appointment_type": "manual",
-  "status": "scheduled",
   "location": "Office 101",
   "meeting_link": "https://meet.example.com/xyz",
   "all_day": false
@@ -494,7 +474,6 @@ Request Body:
   "start_datetime": "2026-01-12T10:00:00",
   "end_datetime": "2026-01-12T10:30:00",
   "appointment_type": "manual",
-  "status": "scheduled",
   "recurrence": {
     "recurring_type": "weekly",          // daily, weekly, monthly, yearly
     "recurring_interval": 1,             // Every 1 week
@@ -722,10 +701,10 @@ const deleteAppointment = async (appointmentId, queryParams = {}) => {
 | **Data Source** | `/crm/contacts/` with `appointments` array | `/crm/appointments/calendar` |
 | **Primary Entity** | Contact | Appointment |
 | **Appointments Display** | Shows only NEXT/SOONEST appointment per contact | Shows ALL appointments in date range |
-| **Filtering** | Contact-level filters (name, status, hidden) | Appointment-level filters (type, status, date range) |
+| **Filtering** | Contact-level filters (name, status, hidden) | Appointment-level filters (type, date range) |
 | **Creation** | Always links to a contact | Can be created without contact |
 | **Update** | Limited to date/time/type | Full edit including title, description, location, etc. |
-| **Delete Method** | Soft delete (status: cancelled) | Hard delete (DELETE request) |
+| **Delete Method** | Soft delete (DELETE request) | Soft delete (DELETE request) |
 | **Recurring** | Not supported | Full recurring support (create, edit, delete with scope) |
 | **Refresh Method** | Page reload (`window.location.reload()`) | Local state update + refetch |
 | **Contact Association** | Required (always has contact_id) | Optional (can be manual appointments) |
@@ -742,13 +721,11 @@ const deleteAppointment = async (appointmentId, queryParams = {}) => {
 {
   "id": "contact-uuid",
   "appointments": [
-    // Array of ALL appointments for this contact
-    // Frontend filters to scheduled status
+    // Array of all non-deleted appointments for this contact
     {
       "id": "appointment-uuid",
       "start_datetime": "2026-01-12T14:00:00Z",
-      "appointment_type": "follow_up",
-      "status": "scheduled"
+      "appointment_type": "follow_up"
       // ... other fields
     }
   ]
@@ -756,9 +733,7 @@ const deleteAppointment = async (appointmentId, queryParams = {}) => {
 ```
 
 **Filtering expectations:**
-- `appointments` should include all appointments regardless of status
-- Frontend will filter to `status === 'scheduled'` when finding next appointment
-- OR backend can pre-filter to only scheduled appointments (preferred)
+- Backend excludes soft-deleted appointments (those with `deleted_at` set)
 
 **Ordering:**
 - Appointments array can be in any order
@@ -774,7 +749,6 @@ start_date (required): ISO 8601 datetime
 end_date (required): ISO 8601 datetime
 appointment_type (optional): call, follow_up, manual
 contact_id (optional): UUID
-status (optional): scheduled, completed, cancelled
 ```
 
 **MUST include contact details:**
@@ -815,7 +789,6 @@ status (optional): scheduled, completed, cancelled
   "contact_id": "uuid (optional)",
   "timezone": "America/New_York",
   "appointment_type": "call | follow_up | manual",
-  "status": "scheduled | completed | cancelled",
   "location": "string (optional)",
   "meeting_link": "string (optional)",
   "all_day": false,
@@ -886,21 +859,7 @@ occurrence_date: 2026-01-12T14:00:00 (required for this_occurrence and this_and_
 
 ---
 
-### 6. **Status Field Behavior**
-
-**CRM expects:**
-- Appointments with `status: "cancelled"` should still be included in `appointments` array
-- Frontend will filter them out when finding next appointment
-- OR backend can exclude cancelled appointments from array (preferred)
-
-**Calendar expects:**
-- Calendar can filter by status via `?status=scheduled` query param
-- Default: Show only `scheduled` appointments
-- User can toggle to show `completed` or `cancelled` in settings
-
----
-
-### 7. **Timezone Handling**
+### 6. **Timezone Handling**
 
 **Frontend sends:**
 - `start_datetime` and `end_datetime` WITHOUT timezone suffix (e.g., `"2026-01-12T14:00:00"`)
@@ -913,7 +872,7 @@ occurrence_date: 2026-01-12T14:00:00 (required for this_occurrence and this_and_
 
 ---
 
-### 8. **Automatic Title Generation (CRM Only)**
+### 7. **Automatic Title Generation (CRM Only)**
 
 When creating from CRM:
 ```javascript
@@ -935,14 +894,14 @@ Backend should accept this title as-is.
 - **Purpose:** Quick appointment scheduling linked to contacts
 - **Use Case:** Sales pipeline management, follow-up tracking
 - **Complexity:** Simple (date, time, type only)
-- **Delete:** Soft delete (status: cancelled)
+- **Delete:** Soft delete (DELETE request)
 - **Recurring:** Not supported
 
 ### Calendar Page
 - **Purpose:** Full calendar view of all appointments
 - **Use Case:** Comprehensive schedule management
 - **Complexity:** Full featured (title, description, location, recurrence, etc.)
-- **Delete:** Hard delete (DELETE request)
+- **Delete:** Soft delete (DELETE request)
 - **Recurring:** Full support with scope options
 
 ### Data Sync

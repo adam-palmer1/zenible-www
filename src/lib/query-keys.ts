@@ -225,6 +225,14 @@ export const queryKeys = {
     company: () => [...queryKeys.countries.all, 'company'] as const,
   },
 
+  // Notifications
+  notifications: {
+    all: ['notifications'] as const,
+    lists: () => [...queryKeys.notifications.all, 'list'] as const,
+    list: (filters: unknown) => [...queryKeys.notifications.lists(), { filters }] as const,
+    unreadCount: () => [...queryKeys.notifications.all, 'unread-count'] as const,
+  },
+
   // Custom Reports
   customReports: {
     all: ['customReports'] as const,

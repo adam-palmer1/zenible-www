@@ -5,6 +5,8 @@ export interface ZMISettings {
   minutes_used: number;
   minutes_limit: number | null;
   minutes_remaining: number | null;
+  caption_language: string | null;
+  recording_enabled: boolean;
 }
 
 export interface UpcomingMeeting {
@@ -15,17 +17,22 @@ export interface UpcomingMeeting {
   meeting_link: string | null;
   zmi_enabled: boolean | null;
   platform: 'google_meet' | 'microsoft_teams' | 'zoom' | null;
+  bot_dispatch_status: string | null;
+  bot_dispatch_source: string | null;
+  bot_session_id: string | null;
+  bot_dispatch_error: string | null;
 }
 
 export interface BotStatus {
   session_id: string;
-  status: 'scheduling' | 'joining' | 'in_meeting' | 'leaving' | 'ended' | 'error';
+  status: 'scheduling' | 'joining' | 'in_meeting' | 'listening' | 'leaving' | 'ended' | 'error';
   platform: string | null;
   participant_count: number;
   duration_s: number;
   error_message: string | null;
   joined_at: string | null;
   left_at: string | null;
+  is_recording: boolean;
 }
 
 export interface MeetingListItem {
@@ -38,6 +45,30 @@ export interface MeetingListItem {
   transcript_count: number;
   system_audio_path: string | null;
   mic_audio_path: string | null;
+  has_video_recording: boolean;
+  video_duration_ms: number | null;
+}
+
+export interface LinkedContactInfo {
+  contact_id: string;
+  name: string;
+  type: 'contact' | 'client' | 'vendor';
+}
+
+export interface MeetingDetail {
+  id: string;
+  title: string | null;
+  start_time: string;
+  duration_ms: number | null;
+  summary_json: { overview?: string; keyPoints?: string[]; actionItems?: string[] } | null;
+  source: string | null;
+  is_processed: boolean;
+  has_video_recording: boolean;
+  video_duration_ms: number | null;
+  video_size_bytes: number | null;
+  share_link_code: string | null;
+  speakers: Array<{ id: string; channel_label: string; display_name: string | null; person_name: string | null }>;
+  transcripts: Array<{ id: number; speaker: string; content: string; timestamp_ms: number; speaker_display_name: string | null }>;
 }
 
 export interface TranscriptEntry {
@@ -54,4 +85,18 @@ export interface UsageInfo {
   minutes_limit: number | null;
   minutes_remaining: number | null;
   is_over_limit: boolean;
+}
+
+export interface RecordingStatus {
+  is_recording: boolean;
+  duration_s: number;
+  file_size_bytes: number;
+}
+
+export interface PublicRecording {
+  meeting_title: string | null;
+  start_time: string | null;
+  duration_ms: number | null;
+  video_url: string;
+  size_bytes: number | null;
 }

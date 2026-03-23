@@ -25,6 +25,7 @@ export { default as OutstandingInvoicesWidget } from './OutstandingInvoicesWidge
 export { default as RecentPaymentsWidget } from './RecentPaymentsWidget';
 export { default as CurrencyExchangeWidget } from './CurrencyExchangeWidget';
 export { default as UpcomingAppointmentsWidget } from './UpcomingAppointmentsWidget';
-export { default as UpcomingCallsWidget } from './UpcomingCallsWidget';
+export { default as UpcomingFollowupsWidget } from './UpcomingFollowupsWidget';
+
 export { default as MonthlyIncomeGoalWidget } from './MonthlyIncomeGoalWidget';
 export { default as ProfitAndLossWidget } from './ProfitAndLossWidget';

@@ -9,15 +9,11 @@ import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 // Icons
 import DashboardIcon from './icons/DashboardIcon';
-import CRMIcon from './icons/CRMIcon';
 import ContactsIcon from './icons/ContactsIcon';
 import CalendarIcon from './icons/CalendarIcon';
 import FinanceIcon from './icons/FinanceIcon';
-import FreelancerAcademyIcon from './icons/FreelancerAcademyIcon';
-import ProfilePositioningIcon from './icons/ProfilePositioningIcon';
-import ContentOutreachIcon from './icons/ContentOutreachIcon';
 import BoardroomIcon from './icons/BoardroomIcon';
-import ProposalWizardIcon from './icons/ProposalWizardIcon';
+import MeetingIntelligenceIcon from './icons/MeetingIntelligenceIcon';
 import ProposalsIcon from './icons/ProposalsIcon';
 
 interface SubmenuItem {
@@ -54,13 +50,13 @@ export default function Sidebar() {
     },
     {
       icon: ContactsIcon,
-      label: 'Contacts',
+      label: 'CRM',
       path: '/crm',
       hasSubmenu: true,
-      isActive: location.pathname.startsWith('/crm'),
+      isActive: location.pathname.startsWith('/crm') && !location.pathname.startsWith('/crm/meetings'),
       submenuItems: [
         {
-          label: 'CRM',
+          label: 'Contacts',
           path: '/crm',
           isActive: location.pathname === '/crm'
         },
@@ -74,12 +70,13 @@ export default function Sidebar() {
           path: '/crm/projects',
           isActive: location.pathname.startsWith('/crm/projects')
         },
-        {
-          label: 'Meetings',
-          path: '/crm/meetings',
-          isActive: location.pathname.startsWith('/crm/meetings')
-        }
       ]
+    },
+    {
+      icon: MeetingIntelligenceIcon,
+      label: 'Meeting Intelligence',
+      path: '/crm/meetings',
+      isActive: location.pathname.startsWith('/crm/meetings')
     },
     {
       icon: CalendarIcon,
@@ -127,11 +124,17 @@ export default function Sidebar() {
       ]
     },
     {
-      icon: ProfilePositioningIcon,
-      label: 'Profile & Positioning',
-      path: '/profile-positioning',
+      icon: BoardroomIcon,
+      label: 'The Boardroom',
+      path: '/boardroom',
+      isActive: location.pathname.startsWith('/boardroom')
+    },
+    {
+      icon: ProposalsIcon,
+      label: 'Profile & Outreach',
+      path: '/content-creator',
       hasSubmenu: true,
-      isActive: location.pathname.startsWith('/profile-positioning'),
+      isActive: location.pathname.startsWith('/content-creator') || location.pathname.startsWith('/profile-positioning') || location.pathname.startsWith('/proposal-wizard'),
       submenuItems: [
         {
           label: 'Profile Analyzer',
@@ -142,22 +145,12 @@ export default function Sidebar() {
           label: 'Headline Analyzer',
           path: '/profile-positioning/headline-analyzer',
           isActive: location.pathname === '/profile-positioning/headline-analyzer'
-        }
-      ]
-    },
-    {
-      icon: BoardroomIcon,
-      label: 'The Boardroom',
-      path: '/boardroom',
-      isActive: location.pathname.startsWith('/boardroom')
-    },
-    {
-      icon: ContentOutreachIcon,
-      label: 'Content & Outreach',
-      path: '/content-creator',
-      hasSubmenu: true,
-      isActive: location.pathname.startsWith('/content-creator'),
-      submenuItems: [
+        },
+        {
+          label: 'Proposal Wizard',
+          path: '/proposal-wizard',
+          isActive: location.pathname.startsWith('/proposal-wizard')
+        },
         {
           label: 'Viral Post Generator',
           path: '/content-creator/viral-post-generator',
@@ -170,49 +163,6 @@ export default function Sidebar() {
         }
       ]
     },
-    {
-      icon: ProposalsIcon,
-      label: 'Proposals',
-      path: '/proposals',
-      hasSubmenu: true,
-      isActive: location.pathname.startsWith('/proposals') || location.pathname.startsWith('/proposal-wizard'),
-      submenuItems: [
-        {
-          label: 'Proposal Wizard',
-          path: '/proposal-wizard',
-          isActive: location.pathname.startsWith('/proposal-wizard')
-        },
-        {
-          label: 'Winning Templates',
-          path: '/proposals/winning-templates',
-          isActive: location.pathname === '/proposals/winning-templates'
-        }
-      ]
-    },
-    {
-      icon: FreelancerAcademyIcon,
-      label: 'Training',
-      path: '/freelancer-academy',
-      hasSubmenu: true,
-      isActive: location.pathname.startsWith('/freelancer-academy'),
-      submenuItems: [
-        {
-          label: 'Quizzes',
-          path: '/freelancer-academy/quizzes',
-          isActive: location.pathname === '/freelancer-academy/quizzes'
-        },
-        {
-          label: 'Live Q&A',
-          path: '/freelancer-academy/live-qa',
-          isActive: location.pathname === '/freelancer-academy/live-qa'
-        },
-        {
-          label: 'The Library',
-          path: '/freelancer-academy/the-library',
-          isActive: location.pathname === '/freelancer-academy/the-library'
-        }
-      ]
-    }
   ];
 
   const sidebarContent = (

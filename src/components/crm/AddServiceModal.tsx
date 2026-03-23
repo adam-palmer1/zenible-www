@@ -21,6 +21,7 @@ const AddServiceModal: React.FC<AddServiceModalProps> = ({ isOpen, onClose, serv
 
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [frequencyType, setFrequencyType] = useState(service?.frequency_type || 'one_off');
 
   // Load currencies when modal opens
   useEffect(() => {
@@ -56,7 +57,7 @@ const AddServiceModal: React.FC<AddServiceModalProps> = ({ isOpen, onClose, serv
       open={isOpen}
       onOpenChange={onClose}
       title={service ? 'Edit Service' : 'Add New Service'}
-      size="lg"
+      size={frequencyType === 'recurring' ? '3xl' : 'lg'}
     >
       {currenciesLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -71,6 +72,7 @@ const AddServiceModal: React.FC<AddServiceModalProps> = ({ isOpen, onClose, serv
           onCancel={onClose}
           loading={loading}
           submitError={submitError}
+          onFrequencyTypeChange={setFrequencyType}
         />
       )}
     </Modal>

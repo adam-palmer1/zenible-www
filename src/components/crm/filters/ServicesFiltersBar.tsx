@@ -89,30 +89,6 @@ const ServicesFiltersBar: React.FC<ServicesFiltersBarProps> = ({
 
   return (
     <div className="flex items-center gap-2">
-      {/* Subtab Toggle */}
-      <div className="flex items-center bg-gray-100 rounded-lg p-1">
-        <button
-          onClick={() => onSubtabChange('default')}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            activeSubtab === 'default'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Default Services
-        </button>
-        <button
-          onClick={() => onSubtabChange('client')}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            activeSubtab === 'client'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Client Services
-        </button>
-      </div>
-
       {/* Search - Show for both subtabs */}
       <div className="relative w-64">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

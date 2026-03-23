@@ -9,6 +9,45 @@ import StructuredAnalysis from './StructuredAnalysis';
 import { getMarkdownComponents } from './markdownComponents';
 import { ConversationMessage, MetricsData, AnalysisHistoryItem, FollowUpMessage } from './types';
 
+/**
+ * Extract the "answer" field from JSON-like streaming content.
+ * Safety net for when the backend streams raw JSON instead of extracted text.
+ */
+function extractStreamingAnswer(content: string): string {
+  if (!content) return content;
+  const trimmed = content.trimStart();
+  if (!trimmed.startsWith('{')) return content;
+
+  for (const marker of ['"answer":"', '"answer": "']) {
+    const idx = trimmed.indexOf(marker);
+    if (idx !== -1) {
+      const start = idx + marker.length;
+      let result = '';
+      let i = start;
+      while (i < trimmed.length) {
+        const c = trimmed[i];
+        if (c === '\\' && i + 1 < trimmed.length) {
+          const next = trimmed[i + 1];
+          if (next === 'n') { result += '\n'; i += 2; }
+          else if (next === 't') { result += '\t'; i += 2; }
+          else if (next === '"') { result += '"'; i += 2; }
+          else if (next === '\\') { result += '\\'; i += 2; }
+          else if (next === '/') { result += '/'; i += 2; }
+          else { result += c; result += next; i += 2; }
+        } else if (c === '"') {
+          break;
+        } else {
+          result += c;
+          i++;
+        }
+      }
+      return result;
+    }
+  }
+
+  return content;
+}
+
 interface ConversationHistoryProps {
   darkMode: boolean;
   characterAvatarUrl: string | null;
@@ -53,20 +92,22 @@ export default function ConversationHistory({
   onCopyMessage,
 }: ConversationHistoryProps) {
   const currentAnalysis = useMemo(() => {
-    if ((isStreaming && streamingContent) || (displayContent && messageId)) {
+    // Only create currentAnalysis for COMPLETED analyses (not streaming)
+    // Streaming is handled by a dedicated block below the sortedMessages loop
+    if (!isStreaming && displayContent && messageId) {
       return {
         role: 'assistant',
         type: 'analysis',
-        content: isStreaming ? streamingContent : (rawAnalysis || displayContent),
+        content: rawAnalysis || displayContent,
         structured: structuredAnalysis,
         messageId: messageId,
         usage: feedback?.usage,
         timestamp: new Date().toISOString(),
-        isStreaming: isStreaming
+        isStreaming: false
       };
     }
     return null;
-  }, [isStreaming, streamingContent, displayContent, messageId, rawAnalysis, structuredAnalysis, feedback?.usage]);
+  }, [isStreaming, displayContent, messageId, rawAnalysis, structuredAnalysis, feedback?.usage]);
 
   const sortedMessages = useMemo(() => {
     const allMessages: ConversationMessage[] = [
@@ -108,19 +149,10 @@ export default function ConversationHistory({
                   </div>
                   <div className="flex-1">
                     {msg.content && (
-                      <div className={`rounded-xl p-2.5 sm:p-3 relative ${
+                      <div className="flex items-start gap-1">
+                      <div className={`rounded-xl p-2.5 sm:p-3 flex-1 min-w-0 ${
                         darkMode ? 'bg-[#2d2d2d]' : 'bg-zinc-100'
                       }`}>
-                        <div className="absolute top-1 right-1 sm:top-1 sm:right-1">
-                          <CopyButton
-                            messageId={msg.messageId || `analysis-${idx}`}
-                            content={msg.content}
-                            darkMode={darkMode}
-                            copiedMessageId={copiedMessageId}
-                            onCopy={onCopyMessage}
-                          />
-                        </div>
-
                         <div className={`prose prose-sm max-w-none ${
                           darkMode
                             ? 'prose-invert prose-pre:bg-gray-800 prose-pre:text-gray-200'
@@ -139,6 +171,16 @@ export default function ConversationHistory({
                               <TypingDots darkMode={darkMode} size="sm" />
                             </span>
                           )}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 pt-0.5">
+                          <CopyButton
+                            messageId={msg.messageId || `analysis-${idx}`}
+                            content={msg.content}
+                            darkMode={darkMode}
+                            copiedMessageId={copiedMessageId}
+                            onCopy={onCopyMessage}
+                          />
                         </div>
                       </div>
                     )}
@@ -192,7 +234,8 @@ export default function ConversationHistory({
                 )}
 
                 <div>
-                  <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm relative ${
+                  <div className={`flex items-start gap-1 ${msg.role === 'assistant' ? 'max-w-[80%]' : ''}`}>
+                  <div className={`${msg.role !== 'assistant' ? 'max-w-[80%]' : ''} rounded-lg px-3 py-2 text-sm flex-1 min-w-0 ${
                     msg.role === 'user'
                       ? darkMode
                         ? 'bg-zenible-primary text-white'
@@ -202,17 +245,6 @@ export default function ConversationHistory({
                         : 'bg-gray-100 text-gray-800'
                   }`}>
                     {msg.role === 'assistant' ? (
-                      <>
-                        <div className="absolute top-1 right-1">
-                          <CopyButton
-                            messageId={msg.messageId || `msg-${idx}`}
-                            content={msg.content || ''}
-                            darkMode={darkMode}
-                            copiedMessageId={copiedMessageId}
-                            onCopy={onCopyMessage}
-                          />
-                        </div>
-
                         <div className={`prose prose-sm max-w-none ${
                         darkMode
                           ? 'prose-invert prose-pre:bg-gray-800 prose-pre:text-gray-200'
@@ -225,10 +257,21 @@ export default function ConversationHistory({
                           {msg.content}
                         </ReactMarkdown>
                       </div>
-                      </>
                     ) : (
                       msg.content
                     )}
+                  </div>
+                  {msg.role === 'assistant' && (
+                    <div className="flex-shrink-0 pt-0.5">
+                      <CopyButton
+                        messageId={msg.messageId || `msg-${idx}`}
+                        content={msg.content || ''}
+                        darkMode={darkMode}
+                        copiedMessageId={copiedMessageId}
+                        onCopy={onCopyMessage}
+                      />
+                    </div>
+                  )}
                   </div>
 
                   {msg.role === 'assistant' && msg.messageId && (
@@ -245,6 +288,52 @@ export default function ConversationHistory({
           );
         })}
 
+        {/* First response streaming - dedicated block outside sortedMessages for reliable rendering */}
+        {isStreaming && (
+          <div className="mb-4">
+            <div className="flex gap-2 justify-start">
+              <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {characterAvatarUrl ? (
+                  <img src={characterAvatarUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <img src={brandIcon} alt="" className="w-3 h-3" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-start gap-1">
+                  <div className={`rounded-xl p-2.5 sm:p-3 flex-1 min-w-0 ${
+                    darkMode ? 'bg-[#2d2d2d]' : 'bg-zinc-100'
+                  }`}>
+                    {streamingContent ? (
+                      <div className={`prose prose-sm max-w-none ${
+                        darkMode
+                          ? 'prose-invert prose-pre:bg-gray-800 prose-pre:text-gray-200'
+                          : 'prose-pre:bg-gray-100 prose-pre:text-gray-800'
+                      } font-inter font-normal text-xs sm:text-sm leading-[20px] sm:leading-[22px] ${
+                        darkMode ? 'text-white' : 'text-zinc-950'
+                      }`}>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={analysisComponents}
+                        >
+                          {extractStreamingAnswer(streamingContent)}
+                        </ReactMarkdown>
+                        <span className="inline-flex ml-1">
+                          <TypingDots darkMode={darkMode} size="sm" />
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="inline-flex">
+                        <TypingDots darkMode={darkMode} size="sm" />
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {isFollowUpStreaming && (
           <div className="flex gap-2 mb-3 justify-start">
             <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -255,21 +344,11 @@ export default function ConversationHistory({
               )}
             </div>
 
-            <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm relative ${
+            <div className="flex items-start gap-1 max-w-[80%]">
+            <div className={`rounded-lg px-3 py-2 text-sm flex-1 min-w-0 ${
               darkMode ? 'bg-[#2d2d2d] text-gray-200' : 'bg-gray-100 text-gray-800'
             }`}>
               {followUpStreamingContent ? (
-                <>
-                  <div className="absolute top-1 right-1">
-                    <CopyButton
-                      messageId="streaming"
-                      content={followUpStreamingContent}
-                      darkMode={darkMode}
-                      copiedMessageId={copiedMessageId}
-                      onCopy={onCopyMessage}
-                    />
-                  </div>
-
                   <div className={`prose prose-sm max-w-none ${
                   darkMode
                     ? 'prose-invert prose-pre:bg-gray-800 prose-pre:text-gray-200'
@@ -279,15 +358,26 @@ export default function ConversationHistory({
                     remarkPlugins={[remarkGfm]}
                     components={messageComponents}
                   >
-                    {followUpStreamingContent}
+                    {extractStreamingAnswer(followUpStreamingContent)}
                   </ReactMarkdown>
                 </div>
-                </>
               ) : (
                 <span className="inline-flex">
                   <TypingDots darkMode={darkMode} size="sm" />
                 </span>
               )}
+            </div>
+            {followUpStreamingContent && (
+              <div className="flex-shrink-0 pt-0.5">
+                <CopyButton
+                  messageId="streaming"
+                  content={followUpStreamingContent}
+                  darkMode={darkMode}
+                  copiedMessageId={copiedMessageId}
+                  onCopy={onCopyMessage}
+                />
+              </div>
+            )}
             </div>
           </div>
         )}

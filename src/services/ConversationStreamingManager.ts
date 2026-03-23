@@ -19,12 +19,7 @@ interface ConversationState {
   currentMessageId?: string;
   isStreaming?: boolean;
   streamContent?: string;
-  lastChunkIndex?: number;
   currentTool?: string | null;
-  lastResponse?: string;
-  lastMessageId?: string;
-  lastTool?: string | null;
-  lastError?: string;
 }
 
 interface ChunkEventData {
@@ -81,13 +76,11 @@ class ConversationStreamingManager {
   private wsService: WebSocketService;
   private conversations: Map<string, ConversationState>;
   private activeTrackingIds: Map<string, string>;
-  private streamingCompleteCount: number;
 
   constructor(wsService: WebSocketService) {
     this.wsService = wsService;
     this.conversations = new Map(); // conversationId -> conversation state
     this.activeTrackingIds = new Map(); // conversationId -> trackingId (for cancellation)
-    this.streamingCompleteCount = 0;
     this.setupGlobalHandlers();
   }
 
@@ -97,10 +90,6 @@ class ConversationStreamingManager {
       logger.error('[ConversationManager] No socket available');
       return;
     }
-
-    // Counter for tracking invocations
-    this.streamingCompleteCount = 0;
-
 
     // AI processing started
     socket.on('ai_processing', (data: SocketEventData) => {
@@ -131,7 +120,6 @@ class ConversationStreamingManager {
       const newContent = (conversation.streamContent || '') + (data.chunk || '');
       this.updateConversation(data.conversation_id, {
         streamContent: newContent,
-        lastChunkIndex: data.chunk_index,
         currentTool: data.tool_name || null
       });
 
@@ -150,10 +138,7 @@ class ConversationStreamingManager {
       this.updateConversation(data.conversation_id, {
         isStreaming: false,
         isProcessing: false,
-        streamContent: '',
-        lastResponse: data.full_response,
-        lastMessageId: data.message_id,
-        lastTool: data.tool_name || null
+        streamContent: ''
       });
 
       // Notify listeners with complete data
@@ -184,8 +169,7 @@ class ConversationStreamingManager {
       if (conversationId) {
         this.updateConversation(conversationId, {
           isStreaming: false,
-          isProcessing: false,
-          lastError: data.message
+          isProcessing: false
         });
 
         this.notifyHandlers(conversationId, 'tool_error', {
@@ -207,8 +191,7 @@ class ConversationStreamingManager {
       if (conversationId) {
         this.updateConversation(conversationId, {
           isStreaming: false,
-          isProcessing: false,
-          lastError: data.message || data.error
+          isProcessing: false
         });
 
         this.notifyHandlers(conversationId, 'error', {

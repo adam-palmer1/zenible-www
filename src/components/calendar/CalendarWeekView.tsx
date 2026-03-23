@@ -27,13 +27,14 @@ interface CalendarWeekViewProps {
   getAppointmentColor: (appointment: any) => string;
   isRecurringAppointment: (appointments: any[], appointmentId: any) => boolean;
   isAppointmentReadOnly: (appointment: any) => boolean;
-  getStatusColor: (status: string) => string;
-  getStatusLabel: (status: string) => string;
+  scrollToHour?: number;
 }
 
-export default function CalendarWeekView({ currentDate, appointments, timeSlots, onAppointmentClick, onNewAppointment, onDragStart, onDragOver, onDrop, onDragEnd, draggingAppointment, dragPreview, getAppointmentColor, isRecurringAppointment, isAppointmentReadOnly, getStatusColor, getStatusLabel }: CalendarWeekViewProps) {
+export default function CalendarWeekView({ currentDate, appointments, timeSlots, onAppointmentClick, onNewAppointment, onDragStart, onDragOver, onDrop, onDragEnd, draggingAppointment, dragPreview, getAppointmentColor, isRecurringAppointment, isAppointmentReadOnly, scrollToHour }: CalendarWeekViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [appointmentsBelow, setAppointmentsBelow] = useState<any[]>([]);
+  const [appointmentsAbove, setAppointmentsAbove] = useState<any[]>([]);
+  const stickyHeaderRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -58,11 +59,13 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
 
   useEffect(() => {
     if (scrollContainerRef.current) {
-      const previousHour = Math.max(0, new Date().getHours() - 1);
-      const scrollPosition = previousHour * 64;
+      const targetHour = scrollToHour !== undefined
+        ? Math.max(0, scrollToHour - 1)
+        : Math.max(0, new Date().getHours() - 1);
+      const scrollPosition = targetHour * 64;
       scrollContainerRef.current.scrollTop = scrollPosition;
     }
-  }, []);
+  }, [scrollToHour]);
 
   useEffect(() => {
     const checkAppointmentsBelow = () => {
@@ -99,6 +102,20 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
       });
 
       setAppointmentsBelow(below);
+
+      const headerHeight = stickyHeaderRef.current?.offsetHeight || 0;
+      const visibleTop = container.scrollTop + headerHeight;
+
+      const above = weekAppointments.filter((apt: any) => {
+        const endDate = parseISO(apt.end_datetime);
+        const endHour = getHours(endDate);
+        const endMinute = getMinutes(endDate);
+        const effectiveEndHour = (endHour === 0 && endMinute === 0) ? 24 : endHour;
+        const appointmentBottom = effectiveEndHour * 64 + (endMinute / 60) * 64;
+        return appointmentBottom < visibleTop + 32;
+      });
+
+      setAppointmentsAbove(above);
     };
 
     checkAppointmentsBelow();
@@ -128,7 +145,7 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
   return (
     <div className="h-full relative">
       <div ref={scrollContainerRef} className="h-full overflow-y-auto overflow-x-auto custom-scrollbar">
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+        <div ref={stickyHeaderRef} className="sticky top-0 z-20 bg-white border-b border-gray-200">
           {/* Day labels */}
           <div className="flex">
             <div className="w-16 md:w-24 flex-shrink-0 border-r border-gray-200"></div>
@@ -191,15 +208,6 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
                       {isReadOnly && <LockClosedIcon className="w-3 h-3 flex-shrink-0" />}
                       {isRecurring && <ArrowPathIcon className="w-3 h-3 flex-shrink-0" />}
                       <span className="truncate">{event.title}</span>
-                      {event.status && event.status !== 'scheduled' && (
-                        <span
-                          className="text-[10px] px-1 py-0.5 rounded bg-white bg-opacity-90 flex-shrink-0"
-                          style={{ color: getStatusColor(event.status) }}
-                          title={getStatusLabel(event.status)}
-                        >
-                          {getStatusLabel(event.status)}
-                        </span>
-                      )}
                     </div>
                   );
                 })}
@@ -348,7 +356,7 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
                 const timePosition = currentHour * 64 + (currentMinute / 60) * 64;
                 return (
                   <div
-                    className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
+                    className="absolute left-0 right-0 z-10 pointer-events-none flex items-center"
                     style={{ top: `${timePosition}px` }}
                   >
                     <div className="w-2 h-2 rounded-full bg-purple-600 -ml-1"></div>
@@ -359,6 +367,38 @@ export default function CalendarWeekView({ currentDate, appointments, timeSlots,
           </div>
         </div>
       </div>
+
+      {appointmentsAbove.length > 0 && (
+        <div
+          className="absolute left-16 md:left-24 right-0 h-2 flex pointer-events-none z-30"
+          style={{ top: `${stickyHeaderRef.current?.offsetHeight || 0}px` }}
+        >
+          {days.map((day: Date, dayIndex: number) => {
+            const dayApptsAbove = appointmentsAbove.filter((apt: any) => {
+              const aptDate = parseISO(apt.start_datetime);
+              return isSameDay(aptDate, day);
+            });
+
+            const colors = [...new Set(dayApptsAbove.map((apt: any) => getAppointmentColor(apt)))];
+
+            return (
+              <div key={dayIndex} className="flex-1 min-w-[60px] md:min-w-[100px] flex h-full">
+                {colors.length > 0 ? (
+                  colors.map((color: string, colorIndex: number) => (
+                    <div
+                      key={colorIndex}
+                      className="flex-1 h-full"
+                      style={{ backgroundColor: color }}
+                    />
+                  ))
+                ) : (
+                  <div className="flex-1 h-full" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {appointmentsBelow.length > 0 && (
         <div className="absolute bottom-0 left-24 right-0 h-2 flex pointer-events-none z-30">

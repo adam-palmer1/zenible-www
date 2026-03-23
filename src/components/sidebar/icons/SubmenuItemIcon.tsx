@@ -11,9 +11,9 @@ export default function SubmenuItemIcon({ className = "w-6 h-6", color: _color =
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Vertical dashed line */}
       <line
-        x1="1"
+        x1="4"
         y1="0"
-        x2="1"
+        x2="4"
         y2="24"
         stroke="#E5E5E5"
         strokeWidth="1"

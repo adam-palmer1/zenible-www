@@ -339,7 +339,6 @@ See `/docs/frontend/ISSUE-contact-update-incomplete-response.md` for details.
   - `limit`, `offset` - Pagination
   - `contact_id` (UUID) - Filter by contact
   - `start_date`, `end_date` (ISO 8601) - Date range filter
-  - `status` (string) - Filter by status: "scheduled" | "completed" | "cancelled"
 - **Response**: Array of appointment objects
 
 ### Create Appointment
@@ -352,7 +351,6 @@ See `/docs/frontend/ISSUE-contact-update-incomplete-response.md` for details.
   "start_datetime": "2026-01-10T14:00:00Z",
   "end_datetime": "2026-01-10T15:00:00Z",
   "appointment_type": "discovery_call",
-  "status": "scheduled",
   "notes": "Discuss project requirements"
 }
 ```

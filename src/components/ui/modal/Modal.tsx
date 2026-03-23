@@ -104,6 +104,7 @@ const Modal: React.FC<ModalProps> = ({
             fixed z-50 flex flex-col
             bg-white dark:bg-gray-800 shadow-lg
             focus:outline-none
+            transition-[max-width] duration-300 ease-in-out
             data-[state=open]:animate-in
             data-[state=closed]:animate-out
             data-[state=closed]:fade-out-0

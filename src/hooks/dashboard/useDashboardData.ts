@@ -21,6 +21,7 @@ const WIDGET_ID_MAP: Record<string, string> = {
   recentInvoices: 'recent_invoices',
   recentClients: 'recent_clients',
   upcomingAppointments: 'appointments',
+  upcomingFollowups: 'followups',
 };
 
 /**
@@ -35,6 +36,7 @@ const WIDGET_DATA_KEY_MAP: Record<string, string> = {
   recentInvoices: 'recent_invoices',
   recentClients: 'recent_clients',
   upcomingAppointments: 'upcoming_appointments',
+  upcomingFollowups: 'upcoming_followups',
 };
 
 /**
@@ -71,6 +73,9 @@ function flattenSettings(
       case 'upcomingAppointments':
         if (settings.days !== undefined) params.appointments_days = settings.days;
         if (settings.limit !== undefined) params.appointments_limit = settings.limit;
+        break;
+      case 'upcomingFollowups':
+        if (settings.limit !== undefined) params.followups_limit = settings.limit;
         break;
       case 'recentInvoices':
         if (settings.limit !== undefined) params.invoices_limit = settings.limit;

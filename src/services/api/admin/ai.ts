@@ -38,6 +38,10 @@ const adminAI_API = {
     return request(`/ai/characters/${characterId}`, { method: 'DELETE' });
   },
 
+  async permanentlyDeleteAICharacter(characterId: string): Promise<unknown> {
+    return request(`/ai/characters/${characterId}/permanent`, { method: 'DELETE' });
+  },
+
   // Upload avatar for AI character
   async uploadAICharacterAvatar(characterId: string, file: File): Promise<unknown> {
     const formData = new FormData();

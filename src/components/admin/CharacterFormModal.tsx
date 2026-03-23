@@ -219,6 +219,7 @@ export default function CharacterFormModal({
   };
 
   const handleProviderChange = (provider: string) => {
+    const isAnthropic = provider === 'anthropic_chat';
     setCharacterForm(prev => ({
       ...prev,
       backend_provider: provider,
@@ -226,7 +227,13 @@ export default function CharacterFormModal({
         ...prev.metadata,
         enable_code_interpreter: provider === 'openai_assistant',
         enable_file_search: provider === 'openai_rag' || provider === 'openai_assistant',
-        custom_functions: provider === 'openai_assistant' ? prev.metadata.custom_functions : []
+        custom_functions: provider === 'openai_assistant' ? prev.metadata.custom_functions : [],
+        model: isAnthropic
+          ? 'claude-sonnet-4-6'
+          : (prev.metadata.model.startsWith('claude') ? 'gpt-4-turbo-preview' : prev.metadata.model),
+        temperature: isAnthropic
+          ? Math.min(prev.metadata.temperature, 1.0)
+          : prev.metadata.temperature,
       }
     }));
   };

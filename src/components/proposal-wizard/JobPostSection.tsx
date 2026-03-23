@@ -9,7 +9,7 @@ interface JobPostSectionProps {
 export default function JobPostSection({ darkMode, jobPost, setJobPost }: JobPostSectionProps) {
 
   return (
-    <div className="flex flex-col flex-shrink-0">
+    <div className="flex flex-col min-h-0">
       {/* Header */}
       <div className="flex-shrink-0">
         <h3 className={`font-inter font-semibold text-base sm:text-lg ${
@@ -19,7 +19,7 @@ export default function JobPostSection({ darkMode, jobPost, setJobPost }: JobPos
 
       {/* Content */}
       <div className="mt-2 min-h-0">
-        <div className={`rounded-[10px] border p-3 sm:p-4 min-h-[150px] max-h-60 ${
+        <div className={`rounded-[10px] border p-3 sm:p-4 max-h-60 ${
           darkMode
             ? 'bg-[#2d2d2d] border-[#4a4a4a]'
             : 'bg-white border-[#ddd6ff]'
@@ -27,7 +27,7 @@ export default function JobPostSection({ darkMode, jobPost, setJobPost }: JobPos
           <textarea
             value={jobPost || ''}
             onChange={(e) => setJobPost && setJobPost(e.target.value)}
-            className={`w-full h-full min-h-[120px] font-inter font-normal text-xs sm:text-sm leading-[22px] resize-none outline-none bg-transparent ${
+            className={`w-full h-full min-h-[80px] font-inter font-normal text-xs sm:text-sm leading-[22px] resize-none outline-none bg-transparent ${
               darkMode ? 'text-[#a0a0a0] placeholder:text-[#666666]' : 'text-zinc-500 placeholder:text-zinc-400'
             }`}
             placeholder="Enter the full job post and any relevant detail..."

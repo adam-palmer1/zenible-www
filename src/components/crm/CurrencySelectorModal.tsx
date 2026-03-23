@@ -103,19 +103,9 @@ const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
                     <span className="text-base font-medium text-gray-700 dark:text-gray-300 w-6">
                       {c.currency?.symbol || '$'}
                     </span>
-                    <div>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {c.currency?.code || 'Unknown'}
-                      </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
-                        {c.currency?.name || ''}
-                      </span>
-                      {c.is_default && (
-                        <span className="ml-2 text-xs text-purple-600 dark:text-purple-400 font-medium">
-                          (Default)
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {c.currency?.code || 'Unknown'}
+                    </span>
                   </div>
                   {isSelected && (
                     <CheckIcon className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0 ml-2" />

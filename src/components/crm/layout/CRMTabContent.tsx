@@ -225,7 +225,7 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
   if (activeTab === 'meetings') {
     return (
       <Suspense fallback={<TabLoadingFallback />}>
-        <div className="bg-white rounded-lg shadow p-4 h-full overflow-hidden">
+        <div className="bg-white rounded-lg shadow p-4">
           <MeetingsPage />
         </div>
       </Suspense>

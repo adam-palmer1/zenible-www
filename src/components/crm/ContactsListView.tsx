@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, BellIcon } from '@heroicons/react/24/outline';
 import contactsAPI from '../../services/api/crm/contacts';
 import { ApiError } from '../../services/api/ApiError';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
+import { useModalState } from '../../hooks/useModalState';
+import { useContactActions } from '../../contexts/ContactActionsContext';
+import { getContactDisplayName } from '../../utils/crm/contactUtils';
 import Dropdown from '../ui/dropdown/Dropdown';
 import ConfirmationModal from '../common/ConfirmationModal';
+import FollowUpDetailsModal from './FollowUpDetailsModal';
+import FollowUpReminderModal from './FollowUpReminderModal';
 import { EmptyState } from '../shared';
 
 interface ContactsListViewProps {
@@ -21,6 +26,9 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
   const { showError, showSuccess } = useNotification();
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const deleteConfirm = useDeleteConfirmation<any>();
+  const followUpModal = useModalState<any>();
+  const followUpEditModal = useModalState();
+  const { dismissReminder, setReminder } = useContactActions();
 
   const handleSelectAll = () => {
     if (selectedContacts.length === contacts.length) {
@@ -170,7 +178,17 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
                     </td>
                     <td className="px-2 lg:px-4 py-4 cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
                       <div className="flex items-center gap-3">
-                        <div>
+                        <div className="flex items-center gap-1.5">
+                          {contact.follow_up_reminder_at && (
+                            <button
+                              type="button"
+                              onClick={(e: React.MouseEvent) => { e.stopPropagation(); followUpModal.open(contact); }}
+                              className="shrink-0 hover:scale-110 transition-transform"
+                              aria-label="View follow-up reminder"
+                            >
+                              <BellIcon className="h-4 w-4 text-amber-500" />
+                            </button>
+                          )}
                           <p className={`font-normal text-sm text-gray-900 dark:text-white ${contact.is_hidden_crm ? 'line-through italic opacity-60' : ''}`}>
                             {contact.first_name} {contact.last_name}
                           </p>
@@ -274,6 +292,21 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
       confirmText="Delete"
       cancelText="Cancel"
       confirmColor="red"
+    />
+
+    <FollowUpDetailsModal
+      isOpen={followUpModal.isOpen}
+      onClose={followUpModal.close}
+      contact={followUpModal.data}
+      onDismiss={() => { if (followUpModal.data) dismissReminder(followUpModal.data); }}
+      onEdit={() => followUpEditModal.open()}
+    />
+
+    <FollowUpReminderModal
+      isOpen={followUpEditModal.isOpen}
+      onClose={followUpEditModal.close}
+      onConfirm={(reminderAt) => { if (followUpModal.data) setReminder(followUpModal.data, reminderAt); }}
+      contactName={followUpModal.data ? getContactDisplayName(followUpModal.data, 'Contact') : ''}
     />
     </>
   );
