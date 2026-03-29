@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSidebar } from '../../contexts/SidebarContext';
-import brandIcon from '../../assets/icons/brand-icon.svg';
+import { favicon } from '../../assets/logos';
 import NotificationBell from '../notifications/NotificationBell';
 
 interface MobileHeaderProps {
@@ -28,9 +28,7 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ title }) => {
       </button>
 
       {/* Brand icon */}
-      <div className="w-7 h-7 rounded-lg bg-[#8B5CF6] flex items-center justify-center p-1">
-        <img src={brandIcon} alt="Zenible" className="w-4 h-4" />
-      </div>
+      <img src={favicon} alt="Zenible" className="w-7 h-7 rounded-lg" />
 
       {/* Page title */}
       {title && (

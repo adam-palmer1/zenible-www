@@ -31,6 +31,12 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
   const [showContactSearch, setShowContactSearch] = useState(false);
   const contactSearchRef = useRef<HTMLDivElement>(null);
 
+  // Recording state (must be before any early returns)
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+
   useEffect(() => {
     const fetchDetail = async () => {
       try {
@@ -173,12 +179,6 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
       </div>
     );
   }
-
-  // Recording state
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [videoLoading, setVideoLoading] = useState(false);
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
-  const [shareCopied, setShareCopied] = useState(false);
 
   const handleLoadRecording = async () => {
     setVideoLoading(true);

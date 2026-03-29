@@ -82,12 +82,6 @@ interface FollowUpMessage {
   usage?: unknown;
 }
 
-interface CompletionQuestion {
-  id: string | number;
-  question_text: string;
-  order_index: number;
-}
-
 interface AnalysisHistoryEntry {
   role: string;
   type?: string;
@@ -120,7 +114,7 @@ export default function ProposalWizard() {
   const [followUpMessages, setFollowUpMessages] = useState<FollowUpMessage[]>([]);
   const [isFollowUpStreaming, setIsFollowUpStreaming] = useState(false);
   const [followUpStreamingContent, setFollowUpStreamingContent] = useState('');
-  const [characterTools, setCharacterTools] = useState<{ available_tools?: { name: string; is_enabled: boolean; completion_questions?: CompletionQuestion[] }[] } | null>(null);
+  const [characterTools, setCharacterTools] = useState<{ available_tools?: { name: string; is_enabled: boolean }[] } | null>(null);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryEntry[]>([]);
 
   // History modal state
@@ -793,11 +787,6 @@ export default function ProposalWizard() {
                 followUpMessages={followUpMessages.map(m => ({ ...m, messageId: m.messageId ?? undefined }))}
                 isFollowUpStreaming={isFollowUpStreaming}
                 followUpStreamingContent={followUpStreamingContent}
-                completionQuestions={
-                  characterTools?.available_tools
-                    ?.find((t) => t.name === 'analyze_proposal')
-                    ?.completion_questions || []
-                }
                 isAdmin={isAdmin}
                 analysisHistory={analysisHistory}
               />

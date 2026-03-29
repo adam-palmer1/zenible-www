@@ -1,6 +1,6 @@
 /**
  * Admin AI Tools API Service
- * Handles AI tools management, character tool instructions, and completion questions
+ * Handles AI tools management and character tool instructions
  */
 
 import { createZbiRequest } from '../httpClient';
@@ -77,42 +77,6 @@ const adminAIToolsAPI = {
     return request(endpoint, { method: 'GET' });
   },
 
-  // Completion Questions Management endpoints
-  async getCompletionQuestions(instructionsId: string): Promise<unknown> {
-    return request(`/admin/ai-tools/character-tools/${instructionsId}/completion-questions`, {
-      method: 'GET'
-    });
-  },
-
-  async createCompletionQuestion(instructionsId: string, questionData: unknown): Promise<unknown> {
-    return request(`/admin/ai-tools/character-tools/${instructionsId}/completion-questions`, {
-      method: 'POST',
-      body: JSON.stringify(questionData)
-    });
-  },
-
-  async bulkCreateCompletionQuestions(instructionsId: string, questionsArray: unknown[]): Promise<unknown> {
-    return request(`/admin/ai-tools/character-tools/${instructionsId}/completion-questions/bulk`, {
-      method: 'POST',
-      body: JSON.stringify({
-        character_tool_instructions_id: instructionsId,
-        questions: questionsArray
-      })
-    });
-  },
-
-  async updateCompletionQuestion(questionId: string, questionData: unknown): Promise<unknown> {
-    return request(`/admin/ai-tools/completion-questions/${questionId}`, {
-      method: 'PUT',
-      body: JSON.stringify(questionData)
-    });
-  },
-
-  async deleteCompletionQuestion(questionId: string): Promise<unknown> {
-    return request(`/admin/ai-tools/completion-questions/${questionId}`, {
-      method: 'DELETE'
-    });
-  },
 };
 
 export default adminAIToolsAPI;

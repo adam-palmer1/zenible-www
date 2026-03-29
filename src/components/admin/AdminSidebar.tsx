@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import brandIcon from '../../assets/icons/brand-icon.svg';
+import { favicon } from '../../assets/logos';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface NavSubItem {
@@ -222,9 +222,7 @@ export default function AdminSidebar() {
       {/* Header */}
       <div className="px-6 py-4 border-b border-[#E5E7EB]">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#8B5CF6] rounded-lg flex items-center justify-center">
-            <img src={brandIcon} alt="" className="w-[19.2px] h-[19.2px]" />
-          </div>
+          <img src={favicon} alt="Zenible" className="w-8 h-8 rounded-lg" />
           <div className="flex flex-col">
             <span className="text-[#111827] text-sm font-semibold leading-5">
               Zenible

@@ -112,7 +112,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
       setPlans(plansList);
       setAllDisplayFeatures((displayResponse.features as DisplayFeature[]) || []);
       setAllSystemFeatures((systemResponse.features as SystemFeature[]) || []);
-      setAllCharacters((charactersResponse.characters as Character[]) || []);
+      setAllCharacters((charactersResponse.items as Character[]) || []);
 
       // Select first plan by default if available
       if (plansList.length > 0) {

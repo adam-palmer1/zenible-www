@@ -27,6 +27,7 @@ export interface StructuredAnalysisData {
   weaknesses?: string[];
   improvements?: string[];
   proposal_text?: string;
+  suggested_questions?: string[];
 }
 
 export interface FeedbackData {
@@ -81,7 +82,6 @@ export interface AIFeedbackSectionProps {
   followUpMessages?: FollowUpMessage[];
   isFollowUpStreaming?: boolean;
   followUpStreamingContent?: string;
-  completionQuestions?: CompletionQuestion[];
   isAdmin?: boolean;
   analysisHistory?: AnalysisHistoryItem[];
 }

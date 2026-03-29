@@ -47,16 +47,8 @@ export type AIToolUpdate = components['schemas']['AIToolUpdate'];
 export type AICharacterToolInstructions = components['schemas']['AICharacterToolInstructions'];
 export type AICharacterToolInstructionsCreate = components['schemas']['AICharacterToolInstructionsCreate'];
 export type AICharacterToolInstructionsUpdate = components['schemas']['AICharacterToolInstructionsUpdate'];
-export type AICharacterToolInstructionsWithQuestions = components['schemas']['AICharacterToolInstructionsWithQuestions'];
 export type AICharacterToolInstructionsWithTool = components['schemas']['AICharacterToolInstructionsWithTool'];
 export type CharacterToolsListResponse = components['schemas']['CharacterToolsListResponse'];
-
-// Completion Questions
-export type CompletionQuestion = components['schemas']['CompletionQuestion'];
-export type CompletionQuestionBase = components['schemas']['CompletionQuestionBase'];
-export type CompletionQuestionCreate = components['schemas']['CompletionQuestionCreate'];
-export type CompletionQuestionUpdate = components['schemas']['CompletionQuestionUpdate'];
-export type CompletionQuestionBulkCreate = components['schemas']['CompletionQuestionBulkCreate'];
 
 // ──────────────────────────────────────────────
 // Conversations & Messages

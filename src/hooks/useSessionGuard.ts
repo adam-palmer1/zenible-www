@@ -5,10 +5,15 @@ import logger from '../utils/logger';
 const IDLE_TIMEOUT_MS = Number(import.meta.env.VITE_IDLE_TIMEOUT_MS) || 3_600_000;
 const AUTH_POLL_INTERVAL_MS = Number(import.meta.env.VITE_AUTH_POLL_INTERVAL_MS) || 60_000;
 const THROTTLE_MS = 30_000;
+const IDLE_CHECK_INTERVAL_MS = 30_000;
 
 /**
  * Handles idle timeout (auto-logout after inactivity) and
  * session polling (periodic /auth/me check for server-side invalidation).
+ *
+ * Uses a timestamp-based idle deadline with multiple fallback checks
+ * to remain reliable when the browser throttles/freezes background tabs
+ * or the device sleeps.
  *
  * Inert when isAuthenticated is false — no listeners or timers are active.
  */
@@ -23,19 +28,30 @@ export function useSessionGuard(
     if (!isAuthenticated) return;
 
     let idleTimer: ReturnType<typeof setTimeout>;
+    let idleCheckInterval: ReturnType<typeof setInterval>;
     let pollInterval: ReturnType<typeof setInterval>;
     let lastActivity = Date.now();
+    let idleDeadline = Date.now() + IDLE_TIMEOUT_MS;
+    let logoutTriggered = false;
 
     // --- Idle timeout ---
 
-    const resetIdleTimer = () => {
+    const triggerLogout = () => {
+      if (logoutTriggered) return;
+      logoutTriggered = true;
       clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {
-        logger.info('Session idle timeout reached, logging out');
-        logoutRef.current().then(() => {
-          window.location.href = '/signin?reason=idle';
-        });
-      }, IDLE_TIMEOUT_MS);
+      clearInterval(idleCheckInterval);
+      clearInterval(pollInterval);
+      logger.info('Session idle timeout reached, logging out');
+      logoutRef.current().then(() => {
+        window.location.href = '/signin?reason=idle';
+      });
+    };
+
+    const resetIdleTimer = () => {
+      idleDeadline = Date.now() + IDLE_TIMEOUT_MS;
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(triggerLogout, IDLE_TIMEOUT_MS);
     };
 
     // Throttled activity handler
@@ -56,6 +72,19 @@ export function useSessionGuard(
 
     events.forEach((evt) => window.addEventListener(evt, onActivity, { passive: true }));
     resetIdleTimer(); // start the initial timer
+
+    // Fallback: periodic check catches frozen/throttled timers
+    idleCheckInterval = setInterval(() => {
+      if (Date.now() >= idleDeadline) triggerLogout();
+    }, IDLE_CHECK_INTERVAL_MS);
+
+    // Fallback: check immediately when tab regains focus
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && Date.now() >= idleDeadline) {
+        triggerLogout();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     // --- Session poll ---
 
@@ -81,7 +110,9 @@ export function useSessionGuard(
 
     return () => {
       events.forEach((evt) => window.removeEventListener(evt, onActivity));
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       clearTimeout(idleTimer);
+      clearInterval(idleCheckInterval);
       clearInterval(pollInterval);
     };
   }, [isAuthenticated]);

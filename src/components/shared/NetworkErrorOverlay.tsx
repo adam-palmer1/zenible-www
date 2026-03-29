@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import brandIcon from '../../pages/signin/assets/brand-icon.svg';
-import brandIconDark from '../../pages/signin/assets/brand-icon-dark.svg';
+import { favicon } from '../../assets/logos';
 
 interface NetworkErrorOverlayProps {
   onTryAgain?: () => void;
@@ -38,13 +37,7 @@ export default function NetworkErrorOverlay({ onTryAgain }: NetworkErrorOverlayP
     }`}>
       {/* Logo */}
       <div className="mb-8">
-        <div className={`${isDarkMode ? 'bg-[#a684ff]' : 'bg-[#8e51ff]'} rounded-[16px] p-[4px] size-[64px] flex items-center justify-center`}>
-          <img
-            alt="Zenible"
-            className="size-[38.4px]"
-            src={isDarkMode ? brandIconDark : brandIcon}
-          />
-        </div>
+        <img alt="Zenible" className="size-[64px] rounded-[16px]" src={favicon} />
       </div>
 
       {/* Wifi-off icon */}

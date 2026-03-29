@@ -30,12 +30,6 @@ interface ToolAssignment {
   tool?: ToolRecord | null;
 }
 
-interface CompletionQuestionRecord {
-  id: string;
-  question_text: string;
-  order_index: number;
-}
-
 export default function CharacterToolAssignment({ onError }: CharacterToolAssignmentProps) {
   const [characters, setCharacters] = useState<CharacterRecord[]>([]);
   const [tools, setTools] = useState<ToolRecord[]>([]);
@@ -50,16 +44,6 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
     tool_id: '',
     instructions: '',
     is_enabled: true
-  });
-
-  // Completion Questions state
-  const [completionQuestions, setCompletionQuestions] = useState<CompletionQuestionRecord[]>([]);
-  const [editingQuestion, setEditingQuestion] = useState<CompletionQuestionRecord | null>(null);
-  const [showQuestionForm, setShowQuestionForm] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<string>('assignment');
-  const [questionFormData, setQuestionFormData] = useState({
-    question_text: '',
-    order_index: 0
   });
 
   useEffect(() => {
@@ -99,12 +83,6 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
       instructions: '',
       is_enabled: true
     });
-    // Reset completion questions state
-    setCompletionQuestions([]);
-    setEditingQuestion(null);
-    setShowQuestionForm(false);
-    resetQuestionForm();
-    setActiveTab('assignment'); // Reset to assignment tab
     setShowAssignModal(true);
   };
 
@@ -118,16 +96,6 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
       is_enabled: assignment.is_enabled
     });
 
-    // Load completion questions for this assignment
-    try {
-      const questions = await adminAPI.getCompletionQuestions(assignment.id);
-      setCompletionQuestions(Array.isArray(questions) ? questions : []);
-    } catch (err) {
-      console.error('Error loading completion questions:', err);
-      setCompletionQuestions([]);
-    }
-
-    setActiveTab('assignment'); // Start with assignment tab when editing
     setShowAssignModal(true);
   };
 
@@ -148,45 +116,9 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
         assignmentId = newAssignment.id;
       }
 
-      // Handle completion questions if there are any
-      if (completionQuestions.length > 0) {
-        // Filter out questions that don't have valid data
-        const validQuestions = completionQuestions.filter(q => q.question_text.trim());
-
-        if (validQuestions.length > 0) {
-          // Prepare questions for bulk submission
-          const questionsData = validQuestions.map((question, index) => ({
-            question_text: question.question_text.trim(),
-            order_index: index
-          }));
-
-          try {
-            // Bulk create/replace questions (this replaces all existing questions)
-            await adminAPI.bulkCreateCompletionQuestions(assignmentId, questionsData);
-          } catch (questionErr) {
-            console.error('Error saving completion questions:', questionErr);
-            onError && onError('Assignment saved but failed to save completion questions: ' + (questionErr instanceof Error ? questionErr.message : 'Unknown error'));
-            return; // Don't close modal if questions failed to save
-          }
-        }
-      } else if (editingAssignment) {
-        // If editing and no questions, send empty array to clear existing questions
-        try {
-          await adminAPI.bulkCreateCompletionQuestions(assignmentId, []);
-        } catch (deleteErr) {
-          console.warn('Failed to clear existing questions:', deleteErr);
-        }
-      }
-
       setShowAssignModal(false);
       setEditingAssignment(null);
       setOriginalToolId(null);
-      // Reset completion questions state
-      setCompletionQuestions([]);
-      setEditingQuestion(null);
-      setShowQuestionForm(false);
-      resetQuestionForm();
-      setActiveTab('assignment'); // Reset to assignment tab
       await loadData();
     } catch (err) {
       console.error('Error saving assignment:', err);
@@ -246,78 +178,6 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
   const filteredCharacters = selectedCharacter
     ? characters.filter(c => c.id === selectedCharacter)
     : characters;
-
-  // Completion Questions Management Functions
-  const resetQuestionForm = () => {
-    setQuestionFormData({
-      question_text: '',
-      order_index: completionQuestions.length
-    });
-  };
-
-  const handleAddQuestion = () => {
-    setEditingQuestion(null);
-    resetQuestionForm();
-    setQuestionFormData(prev => ({ ...prev, order_index: completionQuestions.length }));
-    setShowQuestionForm(true);
-  };
-
-  const handleEditQuestion = (question: CompletionQuestionRecord) => {
-    setEditingQuestion(question);
-    setQuestionFormData({
-      question_text: question.question_text,
-      order_index: question.order_index
-    });
-    setShowQuestionForm(true);
-  };
-
-  const handleSaveQuestion = () => {
-    if (!questionFormData.question_text.trim()) {
-      return;
-    }
-
-    if (editingQuestion) {
-      // Update existing question
-      setCompletionQuestions(prev =>
-        prev.map(q =>
-          q.id === editingQuestion.id
-            ? { ...q, ...questionFormData }
-            : q
-        )
-      );
-    } else {
-      // Add new question
-      const newQuestion = {
-        id: `temp-${Date.now()}`, // Temporary ID for new questions
-        ...questionFormData
-      };
-      setCompletionQuestions(prev => [...prev, newQuestion]);
-    }
-
-    setShowQuestionForm(false);
-    setEditingQuestion(null);
-    resetQuestionForm();
-  };
-
-  const handleDeleteQuestion = (questionId: string) => {
-    setCompletionQuestions(prev => prev.filter(q => q.id !== questionId));
-  };
-
-  const handleMoveQuestion = (questionId: string, direction: string) => {
-    setCompletionQuestions(prev => {
-      const questions = [...prev];
-      const index = questions.findIndex(q => q.id === questionId);
-
-      if (direction === 'up' && index > 0) {
-        [questions[index], questions[index - 1]] = [questions[index - 1], questions[index]];
-      } else if (direction === 'down' && index < questions.length - 1) {
-        [questions[index], questions[index + 1]] = [questions[index + 1], questions[index]];
-      }
-
-      // Update order_index
-      return questions.map((q, i) => ({ ...q, order_index: i }));
-    });
-  };
 
   if (loading) {
     return <LoadingSpinner height="py-12" />;
@@ -470,11 +330,6 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
                 setShowAssignModal(false);
                 setOriginalToolId(null);
                 setEditingAssignment(null);
-                setActiveTab('assignment'); // Reset to assignment tab
-                setCompletionQuestions([]);
-                setEditingQuestion(null);
-                setShowQuestionForm(false);
-                resetQuestionForm();
               }}
             >
               <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
@@ -487,37 +342,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
                   {editingAssignment ? 'Edit Tool Assignment' : 'Assign Tool to Character'}
                 </h3>
 
-                {/* Tab Navigation */}
-                <div className="mb-6">
-                  <div className="border-b border-gray-200">
-                    <nav className="-mb-px flex space-x-8">
-                      <button
-                        onClick={() => setActiveTab('assignment')}
-                        className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                          activeTab === 'assignment'
-                            ? 'border-brand-purple text-brand-purple'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        Assignment Details
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('questions')}
-                        className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                          activeTab === 'questions'
-                            ? 'border-brand-purple text-brand-purple'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        Completion Questions ({completionQuestions.length})
-                      </button>
-                    </nav>
-                  </div>
-                </div>
-
-                {/* Assignment Details Tab */}
-                {activeTab === 'assignment' && (
-                  <div className="space-y-4">
+                <div className="space-y-4">
                   {/* Character Selection */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -574,156 +399,6 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
                       </label>
                     </div>
                   </div>
-                )}
-
-                {/* Completion Questions Tab */}
-                {activeTab === 'questions' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-md font-medium text-gray-900">Completion Questions</h4>
-                        <p className="text-sm text-gray-500">Questions presented to users after tool completion</p>
-                      </div>
-                      {!showQuestionForm && (
-                        <button
-                          onClick={handleAddQuestion}
-                          className="px-4 py-2 bg-brand-purple text-white rounded-lg hover:bg-brand-purple-hover transition-colors text-sm"
-                        >
-                          + Add Question
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Inline Question Form */}
-                    {showQuestionForm && (
-                      <div className="border border-gray-300 rounded-lg p-4 bg-white">
-                        <div className="flex items-center justify-between mb-4">
-                          <h5 className="text-md font-medium text-gray-900">
-                            {editingQuestion ? 'Edit Question' : 'Add New Question'}
-                          </h5>
-                          <button
-                            onClick={() => {
-                              setShowQuestionForm(false);
-                              setEditingQuestion(null);
-                              resetQuestionForm();
-                            }}
-                            className="text-gray-400 hover:text-gray-600"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-
-                        <div className="space-y-4">
-                          {/* Question Text */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Question Text *
-                            </label>
-                            <textarea
-                              rows={3}
-                              value={questionFormData.question_text}
-                              onChange={(e) => setQuestionFormData(prev => ({
-                                ...prev,
-                                question_text: e.target.value
-                              }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                              placeholder="Enter your question..."
-                            />
-                            <p className="mt-1 text-xs text-gray-500">
-                              This question will be presented to users after the tool completes its response.
-                            </p>
-                          </div>
-
-                          {/* Form Actions */}
-                          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                            <button
-                              onClick={() => {
-                                setShowQuestionForm(false);
-                                setEditingQuestion(null);
-                                resetQuestionForm();
-                              }}
-                              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={handleSaveQuestion}
-                              disabled={!questionFormData.question_text.trim()}
-                              className="px-4 py-2 bg-brand-purple text-white rounded-lg hover:bg-brand-purple-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                            >
-                              {editingQuestion ? 'Update Question' : 'Add Question'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Questions List */}
-                    <div className="space-y-3">
-                      {completionQuestions.map((question, index) => (
-                        <div
-                          key={question.id}
-                          className="border border-gray-200 rounded-lg p-4 bg-gray-50"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-xs text-gray-500 font-medium">#{question.order_index + 1}</span>
-                              </div>
-                              <p className="text-sm font-medium text-gray-900">{question.question_text}</p>
-                            </div>
-                            <div className="flex items-center gap-2 ml-4">
-                              {/* Move buttons */}
-                              <button
-                                onClick={() => handleMoveQuestion(question.id, 'up')}
-                                disabled={index === 0}
-                                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Move up"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => handleMoveQuestion(question.id, 'down')}
-                                disabled={index === completionQuestions.length - 1}
-                                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Move down"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </button>
-                              {/* Edit button */}
-                              <button
-                                onClick={() => handleEditQuestion(question)}
-                                className="text-brand-purple hover:text-brand-purple-hover text-sm"
-                              >
-                                Edit
-                              </button>
-                              {/* Delete button */}
-                              <button
-                                onClick={() => handleDeleteQuestion(question.id)}
-                                className="text-red-600 hover:text-red-800 text-sm"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-
-                      {completionQuestions.length === 0 && !showQuestionForm && (
-                        <div className="text-center py-8 text-gray-500">
-                          <p>No completion questions configured.</p>
-                          <p className="text-sm">Add questions to collect user feedback after tool completion.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
@@ -732,11 +407,6 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
                     setShowAssignModal(false);
                     setOriginalToolId(null);
                     setEditingAssignment(null);
-                    setActiveTab('assignment'); // Reset to assignment tab
-                    setCompletionQuestions([]);
-                    setEditingQuestion(null);
-                    setShowQuestionForm(false);
-                    resetQuestionForm();
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                 >

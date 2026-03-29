@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import brandIcon from '../../assets/icons/brand-icon.svg';
+import { favicon } from '../../assets/logos';
 import playgroundIcon from '../../assets/icons/playground.svg';
 import { useAuth } from '../../contexts/AuthContext';
 import historyIcon from '../../assets/icons/history.svg';
@@ -79,9 +79,7 @@ export default function ZenibleSidebar({ darkMode, toggleDarkMode }: ZenibleSide
       }`}>
         <div className="flex items-center justify-between p-4">
           <div className="flex gap-3 items-center">
-            <div className="bg-zenible-primary flex items-center justify-center p-[6px] rounded-lg size-8">
-              <img src={brandIcon} alt="" className="w-[19.2px] h-[19.2px]" />
-            </div>
+            <img src={favicon} alt="Zenible" className="w-8 h-8 rounded-lg" />
             <div className="flex flex-col">
               <p className={`font-inter font-semibold text-sm leading-[22px] ${
                 darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'

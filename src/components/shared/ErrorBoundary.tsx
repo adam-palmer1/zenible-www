@@ -1,6 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import brandIcon from '../../pages/signin/assets/brand-icon.svg';
-import brandIconDark from '../../pages/signin/assets/brand-icon-dark.svg';
+import { favicon } from '../../assets/logos';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -68,13 +67,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
           }`}>
             {/* Logo */}
             <div className="mb-8">
-              <div className={`${dark ? 'bg-[#a684ff]' : 'bg-[#8e51ff]'} rounded-[16px] p-[4px] size-[64px] flex items-center justify-center`}>
-                <img
-                  alt="Zenible"
-                  className="size-[38.4px]"
-                  src={dark ? brandIconDark : brandIcon}
-                />
-              </div>
+              <img alt="Zenible" className="size-[64px] rounded-[16px]" src={favicon} />
             </div>
 
             {/* Error icon */}

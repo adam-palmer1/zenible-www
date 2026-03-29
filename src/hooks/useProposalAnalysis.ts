@@ -7,6 +7,7 @@ interface ProposalStructuredAnalysis {
   weaknesses: unknown[];
   improvements: unknown[];
   proposal_text?: string;
+  suggested_questions?: string[];
 }
 
 interface UseProposalAnalysisConfig {
@@ -46,7 +47,8 @@ export function useProposalAnalysis({
       strengths: (d.strengths as unknown[]) || [],
       weaknesses: (d.weaknesses as unknown[]) || [],
       improvements: (d.improvements as unknown[]) || [],
-      proposal_text: (d.proposal_text as string) || undefined
+      proposal_text: (d.proposal_text as string) || undefined,
+      suggested_questions: Array.isArray(d.suggested_questions) ? d.suggested_questions as string[] : undefined
     };
   }, []);
 

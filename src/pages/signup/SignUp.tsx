@@ -3,8 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 // Import assets from signin (reuse)
-import brandIcon from '../signin/assets/brand-icon.svg';
-import brandIconDark from '../signin/assets/brand-icon-dark.svg';
+import { zenibleDark } from '../../assets/logos';
 import googleIcon1 from '../signin/assets/google-icon-1.svg';
 import googleIcon2 from '../signin/assets/google-icon-2.svg';
 import googleIcon3 from '../signin/assets/google-icon-3.svg';
@@ -223,13 +222,8 @@ export default function SignUp() {
         <div className="p-5 sm:p-[34px]">
           <div className="flex flex-col gap-[40px] items-center">
             {/* Logo */}
-            <div className="flex items-center justify-center py-[2px] size-[92px]">
-              <div className="opacity-[0.92] overflow-clip relative rounded-[24px] size-[92px]"
-                   style={{ backgroundImage: 'linear-gradient(180deg, rgba(245, 243, 255, 1) 6%, rgba(221, 214, 255, 1) 97%)' }}>
-                <div className="absolute bg-[#8e51ff] dark:bg-[#a684ff] flex items-center justify-center left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 p-[4px] rounded-[16px] size-[64px]">
-                  <img alt="Zenible" className="size-[48px]" src={isDarkMode ? brandIconDark : brandIcon} />
-                </div>
-              </div>
+            <div className="flex items-center justify-center">
+              <img alt="Zenible" className="h-[48px] w-auto" src={zenibleDark} />
             </div>
 
             {/* Header */}

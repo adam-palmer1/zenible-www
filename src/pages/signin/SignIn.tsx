@@ -4,8 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { isValidInternalRedirect } from '../../utils/auth';
 
 // Import local SVG assets
-import brandIcon from './assets/brand-icon.svg';
-import brandIconDark from './assets/brand-icon-dark.svg';
+import { brandIcon, brandIconDark, zenibleDark } from '../../assets/logos';
 import googleIcon1 from './assets/google-icon-1.svg';
 import googleIcon2 from './assets/google-icon-2.svg';
 import googleIcon3 from './assets/google-icon-3.svg';
@@ -266,9 +265,7 @@ export default function SignIn() {
           <div className="flex flex-col gap-[32px] p-5 sm:p-[34px]">
             {/* Logo */}
             <div className="flex items-center justify-center">
-              <div className="bg-[#8e51ff] dark:bg-[#a684ff] rounded-[16px] p-[4px] size-[64px] flex items-center justify-center">
-                <img alt="Zenible" className="size-[38.4px]" src={isDarkMode ? brandIconDark : brandIcon} />
-              </div>
+              <img alt="Zenible" className="h-[48px] w-auto" src={zenibleDark} />
             </div>
 
             {/* Header */}
@@ -384,13 +381,7 @@ export default function SignIn() {
         <div className="flex flex-col gap-[32px] p-5 sm:p-[34px]">
           {/* Logo */}
           <div className="flex items-center justify-center">
-            <div className="bg-[#8e51ff] dark:bg-[#a684ff] rounded-[16px] p-[4px] size-[64px] flex items-center justify-center">
-              <img
-                alt="Zenible"
-                className="size-[38.4px]"
-                src={isDarkMode ? brandIconDark : brandIcon}
-              />
-            </div>
+            <img alt="Zenible" className="h-[48px] w-auto" src={zenibleDark} />
           </div>
 
           {/* Header */}

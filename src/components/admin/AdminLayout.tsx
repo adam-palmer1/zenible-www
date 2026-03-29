@@ -5,7 +5,7 @@ import AdminRoute from './AdminRoute';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useMobile } from '../../hooks/useMobile';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
-import brandIcon from '../../assets/icons/brand-icon.svg';
+import { favicon } from '../../assets/logos';
 
 export default function AdminLayout() {
   const { darkMode } = usePreferences();
@@ -55,9 +55,7 @@ export default function AdminLayout() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <div className="w-7 h-7 rounded-lg bg-[#8B5CF6] flex items-center justify-center p-1">
-                <img src={brandIcon} alt="Zenible" className="w-4 h-4" />
-              </div>
+              <img src={favicon} alt="Zenible" className="w-7 h-7 rounded-lg" />
               <span className="text-sm font-semibold text-[#111827]">Admin</span>
             </header>
           )}

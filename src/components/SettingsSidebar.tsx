@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
 import planAPI from '../services/planAPI';
+import { favicon } from '../assets/logos';
 import companyUsersAPI from '../services/api/crm/companyUsers';
 import type { PlanDetailResponse, UserPermissionsResponse } from '../types';
 import UserProfileSection from './sidebar/UserProfileSection';
@@ -95,10 +96,8 @@ export default function SettingsSidebar({ activeTab, setActiveTab }: SettingsSid
             onClick={() => navigate('/dashboard')}
             className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
           >
-            {/* Brand Icon - Purple background with white Z */}
-            <div className="w-8 h-8 rounded-lg bg-[#8B5CF6] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">Z</span>
-            </div>
+            {/* Brand Icon */}
+            <img src={favicon} alt="Zenible" className="w-8 h-8 rounded-lg" />
 
             {/* Brand Text */}
             <div className="flex flex-col">

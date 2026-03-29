@@ -48,7 +48,7 @@ export const getCharacterTools = async (characterId: string): Promise<CharacterT
   }
 
   try {
-    const response = await fetch(`${ZBI_API_BASE_URL}/ai/characters/${characterId}/tools?include_questions=true`, {
+    const response = await fetch(`${ZBI_API_BASE_URL}/ai/characters/${characterId}/tools`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

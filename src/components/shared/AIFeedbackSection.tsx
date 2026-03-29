@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 // Removed SVG imports - will use inline SVG components instead
-import brandIcon from '../../assets/icons/brand-icon.svg';
+import { brandIcon } from '../../assets/logos';
 import AICharacterTypingIndicator from '../ai/AICharacterTypingIndicator';
 import { messageAPI } from '../../services/messageAPI';
 import { markdownToPlainText } from './ai-feedback/utils';
@@ -9,7 +9,7 @@ import ConversationHistory from './ai-feedback/ConversationHistory';
 import MetricsDisplay from './ai-feedback/MetricsDisplay';
 import CompletionQuestions from './ai-feedback/CompletionQuestions';
 import ChatInput from './ai-feedback/ChatInput';
-import type { AIFeedbackSectionProps } from './ai-feedback/types';
+import type { AIFeedbackSectionProps, StructuredAnalysisData } from './ai-feedback/types';
 
 export type { AIFeedbackSectionProps } from './ai-feedback/types';
 
@@ -34,7 +34,6 @@ export default function AIFeedbackSection({
   followUpMessages = [],
   isFollowUpStreaming = false,
   followUpStreamingContent = '',
-  completionQuestions = [],
   isAdmin = false,
   analysisHistory = []
 }: AIFeedbackSectionProps) {
@@ -49,6 +48,19 @@ export default function AIFeedbackSection({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+
+  // Extract AI-generated follow-up questions from structured analysis
+  const effectiveQuestions = useMemo(() => {
+    const sa = structuredAnalysis as StructuredAnalysisData | null;
+    if (sa?.suggested_questions && sa.suggested_questions.length > 0) {
+      return sa.suggested_questions.map((q, i) => ({
+        id: `ai-q-${i}`,
+        question_text: q,
+        order_index: i,
+      }));
+    }
+    return [];
+  }, [structuredAnalysis]);
 
   const displayContent = useMemo(() => {
     if (analyzing) return '';
@@ -367,12 +379,12 @@ export default function AIFeedbackSection({
                   !isStreaming &&
                   !feedback?.error &&
                   !questionsSent &&
-                  completionQuestions.length > 0;
+                  effectiveQuestions.length > 0;
 
                 return shouldShow && (
                   <CompletionQuestions
                     darkMode={darkMode}
-                    completionQuestions={completionQuestions}
+                    completionQuestions={effectiveQuestions}
                     isSendingMessage={isSendingMessage}
                     onSuggestionClick={handleSuggestionClick}
                   />

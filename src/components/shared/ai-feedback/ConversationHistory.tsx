@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import brandIcon from '../../../assets/icons/brand-icon.svg';
+import { brandIcon } from '../../../assets/logos';
 import { TypingDots } from '../../ai/AICharacterTypingIndicator';
 import CopyButton from './CopyButton';
 import MessageRating from './MessageRating';
