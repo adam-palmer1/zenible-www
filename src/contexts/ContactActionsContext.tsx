@@ -266,16 +266,8 @@ export const ContactActionsProvider = ({
           newHiddenState
             ? `${displayName} hidden from view`
             : `${displayName} unhidden`,
-          {
-            duration: 3000,
-            action: 'Reload to see changes'
-          }
+          { duration: 3000 }
         );
-
-        // Reload page after a brief delay to refresh the contact list with proper filter
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
       }
 
       return result;

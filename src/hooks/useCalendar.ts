@@ -152,6 +152,7 @@ export function useCalendar() {
       setAppointments(prev => [newAppointment, ...prev]);
       setTotalAppointments(prev => prev + 1);
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
     },
   });
 
@@ -169,6 +170,7 @@ export function useCalendar() {
         );
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
     },
   });
 
@@ -184,6 +186,7 @@ export function useCalendar() {
         setTotalAppointments(prev => prev - 1);
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
     },
   });
 
@@ -392,6 +395,42 @@ export function useCalendar() {
     }
   };
 
+  // Multi-calendar management
+  const listAccountCalendars = async (accountId: string) => {
+    try {
+      const result = await appointmentsAPI.listAccountCalendars<{ calendars: any[]; account_id: string }>(accountId);
+      return result.calendars;
+    } catch (err: unknown) {
+      setError((err as Error).message);
+      return [];
+    }
+  };
+
+  const updateSelectedCalendars = async (accountId: string, calendarIds: string[]) => {
+    setError(null);
+    try {
+      const result = await appointmentsAPI.updateSelectedCalendars<any>(accountId, calendarIds);
+      await queryClient.refetchQueries({ queryKey: queryKeys.calendar.googleStatus() });
+      await fetchAppointments();
+      return result;
+    } catch (err: unknown) {
+      setError((err as Error).message);
+      return { success: false, error: (err as Error).message };
+    }
+  };
+
+  const updateSubcalendarColor = async (accountId: string, calendarId: string, color: string | null) => {
+    setError(null);
+    try {
+      const result = await appointmentsAPI.updateSubcalendarColor<any>(accountId, calendarId, color);
+      await queryClient.refetchQueries({ queryKey: queryKeys.calendar.googleStatus() });
+      return result;
+    } catch (err: unknown) {
+      setError((err as Error).message);
+      return { success: false, error: (err as Error).message };
+    }
+  };
+
   // Update filters
   const updateFilters = (newFilters: Partial<CalendarFilters>): void => {
     setFilters(prev => ({ ...prev, ...newFilters }));
@@ -450,5 +489,8 @@ export function useCalendar() {
     updateAccountColor,
     toggleAccountReadOnly,
     syncAccount,
+    listAccountCalendars,
+    updateSelectedCalendars,
+    updateSubcalendarColor,
   };
 }

@@ -10,6 +10,13 @@ const RECURRING_STATUS = {
   CANCELLED: 'cancelled',
 };
 
+const PERIOD_OPTIONS = [
+  { value: 'days', label: 'Days' },
+  { value: 'weeks', label: 'Weeks' },
+  { value: 'months', label: 'Months' },
+  { value: 'years', label: 'Years' },
+];
+
 const FREQUENCY_OPTIONS = [
   { value: RECURRING_TYPE.WEEKLY, label: 'Weekly', description: 'Every week' },
   { value: RECURRING_TYPE.MONTHLY, label: 'Monthly', description: 'Every month' },
@@ -52,6 +59,9 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
   const [showFrequencyDropdown, setShowFrequencyDropdown] = useState(false);
   const frequencyButtonRef = useRef<HTMLButtonElement>(null);
   const frequencyDropdownRef = useRef<HTMLDivElement>(null);
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
+  const periodButtonRef = useRef<HTMLButtonElement>(null);
+  const periodDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleChange = (field: string, value: any) => {
     onChange({ [field]: value });
@@ -82,19 +92,39 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showFrequencyDropdown]);
 
-  // Close on escape
+  // Close period dropdown on click outside
   useEffect(() => {
-    if (!showFrequencyDropdown) return;
+    if (!showPeriodDropdown) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        periodDropdownRef.current &&
+        !periodDropdownRef.current.contains(event.target as Node) &&
+        periodButtonRef.current &&
+        !periodButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowPeriodDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPeriodDropdown]);
+
+  // Close dropdowns on escape
+  useEffect(() => {
+    if (!showFrequencyDropdown && !showPeriodDropdown) return;
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setShowFrequencyDropdown(false);
+        setShowPeriodDropdown(false);
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [showFrequencyDropdown]);
+  }, [showFrequencyDropdown, showPeriodDropdown]);
 
   return (
     <div className="space-y-4 design-bg-secondary rounded-lg p-6">
@@ -202,23 +232,64 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
                   value={customEvery}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('customEvery', parseInt(e.target.value))}
                   min="1"
-                  className="w-full px-3 py-2 design-input rounded-md"
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium design-text-primary mb-2">
                   Period
                 </label>
-                <select
-                  value={customPeriod}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleChange('customPeriod', e.target.value)}
-                  className="w-full px-3 py-2 design-input rounded-md"
-                >
-                  <option value="days">Days</option>
-                  <option value="weeks">Weeks</option>
-                  <option value="months">Months</option>
-                  <option value="years">Years</option>
-                </select>
+                <div className="relative">
+                  <button
+                    ref={periodButtonRef}
+                    type="button"
+                    onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
+                    className="w-full px-3 py-2 text-left bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-900 dark:text-white">
+                        {PERIOD_OPTIONS.find(p => p.value === customPeriod)?.label || 'Months'}
+                      </span>
+                      <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showPeriodDropdown ? 'rotate-180' : ''}`} />
+                    </div>
+                  </button>
+
+                  {showPeriodDropdown && (
+                    <div
+                      ref={periodDropdownRef}
+                      className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+                    >
+                      <div className="py-1">
+                        {PERIOD_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => {
+                              handleChange('customPeriod', option.value);
+                              setShowPeriodDropdown(false);
+                            }}
+                            className={`w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                              customPeriod === option.value ? 'bg-purple-50 dark:bg-purple-900/20' : ''
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={`text-sm ${
+                                customPeriod === option.value
+                                  ? 'font-medium text-purple-700 dark:text-purple-400'
+                                  : 'text-gray-900 dark:text-white'
+                              }`}>
+                                {option.label}
+                              </span>
+                              {customPeriod === option.value && (
+                                <Check className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -316,7 +387,7 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
                     }}
                     min="1"
                     placeholder="1"
-                    className="w-24 px-3 py-1.5 design-input rounded-md"
+                    className="w-24 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                   <span className="design-text-primary">occurrences</span>
                 </label>

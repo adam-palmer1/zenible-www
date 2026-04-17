@@ -294,6 +294,15 @@ const invoicesAPI = {
   },
 
   /**
+   * Unlink a payment from an invoice
+   */
+  async unlinkPayment(invoiceId: string, allocationId: string): Promise<unknown> {
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}/${invoiceId}/payments/${allocationId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
    * Get change history for an invoice (audit trail)
    */
   async getHistory(invoiceId: string, limit: number = 100): Promise<InvoiceHistoryResponse> {

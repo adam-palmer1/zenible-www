@@ -9,7 +9,7 @@ import ReportsTransactionTable from './ReportsTransactionTable';
 import CustomReportsView from './custom/CustomReportsView';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { formatLocalDate } from '../../../utils/dateUtils';
-import { useContacts } from '../../../hooks/crm/useContacts';
+import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import {
   Search,
@@ -175,7 +175,7 @@ const ReportsDashboard: React.FC = () => {
   }, [showFilterDropdown]);
 
   /* ── Clients data ─────────────────────────────────────────── */
-  const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true });
+  const { contacts: allClients, loading: clientsLoading, setSearchQuery: setClientServerSearch } = useSearchableContacts({ is_client: true });
   const [clientSearchQuery, setClientSearchQuery] = useState('');
 
   const filteredClients = useMemo(() => {
@@ -448,7 +448,7 @@ const ReportsDashboard: React.FC = () => {
                                 type="text"
                                 placeholder="Search contacts..."
                                 value={clientSearchQuery}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClientSearchQuery(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setClientSearchQuery(e.target.value); setClientServerSearch(e.target.value); }}
                                 className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                                 autoFocus
                               />

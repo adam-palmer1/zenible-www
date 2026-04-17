@@ -123,6 +123,8 @@ export const useCompanyAttributes = () => {
   const setNumberFormat = useCallback(async (formatId: string): Promise<SetResult> => setAttribute('number_format', formatId), [setAttribute]);
   const getTimezone = useCallback((): string | null => getAttribute('timezone'), [getAttribute]);
   const setTimezone = useCallback(async (timezone: string): Promise<SetResult> => setAttribute('timezone', timezone), [setAttribute]);
+  const getDateFormat = useCallback((): string | null => getAttribute('date_format'), [getAttribute]);
+  const setDateFormat = useCallback(async (format: string): Promise<SetResult> => setAttribute('date_format', format, 'Date display format'), [setAttribute]);
 
   const refresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.companyAttributes.all });
@@ -144,6 +146,8 @@ export const useCompanyAttributes = () => {
     setNumberFormat,
     getTimezone,
     setTimezone,
+    getDateFormat,
+    setDateFormat,
     refresh,
   };
 };

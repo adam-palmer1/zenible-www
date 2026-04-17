@@ -5,6 +5,7 @@ import {
   BasicInfoFields,
   ModelSettingsFields,
   SystemInstructionsSection,
+  ConversationStartersSection,
   AssistantConfigSection,
   RAGConfigSection,
 } from './character-form';
@@ -77,11 +78,15 @@ export default function CharacterFormModal({
       embedding_model: 'text-embedding-3-large',
       chunk_size: 1024,
       chunk_overlap: 100,
-      vector_store_id: null as string | null
+      vector_store_id: null as string | null,
+      conversation_starters: [] as string[],
+      context_starters: {} as Record<string, string[]>,
+      context_instructions: {} as Record<string, string>
     },
     category_id: '',
     is_active: true,
-    avatar_url: ''
+    avatar_url: '',
+    display_order: 0
   });
 
   // Avatar upload states
@@ -125,11 +130,15 @@ export default function CharacterFormModal({
           chunk_size: character.metadata?.chunk_size || 1024,
           chunk_overlap: character.metadata?.chunk_overlap || 100,
           vector_store_id: character.metadata?.vector_store_id || null,
-          json_schema: character.metadata?.json_schema || null
+          json_schema: character.metadata?.json_schema || null,
+          conversation_starters: character.metadata?.conversation_starters || [],
+          context_starters: (character.metadata as any)?.context_starters || {},
+          context_instructions: (character.metadata as any)?.context_instructions || {}
         },
         category_id: character.category_id || '',
         is_active: character.is_active !== false,
-        avatar_url: character.avatar_url || ''
+        avatar_url: character.avatar_url || '',
+        display_order: character.display_order ?? 0
       });
     } else if (character && isCloning) {
       // Clone mode
@@ -157,11 +166,15 @@ export default function CharacterFormModal({
           chunk_size: character.metadata?.chunk_size || 1024,
           chunk_overlap: character.metadata?.chunk_overlap || 100,
           vector_store_id: character.metadata?.vector_store_id || null,
-          json_schema: character.metadata?.json_schema || null
+          json_schema: character.metadata?.json_schema || null,
+          conversation_starters: character.metadata?.conversation_starters || [],
+          context_starters: (character.metadata as any)?.context_starters || {},
+          context_instructions: (character.metadata as any)?.context_instructions || {}
         },
         category_id: character.category_id || '',
         is_active: true,
-        avatar_url: ''
+        avatar_url: '',
+        display_order: 0
       });
     } else {
       // Create mode
@@ -189,7 +202,10 @@ export default function CharacterFormModal({
           embedding_model: 'text-embedding-3-large',
           chunk_size: 1024,
           chunk_overlap: 100,
-          vector_store_id: null
+          vector_store_id: null,
+          conversation_starters: [],
+          context_starters: {},
+          context_instructions: {}
         },
         category_id: '',
         is_active: true,
@@ -426,6 +442,12 @@ export default function CharacterFormModal({
             setCharacterForm={setCharacterForm}
             shortcodes={shortcodes}
             shortcodesLoading={shortcodesLoading}
+            darkMode={darkMode}
+          />
+
+          <ConversationStartersSection
+            characterForm={characterForm}
+            setCharacterForm={setCharacterForm}
             darkMode={darkMode}
           />
 

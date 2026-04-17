@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import planAPI from '../../services/planAPI';
 import UsageDashboard from '../UsageDashboard';
+import UsageHistoryPanel from './UsageHistoryPanel';
 import PaymentHistory from '../PaymentHistory';
 
 interface SubscriptionSettingsTabProps {
@@ -407,6 +408,9 @@ export default function SubscriptionSettingsTab({
 
       {/* Usage Dashboard */}
       <UsageDashboard />
+
+      {/* Usage History */}
+      <UsageHistoryPanel />
 
       {/* Payment History */}
       <PaymentHistory />

@@ -265,6 +265,7 @@ const ContactActionMenu: React.FC<ContactActionMenuProps> = ({ contact, showMark
         onClose={reminderModal.close}
         onConfirm={(reminderAt) => setReminder(contact, reminderAt)}
         contactName={displayName}
+        existingReminderAt={contact.follow_up_reminder_at}
       />
 
       {/* Contact Merge Modal */}

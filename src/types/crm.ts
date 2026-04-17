@@ -153,6 +153,32 @@ export type GoogleAccountInfo = components['schemas']['GoogleAccountInfo'];
 export type GoogleAccountUpdateRequest = components['schemas']['GoogleAccountUpdateRequest'];
 export type GoogleAccountConflictStatus = components['schemas']['GoogleAccountConflictStatus'];
 
+// Multi-calendar types (manual until OpenAPI regen)
+export interface GoogleCalendarSyncSourceInfo {
+  id: string;
+  calendar_id: string;
+  calendar_name?: string;
+  color?: string;
+  google_color?: string;
+  is_selected: boolean;
+  is_primary_calendar: boolean;
+  last_sync_at?: string;
+}
+
+export interface GoogleCalendarInfo {
+  calendar_id: string;
+  name: string;
+  color?: string;
+  is_primary: boolean;
+  access_role: string;
+  is_selected: boolean;
+}
+
+export interface GoogleCalendarListResponse {
+  calendars: GoogleCalendarInfo[];
+  account_id: string;
+}
+
 // Recurring
 export type RecurringTypeEnum = components['schemas']['RecurringTypeEnum'];
 export type RecurringStatusEnum = components['schemas']['RecurringStatusEnum'];

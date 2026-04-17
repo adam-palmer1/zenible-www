@@ -152,7 +152,7 @@ export default function Sidebar() {
           isActive: location.pathname.startsWith('/proposal-wizard')
         },
         {
-          label: 'Viral Post Generator',
+          label: 'Viral Content',
           path: '/content-creator/viral-post-generator',
           isActive: location.pathname === '/content-creator/viral-post-generator'
         },

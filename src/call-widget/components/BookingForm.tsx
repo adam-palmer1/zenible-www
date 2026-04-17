@@ -26,9 +26,33 @@ const formatTime = (time24: string): string => {
   return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
 };
 
+// Map region code from browser locale to dial code
+const REGION_DIAL_CODES: Record<string, string> = {
+  GB: '+44', US: '+1', CA: '+1', IE: '+353', AU: '+61', NZ: '+64',
+  DE: '+49', FR: '+33', ES: '+34', IT: '+39', NL: '+31', BE: '+32',
+  PT: '+351', AT: '+43', CH: '+41', SE: '+46', NO: '+47', DK: '+45',
+  FI: '+358', PL: '+48', CZ: '+420', RO: '+40', HU: '+36', GR: '+30',
+  IN: '+91', JP: '+81', CN: '+86', KR: '+82', SG: '+65', HK: '+852',
+  ZA: '+27', BR: '+55', MX: '+52', AR: '+54', AE: '+971', SA: '+966',
+  IL: '+972', RU: '+7', UA: '+380', TR: '+90', NG: '+234', KE: '+254',
+  EG: '+20', PH: '+63', TH: '+66', MY: '+60', ID: '+62', VN: '+84',
+};
+
+const getDefaultCountryCode = (): string => {
+  try {
+    const locale = navigator.language || navigator.languages?.[0] || '';
+    const region = locale.split('-')[1]?.toUpperCase();
+    if (region && REGION_DIAL_CODES[region]) {
+      return REGION_DIAL_CODES[region];
+    }
+  } catch {}
+  return '+1';
+};
+
 interface BookingFormData {
   name: string;
   email: string;
+  country_code: string;
   phone: string;
   notes: string;
 }
@@ -59,6 +83,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const [formData, setFormData] = useState<BookingFormData>({
     name: '',
     email: '',
+    country_code: getDefaultCountryCode(),
     phone: '',
     notes: '',
   });
@@ -161,14 +186,24 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
         <div className="zw-form-group">
           <label className="zw-label">Phone Number (optional)</label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('phone', e.target.value)}
-            placeholder="+1 (555) 123-4567"
-            className="zw-input"
-            disabled={loading}
-          />
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '8px' }}>
+            <input
+              type="tel"
+              value={formData.country_code}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('country_code', e.target.value.replace(/[^0-9+\s]/g, ''))}
+              placeholder="+44"
+              className="zw-input"
+              disabled={loading}
+            />
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('phone', e.target.value)}
+              placeholder="7570 835 398"
+              className="zw-input"
+              disabled={loading}
+            />
+          </div>
         </div>
 
         <div className="zw-form-group">

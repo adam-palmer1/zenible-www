@@ -19,7 +19,7 @@ const MonthlyIncomeGoalWidget = ({ settings = {} }: MonthlyIncomeGoalWidgetProps
   const [hoveringOutstanding, setHoveringOutstanding] = useState(false);
 
   const monthlyGoal = settings.monthlyGoal || 5000;
-  const currency = settings.currency || companyDefaultCurrency?.currency?.code || 'GBP';
+  const currency = companyDefaultCurrency?.currency?.code;
 
   // Accrual-basis: paid invoices attributed to their issue month + unlinked payments
   const paymentsCollected = parseFloat(summary?.paid_invoices_total || 0)

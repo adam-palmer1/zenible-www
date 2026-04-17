@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useInvoices } from '../../../../contexts/InvoiceContext';
-import { useContacts } from '../../../../hooks/crm/useContacts';
+import { useSearchableContacts } from '../../../../hooks/crm/useSearchableContacts';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../../hooks/crm/useCompanyAttributes';
@@ -31,7 +31,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
   const navigate = useNavigate();
   const { id } = useParams();
   const { createInvoice, updateInvoice } = useInvoices();
-  const { contacts: allContacts, loading: contactsLoading } = useContacts({ is_client: true });
+  const { contacts: allContacts, loading: contactsLoading, searching: contactsSearching, setSearchQuery: setClientSearchQuery } = useSearchableContacts({ is_client: true });
   const { showSuccess, showError } = useNotification();
   const { numberFormats } = useCRMReferenceData();
   const { getNumberFormat } = useCompanyAttributes();
@@ -858,6 +858,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
     loading,
     saving,
     contactsLoading,
+    contactsSearching,
     currenciesLoading,
     checkingUnbilledHours,
     markingAsBilled,
@@ -866,6 +867,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
     invoice,
     isEditing,
     allContacts,
+    handleClientSearch: setClientSearchQuery,
     currencies,
     defaultCurrencyAssoc,
     numberFormat,

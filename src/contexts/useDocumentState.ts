@@ -254,13 +254,11 @@ export function useDocumentState<TFilters extends object>(
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (user && prefsReady && !preferencesLoaded) {
-      const savedSearch = getPreference(`${preferencePrefix}_search`, '') as string;
       const savedStatus = getPreference(`${preferencePrefix}_filter_status`, null) as string | null;
       const savedSort = getPreference(`${preferencePrefix}_sort_by`, defaultSort) as string;
       const savedOrder = getPreference(`${preferencePrefix}_sort_order`, defaultSortOrder) as string;
 
       const basePrefs = {
-        search: savedSearch,
         status: savedStatus,
       } as unknown as Partial<TFilters>;
 
@@ -445,10 +443,6 @@ export function useDocumentState<TFilters extends object>(
     if (commonFilters.status !== undefined) {
       updatePreference(`${preferencePrefix}_filter_status`, commonFilters.status, 'finance');
     }
-    if (commonFilters.search !== undefined) {
-      updatePreference(`${preferencePrefix}_search`, commonFilters.search, 'finance');
-    }
-
     // Persist domain-specific prefs
     if (saveExtraPreferences) {
       saveExtraPreferences(newFilters, updatePreference);

@@ -59,11 +59,14 @@ export function useHeadlineAnalysis({
     metrics,
     messageId,
     isConnected,
+    deletingMessageId,
     invokeTool,
     sendFollowUpMessage,
+    deleteMessage,
     reset,
     clearConversation,
-    setConversationId
+    setConversationId,
+    setStructuredAnalysis
   } = useBaseAIAnalysis({
     characterId,
     panelId,
@@ -104,13 +107,16 @@ export function useHeadlineAnalysis({
     metrics,
     messageId,
     isConnected,
+    deletingMessageId,
 
     // Functions
     analyzeHeadline,
     generateHeadline,
     sendFollowUpMessage,
+    deleteMessage,
     reset,
     clearConversation,
-    setConversationId
+    setConversationId,
+    setStructuredAnalysis
   };
 }

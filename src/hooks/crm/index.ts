@@ -1,5 +1,6 @@
 // CRM hooks index
 export { useContacts } from './useContacts';
+export { useSearchableContacts } from './useSearchableContacts';
 export { useContactFields } from './useContactFields';
 export { useContactStatuses } from './useContactStatuses';
 export { useServices } from './useServices';

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, ArrowRightIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { LoadingSpinner } from '../../shared';
 import { useDashboardWidget } from '../../../contexts/DashboardDataContext';
+import { getAppointmentKey } from '../../calendar/calendarUtils';
 
 interface UpcomingAppointmentsWidgetProps {
   settings?: Record<string, any>;
@@ -81,7 +82,7 @@ const UpcomingAppointmentsWidget = ({ settings = {}, isHovered = false }: Upcomi
             >
             {appointmentList.map((appointment: any) => (
               <button
-                key={appointment.id}
+                key={getAppointmentKey(appointment)}
                 onClick={() => handleAppointmentClick(appointment.id)}
                 className="w-full text-left p-3 rounded-lg border border-gray-100 hover:border-[#8e51ff] hover:bg-purple-50/50 transition-all group"
               >

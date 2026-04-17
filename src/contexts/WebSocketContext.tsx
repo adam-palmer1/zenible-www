@@ -19,7 +19,10 @@ export interface WebSocketContextValue {
   connectionHealth: ConnectionHealth;
   connectionError: string | null;
   createConversation: (characterId: string, feature?: string | null, metadata?: Record<string, unknown>) => Promise<string>;
-  sendMessage: (conversationId: string, characterId: string, message: string) => void;
+  sendMessage: (conversationId: string, characterId: string, message: string, options?: {
+    attachments?: Array<{ document_id: string; file_name: string; file_type: string; url: string; thumbnail_url?: string }>;
+    metadata?: Record<string, unknown>;
+  }) => void;
   invokeTool: (conversationId: string, characterId: string, toolName: string, toolArguments: unknown) => void;
   cancelRequest: (conversationId: string) => void;
   getConversationState: (conversationId: string) => unknown;
@@ -191,12 +194,15 @@ export const WebSocketProvider = ({ children }: { children: React.ReactNode }) =
   }, []);
 
   // Send a message in a conversation
-  const sendMessage = useCallback((conversationId: string, characterId: string, message: string) => {
+  const sendMessage = useCallback((conversationId: string, characterId: string, message: string, options?: {
+    attachments?: Array<{ document_id: string; file_name: string; file_type: string; url: string; thumbnail_url?: string }>;
+    metadata?: Record<string, unknown>;
+  }) => {
     if (!conversationManagerRef.current) {
       throw new Error('WebSocket not initialized');
     }
 
-    conversationManagerRef.current.sendMessage(conversationId, characterId, message);
+    conversationManagerRef.current.sendMessage(conversationId, characterId, message, options);
   }, []);
 
   // Invoke a tool in a conversation

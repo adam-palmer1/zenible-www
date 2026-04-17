@@ -8,6 +8,7 @@ interface InvoiceDetailTopBarProps {
   invoice: InvoiceDetailData;
   downloadingPdf: boolean;
   hasOutstandingBalance: boolean;
+  canLinkPayment: boolean;
   canChargeCard: boolean;
   status: string;
   onBack: () => void;
@@ -31,6 +32,7 @@ const InvoiceDetailTopBar: React.FC<InvoiceDetailTopBarProps> = ({
   invoice,
   downloadingPdf,
   hasOutstandingBalance,
+  canLinkPayment,
   canChargeCard,
   status,
   onBack,
@@ -109,7 +111,7 @@ const InvoiceDetailTopBar: React.FC<InvoiceDetailTopBarProps> = ({
         onMarkAsSent={onMarkAsSent}
         onRevertToDraft={onRevertToDraft}
         onChargeCard={onChargeCard}
-        showLinkPayment={hasOutstandingBalance}
+        showLinkPayment={canLinkPayment}
         showSendReminder={['sent', 'viewed', 'partially_paid'].includes(status)}
         showMarkAsSent={status === INVOICE_STATUS.DRAFT}
         showRevertToDraft={status === INVOICE_STATUS.SENT}

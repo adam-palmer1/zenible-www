@@ -10,7 +10,7 @@ import type {
   ContactServiceInvoiceCreate,
 } from '../../types';
 
-interface Pagination {
+export interface Pagination {
   page: number;
   per_page: number;
   total: number;

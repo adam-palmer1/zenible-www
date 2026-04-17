@@ -16,11 +16,7 @@ export default function StrategyInputSection({ topic, setTopic, goal, setGoal, a
 
   return (
     <div
-      className={`rounded-xl border-2 border-dashed p-4 ${
-        darkMode
-          ? 'bg-violet-950/20 border-violet-700/50'
-          : 'bg-violet-50 border-[#c4b4ff]'
-      }`}
+      className="flex flex-col"
     >
       <div className="mb-4">
         <h3
@@ -28,7 +24,7 @@ export default function StrategyInputSection({ topic, setTopic, goal, setGoal, a
             darkMode ? 'text-gray-100' : 'text-zinc-950'
           }`}
         >
-          Existing LinkedIn Post Draft
+          Build Your Content Strategy
         </h3>
       </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import meetingIntelligenceAPI from '../../../services/api/crm/meetingIntelligence';
 import appointmentsAPI from '../../../services/api/crm/appointments';
@@ -6,7 +7,9 @@ import BotStatusBadge from './BotStatusBadge';
 import LiveTranscription from './LiveTranscription';
 import MeetingIntelligenceSettingsTab from '../../user-settings/MeetingIntelligenceSettingsTab';
 import MeetingDetailView from './MeetingDetailView';
+import SendToBoardroomModal from './SendToBoardroomModal';
 import AppointmentModal from '../../calendar/AppointmentModal';
+import ZMIWebSocketService from '../../../services/ZMIWebSocketService';
 import type { AppointmentResponse } from '../../../types';
 import type { UpcomingMeeting, MeetingListItem, BotStatus } from '../../../types/meetingIntelligence';
 
@@ -20,7 +23,8 @@ const PLATFORM_ICONS: Record<string, string> = {
 
 const MeetingsPage: React.FC = () => {
   const { darkMode } = usePreferences();
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>('upcoming');
+  const initialMeetingId = new URLSearchParams(window.location.search).get('meetingId');
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>(initialMeetingId ? 'past' : 'upcoming');
   const [upcomingMeetings, setUpcomingMeetings] = useState<UpcomingMeeting[]>([]);
   const [pastMeetings, setPastMeetings] = useState<MeetingListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,15 +38,39 @@ const MeetingsPage: React.FC = () => {
   // Map appointment ID → session ID for scoped bot status lookups
   const [appointmentSessions, setAppointmentSessions] = useState<Record<string, string>>({});
 
+  // Fetch active bot sessions from backend on mount so they survive page reload
+  useEffect(() => {
+    meetingIntelligenceAPI.getActiveBotSessions().then((sessions) => {
+      if (sessions.length > 0) {
+        setBotStatuses((prev) => {
+          const next = { ...prev };
+          for (const s of sessions) {
+            if (!next[s.session_id]) {
+              next[s.session_id] = { session_id: s.session_id, status: s.status } as BotStatus;
+            }
+          }
+          return next;
+        });
+        // Auto-open transcription panel for the first active in-meeting session
+        const inMeeting = sessions.find((s) => s.status === 'in_meeting' || s.status === 'listening');
+        if (inMeeting) {
+          setActiveBotSession(inMeeting.session_id);
+        }
+      }
+    }).catch(() => { /* active sessions endpoint unavailable */ });
+  }, []);
+
   // Track elapsed time for all active (non-terminal) sessions
+  // Also triggers per-second re-renders so live duration (from joined_at) ticks
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       setJoiningElapsed((prev) => {
         const next: Record<string, number> = {};
-        for (const [sid, startTime] of Object.entries(dispatchedAt)) {
-          const status = botStatuses[sid]?.status;
-          if (status && status !== 'ended' && status !== 'error') {
+        for (const [sid, bs] of Object.entries(botStatuses)) {
+          if (bs.status === 'ended' || bs.status === 'error') continue;
+          const startTime = dispatchedAt[sid] || (bs.joined_at ? new Date(bs.joined_at).getTime() : 0);
+          if (startTime) {
             next[sid] = Math.floor((now - startTime) / 1000);
           }
         }
@@ -55,6 +83,11 @@ const MeetingsPage: React.FC = () => {
   // Ref for polling to avoid re-triggering useEffect on every status update
   const botStatusesRef = useRef(botStatuses);
   botStatusesRef.current = botStatuses;
+  const dispatchedAtRef = useRef(dispatchedAt);
+  dispatchedAtRef.current = dispatchedAt;
+
+  // Track consecutive poll failures per session
+  const pollFailuresRef = useRef<Record<string, number>>({});
 
   // Poll bot status for active (non-terminal) sessions
   useEffect(() => {
@@ -66,21 +99,60 @@ const MeetingsPage: React.FC = () => {
     const poll = async () => {
       const activeSessionIds = getActiveSessionIds();
       if (activeSessionIds.length === 0) return;
+      const now = Date.now();
+
       for (const sessionId of activeSessionIds) {
         try {
           const status = await meetingIntelligenceAPI.getBotStatus(sessionId) as BotStatus;
           setBotStatuses((prev) => ({ ...prev, [sessionId]: status }));
+          pollFailuresRef.current[sessionId] = 0; // reset on success
+
+          // If backend already marked it terminal, clear active session
+          if (status.status === 'ended' || status.status === 'error') {
+            setActiveBotSession((prev) => prev === sessionId ? null : prev);
+          }
         } catch {
-          // Don't immediately mark as error — could be a transient network issue.
-          // Keep the last known status; the backend stale-session detection handles real failures.
+          const failures = (pollFailuresRef.current[sessionId] || 0) + 1;
+          pollFailuresRef.current[sessionId] = failures;
+          // After 3 consecutive failures, mark session as error
+          if (failures >= 3) {
+            setBotStatuses((prev) => ({
+              ...prev,
+              [sessionId]: { ...prev[sessionId], status: 'error', error_message: 'Lost contact with bot' } as BotStatus,
+            }));
+            setActiveBotSession((prev) => prev === sessionId ? null : prev);
+            delete pollFailuresRef.current[sessionId];
+          }
         }
       }
     };
 
-    // Poll immediately on mount, then every 5s
+    // Poll immediately on mount, then every 30s (Socket.IO is primary, polling is fallback)
     poll();
-    const interval = setInterval(poll, 5000);
+    const interval = setInterval(poll, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Real-time bot status via Socket.IO
+  const fetchUpcomingRef = useRef<() => void>(undefined);
+  useEffect(() => {
+    const apiBaseUrl = import.meta.env.VITE_API_URL || '';
+    const ws = new ZMIWebSocketService({
+      baseUrl: apiBaseUrl,
+      getAccessToken: () => localStorage.getItem('access_token'),
+      onBotStatus: (data) => {
+        setBotStatuses((prev) => ({
+          ...prev,
+          [data.session_id]: { ...prev[data.session_id], ...data } as BotStatus,
+        }));
+        if (['ended', 'error'].includes(data.status)) {
+          setActiveBotSession((prev) => prev === data.session_id ? null : prev);
+          fetchUpcomingRef.current?.();
+        }
+      },
+    });
+    ws.connect().catch(() => {});
+    return () => ws.disconnect();
   }, []);
 
   // Search and filter state
@@ -89,11 +161,27 @@ const MeetingsPage: React.FC = () => {
   const [dateTo, setDateTo] = useState('');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Meeting detail view
-  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+  // Meeting detail view — support deep-link via ?meetingId= query param
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedMeetingId, _setSelectedMeetingId] = useState<string | null>(
+    searchParams.get('meetingId')
+  );
+  const setSelectedMeetingId = useCallback((id: string | null) => {
+    _setSelectedMeetingId(id);
+    // Keep URL in sync: add or remove meetingId param
+    setSearchParams(prev => {
+      if (id) {
+        prev.set('meetingId', id);
+      } else {
+        prev.delete('meetingId');
+      }
+      return prev;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   // Edit appointment modal
   const [editAppointment, setEditAppointment] = useState<AppointmentResponse | null>(null);
+  const [editOccurrenceDate, setEditOccurrenceDate] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [loadingAppointment, setLoadingAppointment] = useState<string | null>(null);
 
@@ -108,7 +196,11 @@ const MeetingsPage: React.FC = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [renamingMeetingId, setRenamingMeetingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [selectedMeetingIds, setSelectedMeetingIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showOnlyWithLinks, setShowOnlyWithLinks] = useState(false);
+  const [boardroomMeeting, setBoardroomMeeting] = useState<{ id: string; title: string } | null>(null);
 
   const fetchUpcoming = useCallback(async () => {
     try {
@@ -121,6 +213,7 @@ const MeetingsPage: React.FC = () => {
       }
     }
   }, []);
+  fetchUpcomingRef.current = fetchUpcoming;
 
   const fetchPast = useCallback(async (params?: { search?: string; date_from?: string; date_to?: string }) => {
     try {
@@ -139,12 +232,13 @@ const MeetingsPage: React.FC = () => {
   // Seed botStatuses from server data so polling picks up already-dispatched sessions
   useEffect(() => {
     for (const meeting of upcomingMeetings) {
-      if (meeting.bot_dispatch_status === 'dispatched' && meeting.bot_session_id) {
+      if (meeting.bot_session_id && meeting.bot_dispatch_status && !['ended', 'error', 'failed', 'completed'].includes(meeting.bot_dispatch_status)) {
         const sid = meeting.bot_session_id;
         if (!botStatuses[sid]) {
+          const seedStatus = meeting.bot_status || 'joining';
           setBotStatuses((prev) => {
             if (prev[sid]) return prev;
-            return { ...prev, [sid]: { session_id: sid, status: 'joining' } as BotStatus };
+            return { ...prev, [sid]: { session_id: sid, status: seedStatus } as BotStatus };
           });
           setDispatchedAt((prev) => {
             if (prev[sid]) return prev;
@@ -162,6 +256,7 @@ const MeetingsPage: React.FC = () => {
     if (dateFrom) params.date_from = dateFrom;
     if (dateTo) params.date_to = dateTo;
     fetchPast(Object.keys(params).length > 0 ? params : undefined);
+    setSelectedMeetingIds(new Set());
   }, [searchQuery, dateFrom, dateTo, fetchPast]);
 
   useEffect(() => {
@@ -180,7 +275,7 @@ const MeetingsPage: React.FC = () => {
     (bs) => bs.status !== 'ended' && bs.status !== 'error'
   ).length;
 
-  const handleDispatchBot = async (appointmentId: string) => {
+  const handleDispatchBot = async (appointmentId: string, instanceStartDatetime?: string) => {
     if (activeBotCount >= MAX_ACTIVE_BOTS) {
       setError(`Maximum ${MAX_ACTIVE_BOTS} active bots allowed. Stop an existing bot first.`);
       return;
@@ -188,7 +283,7 @@ const MeetingsPage: React.FC = () => {
     try {
       setDispatching(appointmentId);
       setError(null);
-      const result = await meetingIntelligenceAPI.dispatchBot(appointmentId) as { session_id: string; status: string };
+      const result = await meetingIntelligenceAPI.dispatchBot(appointmentId, instanceStartDatetime) as { session_id: string; status: string };
       setActiveBotSession(result.session_id);
       setDispatchedAt((prev) => ({ ...prev, [result.session_id]: Date.now() }));
       setBotStatuses((prev) => ({
@@ -243,8 +338,13 @@ const MeetingsPage: React.FC = () => {
   const handleMeetingClick = async (meeting: UpcomingMeeting) => {
     try {
       setLoadingAppointment(meeting.id);
-      const appointment = await appointmentsAPI.get<AppointmentResponse>(meeting.id);
+      const appointmentId = meeting.parent_appointment_id || meeting.id;
+      const queryParams: Record<string, string> = meeting.parent_appointment_id
+        ? { occurrence_date: meeting.start_datetime }
+        : {};
+      const appointment = await appointmentsAPI.get<AppointmentResponse>(appointmentId, queryParams);
       setEditAppointment(appointment);
+      setEditOccurrenceDate(meeting.parent_appointment_id ? meeting.start_datetime : null);
       setShowEditModal(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load appointment');
@@ -255,16 +355,20 @@ const MeetingsPage: React.FC = () => {
 
   const handleEditSave = async (data: Record<string, unknown>) => {
     if (!editAppointment) return;
-    await appointmentsAPI.update(editAppointment.id, data);
+    const queryParams: Record<string, string> = editOccurrenceDate ? { occurrence_date: editOccurrenceDate } : {};
+    await appointmentsAPI.update(editAppointment.id, data, queryParams);
     setShowEditModal(false);
     setEditAppointment(null);
+    setEditOccurrenceDate(null);
     fetchUpcoming();
   };
 
   const handleEditDelete = (appointment: { id: string }) => {
-    appointmentsAPI.delete(appointment.id).then(() => {
+    const queryParams: Record<string, string> = editOccurrenceDate ? { occurrence_date: editOccurrenceDate } : {};
+    appointmentsAPI.delete(appointment.id, queryParams).then(() => {
       setShowEditModal(false);
       setEditAppointment(null);
+      setEditOccurrenceDate(null);
       fetchUpcoming();
     }).catch((err: unknown) => {
       setError(err instanceof Error ? err.message : 'Failed to delete appointment');
@@ -288,6 +392,22 @@ const MeetingsPage: React.FC = () => {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to delete meeting');
       setDeleteConfirmId(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedMeetingIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      await meetingIntelligenceAPI.bulkDeleteMeetings(Array.from(selectedMeetingIds));
+      setPastMeetings((prev) => prev.filter((m) => !selectedMeetingIds.has(m.id)));
+      setSelectedMeetingIds(new Set());
+      setBulkDeleteConfirm(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete meetings');
+      setBulkDeleteConfirm(false);
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -356,6 +476,22 @@ const MeetingsPage: React.FC = () => {
     });
   };
 
+  /** If the title is auto-generated (e.g. "Meeting 2026-03-31 15:50" in UTC),
+   *  replace it with local-time formatting from start_time. */
+  const getMeetingDisplayTitle = (meeting: MeetingListItem) => {
+    if (!meeting.title) return 'Untitled Meeting';
+    // Detect auto-generated titles: "Meeting YYYY-MM-DD HH:MM"
+    if (/^Meeting \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(meeting.title) && meeting.start_time) {
+      return `Meeting ${new Date(meeting.start_time).toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })}`;
+    }
+    return meeting.title;
+  };
+
   const subTabs: { id: SubTab; label: string }[] = [
     { id: 'upcoming', label: 'Your Meetings' },
     { id: 'past', label: 'History' },
@@ -397,12 +533,18 @@ const MeetingsPage: React.FC = () => {
             .filter((bs) => bs.status !== 'ended' && bs.status !== 'error')
             .map((bs) => {
               const elapsed = joiningElapsed[bs.session_id];
-              const isJoining = bs.status === 'joining' || bs.status === 'scheduling';
+              const isJoining = bs.status === 'joining' || bs.status === 'scheduling' || bs.status === 'waiting_room';
               const isLeaving = bs.status === 'leaving';
               const isActive = bs.status === 'in_meeting' || bs.status === 'listening';
               const elapsedStr = elapsed != null
                 ? `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`
                 : null;
+              const durationSecs = bs.duration_s > 0 ? bs.duration_s : null;
+              const durationStr = durationSecs != null
+                ? `${Math.floor(durationSecs / 60)}:${String(durationSecs % 60).padStart(2, '0')}`
+                : null;
+              const participants = bs.participant_count > 1 ? bs.participant_count - 1 : 0;
+              const platformLabel = bs.platform ? (PLATFORM_ICONS[bs.platform] || bs.platform) : null;
               return (
                 <div
                   key={bs.session_id}
@@ -412,7 +554,22 @@ const MeetingsPage: React.FC = () => {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <BotStatusBadge status={bs.status} />
-                    {elapsedStr && (
+                    {isActive && platformLabel && (
+                      <span className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                        {platformLabel}
+                      </span>
+                    )}
+                    {isActive && participants > 0 && (
+                      <span className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                        {participants} participant{participants !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {isActive && durationStr && (
+                      <span className={`text-xs tabular-nums ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                        {durationStr}
+                      </span>
+                    )}
+                    {elapsedStr && !isActive && (
                       <span className={`text-xs tabular-nums ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                         {elapsedStr}
                       </span>
@@ -531,7 +688,12 @@ const MeetingsPage: React.FC = () => {
               const meetingSessionId = appointmentSessions[meeting.id] || meeting.bot_session_id;
               const sessionEntry = meetingSessionId ? botStatuses[meetingSessionId] : undefined;
               const activeSession = sessionEntry && sessionEntry.status !== 'ended' && sessionEntry.status !== 'error' ? sessionEntry : undefined;
-              const showStartBot = meeting.meeting_link && !activeSession && meeting.bot_dispatch_status !== 'failed';
+              const meetingNotEnded = meeting.end_datetime && new Date(meeting.end_datetime) > new Date();
+              const showResend = !activeSession && meetingNotEnded && meeting.meeting_link && (
+                meeting.bot_dispatch_status === 'failed' ||
+                (sessionEntry && ['ended', 'error'].includes(sessionEntry.status))
+              );
+              const showStartBot = meeting.meeting_link && !activeSession && !showResend && meeting.bot_dispatch_status !== 'failed';
               return (
                 <div
                   key={meeting.id}
@@ -582,24 +744,37 @@ const MeetingsPage: React.FC = () => {
                       )}
                     </div>
                     <p className={`text-xs mt-0.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                      {formatTime(meeting.start_datetime)} - {formatTime(meeting.end_datetime)}
+                      {(() => {
+                        const start = new Date(meeting.start_datetime);
+                        const end = new Date(meeting.end_datetime);
+                        const sameDay = start.toDateString() === end.toDateString();
+                        const startStr = start.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+                        if (sameDay) {
+                          const endTime = end.toLocaleString(undefined, { hour: 'numeric', minute: '2-digit' });
+                          return `${startStr} - ${endTime}`;
+                        }
+                        return `${startStr} - ${formatTime(meeting.end_datetime)}`;
+                      })()}
                     </p>
                   </div>
                   {meeting.meeting_link && (
                   <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
                     {activeSession ? (
                       <BotStatusBadge status={activeSession.status} />
-                    ) : meeting.bot_dispatch_status === 'failed' ? (
+                    ) : showResend ? (
                       <button
                         onClick={() => handleRetryBot(meeting.id)}
                         disabled={retrying === meeting.id}
                         className={`text-xs px-3 py-1.5 rounded bg-orange-500 text-white hover:bg-orange-600 ${retrying === meeting.id ? 'opacity-50 cursor-wait' : ''}`}
                       >
-                        {retrying === meeting.id ? 'Retrying...' : 'Retry'}
+                        {retrying === meeting.id ? 'Resending...' : 'Resend Bot'}
                       </button>
-                    ) : (
+                    ) : showStartBot ? (
                       <button
-                        onClick={() => handleDispatchBot(meeting.id)}
+                        onClick={() => handleDispatchBot(
+                          meeting.parent_appointment_id || meeting.id,
+                          meeting.parent_appointment_id ? meeting.start_datetime : undefined,
+                        )}
                         disabled={dispatching === meeting.id || meeting.zmi_enabled === false || activeBotCount >= MAX_ACTIVE_BOTS}
                         className={`text-xs px-3 py-1.5 rounded transition-colors ${
                           meeting.zmi_enabled === false
@@ -609,7 +784,7 @@ const MeetingsPage: React.FC = () => {
                       >
                         {dispatching === meeting.id ? 'Starting...' : 'Start Bot'}
                       </button>
-                    )}
+                    ) : null}
                   </div>
                   )}
                 </div>
@@ -697,10 +872,49 @@ const MeetingsPage: React.FC = () => {
                 <p>{searchQuery || dateFrom || dateTo ? 'No meetings match your search' : 'No past meetings recorded yet'}</p>
               </div>
             ) : (
-              <div className={`rounded-lg border overflow-hidden ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`}>
+              <>
+              {selectedMeetingIds.size > 0 && (
+                <div className={`flex items-center gap-3 mb-2 px-3 py-2 rounded-lg border ${
+                  darkMode ? 'bg-zenible-dark-border/30 border-zenible-dark-border' : 'bg-blue-50 border-blue-200'
+                }`}>
+                  <span className={`text-sm ${darkMode ? 'text-white' : 'text-gray-700'}`}>
+                    {selectedMeetingIds.size} selected
+                  </span>
+                  <button
+                    onClick={() => setBulkDeleteConfirm(true)}
+                    className="text-sm px-3 py-1 rounded bg-red-500 text-white hover:bg-red-600"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setSelectedMeetingIds(new Set())}
+                    className={`text-sm px-3 py-1 rounded border ${
+                      darkMode ? 'border-zenible-dark-border text-zenible-dark-text-secondary hover:text-white' : 'border-gray-300 text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+              <div className={`rounded-lg border ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`}>
                 <table className="w-full">
                   <thead>
                     <tr className={darkMode ? 'bg-zenible-dark-border/50' : 'bg-gray-50'}>
+                      <th className="w-10 px-3 py-2.5">
+                        <input
+                          type="checkbox"
+                          checked={pastMeetings.length > 0 && selectedMeetingIds.size === pastMeetings.length}
+                          ref={(el) => { if (el) el.indeterminate = selectedMeetingIds.size > 0 && selectedMeetingIds.size < pastMeetings.length; }}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedMeetingIds(new Set(pastMeetings.map((m) => m.id)));
+                            } else {
+                              setSelectedMeetingIds(new Set());
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary cursor-pointer"
+                        />
+                      </th>
                       <th className={`text-left text-xs font-medium px-4 py-2.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Time</th>
                       <th className={`text-left text-xs font-medium px-4 py-2.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Meeting</th>
                       <th className={`text-left text-xs font-medium px-4 py-2.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Duration</th>
@@ -718,6 +932,24 @@ const MeetingsPage: React.FC = () => {
                             : 'bg-white hover:bg-gray-50'
                         }`}
                       >
+                        <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedMeetingIds.has(meeting.id)}
+                            onChange={(e) => {
+                              setSelectedMeetingIds((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) {
+                                  next.add(meeting.id);
+                                } else {
+                                  next.delete(meeting.id);
+                                }
+                                return next;
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary cursor-pointer"
+                          />
+                        </td>
                         <td className={`px-4 py-3 text-xs whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                           {meeting.start_time ? formatTime(meeting.start_time) : '-'}
                         </td>
@@ -742,7 +974,7 @@ const MeetingsPage: React.FC = () => {
                                 }`}
                               />
                             ) : (
-                              meeting.title || 'Untitled Meeting'
+                              getMeetingDisplayTitle(meeting)
                             )}
                             {meeting.has_video_recording && (
                               <span className={`ml-2 inline-flex items-center text-xs px-1.5 py-0.5 rounded ${
@@ -773,7 +1005,7 @@ const MeetingsPage: React.FC = () => {
                               </svg>
                             </button>
                             {actionMenuMeetingId === meeting.id && (
-                              <div className={`absolute right-0 top-8 z-20 w-36 rounded-lg border shadow-lg py-1 ${
+                              <div className={`absolute right-0 top-8 z-20 w-48 rounded-lg border shadow-lg py-1 ${
                                 darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'
                               }`}>
                                 <button
@@ -784,6 +1016,19 @@ const MeetingsPage: React.FC = () => {
                                 >
                                   Rename
                                 </button>
+                                {meeting.is_processed && (
+                                  <button
+                                    onClick={() => {
+                                      setBoardroomMeeting({ id: meeting.id, title: meeting.title || 'Untitled Meeting' });
+                                      setActionMenuMeetingId(null);
+                                    }}
+                                    className={`w-full text-left px-3 py-2 text-sm ${
+                                      darkMode ? 'text-white hover:bg-zenible-dark-border' : 'text-gray-700 hover:bg-gray-100'
+                                    }`}
+                                  >
+                                    Send to Boardroom
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => { setDeleteConfirmId(meeting.id); setActionMenuMeetingId(null); }}
                                   className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -799,6 +1044,7 @@ const MeetingsPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
 
             {/* Delete confirmation modal */}
@@ -828,11 +1074,50 @@ const MeetingsPage: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Bulk delete confirmation modal */}
+            {bulkDeleteConfirm && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className={`rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
+                  <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Delete {selectedMeetingIds.size} Meeting{selectedMeetingIds.size !== 1 ? 's' : ''}</h3>
+                  <p className={`text-sm mb-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                    Are you sure you want to delete {selectedMeetingIds.size} meeting{selectedMeetingIds.size !== 1 ? 's' : ''}? This action cannot be undone.
+                  </p>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setBulkDeleteConfirm(false)}
+                      disabled={bulkDeleting}
+                      className={`px-3 py-1.5 text-sm rounded-lg border ${
+                        darkMode ? 'border-zenible-dark-border text-zenible-dark-text-secondary hover:text-white' : 'border-gray-300 text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={bulkDeleting}
+                      className={`px-3 py-1.5 text-sm rounded-lg bg-red-500 text-white hover:bg-red-600 ${bulkDeleting ? 'opacity-50 cursor-wait' : ''}`}
+                    >
+                      {bulkDeleting ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )
       )}
 
       {activeSubTab === 'settings' && <MeetingIntelligenceSettingsTab />}
+
+      {/* Send to Boardroom Modal */}
+      {boardroomMeeting && (
+        <SendToBoardroomModal
+          meetingId={boardroomMeeting.id}
+          meetingTitle={boardroomMeeting.title}
+          onClose={() => setBoardroomMeeting(null)}
+        />
+      )}
 
       {/* Edit Appointment Modal */}
       <AppointmentModal
@@ -840,6 +1125,7 @@ const MeetingsPage: React.FC = () => {
         onClose={() => {
           setShowEditModal(false);
           setEditAppointment(null);
+          setEditOccurrenceDate(null);
         }}
         onSave={handleEditSave}
         onDelete={handleEditDelete}

@@ -15,7 +15,7 @@ interface StatusData extends SimpleStatusResponse {
 interface CRMSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (newStatusId?: string) => void;
 }
 
 interface StatusRowProps {
@@ -31,7 +31,7 @@ interface StatusRowProps {
 interface StatusFormModalProps {
   status: StatusData | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (newStatusId?: string) => void;
 }
 
 interface DeleteStatusModalProps {
@@ -222,13 +222,13 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
             createModal.close();
             setEditingStatus(null);
           }}
-          onSuccess={() => {
+          onSuccess={(newStatusId?: string) => {
             fetchStatuses();
             createModal.close();
             setEditingStatus(null);
-            // Notify parent to refresh CRM data
+            // Notify parent to refresh CRM data (and auto-check newly created status)
             if (onSuccess) {
-              onSuccess();
+              onSuccess(newStatusId);
             }
           }}
         />
@@ -406,8 +406,10 @@ const StatusFormModal: React.FC<StatusFormModalProps> = ({ status, onClose, onSu
         showSuccess('Status updated successfully');
       } else {
         // Create new custom status
-        await statusesAPI.createCustom(formData);
+        const created = await statusesAPI.createCustom(formData) as SimpleStatusResponse;
         showSuccess('Status created successfully');
+        onSuccess(created?.id);
+        return;
       }
 
       onSuccess();

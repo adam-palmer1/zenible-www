@@ -1,5 +1,8 @@
-import { useState, useEffect, useCallback, useRef, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useContext } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { WebSocketContext } from '../contexts/WebSocketContext';
+import { queryKeys } from '../lib/query-keys';
+import { messageAPI } from '../services/messageAPI';
 
 interface ChunkEventData {
   chunk: string;
@@ -83,13 +86,16 @@ export interface UseBaseAIAnalysisReturn {
   metrics: AIAnalysisMetrics | null;
   messageId: string | null;
   isConnected: boolean;
+  deletingMessageId: string | null;
 
   // Functions
   invokeTool: (toolName: string, toolArguments: Record<string, unknown>) => Promise<string | null>;
   sendFollowUpMessage: (message: string) => Promise<string | null | undefined>;
+  deleteMessage: (messageId: string) => Promise<void>;
   reset: () => void;
   clearConversation: () => void;
   setConversationId: (id: string | null) => void;
+  setStructuredAnalysis: React.Dispatch<React.SetStateAction<unknown>>;
 }
 
 /**
@@ -120,9 +126,13 @@ export function useBaseAIAnalysis({
   const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<AIAnalysisMetrics | null>(null);
   const [messageId, setMessageId] = useState<string | null>(null);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
 
   // Refs
   const unsubscribersRef = useRef<Array<() => void>>([]);
+
+  // React Query client for cache invalidation on completion
+  const queryClient = useQueryClient();
 
   // Context
   const {
@@ -191,6 +201,10 @@ export function useBaseAIAnalysis({
         if (supportedTools.includes(completeData.toolName)) {
           setIsAnalyzing(false);
           setIsStreaming(false);
+
+          // Invalidate usage caches so Settings → Subscription reflects new usage
+          queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
+          queryClient.invalidateQueries({ queryKey: queryKeys.usageHistory.all });
 
           // Set structured analysis if available
           let mappedStructuredAnalysis: unknown = null;
@@ -281,7 +295,7 @@ export function useBaseAIAnalysis({
     ];
 
     unsubscribersRef.current = handlers;
-  }, [onConversationEvent, supportedTools, structuredAnalysisMapper]);
+  }, [onConversationEvent, supportedTools, structuredAnalysisMapper, queryClient]);
 
   // Setup event handlers when conversationId changes (e.g. from history restore)
   useEffect(() => {
@@ -407,6 +421,26 @@ export function useBaseAIAnalysis({
     // Don't reset conversationId - keep it for follow-ups
   }, [conversationId, cancelRequest]);
 
+  // Delete a message (soft-delete on backend)
+  const deleteMessage = useCallback(async (msgId: string): Promise<void> => {
+    if (!conversationId || !msgId) return;
+    setDeletingMessageId(msgId);
+    try {
+      await messageAPI.deleteMessage(conversationId, msgId);
+      // If the deleted message was the primary analysis, clear it
+      if (messageId === msgId) {
+        setAnalysis(null);
+        setStructuredAnalysis(null);
+        setMessageId(null);
+      }
+    } catch (err: unknown) {
+      console.error('[useBaseAIAnalysis] Failed to delete message:', err);
+      setError((err as Error).message || 'Failed to delete message');
+    } finally {
+      setDeletingMessageId(null);
+    }
+  }, [conversationId, messageId]);
+
   // Restore conversation ID (e.g. from history)
   const restoreConversationId = useCallback((id: string | null) => {
     setConversationId(id);
@@ -433,12 +467,15 @@ export function useBaseAIAnalysis({
     metrics,
     messageId,
     isConnected,
+    deletingMessageId,
 
     // Functions
     invokeTool,
     sendFollowUpMessage,
+    deleteMessage,
     reset,
     clearConversation,
-    setConversationId: restoreConversationId
+    setConversationId: restoreConversationId,
+    setStructuredAnalysis
   };
 }

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Calendar, Loader2, ArrowLeft, ChevronDown, FileText } from 'lucide-react';
-import { useContacts } from '../../../hooks/crm/useContacts';
+import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts';
 import { useNotification } from '../../../contexts/NotificationContext';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
@@ -42,7 +42,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
-  const { contacts: allContacts, loading: contactsLoading } = useContacts({ is_client: true });
+  const { contacts: allContacts, loading: contactsLoading, searching: contactsSearching, setSearchQuery: setClientServerSearch } = useSearchableContacts({ is_client: true });
   const { showSuccess, showError } = useNotification();
   const { numberFormats } = useCRMReferenceData();
   const { getNumberFormat } = useCompanyAttributes();
@@ -78,6 +78,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
   const [showSendModal, setShowSendModal] = useState(false);
   const [savedCreditNote, setSavedCreditNote] = useState<any>(null);
   const [showClientModal, setShowClientModal] = useState(false);
+
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [linkedInvoice, setLinkedInvoice] = useState<any>(null);
@@ -393,8 +394,9 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
               clients={allContacts}
               selectedClientId={contactId}
               onSelect={handleClientSelect}
-              loading={contactsLoading}
+              loading={contactsLoading || contactsSearching}
               triggerRef={clientButtonRef as React.RefObject<HTMLElement>}
+              onSearch={setClientServerSearch}
             />
           </div>
         </div>

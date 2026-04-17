@@ -445,6 +445,7 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
         amountRemaining={amountRemaining}
         currencyCode={service.currency?.code}
         contactId={contactId}
+        linkedInvoiceIds={invoiceLinks.filter(l => l.invoice_id).map(l => l.invoice_id!)}
       />
 
       {/* Create Invoice from Service Modal (One-off) */}

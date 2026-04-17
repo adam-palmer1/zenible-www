@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useInvoices, type Invoice } from '../../../contexts/InvoiceContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
-import { useContacts } from '../../../hooks/crm/useContacts';
+import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { getCurrencySymbol } from '../../../utils/currency';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
@@ -36,7 +36,7 @@ const InvoiceList: React.FC = () => {
   const parentInvoiceId = searchParams.get('parent_id');
   const urlStatus = searchParams.get('status');
   const { showSuccess, showError } = useNotification();
-  const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true });
+  const { contacts: allClients, loading: clientsLoading, setSearchQuery: setClientServerSearch } = useSearchableContacts({ is_client: true });
   const { numberFormats } = useCRMReferenceData();
   const { getNumberFormat } = useCompanyAttributes();
   const stats = useInvoiceStats();
@@ -650,7 +650,7 @@ const InvoiceList: React.FC = () => {
           onCloseClientDropdown={() => setShowClientDropdown(false)}
           selectedClientIds={selectedClientIds}
           clientSearchQuery={clientSearchQuery}
-          onClientSearchChange={setClientSearchQuery}
+          onClientSearchChange={(q: string) => { setClientSearchQuery(q); setClientServerSearch(q); }}
           filteredClients={filteredClients}
           allClients={allClients}
           clientsLoading={clientsLoading}

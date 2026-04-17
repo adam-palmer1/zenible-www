@@ -30,6 +30,9 @@ export interface CharacterMetadata {
   chunk_size: number;
   chunk_overlap: number;
   vector_store_id: string | null;
+  conversation_starters: string[];
+  context_starters?: Record<string, string[]>;
+  context_instructions?: Record<string, string>;
 }
 
 export interface CharacterRecord {
@@ -42,6 +45,7 @@ export interface CharacterRecord {
   category_id?: string | null;
   is_active: boolean;
   avatar_url?: string | null;
+  display_order?: number;
 }
 
 export interface SelectOption {
@@ -88,10 +92,14 @@ export interface CharacterFormState {
     chunk_size: number;
     chunk_overlap: number;
     vector_store_id: string | null;
+    conversation_starters: string[];
+    context_starters: Record<string, string[]>;
+    context_instructions: Record<string, string>;
   };
   category_id: string;
   is_active: boolean;
   avatar_url: string;
+  display_order: number;
 }
 
 export const responseFormats = [

@@ -3,6 +3,8 @@ import {
   format,
   addDays,
   isSameDay,
+  isSameWeek,
+  isSameMonth,
   isToday,
   parseISO,
 } from 'date-fns';
@@ -12,27 +14,52 @@ interface CalendarUpcomingScheduleProps {
   appointments: any[];
   onAppointmentClick: (appointment: any) => void;
   selectedDate?: Date | null;
+  viewMode?: string;
+  currentDate?: Date;
 }
 
-export default function CalendarUpcomingSchedule({ appointments, onAppointmentClick, selectedDate }: CalendarUpcomingScheduleProps) {
+export default function CalendarUpcomingSchedule({ appointments, onAppointmentClick, selectedDate, viewMode, currentDate }: CalendarUpcomingScheduleProps) {
   const showingSpecificDay = selectedDate && !isToday(selectedDate);
 
-  const displayedAppointments = showingSpecificDay
-    ? appointments
-        .filter((apt: any) => isSameDay(parseISO(apt.start_datetime), selectedDate))
-        .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())
-    : appointments
-        .filter((apt: any) => new Date(apt.start_datetime) >= new Date())
-        .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())
-        .slice(0, 5);
+  let displayedAppointments: any[];
+  let heading: string;
+  let emptyMessage: string;
 
-  const heading = showingSpecificDay
-    ? `Schedule for ${format(selectedDate, 'MMM d')}`
-    : 'Upcoming Schedule';
-
-  const emptyMessage = showingSpecificDay
-    ? `No appointments on ${format(selectedDate, 'MMM d')}`
-    : 'No upcoming appointments';
+  if (showingSpecificDay) {
+    // Clicked a specific day on the mini calendar
+    displayedAppointments = appointments
+      .filter((apt: any) => isSameDay(parseISO(apt.start_datetime), selectedDate))
+      .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime());
+    heading = `Schedule for ${format(selectedDate, 'MMM d')}`;
+    emptyMessage = `No appointments on ${format(selectedDate, 'MMM d')}`;
+  } else if (viewMode === 'weekly' && currentDate) {
+    displayedAppointments = appointments
+      .filter((apt: any) => {
+        const aptDate = parseISO(apt.start_datetime);
+        return isSameWeek(aptDate, currentDate, { weekStartsOn: 1 });
+      })
+      .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime());
+    heading = `Schedule for this week`;
+    emptyMessage = 'No appointments this week';
+  } else if (viewMode === 'monthly' && currentDate) {
+    displayedAppointments = appointments
+      .filter((apt: any) => isSameMonth(parseISO(apt.start_datetime), currentDate))
+      .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime());
+    heading = `Schedule for ${format(currentDate, 'MMMM')}`;
+    emptyMessage = `No appointments in ${format(currentDate, 'MMMM')}`;
+  } else {
+    // Daily view or default: show today's schedule
+    const refDate = currentDate || new Date();
+    displayedAppointments = appointments
+      .filter((apt: any) => isSameDay(parseISO(apt.start_datetime), refDate))
+      .sort((a: any, b: any) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime());
+    heading = isToday(refDate)
+      ? "Today's Schedule"
+      : `Schedule for ${format(refDate, 'MMM d')}`;
+    emptyMessage = isToday(refDate)
+      ? 'No appointments today'
+      : `No appointments on ${format(refDate, 'MMM d')}`;
+  }
 
   const formatDateLabel = (date: Date) => {
     const today = new Date();
@@ -46,6 +73,8 @@ export default function CalendarUpcomingSchedule({ appointments, onAppointmentCl
       return format(date, 'MMM d, h:mm a');
     }
   };
+
+  const showFullDate = viewMode === 'weekly' || viewMode === 'monthly';
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 flex-1 overflow-hidden flex flex-col">
@@ -65,7 +94,7 @@ export default function CalendarUpcomingSchedule({ appointments, onAppointmentCl
               >
                 <p className="text-sm font-medium text-gray-900 truncate">{appointment.title}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {showingSpecificDay ? format(startDate, 'h:mm a') : formatDateLabel(startDate)}
+                  {showFullDate ? formatDateLabel(startDate) : format(startDate, 'h:mm a')}
                 </p>
                 {appointment.location && (
                   <p className="text-xs text-gray-400 mt-1 truncate">{appointment.location}</p>

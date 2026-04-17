@@ -32,7 +32,7 @@ interface CSVImportModalProps {
 
 const CSVImportModal: React.FC<CSVImportModalProps> = ({ open, onOpenChange }) => {
   const { categories, refresh } = useExpenses();
-  const { contacts: vendors } = useContacts({ is_vendor: true }, 0, { skipInitialFetch: !open });
+  const { contacts: vendors } = useContacts({ is_vendor: true, per_page: 200 }, 0, { skipInitialFetch: !open });
   const { showError } = useNotification();
 
   const [currentStep, setCurrentStep] = useState<string>(STEPS.UPLOAD);

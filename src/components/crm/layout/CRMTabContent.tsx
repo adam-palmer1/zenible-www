@@ -157,9 +157,6 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
           onDelete={async (contact: any) => {
             await deleteContact(contact.id);
           }}
-          onUpdateStatus={async (contactId: string, updateData: any) => {
-            return await updateContact(contactId, updateData);
-          }}
         />
       </Suspense>
     );

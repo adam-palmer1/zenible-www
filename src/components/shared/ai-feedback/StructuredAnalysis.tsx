@@ -29,7 +29,7 @@ export default function StructuredAnalysis({
 
   return (
     <div className="space-y-6 mt-4">
-      {structured.proposal_text && (
+      {structured.proposal_text?.trim() && (
         <div>
           <div className="flex items-center justify-between mb-2">
             <h4 className={`font-semibold text-sm flex items-center gap-2 ${

@@ -121,6 +121,11 @@ const navItems: NavItem[] = [
         label: 'Tips',
         path: '/admin/tips',
       },
+      {
+        id: 'meeting-intelligence-config',
+        label: 'Meeting Intelligence',
+        path: '/admin/meeting-intelligence-config',
+      },
     ],
   },
   {

@@ -14,7 +14,7 @@ const ExpenseHistory: React.FC<ExpenseHistoryProps> = ({ expenseId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { categories } = useExpenses();
-  const { contacts: vendors } = useContacts({ is_vendor: true });
+  const { contacts: vendors } = useContacts({ is_vendor: true, per_page: 200 });
 
   useEffect(() => {
     loadHistory();

@@ -15,14 +15,9 @@ interface CalendarSettingsModalProps {
   updateAccountColor: (accountId: any, color: string) => Promise<any>;
   toggleAccountReadOnly: (accountId: any, isReadOnly: boolean) => Promise<any>;
   syncAccount: (accountId: any) => Promise<any>;
-  enumsLoading: boolean;
-  appointmentTypes: { value: string; label: string }[];
-  visibleTypes: string[];
-  typeColors: Record<string, string>;
-  defaultAppointmentColors: Record<string, string>;
-  toggleAppointmentType: (type: string) => void;
-  updateTypeColor: (type: string, color: string) => void;
-  resetColors: () => void;
+  listAccountCalendars: (accountId: string) => Promise<any[]>;
+  updateSelectedCalendars: (accountId: string, calendarIds: string[]) => Promise<any>;
+  updateSubcalendarColor: (accountId: string, calendarId: string, color: string) => Promise<any>;
 }
 
 export default function CalendarSettingsModal({
@@ -37,14 +32,9 @@ export default function CalendarSettingsModal({
   updateAccountColor,
   toggleAccountReadOnly,
   syncAccount,
-  enumsLoading,
-  appointmentTypes,
-  visibleTypes,
-  typeColors,
-  defaultAppointmentColors,
-  toggleAppointmentType,
-  updateTypeColor,
-  resetColors,
+  listAccountCalendars,
+  updateSelectedCalendars,
+  updateSubcalendarColor,
 }: CalendarSettingsModalProps) {
   useEscapeKey(onClose);
 
@@ -79,54 +69,10 @@ export default function CalendarSettingsModal({
               onColorChange={updateAccountColor}
               onToggleReadOnly={toggleAccountReadOnly}
               onSync={syncAccount}
+              onListCalendars={listAccountCalendars}
+              onUpdateSelectedCalendars={updateSelectedCalendars}
+              onSubcalendarColorChange={updateSubcalendarColor}
             />
-
-            <div className="border-t border-gray-200"></div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Appointment Types</h3>
-
-              {enumsLoading ? (
-                <div className="space-y-3">
-                  <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
-                  <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
-                  <div className="animate-pulse h-12 bg-gray-200 rounded"></div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {appointmentTypes.map((type) => (
-                    <div key={type.value} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          id={`type-${type.value}`}
-                          checked={visibleTypes.includes(type.value)}
-                          onChange={() => toggleAppointmentType(type.value)}
-                          className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                        />
-                        <label htmlFor={`type-${type.value}`} className="text-sm text-gray-700 cursor-pointer">
-                          {type.label}
-                        </label>
-                      </div>
-                      <input
-                        type="color"
-                        value={typeColors[type.value] || defaultAppointmentColors[type.value] || '#3b82f6'}
-                        onChange={(e) => updateTypeColor(type.value, e.target.value)}
-                        className="w-10 h-8 rounded border border-gray-300 cursor-pointer"
-                        title={`Choose color for ${type.label.toLowerCase()}`}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <button
-                onClick={resetColors}
-                className="mt-4 w-full px-4 py-2 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Reset Colors to Default
-              </button>
-            </div>
           </div>
         </div>
       </div>

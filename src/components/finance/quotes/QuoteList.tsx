@@ -23,7 +23,7 @@ import {
 import { useQuotes, type Quote } from '../../../contexts/QuoteContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData, type NumberFormat } from '../../../contexts/CRMReferenceDataContext';
-import { useContacts } from '../../../hooks/crm/useContacts';
+import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { QUOTE_STATUS, QUOTE_STATUS_LABELS, QUOTE_STATUS_COLORS, type QuoteStatus } from '../../../constants/finance';
 import { getCurrencySymbol } from '../../../utils/currency';
@@ -64,7 +64,7 @@ const QuoteList: React.FC = () => {
   const { quotes: rawQuotes, loading, deleteQuote, updateFilters, cloneQuote, stats, statsLoading } = useQuotes();
   const quotes = rawQuotes as QuoteListItem[];
   const { showSuccess, showError } = useNotification();
-  const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true });
+  const { contacts: allClients, loading: clientsLoading, setSearchQuery: setClientServerSearch } = useSearchableContacts({ is_client: true });
   const { numberFormats } = useCRMReferenceData();
   const { getNumberFormat } = useCompanyAttributes();
   const { defaultCurrency } = useCompanyCurrencies();
@@ -750,7 +750,7 @@ const QuoteList: React.FC = () => {
                           type="text"
                           placeholder="Search clients..."
                           value={clientSearchQuery}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClientSearchQuery(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setClientSearchQuery(e.target.value); setClientServerSearch(e.target.value); }}
                           className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                           autoFocus
                         />

@@ -58,6 +58,21 @@ export const messageAPI = {
 
     return response.json();
   },
+
+  /**
+   * Soft-delete a message. Removes it from future LLM context
+   * and from subsequent history fetches.
+   */
+  async deleteMessage(conversationId: string, messageId: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(
+      `${ZBI_API_BASE_URL}/ai/conversations/${conversationId}/messages/${messageId}`,
+      { method: 'DELETE' }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete message: ${response.status}`);
+    }
+  },
 };
 
 export default messageAPI;

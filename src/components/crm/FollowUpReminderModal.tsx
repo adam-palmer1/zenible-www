@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../ui/modal/Modal';
 import DatePickerCalendar from '../shared/DatePickerCalendar';
 import TimePickerInput from '../shared/TimePickerInput';
@@ -8,6 +8,7 @@ interface FollowUpReminderModalProps {
   onClose: () => void;
   onConfirm: (reminderAt: string) => void;
   contactName: string;
+  existingReminderAt?: string | null;
 }
 
 const FollowUpReminderModal: React.FC<FollowUpReminderModalProps> = ({
@@ -15,9 +16,26 @@ const FollowUpReminderModal: React.FC<FollowUpReminderModalProps> = ({
   onClose,
   onConfirm,
   contactName,
+  existingReminderAt,
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
+
+  // Pre-fill date/time from existing reminder when modal opens
+  useEffect(() => {
+    if (isOpen && existingReminderAt) {
+      const date = new Date(existingReminderAt);
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        setSelectedDate(`${year}-${month}-${day}`);
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        setSelectedTime(`${hours}:${minutes}`);
+      }
+    }
+  }, [isOpen, existingReminderAt]);
 
   const handleDateChange = (date: string) => {
     setSelectedDate(date);

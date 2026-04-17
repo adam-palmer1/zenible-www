@@ -315,6 +315,7 @@ const PipelineContactCard: React.FC<PipelineContactCardProps> = ({ contact, onCl
         onClose={followUpEditModal.close}
         onConfirm={(reminderAt) => setReminder(contact, reminderAt)}
         contactName={getContactDisplayName(contact, 'Contact')}
+        existingReminderAt={contact.follow_up_reminder_at}
       />
     </>
   );

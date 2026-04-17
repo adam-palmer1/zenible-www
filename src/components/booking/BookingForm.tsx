@@ -1,9 +1,33 @@
 import React, { useState } from 'react';
 import { ArrowLeftIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 
+// Map region code from browser locale to dial code
+const REGION_DIAL_CODES: Record<string, string> = {
+  GB: '+44', US: '+1', CA: '+1', IE: '+353', AU: '+61', NZ: '+64',
+  DE: '+49', FR: '+33', ES: '+34', IT: '+39', NL: '+31', BE: '+32',
+  PT: '+351', AT: '+43', CH: '+41', SE: '+46', NO: '+47', DK: '+45',
+  FI: '+358', PL: '+48', CZ: '+420', RO: '+40', HU: '+36', GR: '+30',
+  IN: '+91', JP: '+81', CN: '+86', KR: '+82', SG: '+65', HK: '+852',
+  ZA: '+27', BR: '+55', MX: '+52', AR: '+54', AE: '+971', SA: '+966',
+  IL: '+972', RU: '+7', UA: '+380', TR: '+90', NG: '+234', KE: '+254',
+  EG: '+20', PH: '+63', TH: '+66', MY: '+60', ID: '+62', VN: '+84',
+};
+
+const getDefaultCountryCode = (): string => {
+  try {
+    const locale = navigator.language || navigator.languages?.[0] || '';
+    const region = locale.split('-')[1]?.toUpperCase();
+    if (region && REGION_DIAL_CODES[region]) {
+      return REGION_DIAL_CODES[region];
+    }
+  } catch {}
+  return '+1';
+};
+
 interface BookingFormData {
   name: string;
   email: string;
+  country_code: string;
   phone: string;
   notes: string;
 }
@@ -32,6 +56,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const [formData, setFormData] = useState<BookingFormData>({
     name: '',
     email: '',
+    country_code: getDefaultCountryCode(),
     phone: '',
     notes: '',
   });
@@ -168,14 +193,24 @@ const BookingForm: React.FC<BookingFormProps> = ({
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Phone (optional)
           </label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => handleChange('phone', e.target.value)}
-            maxLength={50}
-            placeholder="+1 (555) 123-4567"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          />
+          <div className="grid gap-2" style={{ gridTemplateColumns: '90px 1fr' }}>
+            <input
+              type="tel"
+              value={formData.country_code}
+              onChange={(e) => handleChange('country_code', e.target.value.replace(/[^0-9+\s]/g, ''))}
+              maxLength={10}
+              placeholder="+44"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            />
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => handleChange('phone', e.target.value)}
+              maxLength={50}
+              placeholder="7570 835 398"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
         </div>
 
         <div>

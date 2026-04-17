@@ -8,7 +8,8 @@ interface ZMIWebSocketConfig {
   onConnectionChange?: (connected: boolean) => void;
   onTranscript?: (entry: TranscriptEntry) => void;
   onBotStatus?: (data: { session_id: string; status: string }) => void;
-  onError?: (error: { session_id?: string; message: string }) => void;
+  onError?: (error: { session_id?: string; message: string; error?: string }) => void;
+  onTranscriptionReady?: (data: { session_id: string }) => void;
 }
 
 class ZMIWebSocketService {
@@ -63,6 +64,14 @@ class ZMIWebSocketService {
 
       this.socket.on('error', (data: { session_id?: string; message: string }) => {
         this.config.onError?.(data);
+      });
+
+      this.socket.on('transcription_error', (data: { session_id?: string; message: string; error?: string }) => {
+        this.config.onError?.(data);
+      });
+
+      this.socket.on('transcription_ready', (data: { session_id: string }) => {
+        this.config.onTranscriptionReady?.(data);
       });
     });
   }

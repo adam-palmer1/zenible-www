@@ -42,6 +42,7 @@ interface AIUsageTotal {
 }
 
 interface AICharacterUsage {
+  character_id?: string;
   character_name?: string;
   name?: string;
   usage?: number;
@@ -49,6 +50,10 @@ interface AICharacterUsage {
   messages_used?: number;
   limit?: number;
   message_limit?: number;
+  remaining?: number | null;
+  daily_usage?: number;
+  daily_limit?: number | null;
+  daily_remaining?: number | null;
   [key: string]: unknown;
 }
 

@@ -64,8 +64,6 @@ export default function UserProfileSection({ isCollapsed = false }: UserProfileS
   const displayName = user?.first_name && user?.last_name
     ? `${user.first_name} ${user.last_name}`
     : user?.first_name || user?.email?.split('@')[0] || 'User';
-  const username = user?.email ? `@${user.email.split('@')[0]}` : '@user';
-
   return (
     <div className={`${isCollapsed ? 'px-2' : 'px-4'} pb-6 relative`} ref={dropdownRef}>
       <button
@@ -97,9 +95,6 @@ export default function UserProfileSection({ isCollapsed = false }: UserProfileS
             <div className="flex flex-col text-left">
               <span className="text-[#111827] text-sm font-semibold leading-5 truncate max-w-[140px]">
                 {displayName}
-              </span>
-              <span className="text-[#6B7280] text-xs leading-4 truncate max-w-[140px]">
-                {username}
               </span>
             </div>
           )}

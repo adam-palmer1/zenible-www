@@ -9,18 +9,25 @@ interface ClientSelectModalProps {
   onSelect: (clientId: string) => void;
   loading: boolean;
   triggerRef?: React.RefObject<HTMLElement | null>;
+  onSearch?: (query: string) => void;
 }
 
 /**
  * Client Select Dropdown
  * Appears as a dropdown next to the trigger element
  */
-const ClientSelectModal: React.FC<ClientSelectModalProps> = ({ isOpen, onClose, clients, selectedClientId, onSelect, loading, triggerRef }) => {
+const ClientSelectModal: React.FC<ClientSelectModalProps> = ({ isOpen, onClose, clients, selectedClientId, onSelect, loading, triggerRef, onSearch }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Filter clients based on search
+  // Notify parent of search changes (debouncing handled by the hook)
+  useEffect(() => {
+    if (onSearch) onSearch(searchQuery);
+  }, [searchQuery, onSearch]);
+
+  // Filter clients based on search (skip if server-side search is active)
   const filteredClients = useMemo(() => {
+    if (onSearch) return clients;
     if (!searchQuery) return clients;
     const query = searchQuery.toLowerCase();
     return clients.filter((client: any) => {
@@ -28,7 +35,7 @@ const ClientSelectModal: React.FC<ClientSelectModalProps> = ({ isOpen, onClose, 
       const businessName = client.business_name?.toLowerCase() || '';
       return fullName.includes(query) || businessName.includes(query);
     });
-  }, [clients, searchQuery]);
+  }, [clients, searchQuery, onSearch]);
 
   const handleSelect = (clientId: string) => {
     onSelect(clientId);

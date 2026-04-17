@@ -28,6 +28,7 @@ class UserAPI {
         throw new Error(error.detail || `Request failed with status ${response.status}`);
       }
 
+      if (response.status === 204) return undefined as T;
       return await response.json() as T;
     } catch (error) {
       logger.error('User API request failed:', error);
@@ -76,6 +77,16 @@ class UserAPI {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = queryString ? `/ai/conversations/?${queryString}` : '/ai/conversations/';
     return this.zbiRequest(endpoint, { method: 'GET' });
+  }
+
+  // Toggle starred status of a conversation
+  async toggleStarConversation(conversationId: string): Promise<unknown> {
+    return this.zbiRequest(`/ai/conversations/${conversationId}/star`, { method: 'PATCH' });
+  }
+
+  // Delete a conversation
+  async deleteConversation(conversationId: string): Promise<void> {
+    await this.zbiRequest(`/ai/conversations/${conversationId}`, { method: 'DELETE' });
   }
 
   // Get messages for a specific conversation with pagination and filtering

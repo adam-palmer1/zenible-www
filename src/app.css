@@ -106,6 +106,82 @@ input[type="number"] {
   display: none;  /* Safari and Chrome */
 }
 
+/* Boardroom sidebar scrollbar — thin (half width), track always reserved so
+   layout does not shift on hover. Thumb is transparent until hover. */
+.boardroom-sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  scrollbar-gutter: stable;
+}
+
+.boardroom-sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.boardroom-sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.boardroom-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+  transition: background-color 150ms ease;
+}
+
+@media (min-width: 1024px) {
+  .boardroom-sidebar-scroll {
+    margin-right: -8px;
+    padding-right: 4px;
+  }
+}
+
+.boardroom-sidebar-scroll:hover {
+  scrollbar-color: #d1d5db transparent;
+}
+
+.boardroom-sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+
+.boardroom-sidebar-scroll:hover::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Advisor cards horizontal scrollbar — thin (half height), track always
+   reserved so content below does not shift when the scrollbar appears. */
+.advisor-cards-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  margin-bottom: -8px;
+  padding-bottom: 4px;
+}
+
+.advisor-cards-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.advisor-cards-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.advisor-cards-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+  transition: background-color 150ms ease;
+}
+
+.advisor-cards-scroll:hover {
+  scrollbar-color: #d1d5db transparent;
+}
+
+.advisor-cards-scroll:hover::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+
+.advisor-cards-scroll:hover::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
 /* Safe viewport height (fixes iOS Safari / Android Chrome address bar) */
 .h-screen-safe {
   height: 100vh;

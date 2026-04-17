@@ -17,7 +17,9 @@ import {
   ArrowPathIcon,
   TrashIcon,
   KeyIcon,
-  NoSymbolIcon
+  NoSymbolIcon,
+  FolderIcon,
+  ClipboardIcon,
 } from '@heroicons/react/24/outline';
 
 interface UnifiedTimelineItemProps {
@@ -42,12 +44,6 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
         borderColor: 'border-blue-300',
         label: 'Contact Updated',
       },
-      CONTACT_UPDATED: {
-        icon: PencilIcon,
-        color: 'bg-blue-100 text-blue-600',
-        borderColor: 'border-blue-300',
-        label: 'Contact Updated',
-      },
       contact_deleted: {
         icon: TrashIcon,
         color: 'bg-red-100 text-red-600',
@@ -59,6 +55,12 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
         color: 'bg-green-100 text-green-600',
         borderColor: 'border-green-300',
         label: 'Contact Restored',
+      },
+      contact_merged: {
+        icon: ArrowPathIcon,
+        color: 'bg-purple-100 text-purple-600',
+        borderColor: 'border-purple-300',
+        label: 'Contact Merged',
       },
 
       // Status changes
@@ -110,6 +112,24 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
         borderColor: 'border-orange-300',
         label: 'Follow-up Updated',
       },
+      follow_up_reminder_set: {
+        icon: CalendarIcon,
+        color: 'bg-orange-100 text-orange-600',
+        borderColor: 'border-orange-300',
+        label: 'Reminder Set',
+      },
+      follow_up_reminder_completed: {
+        icon: CheckCircleIcon,
+        color: 'bg-green-100 text-green-600',
+        borderColor: 'border-green-300',
+        label: 'Reminder Completed',
+      },
+      follow_up_reminder_dismissed: {
+        icon: XCircleIcon,
+        color: 'bg-gray-100 text-gray-600',
+        borderColor: 'border-gray-300',
+        label: 'Reminder Dismissed',
+      },
 
       // Invoices
       invoice_created: {
@@ -124,6 +144,12 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
         borderColor: 'border-blue-300',
         label: 'Invoice Sent',
       },
+      invoice_edited: {
+        icon: PencilIcon,
+        color: 'bg-blue-100 text-blue-600',
+        borderColor: 'border-blue-300',
+        label: 'Invoice Edited',
+      },
 
       // Payments
       payment_received: {
@@ -131,6 +157,18 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
         color: 'bg-green-100 text-green-600',
         borderColor: 'border-green-300',
         label: 'Payment Received',
+      },
+      payment_refunded: {
+        icon: CurrencyDollarIcon,
+        color: 'bg-red-100 text-red-600',
+        borderColor: 'border-red-300',
+        label: 'Payment Refunded',
+      },
+      payment_initiated: {
+        icon: CurrencyDollarIcon,
+        color: 'bg-blue-100 text-blue-600',
+        borderColor: 'border-blue-300',
+        label: 'Payment Initiated',
       },
 
       // Email
@@ -153,6 +191,12 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
         color: 'bg-gray-100 text-gray-600',
         borderColor: 'border-gray-300',
         label: 'Service Unassigned',
+      },
+      service_updated: {
+        icon: WrenchScrewdriverIcon,
+        color: 'bg-cyan-100 text-cyan-600',
+        borderColor: 'border-cyan-300',
+        label: 'Service Updated',
       },
       services_bulk_assigned: {
         icon: WrenchScrewdriverIcon,
@@ -216,6 +260,150 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
         borderColor: 'border-gray-300',
         label: 'Quote Deleted',
       },
+      quote_edited: {
+        icon: PencilIcon,
+        color: 'bg-violet-100 text-violet-600',
+        borderColor: 'border-violet-300',
+        label: 'Quote Edited',
+      },
+
+      // Expenses
+      expense_created: {
+        icon: DocumentIcon,
+        color: 'bg-amber-100 text-amber-600',
+        borderColor: 'border-amber-300',
+        label: 'Expense Created',
+      },
+      expense_updated: {
+        icon: PencilIcon,
+        color: 'bg-amber-100 text-amber-600',
+        borderColor: 'border-amber-300',
+        label: 'Expense Updated',
+      },
+      expense_deleted: {
+        icon: TrashIcon,
+        color: 'bg-gray-100 text-gray-600',
+        borderColor: 'border-gray-300',
+        label: 'Expense Deleted',
+      },
+
+      // Credit Notes
+      credit_note_created: {
+        icon: DocumentIcon,
+        color: 'bg-teal-100 text-teal-600',
+        borderColor: 'border-teal-300',
+        label: 'Credit Note Created',
+      },
+      credit_note_issued: {
+        icon: PaperAirplaneIcon,
+        color: 'bg-teal-100 text-teal-600',
+        borderColor: 'border-teal-300',
+        label: 'Credit Note Issued',
+      },
+      credit_note_updated: {
+        icon: PencilIcon,
+        color: 'bg-teal-100 text-teal-600',
+        borderColor: 'border-teal-300',
+        label: 'Credit Note Updated',
+      },
+      credit_note_deleted: {
+        icon: TrashIcon,
+        color: 'bg-gray-100 text-gray-600',
+        borderColor: 'border-gray-300',
+        label: 'Credit Note Deleted',
+      },
+      credit_note_voided: {
+        icon: XCircleIcon,
+        color: 'bg-red-100 text-red-600',
+        borderColor: 'border-red-300',
+        label: 'Credit Note Voided',
+      },
+      credit_note_applied: {
+        icon: CheckCircleIcon,
+        color: 'bg-green-100 text-green-600',
+        borderColor: 'border-green-300',
+        label: 'Credit Note Applied',
+      },
+
+      // Appointments
+      appointment_created: {
+        icon: CalendarIcon,
+        color: 'bg-teal-100 text-teal-600',
+        borderColor: 'border-teal-300',
+        label: 'Appointment Scheduled',
+      },
+      appointment_updated: {
+        icon: CalendarIcon,
+        color: 'bg-teal-100 text-teal-600',
+        borderColor: 'border-teal-300',
+        label: 'Appointment Updated',
+      },
+      appointment_cancelled: {
+        icon: XCircleIcon,
+        color: 'bg-red-100 text-red-600',
+        borderColor: 'border-red-300',
+        label: 'Appointment Cancelled',
+      },
+
+      // Projects
+      project_created: {
+        icon: FolderIcon,
+        color: 'bg-indigo-100 text-indigo-600',
+        borderColor: 'border-indigo-300',
+        label: 'Project Created',
+      },
+      project_updated: {
+        icon: PencilIcon,
+        color: 'bg-indigo-100 text-indigo-600',
+        borderColor: 'border-indigo-300',
+        label: 'Project Updated',
+      },
+      project_status_changed: {
+        icon: CheckCircleIcon,
+        color: 'bg-indigo-100 text-indigo-600',
+        borderColor: 'border-indigo-300',
+        label: 'Project Status Changed',
+      },
+      project_deleted: {
+        icon: TrashIcon,
+        color: 'bg-gray-100 text-gray-600',
+        borderColor: 'border-gray-300',
+        label: 'Project Deleted',
+      },
+
+      // Tasks
+      task_created: {
+        icon: ClipboardIcon,
+        color: 'bg-sky-100 text-sky-600',
+        borderColor: 'border-sky-300',
+        label: 'Task Created',
+      },
+      task_updated: {
+        icon: PencilIcon,
+        color: 'bg-sky-100 text-sky-600',
+        borderColor: 'border-sky-300',
+        label: 'Task Updated',
+      },
+      task_status_changed: {
+        icon: CheckCircleIcon,
+        color: 'bg-sky-100 text-sky-600',
+        borderColor: 'border-sky-300',
+        label: 'Task Status Changed',
+      },
+      task_deleted: {
+        icon: TrashIcon,
+        color: 'bg-gray-100 text-gray-600',
+        borderColor: 'border-gray-300',
+        label: 'Task Deleted',
+      },
+
+      // Meetings
+      bot_meeting_linked: {
+        icon: PhoneIcon,
+        color: 'bg-green-100 text-green-600',
+        borderColor: 'border-green-300',
+        label: 'Meeting Linked',
+      },
 
       // Access control
       access_granted: {
@@ -240,7 +428,7 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
     };
   };
 
-  const config = getActivityConfig(activity.activity_type);
+  const config = getActivityConfig(activity.activity_type?.toLowerCase());
   const Icon = config.icon;
 
   // Format date
@@ -295,9 +483,10 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
   const renderMetadata = () => {
     if (!metadata) return null;
 
-    switch (activity.activity_type) {
+    const activityType = activity.activity_type?.toLowerCase();
+
+    switch (activityType) {
       case 'contact_updated':
-      case 'CONTACT_UPDATED':
         return metadata.fields_updated && metadata.fields_updated.length > 0 && (
           <div className="mt-1 text-xs text-gray-600">
             <span className="font-medium">Updated:</span>{' '}
@@ -337,6 +526,20 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
           </div>
         );
 
+      case 'service_updated':
+        return (
+          <div className="mt-1 text-xs text-gray-600">
+            {metadata.service_name && (
+              <span>Service: <span className="font-medium">{metadata.service_name}</span></span>
+            )}
+            {metadata.invoice_amount && (
+              <span className="ml-2 font-medium">
+                {metadata.currency || '$'}{Number(metadata.invoice_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            )}
+          </div>
+        );
+
       case 'services_bulk_assigned':
         return metadata.services_count && (
           <div className="mt-1 text-xs text-gray-600">
@@ -356,6 +559,20 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
               <span className="ml-2">
                 Invoice #{metadata.invoice_number}
               </span>
+            )}
+          </div>
+        );
+
+      case 'payment_refunded':
+        return (
+          <div className="mt-1 text-xs text-gray-600">
+            {metadata.amount && (
+              <span className="font-medium text-red-600">
+                {metadata.currency || '$'}{metadata.amount}
+              </span>
+            )}
+            {metadata.reason && (
+              <span className="ml-2">Reason: {metadata.reason}</span>
             )}
           </div>
         );
@@ -396,13 +613,19 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
 
       case 'invoice_created':
       case 'invoice_sent':
-        return metadata.invoice_number && (
+      case 'invoice_edited':
+        return (
           <div className="mt-1 text-xs text-gray-600">
-            Invoice #{metadata.invoice_number}
+            {metadata.invoice_number && (
+              <span>Invoice #{metadata.invoice_number}</span>
+            )}
             {metadata.amount && (
               <span className="ml-2 font-medium">
                 {metadata.currency || '$'}{metadata.amount}
               </span>
+            )}
+            {metadata.changes_description && (
+              <div className="mt-0.5">{metadata.changes_description}</div>
             )}
           </div>
         );
@@ -414,13 +637,74 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
       case 'quote_rejected':
       case 'quote_converted':
       case 'quote_updated':
-        return metadata.quote_number && (
+      case 'quote_edited':
+        return (
           <div className="mt-1 text-xs text-gray-600">
-            Quote #{metadata.quote_number}
+            {metadata.quote_number && (
+              <span>Quote #{metadata.quote_number}</span>
+            )}
             {metadata.amount && (
               <span className="ml-2 font-medium">
                 {metadata.currency || '$'}{metadata.amount}
               </span>
+            )}
+            {metadata.changes_description && (
+              <div className="mt-0.5">{metadata.changes_description}</div>
+            )}
+          </div>
+        );
+
+      case 'expense_created':
+      case 'expense_updated':
+      case 'expense_deleted':
+        return (
+          <div className="mt-1 text-xs text-gray-600">
+            {metadata.expense_number && (
+              <span>Expense #{metadata.expense_number}</span>
+            )}
+            {metadata.amount && (
+              <span className="ml-2 font-medium">
+                {metadata.currency || '$'}{metadata.amount}
+              </span>
+            )}
+          </div>
+        );
+
+      case 'credit_note_created':
+      case 'credit_note_issued':
+      case 'credit_note_updated':
+      case 'credit_note_deleted':
+      case 'credit_note_voided':
+      case 'credit_note_applied':
+        return (
+          <div className="mt-1 text-xs text-gray-600">
+            {metadata.credit_note_number && (
+              <span>Credit Note #{metadata.credit_note_number}</span>
+            )}
+            {metadata.amount && (
+              <span className="ml-2 font-medium">
+                {metadata.currency || '$'}{metadata.amount}
+              </span>
+            )}
+          </div>
+        );
+
+      case 'appointment_created':
+      case 'appointment_updated':
+      case 'appointment_cancelled':
+        return (
+          <div className="mt-1 text-xs text-gray-600">
+            {metadata.title && (
+              <div className="font-medium">{metadata.title}</div>
+            )}
+            {metadata.date && (
+              <div>
+                {new Date(metadata.date).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </div>
             )}
           </div>
         );

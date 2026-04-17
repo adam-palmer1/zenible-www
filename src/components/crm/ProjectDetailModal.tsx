@@ -57,6 +57,7 @@ interface ProjectFinanceAllocation {
   entity_id?: string;
   allocated_amount: string;
   percentage?: number;
+  is_derived?: boolean;
   entity_number?: string;
   entity_total?: number;
   date?: string;
@@ -871,18 +872,20 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
                           {alloc.percentage}% of {formatCurrency(total, currency)}
                         </div>
                       </div>
-                      <button
-                        onClick={() => setDeleteAllocConfirm({
-                          isOpen: true,
-                          allocationId: alloc.id || null,
-                          entityType: section.entityType,
-                          label: number
-                        })}
-                        className="ml-2 p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        title="Remove allocation"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {!alloc.is_derived && (
+                        <button
+                          onClick={() => setDeleteAllocConfirm({
+                            isOpen: true,
+                            allocationId: alloc.id || null,
+                            entityType: section.entityType,
+                            label: number
+                          })}
+                          className="ml-2 p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title="Remove allocation"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   );
                 })}

@@ -166,14 +166,19 @@ const CRMDashboard: React.FC = () => {
   }, [fetchStatuses]);
 
   // Handle CRM settings change (refresh both statuses and contacts)
-  const handleCRMSettingsChange = useCallback(async () => {
+  // When a new custom status is created, auto-check it in the status dropdown
+  // so the new column/status is visible on the page.
+  const handleCRMSettingsChange = useCallback(async (newStatusId?: string) => {
     try {
       await fetchStatuses(true);
+      if (newStatusId && !selectedStatuses.includes(newStatusId)) {
+        await handleStatusToggle(newStatusId);
+      }
       refresh();
     } catch (error) {
       console.error('Failed to refresh CRM data:', error);
     }
-  }, [fetchStatuses, refresh]);
+  }, [fetchStatuses, refresh, selectedStatuses, handleStatusToggle]);
 
   // Handle contact query parameter - open contact details panel
   useEffect(() => {

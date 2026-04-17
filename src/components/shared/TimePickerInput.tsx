@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { useModalPortal } from '../../contexts/ModalPortalContext';
 
 interface TimePickerInputProps {
   value: string;
@@ -14,12 +15,16 @@ interface TimePickerInputProps {
  * Typing updates the picker selections live and commits on valid input.
  */
 const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, error = false, className = '' }) => {
+  const modalPortal = useModalPortal();
+  const portalTarget = modalPortal || document.body;
   const [isOpen, setIsOpen] = useState(false);
   const [selectedHour, setSelectedHour] = useState('09');
   const [selectedMinute, setSelectedMinute] = useState('00');
   const [selectedPeriod, setSelectedPeriod] = useState('AM');
   const [inputText, setInputText] = useState('');
   const isFocusedRef = useRef(false);
+  const hourScrollRef = useRef<HTMLDivElement>(null);
+  const minuteScrollRef = useRef<HTMLDivElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLDivElement>(null);
@@ -87,7 +92,27 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+
+      // Attach non-passive wheel listeners to scroll containers so we can
+      // preventDefault() and manually scroll — bypasses Radix RemoveScroll
+      // which blocks wheel events on elements outside Dialog.Content.
+      const handleWheel = (e: WheelEvent) => {
+        const container = e.currentTarget as HTMLDivElement;
+        if (!container) return;
+        container.scrollTop += e.deltaY;
+        e.preventDefault();
+        e.stopPropagation();
+      };
+      const hourEl = hourScrollRef.current;
+      const minuteEl = minuteScrollRef.current;
+      hourEl?.addEventListener('wheel', handleWheel, { passive: false });
+      minuteEl?.addEventListener('wheel', handleWheel, { passive: false });
+
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        hourEl?.removeEventListener('wheel', handleWheel);
+        minuteEl?.removeEventListener('wheel', handleWheel);
+      };
     }
   }, [isOpen, getDisplayValue]);
 
@@ -214,10 +239,9 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
         <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${isOpen ? 'transform rotate-180' : ''}`} />
       </div>
 
-      {/* Dropdown Picker - rendered via portal to escape modal overflow */}
+      {/* Dropdown Picker - portaled to modal's portal container (or document.body).
+           Manual onWheel handler bypasses Radix RemoveScroll which blocks scroll inside modals. */}
       {isOpen && createPortal(
-        <>
-          <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setIsOpen(false)} />
           <div
             ref={dropdownRef}
             style={{
@@ -227,6 +251,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
               ...(dropdownPos.bottom != null ? { bottom: dropdownPos.bottom } : {}),
               width: 256,
               zIndex: 9999,
+              pointerEvents: 'auto',
             }}
             className="bg-white border border-gray-300 rounded-lg shadow-lg p-4"
           >
@@ -234,7 +259,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
               {/* Hour Selector */}
               <div className="flex-1">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Hour</label>
-                <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto scrollbar-hide">
+                <div ref={hourScrollRef} className="border border-gray-300 rounded-md max-h-40 overflow-y-auto scrollbar-hide">
                   {hours.map((hour) => (
                     <button
                       key={hour}
@@ -253,7 +278,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
               {/* Minute Selector */}
               <div className="flex-1">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Minute</label>
-                <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto scrollbar-hide">
+                <div ref={minuteScrollRef} className="border border-gray-300 rounded-md max-h-40 overflow-y-auto scrollbar-hide">
                   {minutes.map((minute) => (
                     <button
                       key={minute}
@@ -294,9 +319,8 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({ value, onChange, erro
                 </div>
               </div>
             </div>
-          </div>
-        </>,
-        document.body
+          </div>,
+        portalTarget
       )}
     </div>
   );

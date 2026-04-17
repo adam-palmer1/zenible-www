@@ -1,19 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CalendarIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import bookingSettingsAPI from '../../../../../services/api/crm/bookingSettings';
 import { useNotification } from '../../../../../contexts/NotificationContext';
+
+interface CalendarConflictSource {
+  calendar_id: string;
+  calendar_name?: string;
+  check_for_conflicts: boolean;
+}
 
 interface CalendarAccount {
   token_id: string;
   is_enabled_for_conflicts: boolean;
   account_name?: string;
   google_account_email?: string;
+  calendar_sources?: CalendarConflictSource[];
 }
 
 const CalendarSourcesEditor = () => {
   const [accounts, setAccounts] = useState<CalendarAccount[]>([]);
+  const [originalAccounts, setOriginalAccounts] = useState<CalendarAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const { showSuccess, showError } = useNotification();
 
@@ -26,7 +34,9 @@ const CalendarSourcesEditor = () => {
     try {
       setLoading(true);
       const data = await bookingSettingsAPI.listGoogleAccounts() as { accounts?: any[]; [key: string]: unknown };
-      setAccounts(data.accounts || []);
+      const loaded = data.accounts || [];
+      setAccounts(loaded);
+      setOriginalAccounts(JSON.parse(JSON.stringify(loaded)));
     } catch (error) {
       console.error('Failed to load Google accounts:', error);
       showError('Failed to load Google accounts');
@@ -35,23 +45,78 @@ const CalendarSourcesEditor = () => {
     }
   };
 
-  const handleToggle = async (tokenId: string, enable: boolean) => {
-    setTogglingId(tokenId);
+  // Detect if anything changed from the original state
+  const hasChanges = useCallback(() => {
+    return JSON.stringify(accounts) !== JSON.stringify(originalAccounts);
+  }, [accounts, originalAccounts]);
+
+  const handleToggleAccount = (tokenId: string, enable: boolean) => {
+    setAccounts(prev => prev.map(a => {
+      if (a.token_id !== tokenId) return a;
+      return {
+        ...a,
+        is_enabled_for_conflicts: enable,
+        // When disabling, uncheck all sub-calendars
+        calendar_sources: enable ? a.calendar_sources : (a.calendar_sources || []).map(s => ({ ...s, check_for_conflicts: false }))
+      };
+    }));
+  };
+
+  const handleToggleCalendar = (tokenId: string, calendarId: string, enable: boolean) => {
+    setAccounts(prev => prev.map(a => {
+      if (a.token_id !== tokenId) return a;
+      const updatedSources = (a.calendar_sources || []).map(s =>
+        s.calendar_id === calendarId ? { ...s, check_for_conflicts: enable } : s
+      );
+      const anyEnabled = updatedSources.some(s => s.check_for_conflicts);
+      return {
+        ...a,
+        is_enabled_for_conflicts: anyEnabled,
+        calendar_sources: updatedSources
+      };
+    }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
     try {
-      if (enable) {
-        await bookingSettingsAPI.enableAccountConflicts(tokenId);
-        showSuccess('Calendar conflict checking enabled');
-      } else {
-        await bookingSettingsAPI.disableAccountConflicts(tokenId);
-        showSuccess('Calendar conflict checking disabled');
+      // For each account, update conflict sources
+      for (const account of accounts) {
+        const original = originalAccounts.find(a => a.token_id === account.token_id);
+        const origSources = original?.calendar_sources || [];
+        const newSources = account.calendar_sources || [];
+
+        // Check if this account's calendar selections changed
+        const origChecked = new Set(origSources.filter(s => s.check_for_conflicts).map(s => s.calendar_id));
+        const newChecked = new Set(newSources.filter(s => s.check_for_conflicts).map(s => s.calendar_id));
+
+        const sameSelection = origChecked.size === newChecked.size && [...origChecked].every(id => newChecked.has(id));
+        if (sameSelection) continue;
+
+        if (newChecked.size === 0 && origChecked.size > 0) {
+          // All unchecked — disable the account
+          await bookingSettingsAPI.disableAccountConflicts(account.token_id);
+        } else if (newChecked.size > 0 && origChecked.size === 0) {
+          // Was disabled, now has selections — enable first, then set calendars
+          await bookingSettingsAPI.enableAccountConflicts(account.token_id);
+          await bookingSettingsAPI.updateCalendarConflictSources(account.token_id, [...newChecked]);
+        } else {
+          // Update calendar selections
+          await bookingSettingsAPI.updateCalendarConflictSources(account.token_id, [...newChecked]);
+        }
       }
-      // Refresh list
+
+      showSuccess('Calendar conflict settings saved');
+
+      // Reload to get fresh state from server
       const data = await bookingSettingsAPI.listGoogleAccounts() as { accounts?: any[]; [key: string]: unknown };
-      setAccounts(data.accounts || []);
+      const loaded = data.accounts || [];
+      setAccounts(loaded);
+      setOriginalAccounts(JSON.parse(JSON.stringify(loaded)));
     } catch (_error) {
-      showError('Failed to update calendar settings');
+      showError('Failed to save calendar settings');
     } finally {
-      setTogglingId(null);
+      setSaving(false);
     }
   };
 
@@ -99,26 +164,46 @@ const CalendarSourcesEditor = () => {
           accounts.map((account) => (
             <div
               key={account.token_id}
-              className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
             >
-              <input
-                type="checkbox"
-                checked={account.is_enabled_for_conflicts}
-                onChange={(e) => handleToggle(account.token_id, e.target.checked)}
-                disabled={togglingId === account.token_id}
-                className="h-4 w-4 text-zenible-primary border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
-              />
-              <CalendarIcon className="h-5 w-5 text-blue-500" />
-              <div className="flex-1">
-                <p className="font-medium text-gray-900 dark:text-white">
-                  {account.account_name || 'Google Calendar'}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {account.google_account_email}
-                </p>
+              <div className="flex items-center gap-3 p-4">
+                <input
+                  type="checkbox"
+                  checked={account.is_enabled_for_conflicts}
+                  onChange={(e) => handleToggleAccount(account.token_id, e.target.checked)}
+                  className="h-4 w-4 text-zenible-primary border-gray-300 rounded focus:ring-blue-500"
+                />
+                <CalendarIcon className="h-5 w-5 text-blue-500" />
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {account.account_name || 'Google Calendar'}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {account.google_account_email}
+                  </p>
+                </div>
               </div>
-              {togglingId === account.token_id && (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-zenible-primary" />
+
+              {/* Per-calendar conflict sources */}
+              {account.calendar_sources && account.calendar_sources.length > 0 && (
+                <div className="px-4 pb-3 ml-11 space-y-1">
+                  {account.calendar_sources.map((cal) => (
+                    <label
+                      key={cal.calendar_id}
+                      className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={cal.check_for_conflicts}
+                        onChange={(e) => handleToggleCalendar(account.token_id, cal.calendar_id, e.target.checked)}
+                        className="h-3.5 w-3.5 text-zenible-primary border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {cal.calendar_name || cal.calendar_id}
+                      </span>
+                    </label>
+                  ))}
+                </div>
               )}
             </div>
           ))
@@ -138,6 +223,19 @@ const CalendarSourcesEditor = () => {
           </div>
         )}
       </div>
+
+      {/* Save button */}
+      {accounts.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={!hasChanges() || saving}
+            className="px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

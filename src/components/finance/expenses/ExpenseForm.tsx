@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, X, Loader2, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { useExpenses } from '../../../contexts/ExpenseContext';
-import { useContacts } from '../../../hooks/crm/useContacts';
+import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { useProjects } from '../../../hooks/crm/useProjects';
 import { useNotification } from '../../../contexts/NotificationContext';
@@ -40,8 +40,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
   const { id } = useParams();
   const isEditing = !!expense || !!id;
   const { createExpense, updateExpense, categories, createCategory, refreshCategories } = useExpenses();
-  const { contacts: vendors, createContact: createVendorContact } = useContacts({ is_vendor: true });
-  const { contacts: clients } = useContacts({ is_client: true });
+  const { contacts: vendors, searching: vendorsSearching, createContact: createVendorContact, setSearchQuery: setVendorSearch } = useSearchableContacts({ is_vendor: true });
+  const { contacts: clients, searching: clientsSearching, setSearchQuery: setClientSearch } = useSearchableContacts({ is_client: true });
   const { projects, createProject } = useProjects();
   const { showSuccess, showError } = useNotification();
   const { numberFormats } = useCRMReferenceData();
@@ -230,6 +230,16 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
       showSuccess(`Vendor "${name}" created`);
       return newVendor;
     } catch (error: any) {
+      // If duplicate name (409), auto-select the existing vendor
+      if (error?.status === 409) {
+        const detail = (error?.data as any)?.detail;
+        const existingContact = detail?.existing_contact;
+        if (existingContact?.id) {
+          setVendorId(existingContact.id);
+          showSuccess(`Vendor "${name}" already exists — selected`);
+          return existingContact;
+        }
+      }
       showError(error.message || 'Failed to create vendor');
       throw error;
     } finally {
@@ -660,6 +670,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
                 onCreate={handleCreateVendor as (name: string) => Promise<{ id: string }> }
                 createLabel="Add new vendor"
                 creating={creatingVendor}
+                onSearch={setVendorSearch}
+                loading={vendorsSearching}
               />
             </div>
 
@@ -831,6 +843,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
                       placeholder="Select client (optional)"
                       searchPlaceholder="Search clients..."
                       emptyMessage="No clients found"
+                      onSearch={setClientSearch}
+                      loading={clientsSearching}
                     />
                     <p className="text-xs design-text-secondary mt-1">
                       Associate this expense with a specific client

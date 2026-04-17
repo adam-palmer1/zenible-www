@@ -217,7 +217,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
             {getContactDisplayName(contact, 'Unnamed Contact')}
           </h3>
           {contact.email && <p className="text-sm text-gray-600 mt-1">{contact.email}</p>}
-          {contact.phone && <p className="text-sm text-gray-600 mt-0.5">{`${contact.country_code || ''} ${contact.phone}`.trim()}</p>}
+          {contact.phone && <p className="text-sm text-gray-600 mt-0.5">{contact.country_code && !contact.phone.startsWith(contact.country_code) ? `${contact.country_code} ${contact.phone}` : contact.phone}</p>}
           {contact.business_name && (contact.first_name || contact.last_name) && (
             <p className="text-sm text-gray-500 mt-1">{contact.business_name}</p>
           )}

@@ -48,7 +48,12 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
       const endDate = new Date(lastDay);
       endDate.setDate(endDate.getDate() + ((7 - endDate.getDay()) % 7));
 
-      const formatDate = (d: Date) => d.toISOString().split('T')[0];
+      const formatDate = (d: Date) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
       onMonthChange(formatDate(startDate), formatDate(endDate));
     }
   }, [currentMonth, onMonthChange]);
@@ -96,7 +101,10 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
   };
 
   const formatDateString = (date: Date) => {
-    return date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const isDateAvailable = (date: Date) => {

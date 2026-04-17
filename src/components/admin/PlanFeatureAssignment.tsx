@@ -48,6 +48,7 @@ interface CharacterAccessAssignment {
   character_id: string;
   character_name: string;
   is_accessible: boolean;
+  session_message_limit: number | null;
   daily_message_limit: number | null;
   daily_token_limit: number | null;
   monthly_message_limit: number | null;
@@ -61,6 +62,7 @@ interface ToolAccessAssignment {
   tool_description?: string;
   is_enabled: boolean;
   monthly_usage_limit: number | null;
+  daily_usage_limit: number | null;
 }
 
 interface PlanFeatureAssignmentProps {
@@ -171,13 +173,14 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
       setSystemFeatureAssignments(systemAssignments);
 
       // Initialize character access assignments
-      const characterAccess = (response.character_access as Array<{ character_id: string; is_accessible: boolean; daily_message_limit: number | null; daily_token_limit: number | null; monthly_message_limit: number | null; monthly_token_limit: number | null; rate_limit_per_minute: number; priority: number }>) || [];
+      const characterAccess = (response.character_access as Array<{ character_id: string; is_accessible: boolean; session_message_limit: number | null; daily_message_limit: number | null; daily_token_limit: number | null; monthly_message_limit: number | null; monthly_token_limit: number | null; rate_limit_per_minute: number; priority: number }>) || [];
       const characterAssignments = allCharacters.map((character: Character) => {
         const existing = characterAccess.find((ca) => ca.character_id === character.id);
         return {
           character_id: character.id,
           character_name: character.name,
           is_accessible: existing ? existing.is_accessible : false,
+          session_message_limit: existing ? existing.session_message_limit : null,
           daily_message_limit: existing ? existing.daily_message_limit : null,
           daily_token_limit: existing ? existing.daily_token_limit : null,
           monthly_message_limit: existing ? existing.monthly_message_limit : null,
@@ -197,6 +200,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
           tool_description: tool.tool_description,
           is_enabled: tool.is_enabled ?? false,
           monthly_usage_limit: tool.monthly_usage_limit,
+          daily_usage_limit: tool.daily_usage_limit ?? null,
         }));
         setToolAccessAssignments(toolAssignments);
       } catch {
@@ -266,6 +270,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
       const characters = characterAccessAssignments.map((assignment: CharacterAccessAssignment) => ({
         character_id: assignment.character_id,
         is_accessible: assignment.is_accessible,
+        session_message_limit: assignment.session_message_limit,
         daily_message_limit: assignment.daily_message_limit,
         daily_token_limit: assignment.daily_token_limit,
         monthly_message_limit: assignment.monthly_message_limit,
@@ -315,6 +320,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
         tool_name: assignment.tool_name,
         is_enabled: assignment.is_enabled,
         monthly_usage_limit: assignment.monthly_usage_limit,
+        daily_usage_limit: assignment.daily_usage_limit,
       }));
 
       await adminAPI.updatePlanToolAccess(selectedPlanId!, tools);
@@ -805,7 +811,30 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
                           </div>
 
                           {assignment.is_accessible && (
-                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 ml-8">
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 ml-8">
+                              <div>
+                                <label className={`block text-xs font-medium mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
+                                  Session Message Limit
+                                </label>
+                                <div className="relative">
+                                  <input
+                                    type="number"
+                                    value={assignment.session_message_limit || ''}
+                                    onChange={(e) => updateCharacterAccess(assignment.character_id, 'session_message_limit', e.target.value ? parseInt(e.target.value) : null)}
+                                    placeholder="Unlimited"
+                                    min="0"
+                                    className={`w-full px-3 py-2 rounded border ${
+                                      darkMode
+                                        ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                                        : 'bg-white border-neutral-300 text-zinc-950'
+                                    } focus:outline-none focus:ring-1 focus:ring-zenible-primary`}
+                                  />
+                                  <span className={`absolute right-2 top-2.5 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-400'}`}>
+                                    /session
+                                  </span>
+                                </div>
+                              </div>
+
                               <div>
                                 <label className={`block text-xs font-medium mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
                                   Daily Message Limit
@@ -1035,26 +1064,50 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
                                 </p>
                               )}
                               {assignment.is_enabled && (
-                                <div className="mt-3">
-                                  <label className={`block text-xs font-medium mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
-                                    Monthly Usage Limit
-                                  </label>
-                                  <div className="relative w-48">
-                                    <input
-                                      type="number"
-                                      value={assignment.monthly_usage_limit || ''}
-                                      onChange={(e) => updateToolAccess(assignment.tool_name, 'monthly_usage_limit', e.target.value ? parseInt(e.target.value) : null)}
-                                      placeholder="Unlimited"
-                                      min="0"
-                                      className={`w-full px-3 py-2 rounded border ${
-                                        darkMode
-                                          ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                                          : 'bg-white border-neutral-300 text-zinc-950'
-                                      } focus:outline-none focus:ring-1 focus:ring-zenible-primary`}
-                                    />
-                                    <span className={`absolute right-3 top-2.5 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-400'}`}>
-                                      /mo
-                                    </span>
+                                <div className="mt-3 flex gap-4">
+                                  <div>
+                                    <label className={`block text-xs font-medium mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
+                                      Daily Usage Limit
+                                    </label>
+                                    <div className="relative w-48">
+                                      <input
+                                        type="number"
+                                        value={assignment.daily_usage_limit ?? ''}
+                                        onChange={(e) => updateToolAccess(assignment.tool_name, 'daily_usage_limit', e.target.value ? parseInt(e.target.value) : null)}
+                                        placeholder="Unlimited"
+                                        min="0"
+                                        className={`w-full px-3 py-2 rounded border ${
+                                          darkMode
+                                            ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                                            : 'bg-white border-neutral-300 text-zinc-950'
+                                        } focus:outline-none focus:ring-1 focus:ring-zenible-primary`}
+                                      />
+                                      <span className={`absolute right-3 top-2.5 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-400'}`}>
+                                        /day
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className={`block text-xs font-medium mb-1 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
+                                      Monthly Usage Limit
+                                    </label>
+                                    <div className="relative w-48">
+                                      <input
+                                        type="number"
+                                        value={assignment.monthly_usage_limit || ''}
+                                        onChange={(e) => updateToolAccess(assignment.tool_name, 'monthly_usage_limit', e.target.value ? parseInt(e.target.value) : null)}
+                                        placeholder="Unlimited"
+                                        min="0"
+                                        className={`w-full px-3 py-2 rounded border ${
+                                          darkMode
+                                            ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+                                            : 'bg-white border-neutral-300 text-zinc-950'
+                                        } focus:outline-none focus:ring-1 focus:ring-zenible-primary`}
+                                      />
+                                      <span className={`absolute right-3 top-2.5 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-400'}`}>
+                                        /mo
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               )}

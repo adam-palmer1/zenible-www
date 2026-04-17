@@ -6,47 +6,11 @@ import { TypingDots } from '../../ai/AICharacterTypingIndicator';
 import CopyButton from './CopyButton';
 import MessageRating from './MessageRating';
 import StructuredAnalysis from './StructuredAnalysis';
+import MeetingMiniCard from './MeetingMiniCard';
+import MessageAttachments from './MessageAttachments';
 import { getMarkdownComponents } from './markdownComponents';
 import { ConversationMessage, MetricsData, AnalysisHistoryItem, FollowUpMessage } from './types';
 
-/**
- * Extract the "answer" field from JSON-like streaming content.
- * Safety net for when the backend streams raw JSON instead of extracted text.
- */
-function extractStreamingAnswer(content: string): string {
-  if (!content) return content;
-  const trimmed = content.trimStart();
-  if (!trimmed.startsWith('{')) return content;
-
-  for (const marker of ['"answer":"', '"answer": "']) {
-    const idx = trimmed.indexOf(marker);
-    if (idx !== -1) {
-      const start = idx + marker.length;
-      let result = '';
-      let i = start;
-      while (i < trimmed.length) {
-        const c = trimmed[i];
-        if (c === '\\' && i + 1 < trimmed.length) {
-          const next = trimmed[i + 1];
-          if (next === 'n') { result += '\n'; i += 2; }
-          else if (next === 't') { result += '\t'; i += 2; }
-          else if (next === '"') { result += '"'; i += 2; }
-          else if (next === '\\') { result += '\\'; i += 2; }
-          else if (next === '/') { result += '/'; i += 2; }
-          else { result += c; result += next; i += 2; }
-        } else if (c === '"') {
-          break;
-        } else {
-          result += c;
-          i++;
-        }
-      }
-      return result;
-    }
-  }
-
-  return content;
-}
 
 interface ConversationHistoryProps {
   darkMode: boolean;
@@ -68,6 +32,41 @@ interface ConversationHistoryProps {
   copiedMessageId: string | null;
   onMessageRate: (msgId: string, rating: string) => void;
   onCopyMessage: (msgId: string, content: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
+  deletingMessageId?: string | null;
+}
+
+interface DeleteButtonProps {
+  messageId: string;
+  darkMode: boolean;
+  isDeleting: boolean;
+  onDelete: (messageId: string) => void;
+}
+
+function DeleteButton({ messageId, darkMode, isDeleting, onDelete }: DeleteButtonProps) {
+  return (
+    <button
+      onClick={() => onDelete(messageId)}
+      disabled={isDeleting}
+      aria-label="Delete message"
+      title="Delete message"
+      className={`p-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+        darkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-600'
+      }`}
+    >
+      {isDeleting ? (
+        <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+        </svg>
+      ) : (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+        </svg>
+      )}
+    </button>
+  );
 }
 
 export default function ConversationHistory({
@@ -90,6 +89,8 @@ export default function ConversationHistory({
   copiedMessageId,
   onMessageRate,
   onCopyMessage,
+  onDeleteMessage,
+  deletingMessageId = null,
 }: ConversationHistoryProps) {
   const currentAnalysis = useMemo(() => {
     // Only create currentAnalysis for COMPLETED analyses (not streaming)
@@ -136,13 +137,14 @@ export default function ConversationHistory({
         </h4>
 
         {sortedMessages.map((msg, idx) => {
+          const msgAvatar = msg.characterAvatarUrl ?? characterAvatarUrl;
           if (msg.type === 'analysis') {
             return (
               <div key={msg.messageId || `analysis-${msg.timestamp}-${idx}`} className="mb-4">
                 <div className="flex gap-2 justify-start">
                   <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {characterAvatarUrl ? (
-                      <img src={characterAvatarUrl} alt="" className="w-full h-full object-cover" />
+                    {msgAvatar ? (
+                      <img src={msgAvatar} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <img src={brandIcon} alt="" className="w-3 h-3" />
                     )}
@@ -173,7 +175,7 @@ export default function ConversationHistory({
                           )}
                         </div>
                       </div>
-                      <div className="flex-shrink-0 pt-0.5">
+                      <div className="flex-shrink-0 pt-0.5 flex items-start">
                           <CopyButton
                             messageId={msg.messageId || `analysis-${idx}`}
                             content={msg.content}
@@ -181,6 +183,14 @@ export default function ConversationHistory({
                             copiedMessageId={copiedMessageId}
                             onCopy={onCopyMessage}
                           />
+                          {onDeleteMessage && msg.messageId && (
+                            <DeleteButton
+                              messageId={msg.messageId}
+                              darkMode={darkMode}
+                              isDeleting={deletingMessageId === msg.messageId}
+                              onDelete={onDeleteMessage}
+                            />
+                          )}
                         </div>
                       </div>
                     )}
@@ -221,12 +231,27 @@ export default function ConversationHistory({
           }
 
           return (
-            <div key={msg.messageId || `message-${msg.timestamp}-${idx}`} className={`mb-3 ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
-              <div className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.messageId || `message-${msg.timestamp}-${idx}`} className={`mb-3 group ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
+              <div className={`flex gap-2 ${msg.role === 'user' ? 'justify-end items-start' : 'justify-start'}`}>
+                {msg.role === 'user' && onDeleteMessage && msg.messageId && (
+                  <div
+                    className={`flex-shrink-0 pt-0.5 transition-opacity ${
+                      deletingMessageId === msg.messageId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'
+                    }`}
+                  >
+                    <DeleteButton
+                      messageId={msg.messageId}
+                      darkMode={darkMode}
+                      isDeleting={deletingMessageId === msg.messageId}
+                      onDelete={onDeleteMessage}
+                    />
+                  </div>
+                )}
+
                 {msg.role === 'assistant' && (
                   <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {characterAvatarUrl ? (
-                      <img src={characterAvatarUrl} alt="" className="w-full h-full object-cover" />
+                    {msgAvatar ? (
+                      <img src={msgAvatar} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <img src={brandIcon} alt="" className="w-3 h-3" />
                     )}
@@ -258,11 +283,11 @@ export default function ConversationHistory({
                         </ReactMarkdown>
                       </div>
                     ) : (
-                      msg.content
+                      <span className="whitespace-pre-wrap">{msg.content}</span>
                     )}
                   </div>
                   {msg.role === 'assistant' && (
-                    <div className="flex-shrink-0 pt-0.5">
+                    <div className="flex-shrink-0 pt-0.5 flex items-start">
                       <CopyButton
                         messageId={msg.messageId || `msg-${idx}`}
                         content={msg.content || ''}
@@ -270,9 +295,27 @@ export default function ConversationHistory({
                         copiedMessageId={copiedMessageId}
                         onCopy={onCopyMessage}
                       />
+                      {onDeleteMessage && msg.messageId && (
+                        <DeleteButton
+                          messageId={msg.messageId}
+                          darkMode={darkMode}
+                          isDeleting={deletingMessageId === msg.messageId}
+                          onDelete={onDeleteMessage}
+                        />
+                      )}
                     </div>
                   )}
                   </div>
+
+                  {/* Attachments */}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <MessageAttachments attachments={msg.attachments} darkMode={darkMode} />
+                  )}
+
+                  {/* Linked meeting mini card */}
+                  {msg.linkedMeeting && (
+                    <MeetingMiniCard meeting={msg.linkedMeeting} darkMode={darkMode} />
+                  )}
 
                   {msg.role === 'assistant' && msg.messageId && (
                     <MessageRating
@@ -316,7 +359,7 @@ export default function ConversationHistory({
                           remarkPlugins={[remarkGfm]}
                           components={analysisComponents}
                         >
-                          {extractStreamingAnswer(streamingContent)}
+                          {streamingContent}
                         </ReactMarkdown>
                         <span className="inline-flex ml-1">
                           <TypingDots darkMode={darkMode} size="sm" />
@@ -358,7 +401,7 @@ export default function ConversationHistory({
                     remarkPlugins={[remarkGfm]}
                     components={messageComponents}
                   >
-                    {extractStreamingAnswer(followUpStreamingContent)}
+                    {followUpStreamingContent}
                   </ReactMarkdown>
                 </div>
               ) : (

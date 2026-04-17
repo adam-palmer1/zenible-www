@@ -23,7 +23,7 @@ import { CREDIT_NOTE_STATUS, CREDIT_NOTE_STATUS_COLORS, CREDIT_NOTE_STATUS_LABEL
 import { getCurrencySymbol } from '../../../utils/currency';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
 import { useNotification } from '../../../contexts/NotificationContext';
-import { useContacts } from '../../../hooks/crm/useContacts';
+import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
@@ -93,7 +93,7 @@ interface StatusBadgeProps {
 const CreditNotesDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { showSuccess, showError } = useNotification();
-  const { contacts: allClients, loading: clientsLoading } = useContacts({ is_client: true });
+  const { contacts: allClients, loading: clientsLoading, setSearchQuery: setClientServerSearch } = useSearchableContacts({ is_client: true });
   const { numberFormats } = useCRMReferenceData();
   const { getNumberFormat } = useCompanyAttributes();
   const { defaultCurrency } = useCompanyCurrencies();
@@ -679,7 +679,7 @@ const CreditNotesDashboard: React.FC = () => {
                                 type="text"
                                 placeholder="Search clients..."
                                 value={clientSearchQuery}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClientSearchQuery(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setClientSearchQuery(e.target.value); setClientServerSearch(e.target.value); }}
                                 className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                                 autoFocus
                               />

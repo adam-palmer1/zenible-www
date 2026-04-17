@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useContext } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import AppLayout from '../layout/AppLayout';
 import PlatformSelector from '../proposal-wizard/PlatformSelector';
 import HeadlineInput from './HeadlineInput';
@@ -15,7 +13,10 @@ import aiCharacterAPI from '../../services/aiCharacterAPI';
 import userAPI from '../../services/userAPI';
 import { getCharacterTools } from '../../services/toolDiscoveryAPI';
 import UsageLimitBadge from '../ui/UsageLimitBadge';
+import CharacterCardSelector from '../ui/CharacterCardSelector';
 import { useModalState } from '../../hooks/useModalState';
+import ConversationHistoryModal from '../shared/ConversationHistoryModal';
+import type { RawConversationMessage } from '../shared/ConversationHistoryModal';
 
 interface AICharacter {
   id: string;
@@ -28,44 +29,6 @@ interface AICharacter {
 interface UserFeatures {
   headline_analyzer?: { enabled?: boolean };
   system_features?: { headline_analyzer_model?: string[] };
-  [key: string]: unknown;
-}
-
-interface ConversationListResponse {
-  items?: ConversationSummary[];
-  total_pages?: number;
-  [key: string]: unknown;
-}
-
-interface ConversationSummary {
-  id: string;
-  created_at: string;
-  message_count: number;
-  [key: string]: unknown;
-}
-
-interface ConversationMessagesResponse {
-  items?: RawConversationMessage[];
-  total_pages?: number;
-  [key: string]: unknown;
-}
-
-interface RawConversationMessage {
-  id: string;
-  content: string;
-  sender_type: string;
-  created_at: string;
-  metadata?: Record<string, string>;
-  [key: string]: unknown;
-}
-
-interface ConversationMessage {
-  id: string;
-  role: string;
-  content: string;
-  created_at: string;
-  sender_type?: string;
-  metadata?: Record<string, string>;
   [key: string]: unknown;
 }
 
@@ -124,19 +87,6 @@ export default function HeadlineAnalyzer() {
 
   // History modal state
   const historyModal = useModalState();
-  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [loadingConversations, setLoadingConversations] = useState(false);
-  const [conversationPage, setConversationPage] = useState(1);
-  const [totalConversationPages, setTotalConversationPages] = useState(1);
-  const [selectedHistoryConversation, setSelectedHistoryConversation] = useState<ConversationSummary | null>(null);
-  const [conversationMessages, setConversationMessages] = useState<ConversationMessage[]>([]);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-
-  // Message pagination and filtering state
-  const [messagePage, setMessagePage] = useState(1);
-  const [totalMessagePages, setTotalMessagePages] = useState(1);
-  const [messageFilter, setMessageFilter] = useState('');
-  const [messageOrder, setMessageOrder] = useState('asc');
 
   // Get WebSocket context
   const {
@@ -158,7 +108,9 @@ export default function HeadlineAnalyzer() {
     generateHeadline: sendGeneration,
     sendFollowUpMessage: sendFollowUp,
     reset: resetAnalysis,
-    clearConversation
+    clearConversation,
+    deleteMessage,
+    deletingMessageId,
   } = useHeadlineAnalysis({
     characterId: selectedCharacterId || '',
     panelId: 'headline_analyzer',
@@ -387,6 +339,7 @@ export default function HeadlineAnalyzer() {
       clearConversation();
       setFollowUpMessages([]);
       setFeedback(null);
+      setAnalysisHistory([]);
     }
   };
 
@@ -447,106 +400,31 @@ export default function HeadlineAnalyzer() {
     await sendFollowUp(message);
   };
 
-  // Load conversation history
-  const loadConversations = async (page = 1) => {
-    try {
-      setLoadingConversations(true);
-      const response = await userAPI.getUserConversations({
-        tool_type: 'headline_analyzer',
-        page: String(page),
-        per_page: '10'
-      }) as ConversationListResponse;
-      setConversations(response.items || []);
-      setTotalConversationPages(response.total_pages || 1);
-      setConversationPage(page);
-    } catch (error) {
-      console.error('Failed to load conversations:', error);
-    } finally {
-      setLoadingConversations(false);
-    }
-  };
-
-  // Load messages for selected conversation
-  const loadConversationMessages = async (convId: string, page = 1) => {
-    try {
-      setLoadingMessages(true);
-      const response = await userAPI.getConversationMessages(
-        convId,
-        { page: String(page), per_page: '20', filter: messageFilter, order: messageOrder }
-      ) as ConversationMessagesResponse;
-
-      // Transform messages to match expected format
-      const transformedMessages = (response.items || []).map((msg: RawConversationMessage) => {
-        let content = msg.content;
-
-        // Parse AI message content if it's wrapped in JSON
-        if (msg.sender_type === 'AI' && content) {
-          try {
-            const parsed = JSON.parse(content);
-            if (parsed.answer) {
-              content = parsed.answer;
-            }
-          } catch (_e) {
-            // If parsing fails, use content as-is
-          }
-        }
-
-        return {
-          ...msg,
-          role: msg.sender_type === 'USER' ? 'user' : 'assistant',
-          content: content
-        };
-      });
-
-      setConversationMessages(transformedMessages);
-      setTotalMessagePages(response.total_pages || 1);
-      setMessagePage(page);
-    } catch (error) {
-      console.error('Failed to load messages:', error);
-    } finally {
-      setLoadingMessages(false);
-    }
-  };
-
-  // Handle history modal open
-  const handleOpenHistory = () => {
-    historyModal.open();
-    loadConversations(1);
-  };
-
-  // Handle conversation selection
-  const handleSelectConversation = async (conv: ConversationSummary) => {
-    setSelectedHistoryConversation(conv);
-    setMessagePage(1);
-    setMessageFilter('');
-    setMessageOrder('asc');
-    await loadConversationMessages(conv.id, 1);
-  };
-
   // Handle loading conversation from history
-  const handleLoadConversation = () => {
-    if (selectedHistoryConversation && conversationMessages.length > 0) {
-      // Find the initial headline data from the messages
-      const firstUserMessage = conversationMessages.find((msg: ConversationMessage) => msg.role === 'user');
-      if (firstUserMessage?.metadata?.headline) {
-        setHeadline(firstUserMessage.metadata.headline);
-      }
-      if (firstUserMessage?.metadata?.platform) {
-        setSelectedPlatform(firstUserMessage.metadata.platform);
-      }
+  const handleLoadConversation = (convId: string, rawMessages: RawConversationMessage[]) => {
+    if (rawMessages.length === 0) return;
 
-      // Load the conversation messages as follow-ups
-      const formattedMessages = conversationMessages.map((msg: ConversationMessage) => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.created_at,
-        messageId: msg.id
-      }));
-      setFollowUpMessages(formattedMessages);
-
-      // Close modal
-      historyModal.close();
+    // Find the initial headline data from the messages
+    const firstUserMessage = rawMessages.find((msg: RawConversationMessage) => msg.sender_type === 'USER');
+    const metadata = firstUserMessage?.metadata as Record<string, string> | undefined;
+    if (metadata?.headline) {
+      setHeadline(metadata.headline);
     }
+    if (metadata?.platform) {
+      setSelectedPlatform(metadata.platform);
+    }
+
+    // Load the conversation messages as follow-ups
+    const formattedMessages = rawMessages.map((msg: RawConversationMessage) => ({
+      role: msg.sender_type === 'USER' ? 'user' : 'assistant',
+      content: msg.content,
+      timestamp: msg.created_at,
+      messageId: msg.id
+    }));
+    setFollowUpMessages(formattedMessages);
+
+    // Close modal
+    historyModal.close();
   };
 
   // Export conversation
@@ -569,9 +447,10 @@ export default function HeadlineAnalyzer() {
   };
 
   return (
-    <AppLayout pageTitle="Headline Analyzer">
+    <AppLayout pageTitle="Headline Analyzer" rawContent>
+      <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-        <div className={`h-16 border-b flex items-center justify-between px-4 sm:px-6 ${
+        <div className={`h-16 border-b flex items-center justify-between px-4 sm:px-6 flex-shrink-0 ${
           darkMode
             ? 'bg-[#1e1e1e] border-[#333333]'
             : 'bg-white border-neutral-200'
@@ -586,34 +465,11 @@ export default function HeadlineAnalyzer() {
             {/* Usage Limit Badge */}
             <UsageLimitBadge
               characterId={selectedCharacterId ?? undefined}
+              aiUsage={true}
               variant="compact"
               showUpgradeLink={true}
               darkMode={darkMode}
             />
-
-            {/* Character Selector Dropdown */}
-            {loadingCharacters ? (
-              <div className={`text-sm px-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Loading...
-              </div>
-            ) : availableCharacters.length > 0 && (
-              <select
-                value={selectedCharacterId || ''}
-                onChange={(e) => handleCharacterSelect(e.target.value)}
-                className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                  darkMode
-                    ? 'bg-gray-700 border-gray-600 text-white focus:border-zenible-primary'
-                    : 'bg-gray-100 border-gray-200 text-gray-700 focus:border-zenible-primary'
-                } focus:outline-none focus:ring-2 focus:ring-zenible-primary/20`}
-              >
-                {!selectedCharacterId && <option value="">Select AI...</option>}
-                {availableCharacters.map((character) => (
-                  <option key={character.id} value={character.id}>
-                    {character.name}
-                  </option>
-                ))}
-              </select>
-            )}
 
             {conversationId && (
               <button
@@ -628,7 +484,7 @@ export default function HeadlineAnalyzer() {
               </button>
             )}
             <button
-              onClick={handleOpenHistory}
+              onClick={() => historyModal.open()}
               className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                 darkMode
                   ? 'bg-gray-700 text-white hover:bg-gray-600'
@@ -641,15 +497,15 @@ export default function HeadlineAnalyzer() {
         </div>
 
         {/* Personalize AI Banner */}
-        <div className="px-4 sm:px-6 pt-4">
+        <div className="px-4 sm:px-6 pt-4 flex-shrink-0">
           <PersonalizeAIBanner darkMode={darkMode} />
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden">
           <div className="h-full flex flex-col lg:flex-row gap-4 p-4 sm:p-6">
             {/* Left Column - Input */}
-            <div className="w-full lg:w-1/2 flex flex-col gap-4 overflow-y-auto">
+            <div className="w-full lg:w-1/2 flex flex-col gap-4 min-h-0 overflow-y-auto">
               <PlatformSelector
                 darkMode={darkMode}
                 selectedPlatform={selectedPlatform}
@@ -669,7 +525,14 @@ export default function HeadlineAnalyzer() {
             </div>
 
             {/* Right Column - AI Feedback */}
-            <div className="w-full lg:w-1/2 h-full min-h-0 lg:min-h-[400px]">
+            <div className="w-full lg:w-1/2 flex flex-col min-h-[400px] lg:min-h-0 lg:flex-1 lg:overflow-hidden gap-3">
+              <CharacterCardSelector
+                characters={availableCharacters}
+                selectedCharacterId={selectedCharacterId}
+                onSelect={handleCharacterSelect}
+                darkMode={darkMode}
+                loading={loadingCharacters}
+              />
               <AIFeedbackSection
                 darkMode={darkMode}
                 feedback={feedback ? { ...feedback, analysis: feedback.analysis as FeedbackData['analysis'] } as FeedbackData : null}
@@ -685,6 +548,8 @@ export default function HeadlineAnalyzer() {
                 messageId={messageId ?? ''}
                 onCancel={resetAnalysis}
                 onSendMessage={handleSendFollowUpMessage}
+                onDeleteMessage={deleteMessage}
+                deletingMessageId={deletingMessageId}
                 characterId={selectedCharacterId ?? ''}
                 characterName={selectedCharacterName}
                 characterAvatarUrl={selectedCharacterAvatar}
@@ -699,248 +564,14 @@ export default function HeadlineAnalyzer() {
           </div>
         </div>
 
-      {/* History Modal */}
-      {historyModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className={`w-full max-w-[95vw] md:max-w-4xl max-h-[90vh] rounded-xl shadow-xl flex flex-col ${
-            darkMode ? 'bg-[#1e1e1e]' : 'bg-white'
-          }`}>
-            {/* Modal Header */}
-            <div className={`px-6 py-4 border-b flex justify-between items-center ${
-              darkMode ? 'border-[#333333]' : 'border-gray-200'
-            }`}>
-              <h2 className={`text-xl font-semibold ${
-                darkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                Conversation History
-              </h2>
-              <button
-                onClick={() => historyModal.close()}
-                className={`p-2 rounded-lg hover:bg-gray-100 ${
-                  darkMode ? 'hover:bg-gray-700' : ''
-                }`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-hidden flex">
-              {/* Conversations List */}
-              <div className={`w-1/3 border-r overflow-y-auto ${
-                darkMode ? 'border-[#333333]' : 'border-gray-200'
-              }`}>
-                {loadingConversations ? (
-                  <div className="p-4 text-center">Loading...</div>
-                ) : conversations.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500">No conversations yet</div>
-                ) : (
-                  conversations.map(conv => (
-                    <div
-                      key={conv.id}
-                      onClick={() => handleSelectConversation(conv)}
-                      className={`p-4 cursor-pointer border-b transition-colors ${
-                        selectedHistoryConversation?.id === conv.id
-                          ? darkMode
-                            ? 'bg-gray-700'
-                            : 'bg-gray-100'
-                          : darkMode
-                            ? 'hover:bg-gray-800'
-                            : 'hover:bg-gray-50'
-                      } ${darkMode ? 'border-[#333333]' : 'border-gray-200'}`}
-                    >
-                      <div className={`font-medium text-sm ${
-                        darkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
-                        {new Date(conv.created_at).toLocaleDateString()}
-                      </div>
-                      <div className={`text-xs mt-1 ${
-                        darkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        {conv.message_count} messages
-                      </div>
-                    </div>
-                  ))
-                )}
-
-                {/* Pagination */}
-                {totalConversationPages > 1 && (
-                  <div className="p-4 flex justify-center gap-2">
-                    <button
-                      onClick={() => loadConversations(conversationPage - 1)}
-                      disabled={conversationPage === 1}
-                      className={`px-3 py-1 text-sm rounded ${
-                        conversationPage === 1
-                          ? 'opacity-50 cursor-not-allowed'
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      Previous
-                    </button>
-                    <span className="px-3 py-1 text-sm">
-                      {conversationPage} / {totalConversationPages}
-                    </span>
-                    <button
-                      onClick={() => loadConversations(conversationPage + 1)}
-                      disabled={conversationPage === totalConversationPages}
-                      className={`px-3 py-1 text-sm rounded ${
-                        conversationPage === totalConversationPages
-                          ? 'opacity-50 cursor-not-allowed'
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Messages */}
-              <div className="flex-1 flex flex-col">
-                {selectedHistoryConversation ? (
-                  <>
-                    {/* Message Filters */}
-                    <div className={`p-4 border-b flex gap-2 ${
-                      darkMode ? 'border-[#333333]' : 'border-gray-200'
-                    }`}>
-                      <select
-                        value={messageFilter}
-                        onChange={(e) => {
-                          setMessageFilter(e.target.value);
-                          loadConversationMessages(selectedHistoryConversation.id, 1);
-                        }}
-                        className={`px-3 py-1 text-sm rounded ${
-                          darkMode
-                            ? 'bg-gray-700 text-white'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        <option value="">All Messages</option>
-                        <option value="user">User Only</option>
-                        <option value="assistant">AI Only</option>
-                      </select>
-                      <select
-                        value={messageOrder}
-                        onChange={(e) => {
-                          setMessageOrder(e.target.value);
-                          loadConversationMessages(selectedHistoryConversation.id, 1);
-                        }}
-                        className={`px-3 py-1 text-sm rounded ${
-                          darkMode
-                            ? 'bg-gray-700 text-white'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        <option value="asc">Oldest First</option>
-                        <option value="desc">Newest First</option>
-                      </select>
-                    </div>
-
-                    {/* Messages List */}
-                    <div className="flex-1 overflow-y-auto p-4">
-                      {loadingMessages ? (
-                        <div className="text-center">Loading messages...</div>
-                      ) : conversationMessages.length === 0 ? (
-                        <div className="text-center text-gray-500">No messages</div>
-                      ) : (
-                        <div className="space-y-4">
-                          {conversationMessages.map((msg: ConversationMessage, idx: number) => (
-                            <div key={msg.id || idx} className={`flex ${
-                              msg.role === 'user' ? 'justify-end' : 'justify-start'
-                            }`}>
-                              <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                                msg.role === 'user'
-                                  ? darkMode
-                                    ? 'bg-zenible-primary text-white'
-                                    : 'bg-zenible-primary text-white'
-                                  : darkMode
-                                    ? 'bg-gray-700 text-white'
-                                    : 'bg-gray-100 text-gray-900'
-                              }`}>
-                                <div className="text-sm">
-                                  {msg.content.length > 500 ? (
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                      {msg.content.substring(0, 500) + '...'}
-                                    </ReactMarkdown>
-                                  ) : (
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                      {msg.content}
-                                    </ReactMarkdown>
-                                  )}
-                                </div>
-                                <div className={`text-xs mt-1 ${
-                                  darkMode ? 'text-gray-400' : 'text-gray-600'
-                                }`}>
-                                  {new Date(msg.created_at).toLocaleString()}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Message Pagination */}
-                      {totalMessagePages > 1 && (
-                        <div className="mt-4 flex justify-center gap-2">
-                          <button
-                            onClick={() => loadConversationMessages(
-                              selectedHistoryConversation.id,
-                              messagePage - 1
-                            )}
-                            disabled={messagePage === 1}
-                            className={`px-3 py-1 text-sm rounded ${
-                              messagePage === 1
-                                ? 'opacity-50 cursor-not-allowed'
-                                : 'hover:bg-gray-100'
-                            }`}
-                          >
-                            Previous
-                          </button>
-                          <span className="px-3 py-1 text-sm">
-                            {messagePage} / {totalMessagePages}
-                          </span>
-                          <button
-                            onClick={() => loadConversationMessages(
-                              selectedHistoryConversation.id,
-                              messagePage + 1
-                            )}
-                            disabled={messagePage === totalMessagePages}
-                            className={`px-3 py-1 text-sm rounded ${
-                              messagePage === totalMessagePages
-                                ? 'opacity-50 cursor-not-allowed'
-                                : 'hover:bg-gray-100'
-                            }`}
-                          >
-                            Next
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Load Button */}
-                    <div className={`p-4 border-t ${
-                      darkMode ? 'border-[#333333]' : 'border-gray-200'
-                    }`}>
-                      <button
-                        onClick={handleLoadConversation}
-                        className="w-full px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-purple-600 transition-colors"
-                      >
-                        Load This Conversation
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center text-gray-500">
-                    Select a conversation to view messages
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
+      <ConversationHistoryModal
+        darkMode={darkMode}
+        isOpen={historyModal.isOpen}
+        onClose={historyModal.close}
+        onLoadRawConversation={handleLoadConversation}
+        toolType="headline_analyzer"
+      />
     </AppLayout>
   );
 }

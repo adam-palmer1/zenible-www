@@ -240,10 +240,6 @@ const EmbedSettings = ({ username }: { username: string }) => {
           <li>Paste it into your website's HTML where you want the booking widget to appear</li>
           <li>The widget will automatically load and display your booking calendar</li>
         </ol>
-        <p className="mt-3 text-xs text-blue-600 dark:text-blue-400">
-          The widget is fully responsive and works on mobile devices. It uses Shadow DOM for style isolation,
-          so it won't interfere with your website's styles.
-        </p>
       </div>
 
       {/* Advanced Options */}

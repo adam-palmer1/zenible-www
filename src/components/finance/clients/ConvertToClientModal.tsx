@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Search, CheckCircle } from 'lucide-react';
-import { useContacts } from '../../../hooks/crm';
+import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts';
 import contactsAPI from '../../../services/api/crm/contacts';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
@@ -18,7 +18,7 @@ const ConvertToClientModal: React.FC<ConvertToClientModalProps> = ({ isOpen, onC
   useEscapeKey(onClose, isOpen);
 
   // Fetch non-client contacts
-  const { contacts, loading } = useContacts({ is_client: false });
+  const { contacts, loading, searching, setSearchQuery: setServerSearch } = useSearchableContacts({ is_client: false });
 
   // Filter contacts based on search
   const filteredContacts = contacts.filter((contact: any) => {
@@ -93,7 +93,7 @@ const ConvertToClientModal: React.FC<ConvertToClientModalProps> = ({ isOpen, onC
                 type="text"
                 placeholder="Search contacts..."
                 value={searchQuery}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearchQuery(e.target.value); setServerSearch(e.target.value); }}
                 className="w-full pl-10 pr-4 py-2 border border-design-border-input rounded-lg focus:ring-2 focus:ring-zenible-primary focus:border-zenible-primary design-bg-primary design-text-primary"
               />
             </div>
@@ -101,7 +101,7 @@ const ConvertToClientModal: React.FC<ConvertToClientModalProps> = ({ isOpen, onC
 
           {/* Contacts List */}
           <div className="px-6 py-4 max-h-96 overflow-y-auto">
-            {loading ? (
+            {loading || searching ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary"></div>
               </div>

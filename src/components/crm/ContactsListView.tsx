@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { PencilIcon, TrashIcon, BellIcon } from '@heroicons/react/24/outline';
-import contactsAPI from '../../services/api/crm/contacts';
 import { ApiError } from '../../services/api/ApiError';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
@@ -19,16 +18,15 @@ interface ContactsListViewProps {
   onContactClick?: (contact: any) => void;
   onEdit?: (contact: any) => void;
   onDelete?: (contact: any) => Promise<void> | void;
-  onUpdateStatus?: (contactId: string, data: any) => Promise<void> | void;
 }
 
-const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses, onContactClick, onEdit, onDelete, onUpdateStatus }) => {
+const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses, onContactClick, onEdit, onDelete }) => {
   const { showError, showSuccess } = useNotification();
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const deleteConfirm = useDeleteConfirmation<any>();
   const followUpModal = useModalState<any>();
   const followUpEditModal = useModalState();
-  const { dismissReminder, setReminder } = useContactActions();
+  const { dismissReminder, setReminder, toggleHidden } = useContactActions();
 
   const handleSelectAll = () => {
     if (selectedContacts.length === contacts.length) {
@@ -73,26 +71,6 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
         throw error;
       }
     });
-  };
-
-  const handleHideContact = async (contact: any) => {
-
-    try {
-      const newVisibility = !contact.is_hidden_crm;
-      await contactsAPI.update(contact.id, {
-        is_hidden_crm: newVisibility
-      });
-
-      showSuccess(newVisibility ? 'Contact hidden on CRM' : 'Contact is now visible on CRM');
-
-      // Update local state through parent callback
-      if (onUpdateStatus) {
-        await onUpdateStatus(contact.id, { is_hidden_crm: newVisibility });
-      }
-    } catch (error) {
-      console.error('Error updating contact visibility:', error);
-      showError('Failed to update contact visibility');
-    }
   };
 
   const getStatus = (contact: any) => {
@@ -256,7 +234,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
                         <Dropdown.Item
                           onSelect={(e: any) => {
                             e.stopPropagation();
-                            handleHideContact(contact);
+                            toggleHidden(contact, 'crm');
                           }}
                         >
                           {contact.is_hidden_crm ? 'Show on CRM' : 'Hide on CRM'}
@@ -307,6 +285,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
       onClose={followUpEditModal.close}
       onConfirm={(reminderAt) => { if (followUpModal.data) setReminder(followUpModal.data, reminderAt); }}
       contactName={followUpModal.data ? getContactDisplayName(followUpModal.data, 'Contact') : ''}
+      existingReminderAt={followUpModal.data?.follow_up_reminder_at}
     />
     </>
   );

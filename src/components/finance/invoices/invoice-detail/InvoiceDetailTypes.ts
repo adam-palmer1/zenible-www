@@ -4,7 +4,21 @@ import type { InvoiceResponse } from '../../../../types';
  * Extended InvoiceResponse including extra runtime fields the backend may return
  * beyond what the OpenAPI spec declares (e.g. legacy/computed fields).
  */
+export interface InvoicePaymentAllocation {
+  id: string;
+  invoice_id: string;
+  payment_id: string;
+  amount_applied: string;
+  applied_date: string;
+  created_at: string;
+  invoice_number?: string | null;
+  payment_number?: string | null;
+  notes?: string | null;
+}
+
 export interface InvoiceDetailData extends InvoiceResponse {
+  /** Payment allocations linked to this invoice */
+  invoice_payments?: InvoicePaymentAllocation[];
   /** Legacy alias for issue_date */
   invoice_date?: string;
   /** Whether invoice is recurring (computed from pricing_type) */

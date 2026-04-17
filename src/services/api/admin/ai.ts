@@ -156,6 +156,18 @@ const adminAI_API = {
   async getAICharacterShortcodes(): Promise<unknown> {
     return request('/ai/characters/shortcodes', { method: 'GET' });
   },
+
+  // Meeting Intelligence Config
+  async getMeetingIntelligenceConfig(): Promise<unknown> {
+    return request('/admin/meeting-intelligence/config', { method: 'GET' });
+  },
+
+  async updateMeetingIntelligenceConfig(data: { character_id?: string | null }): Promise<unknown> {
+    return request('/admin/meeting-intelligence/config', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 export default adminAI_API;

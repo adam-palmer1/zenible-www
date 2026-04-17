@@ -29,7 +29,7 @@ export default function CompletionQuestions({
                 : 'bg-white border-zinc-100 text-zinc-950 hover:bg-gray-50'
             } ${isSendingMessage ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {q.question_text}
+            {q.question_text.replace(/\?$/, '')}
           </button>
         ))}
     </div>

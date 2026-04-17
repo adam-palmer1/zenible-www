@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import meetingIntelligenceAPI from '../../services/api/crm/meetingIntelligence';
+import Combobox from '../ui/combobox/Combobox';
 import type { ZMISettings } from '../../types/meetingIntelligence';
 
 const TEAMS_CAPTION_LANGUAGES = [
@@ -70,6 +71,8 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState('');
+  const [displayNameDirty, setDisplayNameDirty] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -80,6 +83,7 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
       setLoading(true);
       const data = await meetingIntelligenceAPI.getSettings() as ZMISettings;
       setSettings(data);
+      setDisplayName(data.meeting_display_name || '');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load settings';
       // Feature might not be available on this plan
@@ -93,6 +97,7 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
           minutes_remaining: null,
           caption_language: null,
           recording_enabled: false,
+          meeting_display_name: null,
         });
       } else {
         setError(msg);
@@ -143,6 +148,24 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
       setSettings(data);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDisplayNameSave = async () => {
+    if (!settings || !displayNameDirty) return;
+    try {
+      setSaving(true);
+      setError(null);
+      const data = await meetingIntelligenceAPI.updateSettings({
+        meeting_display_name: displayName,
+      }) as ZMISettings;
+      setSettings(data);
+      setDisplayName(data.meeting_display_name || '');
+      setDisplayNameDirty(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update display name');
     } finally {
       setSaving(false);
     }
@@ -220,6 +243,48 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
         </div>
       </div>
 
+      {/* Meeting Display Name */}
+      {settings?.feature_available && (
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+          <h3 className={`text-sm font-medium mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Your Name in Meetings
+          </h3>
+          <p className={`text-sm mb-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+            How you appear in meeting transcripts and speaker attribution.
+          </p>
+          <div className="flex gap-2 max-w-sm">
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => {
+                setDisplayName(e.target.value);
+                setDisplayNameDirty(true);
+              }}
+              onBlur={handleDisplayNameSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleDisplayNameSave();
+              }}
+              placeholder="Your display name"
+              disabled={saving}
+              className={`flex-1 px-3 py-2 text-sm rounded-lg border ${
+                darkMode
+                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-white placeholder-gray-500'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+              } ${saving ? 'opacity-50' : ''}`}
+            />
+            {displayNameDirty && (
+              <button
+                onClick={handleDisplayNameSave}
+                disabled={saving}
+                className="px-3 py-2 text-sm rounded-lg bg-zenible-primary text-white hover:opacity-90 disabled:opacity-50"
+              >
+                Save
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Teams Caption Language */}
       {settings?.feature_available && (
         <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
@@ -229,22 +294,20 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
           <p className={`text-sm mb-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
             Set the spoken language for Microsoft Teams captions. Only applies to Teams meetings.
           </p>
-          <select
-            value={settings.caption_language || ''}
-            onChange={(e) => handleCaptionLanguageChange(e.target.value)}
-            disabled={saving}
-            className={`w-full max-w-sm px-3 py-2 text-sm rounded-lg border ${
-              darkMode
-                ? 'bg-zenible-dark-bg border-zenible-dark-border text-white'
-                : 'bg-white border-gray-300 text-gray-900'
-            } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {TEAMS_CAPTION_LANGUAGES.map((lang) => (
-              <option key={lang.value} value={lang.value}>
-                {lang.label}
-              </option>
-            ))}
-          </select>
+          <div className="max-w-sm">
+            <Combobox
+              options={TEAMS_CAPTION_LANGUAGES.map((lang) => ({
+                id: lang.value,
+                label: lang.label,
+              }))}
+              value={settings.caption_language || ''}
+              onChange={(value: string) => handleCaptionLanguageChange(value)}
+              placeholder="Select language..."
+              searchable
+              allowClear={false}
+              disabled={saving}
+            />
+          </div>
         </div>
       )}
 
@@ -285,7 +348,7 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
       {settings?.feature_available && (
         <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
           <h3 className={`text-sm font-medium mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            Bot Minutes Usage
+            Zenible Meeting Intelligence Minutes Usage
           </h3>
 
           {settings.minutes_limit !== null ? (

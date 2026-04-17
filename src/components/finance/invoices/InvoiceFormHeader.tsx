@@ -8,11 +8,13 @@ interface InvoiceFormHeaderProps {
   // Client
   contactId: string;
   contactsLoading: boolean;
+  contactsSearching: boolean;
   allContacts: any[];
   showClientModal: boolean;
   onSetShowClientModal: (value: boolean) => void;
   onClientSelect: (clientId: string) => void;
   clientButtonRef: React.RefObject<HTMLButtonElement | null>;
+  onClientSearch?: (query: string) => void;
 
   // Invoice Number
   invoiceNumber: string;
@@ -37,11 +39,13 @@ interface InvoiceFormHeaderProps {
 const InvoiceFormHeader: React.FC<InvoiceFormHeaderProps> = ({
   contactId,
   contactsLoading,
+  contactsSearching,
   allContacts,
   showClientModal,
   onSetShowClientModal,
   onClientSelect,
   clientButtonRef,
+  onClientSearch,
   invoiceNumber,
   onInvoiceNumberChange,
   invoiceDate,
@@ -95,8 +99,9 @@ const InvoiceFormHeader: React.FC<InvoiceFormHeaderProps> = ({
             clients={allContacts}
             selectedClientId={contactId}
             onSelect={onClientSelect}
-            loading={contactsLoading}
+            loading={contactsLoading || contactsSearching}
             triggerRef={clientButtonRef}
+            onSearch={onClientSearch}
           />
         </div>
       </div>

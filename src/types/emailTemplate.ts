@@ -26,7 +26,8 @@ export enum EmailTemplateType {
   BOOKING_CANCELLED_GUEST = 'booking_cancelled_guest',
   BOOKING_CANCELLED_HOST = 'booking_cancelled_host',
   BOOKING_RESCHEDULED_GUEST = 'booking_rescheduled_guest',
-  BOOKING_RESCHEDULED_HOST = 'booking_rescheduled_host'
+  BOOKING_RESCHEDULED_HOST = 'booking_rescheduled_host',
+  BOOKING_REMINDER_GUEST = 'booking_reminder_guest'
 }
 
 // Base Template
@@ -129,6 +130,7 @@ export const TEMPLATE_TYPE_LABELS: Record<EmailTemplateType, string> = {
   [EmailTemplateType.BOOKING_CANCELLED_HOST]: 'Booking Cancelled (Host)',
   [EmailTemplateType.BOOKING_RESCHEDULED_GUEST]: 'Booking Rescheduled (Guest)',
   [EmailTemplateType.BOOKING_RESCHEDULED_HOST]: 'Booking Rescheduled (Host)',
+  [EmailTemplateType.BOOKING_REMINDER_GUEST]: 'Booking Reminder',
 };
 
 // Template Type Colors (for badges)
@@ -155,6 +157,7 @@ export const TEMPLATE_TYPE_COLORS: Record<EmailTemplateType, string> = {
   [EmailTemplateType.BOOKING_CANCELLED_HOST]: 'orange',
   [EmailTemplateType.BOOKING_RESCHEDULED_GUEST]: 'yellow',
   [EmailTemplateType.BOOKING_RESCHEDULED_HOST]: 'yellow',
+  [EmailTemplateType.BOOKING_REMINDER_GUEST]: 'blue',
 };
 
 // Template Categories for UI organization
@@ -199,6 +202,7 @@ export const TEMPLATE_CATEGORIES = {
       EmailTemplateType.BOOKING_RESCHEDULED_HOST,
       EmailTemplateType.BOOKING_CANCELLED_GUEST,
       EmailTemplateType.BOOKING_CANCELLED_HOST,
+      EmailTemplateType.BOOKING_REMINDER_GUEST,
     ],
   },
 };

@@ -108,6 +108,29 @@ export default function BasicInfoFields({
           allowClear
         />
       </div>
+
+      <div>
+        <label className={`block text-sm font-medium mb-1 ${
+          darkMode ? 'text-zenible-dark-text' : 'text-gray-700'
+        }`}>
+          Display Order
+        </label>
+        <input
+          type="number"
+          min="0"
+          value={characterForm.display_order}
+          onChange={(e) => setCharacterForm({...characterForm, display_order: parseInt(e.target.value) || 0})}
+          className={`w-full px-3 py-2 border rounded-lg ${
+            darkMode
+              ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
+              : 'bg-white border-gray-300 text-gray-900'
+          }`}
+          placeholder="0"
+        />
+        <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+          Lower numbers appear first in the boardroom sidebar
+        </p>
+      </div>
     </>
   );
 }

@@ -13,6 +13,7 @@ interface PlanResponse {
   old_annual_price?: string | null;
   is_recommended: boolean;
   is_active: boolean;
+  is_hidden?: boolean;
   features?: string[];
   stripe_product_id?: string | null;
   created_at: string;
@@ -35,6 +36,7 @@ interface PlanFormData {
   features: string[];
   is_free?: boolean;
   is_active: boolean;
+  is_hidden?: boolean;
   trial_enabled?: boolean;
   trial_duration_days?: string;
   trial_requires_card?: boolean;
@@ -248,6 +250,7 @@ export default function PlanManagement() {
       features: [],
       is_free: false,
       is_active: true,
+      is_hidden: false,
       trial_enabled: false,
       trial_duration_days: '',
       trial_requires_card: false,
@@ -269,6 +272,7 @@ export default function PlanManagement() {
       is_recommended: plan.is_recommended || false,
       features: plan.features || [],
       is_active: plan.is_active,
+      is_hidden: plan.is_hidden || false,
       trial_enabled: plan.trial_enabled || false,
       trial_duration_days: plan.trial_duration_days?.toString() || '',
       trial_requires_card: plan.trial_requires_card || false,
@@ -331,6 +335,11 @@ export default function PlanManagement() {
                       {plan.is_recommended && (
                         <span className="inline-block px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
                           Recommended
+                        </span>
+                      )}
+                      {plan.is_hidden && (
+                        <span className="inline-block px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
+                          Hidden
                         </span>
                       )}
                       {plan.trial_enabled && (
@@ -429,6 +438,24 @@ export default function PlanManagement() {
                               Activate
                             </button>
                           )}
+                          <button
+                            onClick={async () => {
+                              setActionDropdown(null);
+                              try {
+                                await adminAPI.updatePlan(plan.id, { is_hidden: !plan.is_hidden });
+                                fetchPlans();
+                              } catch (err: any) {
+                                alert(`Error: ${err.message}`);
+                              }
+                            }}
+                            className={`block px-4 py-2 text-sm w-full text-left ${
+                              darkMode
+                                ? 'text-zenible-dark-text hover:bg-zenible-dark-bg'
+                                : 'text-gray-900 hover:bg-gray-100'
+                            }`}
+                          >
+                            {plan.is_hidden ? 'Unhide' : 'Hide from Users'}
+                          </button>
                           <button
                             onClick={() => {
                               openSyncModal(plan);
@@ -562,6 +589,15 @@ export default function PlanManagement() {
                     className="mr-2"
                   />
                   <span className={darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}>Recommended</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_hidden}
+                    onChange={(e) => setFormData({ ...formData, is_hidden: e.target.checked })}
+                    className="mr-2"
+                  />
+                  <span className={darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}>Hidden from users</span>
                 </label>
               </div>
 

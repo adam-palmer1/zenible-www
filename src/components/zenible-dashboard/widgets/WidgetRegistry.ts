@@ -87,7 +87,6 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     hasSettings: true,
     settingsSchema: {
       monthlyGoal: { type: 'number', default: 5000, min: 0, label: 'Monthly Goal' },
-      currency: { type: 'currency', default: 'USD', label: 'Currency' },
     },
     category: 'finance',
     defaultSize: { w: 1, h: 2 },

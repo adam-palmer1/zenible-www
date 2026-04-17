@@ -11,6 +11,7 @@ interface AddInvoiceLinkModalProps {
   amountRemaining: number;
   currencyCode: string;
   contactId: string;
+  linkedInvoiceIds?: string[];
 }
 
 /**
@@ -23,6 +24,7 @@ const AddInvoiceLinkModal: React.FC<AddInvoiceLinkModalProps> = ({
   amountRemaining,
   currencyCode,
   contactId,
+  linkedInvoiceIds = [],
 }) => {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [amount, setAmount] = useState('');
@@ -66,7 +68,8 @@ const AddInvoiceLinkModal: React.FC<AddInvoiceLinkModalProps> = ({
           params.search = searchQuery;
         }
         const response = await invoicesAPI.list(params);
-        setInvoices(response?.items || []);
+        const allInvoices = response?.items || [];
+        setInvoices(allInvoices.filter((inv: any) => !linkedInvoiceIds.includes(inv.id)));
       } catch (error) {
         console.error('Failed to search invoices:', error);
       } finally {

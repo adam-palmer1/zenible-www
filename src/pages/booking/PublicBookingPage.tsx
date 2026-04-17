@@ -46,6 +46,7 @@ interface VisitorSlot {
 interface BookingFormData {
   name: string;
   email: string;
+  country_code: string;
   phone?: string;
   notes?: string;
 }
@@ -384,6 +385,7 @@ const PublicBookingPage: React.FC = () => {
         timezone: selectedTimezone,
         name: formData.name,
         email: formData.email,
+        country_code: formData.country_code || null,
         phone: formData.phone || null,
         notes: formData.notes || null,
       };

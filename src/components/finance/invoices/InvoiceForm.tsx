@@ -73,11 +73,13 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice: invoiceProp = null, 
       <InvoiceFormHeader
         contactId={state.contactId}
         contactsLoading={state.contactsLoading}
+        contactsSearching={state.contactsSearching}
         allContacts={state.allContacts}
         showClientModal={state.showClientModal}
         onSetShowClientModal={state.setShowClientModal}
         onClientSelect={state.handleClientSelect}
         clientButtonRef={state.clientButtonRef}
+        onClientSearch={state.handleClientSearch}
         invoiceNumber={state.invoiceNumber}
         onInvoiceNumberChange={state.setInvoiceNumber}
         invoiceDate={state.invoiceDate}

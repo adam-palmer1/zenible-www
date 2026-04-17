@@ -224,7 +224,7 @@ interface ExpenseAllocationModalProps {
 
 const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, onOpenChange, expense, onUpdate }) => {
   const { showSuccess, showError } = useNotification();
-  const { contacts: clients } = useContacts({ is_client: true }, 0, { skipInitialFetch: !open });
+  const { contacts: clients } = useContacts({ is_client: true, per_page: 200 }, 0, { skipInitialFetch: !open });
   const { projects } = useProjects();
 
   const [loading, setLoading] = useState(true);

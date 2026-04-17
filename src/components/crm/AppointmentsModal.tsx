@@ -13,6 +13,7 @@ import { useNotification } from '../../contexts/NotificationContext';
 import { queryKeys } from '../../lib/query-keys';
 import ConfirmationModal from '../common/ConfirmationModal';
 import DatePickerCalendar from '../shared/DatePickerCalendar';
+import { getAppointmentKey } from '../calendar/calendarUtils';
 import TimePickerInput from '../shared/TimePickerInput';
 import Dropdown from '../ui/dropdown/Dropdown';
 
@@ -72,6 +73,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
   const [fetchedAppointments, setFetchedAppointments] = useState<AppointmentItem[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
+  const [generateMeetLink, setGenerateMeetLink] = useState(false);
 
   const displayName = getContactDisplayName(contact);
   const scheduledAppointments = getScheduledAppointments(fetchedAppointments) as AppointmentItem[];
@@ -99,7 +101,11 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       setEditingAppointment(null);
       fetchAppointments();
       appointmentsAPI.getGoogleStatus<{ accounts?: unknown[] }>()
-        .then((status) => setGoogleConnected((status?.accounts?.length ?? 0) > 0))
+        .then((status) => {
+          const connected = (status?.accounts?.length ?? 0) > 0;
+          setGoogleConnected(connected);
+          if (connected) setGenerateMeetLink(true);
+        })
         .catch(() => setGoogleConnected(false));
     } else {
       setFetchedAppointments([]);
@@ -147,13 +153,35 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       setDuration(60);
     }
     setSendInviteToContact(!!contact?.email && (appointment as Record<string, unknown>).send_invite_to_contact !== false);
+    // If appointment already has a meeting link, show checkbox as checked
+    const hasLink = !!(appointment as Record<string, unknown>).meeting_link;
+    setGenerateMeetLink(hasLink || (googleConnected === true));
   };
 
   // Handle creating new appointment
   const handleSaveNew = async () => {
     const dateTimeValue = new Date(`${appointmentDate}T${appointmentTime}:00`).toISOString();
-    await setFollowUp(contact, dateTimeValue, duration, sendInviteToContact, appointmentTitle.trim() || null);
+
+    // Create appointment — backend generates Google Meet link via conferenceData
+    const endISO = calculateEndDateTime(dateTimeValue, duration);
+    const appointmentData: Record<string, unknown> = {
+      title: appointmentTitle.trim() || formatAppointmentTitle(contact, user),
+      description: null,
+      start_datetime: dateTimeValue,
+      end_datetime: endISO,
+      contact_id: contact.id,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      location: null,
+      meeting_link: null,
+      all_day: false,
+      send_invite_to_contact: sendInviteToContact,
+      add_google_meet: generateMeetLink && googleConnected === true,
+    };
+    await appointmentsAPI.create(appointmentData);
+    showSuccess(`Appointment scheduled for ${getContactDisplayName(contact, 'Contact')}`);
+
     await fetchAppointments();
+    queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
     setMode('list');
   };
 
@@ -165,12 +193,17 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       const startISO = new Date(`${appointmentDate}T${appointmentTime}:00`).toISOString();
       const endISO = calculateEndDateTime(startISO, duration);
 
-      await appointmentsAPI.update(editingAppointment.id, {
+      const existingLink = (editingAppointment as Record<string, unknown>).meeting_link as string | null;
+
+      const updateData: Record<string, unknown> = {
         title: appointmentTitle.trim() || formatAppointmentTitle(contact, user),
         start_datetime: startISO,
         end_datetime: endISO,
-        send_invite_to_contact: sendInviteToContact
-      });
+        send_invite_to_contact: sendInviteToContact,
+        add_google_meet: generateMeetLink && googleConnected === true && !existingLink,
+      };
+
+      await appointmentsAPI.update(editingAppointment.id, updateData);
 
       showSuccess('Appointment updated successfully');
 
@@ -255,7 +288,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
 
                     return (
                       <div
-                        key={appointment.id}
+                        key={getAppointmentKey(appointment)}
                         className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
                         <div className="flex items-center gap-3 flex-1">
@@ -412,6 +445,31 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
               {contact?.email && googleConnected === false && (
                 <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">(no calendar connected)</span>
               )}
+            </div>
+            {/* Generate Google Meet link */}
+            <div className="flex items-center">
+              {(() => {
+                const existingLink = editingAppointment ? (editingAppointment as Record<string, unknown>).meeting_link as string | null : null;
+                const hasExistingLink = !!existingLink;
+                return (
+                  <>
+                    <input
+                      type="checkbox"
+                      id="generate_meet_link_crm"
+                      checked={generateMeetLink}
+                      onChange={(e) => setGenerateMeetLink(e.target.checked)}
+                      disabled={googleConnected === false || hasExistingLink}
+                      className="w-4 h-4 text-zenible-primary border-gray-300 dark:border-gray-600 rounded focus:ring-zenible-primary disabled:opacity-50"
+                    />
+                    <label htmlFor="generate_meet_link_crm" className={`ml-2 text-sm ${googleConnected !== false ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
+                      Generate Google Meet link
+                    </label>
+                    {googleConnected === false && (
+                      <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">(no calendar connected)</span>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
               <button

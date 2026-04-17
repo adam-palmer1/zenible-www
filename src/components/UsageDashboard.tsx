@@ -9,6 +9,9 @@ interface UsageProgressBarProps {
   limit: number;
   darkMode: boolean;
   showPercentage?: boolean;
+  // Optional unit label appended to the counts (e.g. "AI messages", "messages with Mike").
+  // When set, replaces the bare "X / Y" display with "X / Y <unitLabel>".
+  unitLabel?: string;
 }
 
 interface FeatureBadgeProps {
@@ -17,7 +20,7 @@ interface FeatureBadgeProps {
 }
 
 // Progress bar component for usage limits
-function UsageProgressBar({ current, limit, darkMode, showPercentage = true }: UsageProgressBarProps) {
+function UsageProgressBar({ current, limit, darkMode, showPercentage = true, unitLabel }: UsageProgressBarProps) {
   // Safely handle null/undefined values
   const safeCurrentValue = current ?? 0;
   const safeLimitValue = limit ?? -1;
@@ -50,12 +53,12 @@ function UsageProgressBar({ current, limit, darkMode, showPercentage = true }: U
               ? darkMode ? 'text-yellow-400' : 'text-yellow-600'
               : darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
         }`}>
-          {Number(safeCurrentValue).toLocaleString()} / {Number(safeLimitValue).toLocaleString()} ({Math.round(percentage)}%)
+          {Number(safeCurrentValue).toLocaleString()} / {Number(safeLimitValue).toLocaleString()}{unitLabel ? ` ${unitLabel}` : ''} ({Math.round(percentage)}%)
         </div>
       )}
       {isUnlimited && (
         <div className={`text-xs mt-1 ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
-          Unlimited
+          {Number(safeCurrentValue).toLocaleString()}{unitLabel ? ` ${unitLabel}` : ''} · Unlimited
         </div>
       )}
     </div>
@@ -264,6 +267,7 @@ export default function UsageDashboard() {
                         current={limit.current ?? 0}
                         limit={limit.limit ?? -1}
                         darkMode={darkMode}
+                        unitLabel={(limit.name || formatFeatureName(limit.entity_type)).toLowerCase()}
                       />
                     </div>
                   ))}
@@ -309,6 +313,7 @@ export default function UsageDashboard() {
                         current={ai_usage.total.current ?? 0}
                         limit={ai_usage.total.limit ?? -1}
                         darkMode={darkMode}
+                        unitLabel="AI messages"
                       />
                     </div>
                   )}
@@ -319,22 +324,63 @@ export default function UsageDashboard() {
                       <h5 className={`text-sm font-medium mb-3 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                         Per Character
                       </h5>
-                      <div className="space-y-3">
-                        {ai_usage.per_character.map((char, index) => (
-                          <div key={index}>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                                {char.character_name || char.name || `Character ${index + 1}`}
-                              </span>
+                      <div className="space-y-4">
+                        {ai_usage.per_character.map((char, index) => {
+                          const charName = char.character_name || char.name || `Character ${index + 1}`;
+                          const hasMonthly = typeof char.limit === 'number' && char.limit !== null;
+                          const hasDaily = typeof char.daily_limit === 'number' && char.daily_limit !== null;
+
+                          return (
+                            <div key={index}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className={`text-xs font-medium ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                                  {charName}
+                                </span>
+                              </div>
+                              {hasDaily && (
+                                <div className="mb-2">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className={`text-[11px] ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                                      Daily
+                                    </span>
+                                  </div>
+                                  <UsageProgressBar
+                                    current={char.daily_usage ?? 0}
+                                    limit={char.daily_limit as number}
+                                    darkMode={darkMode}
+                                    showPercentage={true}
+                                    unitLabel="messages today"
+                                  />
+                                </div>
+                              )}
+                              {hasMonthly && (
+                                <div>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className={`text-[11px] ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                                      Monthly
+                                    </span>
+                                  </div>
+                                  <UsageProgressBar
+                                    current={char.usage ?? 0}
+                                    limit={char.limit as number}
+                                    darkMode={darkMode}
+                                    showPercentage={true}
+                                    unitLabel="messages"
+                                  />
+                                </div>
+                              )}
+                              {!hasMonthly && !hasDaily && (
+                                <UsageProgressBar
+                                  current={char.usage ?? 0}
+                                  limit={-1}
+                                  darkMode={darkMode}
+                                  showPercentage={true}
+                                  unitLabel="messages"
+                                />
+                              )}
                             </div>
-                            <UsageProgressBar
-                              current={char.usage ?? 0}
-                              limit={char.limit ?? -1}
-                              darkMode={darkMode}
-                              showPercentage={true}
-                            />
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -366,6 +412,7 @@ export default function UsageDashboard() {
                         current={tool.current_usage || 0}
                         limit={tool.monthly_usage_limit}
                         darkMode={darkMode}
+                        unitLabel={`${formatFeatureName(tool.tool_name || tool.name || '').toLowerCase()} runs`}
                       />
                     )}
                   </div>

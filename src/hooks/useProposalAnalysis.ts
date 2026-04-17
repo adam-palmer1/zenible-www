@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useBaseAIAnalysis, UseBaseAIAnalysisReturn } from './useBaseAIAnalysis';
 
 interface ProposalStructuredAnalysis {
@@ -24,6 +24,7 @@ interface UseProposalAnalysisReturn extends Omit<UseBaseAIAnalysisReturn, 'invok
   analyzeProposal: (jobPost: string, proposal: string, platform?: string, metadata?: Record<string, unknown>) => Promise<string | null>;
   generateProposal: (jobPost: string, platform?: string, metadata?: Record<string, unknown>) => Promise<string | null>;
   setConversationId: (id: string | null) => void;
+  setStructuredAnalysis: React.Dispatch<React.SetStateAction<unknown>>;
 }
 
 /**
@@ -64,11 +65,14 @@ export function useProposalAnalysis({
     metrics,
     messageId,
     isConnected,
+    deletingMessageId,
     invokeTool,
     sendFollowUpMessage,
+    deleteMessage,
     reset,
     clearConversation,
-    setConversationId
+    setConversationId,
+    setStructuredAnalysis
   } = useBaseAIAnalysis({
     characterId,
     panelId,
@@ -82,7 +86,7 @@ export function useProposalAnalysis({
   });
 
   // Proposal-specific analysis function
-  const analyzeProposal = useCallback(async (jobPost: string, proposal: string, platform: string = 'upwork', _metadata: Record<string, unknown> = {}): Promise<string | null> => {
+  const analyzeProposal = useCallback(async (jobPost: string, proposal: string, platform: string = 'marketplace', _metadata: Record<string, unknown> = {}): Promise<string | null> => {
     return await invokeTool('analyze_proposal', {
       job_post: jobPost,
       user_proposal: proposal,
@@ -91,7 +95,7 @@ export function useProposalAnalysis({
   }, [invokeTool]);
 
   // Proposal generation function
-  const generateProposal = useCallback(async (jobPost: string, platform: string = 'upwork', _metadata: Record<string, unknown> = {}): Promise<string | null> => {
+  const generateProposal = useCallback(async (jobPost: string, platform: string = 'marketplace', _metadata: Record<string, unknown> = {}): Promise<string | null> => {
     return await invokeTool('generate_proposal', {
       job_post: jobPost,
       platform: platform
@@ -110,13 +114,16 @@ export function useProposalAnalysis({
     metrics,
     messageId,
     isConnected,
+    deletingMessageId,
 
     // Functions
     analyzeProposal,
     generateProposal,
     sendFollowUpMessage,
+    deleteMessage,
     reset,
     clearConversation,
-    setConversationId
+    setConversationId,
+    setStructuredAnalysis
   };
 }

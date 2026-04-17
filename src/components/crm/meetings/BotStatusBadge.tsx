@@ -2,13 +2,15 @@ import React from 'react';
 
 interface BotStatusBadgeProps {
   status: string;
+  leaveReason?: string | null;
   className?: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; pulse?: boolean; spin?: boolean }> = {
   scheduling: { label: 'Scheduling', color: 'bg-gray-400 text-white', pulse: true },
   joining: { label: 'Joining', color: 'bg-yellow-500 text-white', spin: true },
-  in_meeting: { label: 'Recording', color: 'bg-green-500 text-white' },
+  waiting_room: { label: 'In Waiting Room', color: 'bg-amber-500 text-white', pulse: true },
+  in_meeting: { label: 'In Meeting', color: 'bg-green-500 text-white' },
   listening: { label: 'Listening', color: 'bg-green-500 text-white' },
   leaving: { label: 'Leaving', color: 'bg-orange-500 text-white' },
   ended: { label: 'Ended', color: 'bg-gray-400 text-white' },
@@ -16,8 +18,17 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; pulse?: bool
   disconnected: { label: 'Disconnected', color: 'bg-gray-500 text-white' },
 };
 
-const BotStatusBadge: React.FC<BotStatusBadgeProps> = ({ status, className = '' }) => {
+const LEAVE_REASON_LABELS: Record<string, string> = {
+  host_ended: 'Host ended',
+  bot_removed: 'Removed by host',
+  meeting_ended: 'Meeting ended',
+  everyone_left: 'Everyone left',
+  user_stopped: 'Stopped by user',
+};
+
+const BotStatusBadge: React.FC<BotStatusBadgeProps> = ({ status, leaveReason, className = '' }) => {
   const config = STATUS_CONFIG[status] || { label: status, color: 'bg-gray-400 text-white' };
+  const reasonLabel = status === 'ended' && leaveReason ? LEAVE_REASON_LABELS[leaveReason] : null;
 
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color} ${className}`}>
@@ -33,7 +44,7 @@ const BotStatusBadge: React.FC<BotStatusBadgeProps> = ({ status, className = '' 
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
       )}
-      {config.label}
+      {config.label}{reasonLabel ? ` \u2014 ${reasonLabel}` : ''}
     </span>
   );
 };

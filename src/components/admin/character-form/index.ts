@@ -4,6 +4,7 @@ export { default as ModelSettingsFields } from './ModelSettingsFields';
 export { default as SystemInstructionsSection } from './SystemInstructionsSection';
 export { default as AssistantConfigSection } from './AssistantConfigSection';
 export { default as RAGConfigSection } from './RAGConfigSection';
+export { default as ConversationStartersSection } from './ConversationStartersSection';
 export type {
   BackendProvider,
   JsonSchema,

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import AppLayout from '../layout/AppLayout';
 import DraftPostSection from './DraftPostSection';
 import StrategyInputSection from './StrategyInputSection';
-import PlatformContentOptions from './PlatformContentOptions';
+import PlatformSelector from '../proposal-wizard/PlatformSelector';
 import AIFeedbackSection from '../shared/AIFeedbackSection';
 import type { MetricsData } from '../shared/ai-feedback/types';
 import PersonalizeAIBanner from '../shared/PersonalizeAIBanner';
@@ -91,7 +91,7 @@ export default function ViralPostGenerator() {
   const [audience, setAudience] = useState('');
 
   // Common state
-  const [platformFocus, setPlatformFocus] = useState('linkedin');
+  const [platformFocus, setPlatformFocus] = useState('');
   const [feedback, setFeedback] = useState<ViralPostFeedback | null>(null);
   const [_availableCharacters, setAvailableCharacters] = useState<AICharacter[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
@@ -126,7 +126,10 @@ export default function ViralPostGenerator() {
     analyzeFromDraft,
     analyzeFromStrategy,
     sendFollowUpMessage: sendFollowUp,
-    clearConversation
+    clearConversation,
+    reset: resetAnalysis,
+    deleteMessage,
+    deletingMessageId,
   } = useViralPostAnalysis({
     characterId: selectedCharacterId || '',
     panelId: 'viral_post_generator',
@@ -345,6 +348,7 @@ export default function ViralPostGenerator() {
       clearConversation();
       setFollowUpMessages([]);
       setFeedback(null);
+      setAnalysisHistory([]);
     }
   };
 
@@ -427,15 +431,17 @@ export default function ViralPostGenerator() {
   };
 
   return (
-    <AppLayout pageTitle="Content">
+    <AppLayout pageTitle="Content" rawContent>
+      <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-        <div className={`border-b ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-neutral-200 bg-white'} px-4 py-3`}>
+        <div className={`border-b flex-shrink-0 ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-neutral-200 bg-white'} px-4 py-3`}>
           <div className="flex items-center justify-between">
             <h1 className={`text-2xl font-semibold ${darkMode ? 'text-gray-100' : 'text-zinc-950'}`}>
               Viral Post Generator
             </h1>
             <UsageLimitBadge
               characterId={selectedCharacterId ?? undefined}
+              aiUsage={true}
               variant="compact"
               showUpgradeLink={true}
               darkMode={darkMode}
@@ -444,91 +450,103 @@ export default function ViralPostGenerator() {
         </div>
 
         {/* Personalize AI Banner */}
-        <div className="px-4 pt-4">
+        <div className="px-4 pt-4 flex-shrink-0">
           <PersonalizeAIBanner darkMode={darkMode} />
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 min-h-0 overflow-hidden p-4">
           <div className="flex gap-4 h-full">
             {/* Left Panel - Inputs */}
-            <div className="w-[614px] flex flex-col gap-4">
-              {/* Tab Buttons */}
-              <div className={`flex gap-0.5 bg-white border border-neutral-200 rounded-lg overflow-hidden w-fit ${darkMode ? 'bg-gray-800 border-gray-700' : ''}`}>
-                <button
-                  onClick={() => handleTabChange('polish')}
-                  className={`px-3 py-2 text-sm font-semibold transition-colors ${
-                    activeTab === 'polish'
-                      ? darkMode
-                        ? 'bg-violet-600 text-white'
-                        : 'bg-white text-zinc-950 border border-neutral-200'
-                      : darkMode
-                      ? 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                      : 'bg-transparent text-zinc-500 hover:text-zinc-950'
-                  }`}
-                >
-                  Polish my draft post
-                </button>
-                <button
-                  onClick={() => handleTabChange('strategy')}
-                  className={`px-3 py-2 text-sm font-semibold transition-colors ${
-                    activeTab === 'strategy'
-                      ? darkMode
-                        ? 'bg-violet-600 text-white'
-                        : 'bg-white text-zinc-950 border border-neutral-200'
-                      : darkMode
-                      ? 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                      : 'bg-transparent text-zinc-500 hover:text-zinc-950'
-                  }`}
-                >
-                  Build my content strategy
-                </button>
+            <div className="w-[614px] flex flex-col gap-4 min-h-0">
+              {/* Choose Your Platform */}
+              <div className="flex-shrink-0">
+                <PlatformSelector
+                  darkMode={darkMode}
+                  selectedPlatform={platformFocus}
+                  setSelectedPlatform={setPlatformFocus}
+                  characterId={selectedCharacterId}
+                />
               </div>
 
-              {/* Tab Content */}
-              {activeTab === 'polish' ? (
-                <DraftPostSection
-                  draftPost={draftPost}
-                  setDraftPost={setDraftPost}
-                  disabled={analyzing}
-                />
-              ) : (
-                <StrategyInputSection
-                  topic={topic}
-                  setTopic={setTopic}
-                  goal={goal}
-                  setGoal={setGoal}
-                  audience={audience}
-                  setAudience={setAudience}
-                  disabled={analyzing}
-                />
-              )}
+              {/* Action Buttons — switch mode + analyze */}
+              <div className={`rounded-xl border shadow-sm p-3 sm:p-4 flex-shrink-0 ${
+                darkMode ? 'bg-[#1e1e1e] border-[#333333]' : 'bg-white border-neutral-200'
+              }`}>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { mode: 'polish', label: 'Rewrite Post' },
+                    { mode: 'strategy', label: 'Build Content Strategy' },
+                  ] as const).map(({ mode, label }) => {
+                    const isActive = activeTab === mode;
+                    return (
+                      <button
+                        key={mode}
+                        onClick={() => handleTabChange(mode)}
+                        disabled={analyzing}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl transition-all text-sm sm:text-base ${
+                          isActive
+                            ? 'bg-white border-[1.5px] border-[#a684ff] shadow-[0px_0px_0px_2.5px_#ddd6ff]'
+                            : darkMode
+                              ? 'bg-[#2d2d2d] border border-[#4a4a4a] hover:bg-[#3a3a3a]'
+                              : 'bg-white border border-neutral-200 hover:bg-gray-50'
+                        } ${analyzing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <span className={`font-inter font-medium whitespace-nowrap ${
+                          darkMode && !isActive ? 'text-white' : 'text-zinc-950'
+                        }`}>
+                          {label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-              {/* Additional Options */}
-              <PlatformContentOptions
-                platformFocus={platformFocus}
-                setPlatformFocus={setPlatformFocus}
-                disabled={analyzing}
-              />
+              {/* Purple dashed container wrapping the active tab content */}
+              <div className={`rounded-xl border border-dashed shadow-sm flex flex-col p-3 sm:p-4 gap-4 ${
+                activeTab === 'polish' ? 'flex-1 min-h-0' : 'flex-shrink-0'
+              } ${
+                darkMode
+                  ? 'bg-[#4c3d7a] border-[#6b5b95]'
+                  : 'bg-violet-50 border-[#c4b4ff]'
+              }`}>
+                {activeTab === 'polish' ? (
+                  <DraftPostSection
+                    draftPost={draftPost}
+                    setDraftPost={setDraftPost}
+                    disabled={analyzing}
+                  />
+                ) : (
+                  <StrategyInputSection
+                    topic={topic}
+                    setTopic={setTopic}
+                    goal={goal}
+                    setGoal={setGoal}
+                    audience={audience}
+                    setAudience={setAudience}
+                    disabled={analyzing}
+                  />
+                )}
 
-              {/* Analyze Button */}
-              <button
-                onClick={handleAnalyze}
-                disabled={analyzing || !isConnected}
-                className={`w-full py-3 rounded-xl text-base font-medium transition-colors ${
-                  analyzing || !isConnected
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : darkMode
-                    ? 'bg-violet-600 hover:bg-violet-700'
-                    : 'bg-[#8e51ff] hover:bg-violet-600'
-                } text-white`}
-              >
-                {analyzing ? 'Analyzing...' : 'Make It Viral'}
-              </button>
+                <div className="pt-3 sm:pt-4 flex justify-end flex-shrink-0">
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={analyzing || !isConnected}
+                    className={`px-4 sm:px-6 py-2.5 sm:py-3 bg-zenible-primary text-white rounded-xl font-inter font-medium text-sm sm:text-base transition-all ${
+                      analyzing || !isConnected ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-600'
+                    }`}
+                  >
+                    {analyzing
+                      ? 'Analyzing...'
+                      : activeTab === 'polish' ? 'Write Post' : 'Build Strategy'}
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Right Panel - AI Feedback */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
               <AIFeedbackSection
                 isStreaming={isStreaming}
                 streamingContent={streamingContent}
@@ -541,8 +559,10 @@ export default function ViralPostGenerator() {
                 usage={(feedback?.usage as MetricsData) ?? null}
                 conversationId={conversationId || ''}
                 messageId={messageId || ''}
-                onCancel={() => {}}
+                onCancel={resetAnalysis}
                 onSendMessage={handleSendFollowUpMessage}
+                onDeleteMessage={deleteMessage}
+                deletingMessageId={deletingMessageId}
                 characterId={selectedCharacterId || ''}
                 characterAvatarUrl={selectedCharacterAvatar ?? undefined}
                 characterName={selectedCharacterName}
@@ -556,6 +576,7 @@ export default function ViralPostGenerator() {
             </div>
           </div>
         </div>
+      </div>
     </AppLayout>
   );
 }

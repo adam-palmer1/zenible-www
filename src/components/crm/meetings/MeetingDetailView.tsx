@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import meetingIntelligenceAPI from '../../../services/api/crm/meetingIntelligence';
+import ConfirmationModal from '../../common/ConfirmationModal';
 import contactsAPI from '../../../services/api/crm/contacts';
 import type { MeetingDetail, LinkedContactInfo } from '../../../types/meetingIntelligence';
 
@@ -36,6 +37,10 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
   const [videoLoading, setVideoLoading] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
+
+  // AI analysis state
+  const [analyzing, setAnalyzing] = useState(false);
+  const [showDeleteRecordingConfirm, setShowDeleteRecordingConfirm] = useState(false);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -131,7 +136,10 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
   };
 
   const formatTimestamp = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
+    // timestamp_ms is a Unix epoch in ms; render as offset from the meeting's
+    // first transcript so "0:00" is the start of the call.
+    const base = detail?.transcripts?.[0]?.timestamp_ms ?? ms;
+    const seconds = Math.max(0, Math.floor((ms - base) / 1000));
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
@@ -205,7 +213,6 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
   };
 
   const handleDeleteRecording = async () => {
-    if (!confirm('Are you sure you want to delete this recording?')) return;
     try {
       await meetingIntelligenceAPI.deleteRecording(meetingId);
       setVideoUrl(null);
@@ -214,6 +221,25 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
       }
     } catch (err: any) {
       setError(err.message || 'Failed to delete recording');
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!detail) return;
+    setAnalyzing(true);
+    try {
+      const result = await meetingIntelligenceAPI.analyzeMeeting(meetingId) as {
+        overview?: string;
+        keyPoints?: string[];
+        actionItems?: string[];
+        sentiment?: string;
+        topics?: string[];
+      };
+      setDetail({ ...detail, summary_json: result });
+    } catch (err: any) {
+      setError(err.message || 'Failed to analyze meeting');
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -265,11 +291,6 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
           <span>{formatTime(detail.start_time)}</span>
           {detail.duration_ms != null && detail.duration_ms > 0 && (
             <span>{formatDuration(detail.duration_ms)}</span>
-          )}
-          {detail.source && (
-            <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-zenible-dark-border text-zenible-dark-text-secondary' : 'bg-gray-100 text-gray-600'}`}>
-              {detail.source}
-            </span>
           )}
           {detail.is_processed && (
             <span className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-600'}`}>
@@ -435,6 +456,37 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
       {/* Transcript tab */}
       {activeTab === 'transcript' && (
         <div className={`rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+          {groupedTranscripts.length > 0 && (
+            <div className={`flex justify-end px-3 pt-3`}>
+              <a
+                href={`${import.meta.env.VITE_API_URL || ''}/api/v1/crm/meeting-intelligence/meetings/${meetingId}/transcript.txt`}
+                download
+                className={`text-xs px-3 py-1.5 rounded-md font-medium ${
+                  darkMode
+                    ? 'bg-zenible-dark-border text-zenible-dark-text-secondary hover:text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  const token = localStorage.getItem('access_token');
+                  fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/crm/meeting-intelligence/meetings/${meetingId}/transcript.txt`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                  })
+                    .then(r => r.blob())
+                    .then(blob => {
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'transcript.txt';
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    });
+                }}
+              >
+                Download .txt
+              </a>
+            </div>
+          )}
           {groupedTranscripts.length === 0 ? (
             <div className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
               <p>No transcript available</p>
@@ -476,7 +528,7 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
                 {shareCopied ? 'Link Copied!' : 'Share'}
               </button>
               <button
-                onClick={handleDeleteRecording}
+                onClick={() => setShowDeleteRecordingConfirm(true)}
                 className={`text-xs px-3 py-1.5 rounded-md font-medium ${
                   darkMode ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50' : 'bg-red-50 text-red-600 hover:bg-red-100'
                 }`}
@@ -538,14 +590,216 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
 
       {/* Meeting Intelligence tab */}
       {activeTab === 'intelligence' && (
-        <div className={`text-center py-12 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
-          <div className={`text-4xl mb-3`}>🧠</div>
-          <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Coming Soon</h3>
-          <p className={`text-sm max-w-md mx-auto ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-            AI-powered meeting insights, action items tracking, and follow-up suggestions
-          </p>
+        <div className="space-y-4">
+          {/* Analyzing spinner */}
+          {detail.summary_json?._analyzing && (
+            <div className={`text-center py-12 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+              <div className="flex justify-center mb-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary" />
+              </div>
+              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Analyzing Meeting...</h3>
+              <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                AI is processing the transcript. This may take a minute.
+              </p>
+            </div>
+          )}
+
+          {/* Analysis failed (LLM error, empty output, parse failure, etc.) */}
+          {detail.summary_json?._analysis_failed && (
+            <div className={`p-6 rounded-lg border ${darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
+              <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-amber-200' : 'text-amber-900'}`}>
+                AI analysis failed
+              </h3>
+              <p className={`text-sm mb-3 ${darkMode ? 'text-amber-100/80' : 'text-amber-800'}`}>
+                {detail.summary_json.message || 'The analysis could not be completed.'}
+              </p>
+              <button
+                onClick={handleAnalyze}
+                disabled={analyzing}
+                className="px-4 py-2 rounded-lg bg-zenible-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {analyzing ? (
+                  <>
+                    <span className="inline-flex h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Re-analyzing...
+                  </>
+                ) : 'Try again'}
+              </button>
+            </div>
+          )}
+
+          {/* Plan does not grant access to the meeting analyst character */}
+          {detail.summary_json?._plan_access_denied && (
+            <div className={`p-6 rounded-lg border ${darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
+              <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-amber-200' : 'text-amber-900'}`}>
+                AI meeting analysis not included on your plan
+              </h3>
+              <p className={`text-sm mb-3 ${darkMode ? 'text-amber-100/80' : 'text-amber-800'}`}>
+                {detail.summary_json.message || 'The AI analyst for meeting insights is not available on your current plan. The transcript is saved.'}
+              </p>
+              <a
+                href="/settings/billing"
+                className="inline-flex items-center text-sm font-medium text-zenible-primary hover:underline"
+              >
+                Upgrade your plan →
+              </a>
+            </div>
+          )}
+
+          {/* AI message quota exhausted */}
+          {detail.summary_json?._quota_exceeded && (() => {
+            const ut = detail.summary_json.usage_type;
+            const isDaily = ut === 'ai_character_messages_daily';
+            const isCharMonthly = ut === 'ai_character_messages';
+            const title = isDaily
+              ? 'Daily AI message limit reached'
+              : isCharMonthly
+                ? 'Monthly character-message limit reached'
+                : 'No AI message credits remaining';
+            const resetHint = isDaily
+              ? 'Your daily limit resets at 00:00 UTC.'
+              : 'Your limit will reset at the start of the next billing period, or you can upgrade your plan.';
+            return (
+              <div className={`p-6 rounded-lg border ${darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
+                <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-amber-200' : 'text-amber-900'}`}>
+                  {title}
+                </h3>
+                <p className={`text-sm mb-3 ${darkMode ? 'text-amber-100/80' : 'text-amber-800'}`}>
+                  You've used all of this quota
+                  {typeof detail.summary_json.current === 'number' && typeof detail.summary_json.limit === 'number'
+                    ? ` (${detail.summary_json.current}/${detail.summary_json.limit})`
+                    : ''}.
+                  The transcript is saved, but AI insights for this meeting weren't generated.
+                  {' '}{resetHint}
+                </p>
+                <a
+                  href="/settings/billing"
+                  className="inline-flex items-center text-sm font-medium text-zenible-primary hover:underline"
+                >
+                  Upgrade your plan →
+                </a>
+              </div>
+            );
+          })()}
+
+          {/* No analysis yet */}
+          {!detail.summary_json && (
+            <div className={`text-center py-12 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+              <p className={`text-sm mb-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                No AI analysis available for this meeting yet.
+              </p>
+              <button
+                onClick={handleAnalyze}
+                disabled={analyzing}
+                className="px-4 py-2 rounded-lg bg-zenible-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {analyzing ? (
+                  <>
+                    <span className="inline-flex h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Analyzing...
+                  </>
+                ) : 'Analyze Meeting'}
+              </button>
+            </div>
+          )}
+
+          {/* Analysis content */}
+          {detail.summary_json && !detail.summary_json._analyzing && !detail.summary_json._quota_exceeded && !detail.summary_json._analysis_failed && !detail.summary_json._plan_access_denied && (
+            <>
+              {/* Re-analyze button */}
+              <div className="flex justify-end">
+                <button
+                  onClick={handleAnalyze}
+                  disabled={analyzing}
+                  className={`text-xs px-3 py-1.5 rounded-md font-medium ${
+                    darkMode
+                      ? 'bg-zenible-dark-border text-zenible-dark-text-secondary hover:text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  } disabled:opacity-50 inline-flex items-center gap-1`}
+                >
+                  {analyzing ? (
+                    <>
+                      <span className="inline-flex h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      Re-analyzing...
+                    </>
+                  ) : 'Re-analyze'}
+                </button>
+              </div>
+
+              {/* Sentiment & Topics */}
+              {(detail.summary_json.sentiment || (detail.summary_json.topics && detail.summary_json.topics.length > 0)) && (
+                <div className={`flex flex-wrap items-center gap-2`}>
+                  {detail.summary_json.sentiment && (
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      detail.summary_json.sentiment === 'positive'
+                        ? (darkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-700')
+                        : detail.summary_json.sentiment === 'negative'
+                          ? (darkMode ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700')
+                          : (darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600')
+                    }`}>
+                      {detail.summary_json.sentiment.charAt(0).toUpperCase() + detail.summary_json.sentiment.slice(1)}
+                    </span>
+                  )}
+                  {detail.summary_json.topics?.map((topic, i) => (
+                    <span key={i} className={`text-xs px-2 py-1 rounded-full ${
+                      darkMode ? 'bg-zenible-dark-border text-zenible-dark-text-secondary' : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Overview */}
+              {detail.summary_json.overview && (
+                <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+                  <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Overview</h3>
+                  <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                    {detail.summary_json.overview}
+                  </p>
+                </div>
+              )}
+
+              {/* Key Points */}
+              {detail.summary_json.keyPoints && detail.summary_json.keyPoints.length > 0 && (
+                <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+                  <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Key Points</h3>
+                  <ul className={`list-disc list-inside space-y-1 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                    {detail.summary_json.keyPoints.map((point, i) => (
+                      <li key={i}>{point}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Action Items */}
+              {detail.summary_json.actionItems && detail.summary_json.actionItems.length > 0 && (
+                <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+                  <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Action Items</h3>
+                  <ul className="space-y-2">
+                    {detail.summary_json.actionItems.map((item, i) => (
+                      <li key={i} className={`flex items-start gap-2 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                        <input type="checkbox" className="mt-0.5 rounded" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
+      <ConfirmationModal
+        isOpen={showDeleteRecordingConfirm}
+        onClose={() => setShowDeleteRecordingConfirm(false)}
+        onConfirm={handleDeleteRecording}
+        title="Delete Recording"
+        message="Are you sure you want to delete this recording?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmColor="red"
+      />
     </div>
   );
 };

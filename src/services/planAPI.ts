@@ -1,6 +1,7 @@
 // Public plan API service for pricing page
 import { API_BASE_URL, ZBI_API_BASE_URL } from '@/config/api';
 import logger from '../utils/logger';
+import type { MonthlyUsageHistoryResponse } from '../types/usageHistory';
 
 class PlanAPI {
   // Public endpoints (no authentication required)
@@ -660,6 +661,35 @@ class PlanAPI {
       throw error;
     }
   }
+
+  // Usage history - month-by-month breakdown over the subscription lifespan.
+  async getUsageHistory(): Promise<MonthlyUsageHistoryResponse> {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      throw new Error('Authentication required');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/me/usage-history`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      logger.error('Failed to fetch usage history:', error);
+      throw error;
+    }
+  }
+
   async addPaymentMethodDuringTrial(paymentMethodId: string): Promise<unknown> {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) {

@@ -14,6 +14,7 @@ import { ExpenseProvider } from './contexts/ExpenseContext';
 import { PaymentIntegrationsProvider } from './contexts/PaymentIntegrationsContext';
 import { CRMReferenceDataProvider } from './contexts/CRMReferenceDataContext';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
+import { isMarketingSite } from './utils/hostname';
 import NetworkErrorOverlay from './components/shared/NetworkErrorOverlay';
 import CookieConsentBanner from './components/shared/CookieConsentBanner';
 
@@ -81,6 +82,10 @@ const PaymentCallback = React.lazy(() => import('./components/finance/payments/P
 const ReportsDashboard = React.lazy(() => import('./components/finance/reports/ReportsDashboard'));
 const FinanceClientsDashboard = React.lazy(() => import('./components/finance/clients/FinanceClientsDashboard'));
 
+// Landing pages (marketing site)
+const LandingPage = React.lazy(() => import('./pages/landing/LandingPage'));
+const BILandingPage = React.lazy(() => import('./pages/bi-landing/BILandingPage'));
+
 // Booking routes (public entry points)
 const PublicUserPage = React.lazy(() => import('./pages/booking/PublicUserPage'));
 const PublicBookingPage = React.lazy(() => import('./pages/booking/PublicBookingPage'));
@@ -101,6 +106,7 @@ const ThreadManagement = React.lazy(() => import('./components/admin/ThreadManag
 const FeatureManagement = React.lazy(() => import('./components/admin/FeatureManagement'));
 const AdminSettings = React.lazy(() => import('./components/admin/AdminSettings'));
 const BotCalendarManagement = React.lazy(() => import('./components/admin/BotCalendarManagement'));
+const MeetingIntelligenceConfig = React.lazy(() => import('./components/admin/MeetingIntelligenceConfig'));
 const AIModelsManagement = React.lazy(() => import('./components/admin/AIModelsManagement'));
 const ConversationManagement = React.lazy(() => import('./components/admin/ConversationManagement'));
 const OnboardingQuestions = React.lazy(() => import('./components/admin/OnboardingQuestions'));
@@ -133,6 +139,17 @@ function RootLayout(): React.ReactElement {
       </UsageDashboardProvider>
     </SidebarProvider>
   );
+}
+
+function RootIndexRoute(): React.ReactElement {
+  if (isMarketingSite()) {
+    return (
+      <Suspense fallback={<PageLoadingFallback />}>
+        <LandingPage />
+      </Suspense>
+    );
+  }
+  return <Navigate to="/dashboard" replace />;
 }
 
 const router = createBrowserRouter([
@@ -231,6 +248,10 @@ const router = createBrowserRouter([
       {
         path: 'pricing',
         element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><Pricing /></Suspense></ErrorBoundary>
+      },
+      {
+        path: 'business-intelligence',
+        element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><BILandingPage /></Suspense></ErrorBoundary>
       },
       {
         path: 'settings',
@@ -529,6 +550,10 @@ const router = createBrowserRouter([
           {
             path: 'bot-calendar',
             element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><BotCalendarManagement /></Suspense></ErrorBoundary>
+          },
+          {
+            path: 'meeting-intelligence-config',
+            element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><MeetingIntelligenceConfig /></Suspense></ErrorBoundary>
           }
         ]
       },
@@ -538,7 +563,7 @@ const router = createBrowserRouter([
       },
       {
         index: true,
-        element: <Navigate to="/dashboard" replace />
+        element: <RootIndexRoute />
       }
     ]
   }

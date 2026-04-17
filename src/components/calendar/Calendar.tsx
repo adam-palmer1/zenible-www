@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AppLayout from '../layout/AppLayout';
 import { useMobile } from '../../hooks/useMobile';
 import { useCalendar } from '../../hooks/useCalendar';
 import { usePreferences } from '../../contexts/PreferencesContext';
-import { useCRMReferenceData, type EnumItem } from '../../contexts/CRMReferenceDataContext';
 import type { CalendarAppointmentResponse } from '../../types/crm';
 import AppointmentModal from './AppointmentModal';
 import RecurringScopeDialog from './RecurringScopeDialog';
@@ -129,42 +128,13 @@ export default function Calendar() {
     updateAccountColor,
     toggleAccountReadOnly,
     syncAccount,
+    listAccountCalendars,
+    updateSelectedCalendars,
+    updateSubcalendarColor,
     getAppointment,
   } = useCalendar();
 
   const { getPreference, updatePreference, initialized: prefsReady } = usePreferences();
-
-  // Get enum metadata from context
-  const {
-    appointmentTypes,
-    loading: enumsLoading,
-  } = useCRMReferenceData();
-
-  // Build dynamic default colors from appointment types
-  const DEFAULT_APPOINTMENT_COLORS = useMemo(() => {
-    const colors: Record<string, string> = {};
-    appointmentTypes.forEach((type: EnumItem) => {
-      colors[type.value] = type.color || (type['default_color'] as string) || '#3b82f6';
-    });
-    return colors;
-  }, [appointmentTypes]);
-
-  // Initialize preferences
-  const [visibleTypes, setVisibleTypes] = useState<string[]>(() => {
-    const allTypeValues = appointmentTypes.map((t: EnumItem) => t.value);
-    return getPreference('calendar_visible_types', allTypeValues.length > 0 ? allTypeValues : ['manual', 'call', 'follow_up']) as string[];
-  });
-  const [typeColors, setTypeColors] = useState<Record<string, string>>(() =>
-    getPreference('calendar_type_colors', DEFAULT_APPOINTMENT_COLORS) as Record<string, string>
-  );
-
-  // Update visible types when appointment types load
-  useEffect(() => {
-    if (!prefsReady || enumsLoading || appointmentTypes.length === 0) return;
-    const allTypeValues = appointmentTypes.map((t: EnumItem) => t.value);
-    const currentVisible = getPreference('calendar_visible_types', allTypeValues) as string[];
-    setVisibleTypes(currentVisible);
-  }, [prefsReady, enumsLoading, appointmentTypes, getPreference]);
 
   // Load view mode from preferences
   useEffect(() => {
@@ -173,60 +143,17 @@ export default function Calendar() {
     setViewMode(savedViewMode);
   }, [prefsReady, getPreference]);
 
-  // Sync local state with preferences when they change
-  useEffect(() => {
-    if (!prefsReady) return;
-    const allTypeValues = appointmentTypes.map((t: EnumItem) => t.value);
-    setVisibleTypes(getPreference('calendar_visible_types', allTypeValues.length > 0 ? allTypeValues : ['manual', 'call', 'follow_up']) as string[]);
-    setTypeColors(getPreference('calendar_type_colors', DEFAULT_APPOINTMENT_COLORS) as Record<string, string>);
-  }, [prefsReady, getPreference, appointmentTypes, DEFAULT_APPOINTMENT_COLORS]);
-
-  // Migrate user preferences when enums load (Phase 9: Preference Migration)
-  useEffect(() => {
-    if (!prefsReady || enumsLoading || appointmentTypes.length === 0) return;
-
-      // Migrate colors - add new types from backend with their default colors
-      const currentColors = getPreference('calendar_type_colors', {}) as Record<string, string>;
-      const mergedColors: Record<string, string> = {};
-
-      appointmentTypes.forEach((type: EnumItem) => {
-        mergedColors[type.value] = currentColors[type.value] || type.color || (type['default_color'] as string) || '#3b82f6';
-      });
-
-      // Only update if there are new types
-      if (Object.keys(mergedColors).length > Object.keys(currentColors).length) {
-        updatePreference('calendar_type_colors', mergedColors, 'calendar');
-        setTypeColors(mergedColors);
-      }
-
-      // Migrate visible types - ensure all types are visible by default
-      const currentVisible = getPreference('calendar_visible_types', []) as string[];
-      const allTypeValues = appointmentTypes.map((t: EnumItem) => t.value);
-      const merged = [...new Set([...currentVisible, ...allTypeValues])];
-
-      // Only update if there are new types to add
-      if (merged.length > currentVisible.length) {
-        updatePreference('calendar_visible_types', merged, 'calendar');
-        setVisibleTypes(merged);
-      }
-  }, [prefsReady, enumsLoading, appointmentTypes, getPreference, updatePreference]);
-
   // Fetch appointments when date or view mode changes
   useEffect(() => {
     const { startDate, endDate } = getDateRange();
-    // Expand range to include +-1 month to ensure mini calendar shows all appointments
-    const expandedStartDate = addMonths(startDate, -1);
-    const expandedEndDate = addMonths(endDate, 1);
-    fetchAppointmentsForDateRange(expandedStartDate, expandedEndDate);
+    fetchAppointmentsForDateRange(startDate, endDate);
   }, [currentDate, viewMode, fetchAppointmentsForDateRange]);
 
   // Poll for calendar changes every 120 seconds
   useEffect(() => {
     const pollInterval = setInterval(() => {
       const { startDate, endDate } = getDateRange();
-      const expandedStartDate = addMonths(startDate, -1);
-      const expandedEndDate = addMonths(endDate, 1);
-      fetchAppointmentsForDateRange(expandedStartDate, expandedEndDate);
+      fetchAppointmentsForDateRange(startDate, endDate);
     }, 120000);
 
     return () => clearInterval(pollInterval);
@@ -284,34 +211,26 @@ export default function Calendar() {
     return { startDate, endDate };
   };
 
-  // Get color for appointment (priority: Google account color > user type preference > backend default > fallback)
+  // Get color for appointment (priority: calendar color > account color > fallback)
   const getAppointmentColor = useCallback((appointment: CalendarAppointmentResponse | string) => {
-    // Handle legacy calls that pass just the type string
-    const appointmentType = typeof appointment === 'string' ? appointment : (appointment?.appointment_type || 'manual');
-    const googleTokenId = typeof appointment === 'object' ? appointment?.google_calendar_token_id : null;
+    if (typeof appointment === 'string' || !appointment) return '#3b82f6';
+    const googleTokenId = (appointment as any)?.google_calendar_token_id;
+    const googleCalendarId = (appointment as any)?.google_calendar_id;
 
-    // 1. If appointment is from a Google Calendar account, use that account's color
     if (googleTokenId && googleAccounts.length > 0) {
-      const account = googleAccounts.find(acc => String(acc.id) === String(googleTokenId));
-      if (account?.color) {
-        return account.color;
+      const account: any = googleAccounts.find((acc: any) => String(acc.id) === String(googleTokenId));
+      if (account) {
+        if (googleCalendarId && account.calendars?.length > 0) {
+          const calendar = account.calendars.find((cal: any) => cal.calendar_id === googleCalendarId);
+          if (calendar?.color || calendar?.google_color) {
+            return calendar.color || calendar.google_color;
+          }
+        }
+        if (account.color) return account.color;
       }
     }
-
-    // 2. Check user preference for appointment type
-    if (typeColors[appointmentType]) {
-      return typeColors[appointmentType];
-    }
-
-    // 3. Check backend default
-    const typeObj = appointmentTypes.find((t: EnumItem) => t.value === appointmentType);
-    if (typeObj?.color || typeObj?.['default_color']) {
-      return typeObj.color || (typeObj['default_color'] as string);
-    }
-
-    // 4. Hardcoded fallback
     return '#3b82f6';
-  }, [googleAccounts, typeColors, appointmentTypes]);
+  }, [googleAccounts]);
 
   // Check if appointment should be treated as read-only
   const isAppointmentReadOnly = useCallback((appointment: CalendarAppointmentResponse) => {
@@ -331,37 +250,12 @@ export default function Calendar() {
     return false;
   }, [googleAccounts]);
 
-  // Filter appointments by visible types
-  const filteredAppointments = appointments.filter((apt: CalendarAppointmentResponse) =>
-    visibleTypes.includes(apt.appointment_type || 'manual')
-  );
-
-  // Toggle appointment type visibility
-  const toggleAppointmentType = async (type: string) => {
-    const newVisibleTypes = visibleTypes.includes(type)
-      ? visibleTypes.filter(t => t !== type)
-      : [...visibleTypes, type];
-
-    setVisibleTypes(newVisibleTypes);
-    await updatePreference('calendar_visible_types', newVisibleTypes, 'calendar');
-  };
-
-  // Update appointment type color
-  const updateTypeColor = async (type: string, color: string) => {
-    const newColors = { ...typeColors, [type]: color };
-    setTypeColors(newColors);
-    await updatePreference('calendar_type_colors', newColors, 'calendar');
-  };
-
-  // Reset colors to default
-  const resetColors = async () => {
-    setTypeColors(DEFAULT_APPOINTMENT_COLORS);
-    await updatePreference('calendar_type_colors', DEFAULT_APPOINTMENT_COLORS, 'calendar');
-  };
+  const filteredAppointments = appointments;
 
   // Update view mode and save to preferences
   const handleViewModeChange = async (newViewMode: string) => {
     setViewMode(newViewMode);
+    setSelectedScheduleDate(null);
     await updatePreference('calendar_view_mode', newViewMode, 'calendar');
   };
 
@@ -728,6 +622,8 @@ export default function Calendar() {
               appointments={filteredAppointments}
               onAppointmentClick={handleAppointmentClick}
               selectedDate={selectedScheduleDate}
+              viewMode={viewMode}
+              currentDate={currentDate}
             />
           </div>
       </div>
@@ -790,14 +686,9 @@ export default function Calendar() {
           updateAccountColor={updateAccountColor}
           toggleAccountReadOnly={toggleAccountReadOnly}
           syncAccount={syncAccount}
-          enumsLoading={enumsLoading}
-          appointmentTypes={appointmentTypes}
-          visibleTypes={visibleTypes}
-          typeColors={typeColors}
-          defaultAppointmentColors={DEFAULT_APPOINTMENT_COLORS}
-          toggleAppointmentType={toggleAppointmentType}
-          updateTypeColor={updateTypeColor}
-          resetColors={resetColors}
+          listAccountCalendars={listAccountCalendars}
+          updateSelectedCalendars={updateSelectedCalendars}
+          updateSubcalendarColor={updateSubcalendarColor}
         />
       )}
     </AppLayout>

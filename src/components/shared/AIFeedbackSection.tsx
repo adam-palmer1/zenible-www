@@ -9,6 +9,7 @@ import ConversationHistory from './ai-feedback/ConversationHistory';
 import MetricsDisplay from './ai-feedback/MetricsDisplay';
 import CompletionQuestions from './ai-feedback/CompletionQuestions';
 import ChatInput from './ai-feedback/ChatInput';
+import DeleteMessageModal from './ai-feedback/DeleteMessageModal';
 import type { AIFeedbackSectionProps, StructuredAnalysisData } from './ai-feedback/types';
 
 export type { AIFeedbackSectionProps } from './ai-feedback/types';
@@ -28,6 +29,8 @@ export default function AIFeedbackSection({
   messageId,
   onCancel,
   onSendMessage,
+  onDeleteMessage,
+  deletingMessageId = null,
   characterName = 'AI Assistant',
   characterAvatarUrl = null,
   characterDescription = '',
@@ -44,6 +47,7 @@ export default function AIFeedbackSection({
   const [questionsSent, setQuestionsSent] = useState(false);
   const [messageRatings, setMessageRatings] = useState<Record<string, string | null>>({}); // Track ratings for all messages: { messageId: 'positive'|'negative'|null }
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null); // Track which message was copied for clipboard feedback
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const contentEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -76,6 +80,13 @@ export default function AIFeedbackSection({
   useEffect(() => {
     setQuestionsSent(false);
   }, [conversationId, analyzing]);
+
+  // Reset questionsSent when new suggestions arrive (from follow-up responses)
+  useEffect(() => {
+    if (effectiveQuestions.length > 0) {
+      setQuestionsSent(false);
+    }
+  }, [effectiveQuestions]);
 
   // Clear stale state when conversation changes
   useEffect(() => {
@@ -155,6 +166,7 @@ export default function AIFeedbackSection({
     const userMessage = question.trim();
     setQuestion('');
     setIsSendingMessage(true);
+    setQuestionsSent(true);
 
     // Add user message to conversation history
     setConversationHistory(prev => [...prev, {
@@ -184,6 +196,8 @@ export default function AIFeedbackSection({
   const handleSuggestionClick = async (questionText: string) => {
     if (!onSendMessage || isSendingMessage) return;
 
+    const cleanText = questionText.replace(/\?$/, '');
+
     // Hide buttons immediately
     setQuestionsSent(true);
 
@@ -193,12 +207,12 @@ export default function AIFeedbackSection({
     // Add user message to conversation history
     setConversationHistory(prev => [...prev, {
       role: 'user',
-      content: questionText,
+      content: cleanText,
       timestamp: new Date().toISOString()
     }]);
 
     try {
-      await onSendMessage(questionText);
+      await onSendMessage(cleanText);
     } catch (error) {
       console.error('[AIFeedbackSection] Error sending completion question:', error);
       setQuestionsSent(false); // Re-show buttons on error
@@ -233,6 +247,19 @@ export default function AIFeedbackSection({
       // Silent failure - rating not critical
     }
   };
+
+  const handleRequestDelete = useCallback((msgId: string) => {
+    setPendingDeleteId(msgId);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDeleteId || !onDeleteMessage) return;
+    try {
+      await onDeleteMessage(pendingDeleteId);
+    } finally {
+      setPendingDeleteId(null);
+    }
+  }, [pendingDeleteId, onDeleteMessage]);
 
   // Copy message content to clipboard
   const handleCopyMessage = async (msgId: string, content: string) => {
@@ -368,6 +395,8 @@ export default function AIFeedbackSection({
                 copiedMessageId={copiedMessageId}
                 onMessageRate={handleMessageRating}
                 onCopyMessage={handleCopyMessage}
+                onDeleteMessage={onDeleteMessage ? handleRequestDelete : undefined}
+                deletingMessageId={deletingMessageId}
               />
 
               {/* Completion Question Buttons - Show after conversation history */}
@@ -407,6 +436,17 @@ export default function AIFeedbackSection({
         onQuestionChange={setQuestion}
         onKeyDown={handleKeyDown}
         onSend={handleSendQuestion}
+        isStreaming={isProcessing || analyzing || isStreaming || isFollowUpStreaming}
+        onStop={handleCancelAnalysis}
+      />
+
+      {/* Delete Message Modal */}
+      <DeleteMessageModal
+        darkMode={darkMode}
+        open={!!pendingDeleteId}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={handleConfirmDelete}
+        loading={!!pendingDeleteId && deletingMessageId === pendingDeleteId}
       />
     </div>
   );

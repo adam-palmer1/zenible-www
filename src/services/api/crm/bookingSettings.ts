@@ -140,6 +140,14 @@ class BookingSettingsAPI {
       method: 'POST',
     });
   }
+
+  // Update which calendars within an account are checked for conflicts
+  async updateCalendarConflictSources<T = unknown>(tokenId: string, calendarIds: string[]): Promise<T> {
+    return this.request<T>(`/crm/booking-settings/google-accounts/${tokenId}/calendar-sources`, {
+      method: 'PUT',
+      body: JSON.stringify({ calendar_ids: calendarIds }),
+    });
+  }
 }
 
 export default new BookingSettingsAPI();

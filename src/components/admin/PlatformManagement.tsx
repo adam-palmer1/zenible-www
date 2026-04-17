@@ -144,10 +144,6 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
     if (!formData.description.trim()) {
       errors.description = 'Description is required';
     }
-    if (!formData.icon_svg.trim()) {
-      errors.icon_svg = 'Icon SVG is required';
-    }
-
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
@@ -404,7 +400,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
                     <label className={`block text-sm font-medium mb-2 ${
                       darkMode ? 'text-gray-300' : 'text-gray-700'
                     }`}>
-                      Icon SVG *
+                      Icon SVG
                     </label>
                     <div className="flex gap-4">
                       <textarea
@@ -549,10 +545,12 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
                           </button>
                         </div>
 
-                        <div
-                          className="w-10 h-10"
-                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(platform.icon_svg) }}
-                        />
+                        {platform.icon_svg && (
+                          <div
+                            className="w-10 h-10"
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(platform.icon_svg) }}
+                          />
+                        )}
 
                         <div>
                           <div className="flex items-center gap-3">

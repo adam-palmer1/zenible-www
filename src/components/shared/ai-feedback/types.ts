@@ -14,11 +14,29 @@ export interface AnalysisHistoryItem {
   isStreaming?: boolean;
 }
 
+export interface MessageAttachment {
+  document_id: string;
+  file_name: string;
+  file_type: string;
+  url: string;
+  thumbnail_url?: string;
+}
+
+export interface LinkedMeeting {
+  meeting_id: string;
+  title: string;
+  start_time: string;
+  duration_ms?: number | null;
+}
+
 export interface FollowUpMessage {
   role: string;
   content: string;
   messageId?: string;
   timestamp: string;
+  characterAvatarUrl?: string | null;
+  attachments?: MessageAttachment[];
+  linkedMeeting?: LinkedMeeting | null;
 }
 
 export interface StructuredAnalysisData {
@@ -58,6 +76,9 @@ export interface ConversationMessage {
   usage?: unknown;
   timestamp: string;
   isStreaming?: boolean;
+  characterAvatarUrl?: string | null;
+  attachments?: MessageAttachment[];
+  linkedMeeting?: LinkedMeeting | null;
 }
 
 export interface AIFeedbackSectionProps {
@@ -75,6 +96,8 @@ export interface AIFeedbackSectionProps {
   messageId: string;
   onCancel: () => void;
   onSendMessage: (message: string) => Promise<void>;
+  onDeleteMessage?: (messageId: string) => Promise<void> | void;
+  deletingMessageId?: string | null;
   characterId: string;
   characterName?: string;
   characterAvatarUrl?: string | null;

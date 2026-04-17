@@ -26,6 +26,7 @@ interface ComboboxProps {
   createLabel?: string;
   creating?: boolean;
   searchable?: boolean;
+  onSearch?: (query: string) => void;
 }
 
 /**
@@ -60,6 +61,7 @@ const Combobox: React.FC<ComboboxProps> = ({
   createLabel = 'Create new',
   creating = false,
   searchable = true,
+  onSearch,
 }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newItemName, setNewItemName] = useState('');
@@ -77,10 +79,17 @@ const Combobox: React.FC<ComboboxProps> = ({
   // Find selected option
   const selectedOption = options.find(opt => opt.id === value);
 
-  // Filter options based on search term
-  const filteredOptions = options.filter(opt =>
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter options based on search term (skip if server-side search is active)
+  const filteredOptions = onSearch
+    ? options
+    : options.filter(opt =>
+        opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+  // Notify parent of search term changes for server-side search
+  useEffect(() => {
+    if (onSearch) onSearch(searchTerm);
+  }, [searchTerm, onSearch]);
 
   // Calculate dropdown position using fixed positioning (works for both modal and non-modal)
   const updateDropdownPosition = useCallback(() => {

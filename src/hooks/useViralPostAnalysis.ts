@@ -46,11 +46,14 @@ export function useViralPostAnalysis({
     metrics,
     messageId,
     isConnected,
+    deletingMessageId,
     invokeTool,
     sendFollowUpMessage,
+    deleteMessage,
     reset,
     clearConversation,
-    setConversationId
+    setConversationId,
+    setStructuredAnalysis
   } = useBaseAIAnalysis({
     characterId,
     panelId,
@@ -91,13 +94,16 @@ export function useViralPostAnalysis({
     metrics,
     messageId,
     isConnected,
+    deletingMessageId,
 
     // Functions
     analyzeFromDraft,
     analyzeFromStrategy,
     sendFollowUpMessage,
+    deleteMessage,
     reset,
     clearConversation,
-    setConversationId
+    setConversationId,
+    setStructuredAnalysis
   };
 }

@@ -108,6 +108,8 @@ const createRequestWithBase = (baseUrl: string, context: string): RequestFn => {
         // Handle Pydantic validation errors (detail is an array)
         if (Array.isArray(data?.detail)) {
           errorMessage = formatValidationErrors(data.detail);
+        } else if (typeof data?.detail === 'object' && data?.detail?.message) {
+          errorMessage = data.detail.message;
         } else {
           errorMessage = data?.detail || data?.message || `Request failed with status ${response.status}`;
         }

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Calendar, Loader2, ArrowLeft, ChevronDown, Settings } from 'lucide-react';
 import { useQuotes } from '../../../contexts/QuoteContext';
-import { useContacts } from '../../../hooks/crm/useContacts';
+import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
@@ -32,7 +32,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
   const navigate = useNavigate();
   const { id } = useParams();
   const { createQuote, updateQuote } = useQuotes();
-  const { contacts: allContacts, loading: contactsLoading } = useContacts({ is_client: true });
+  const { contacts: allContacts, loading: contactsLoading, searching: contactsSearching, setSearchQuery: setClientServerSearch } = useSearchableContacts({ is_client: true });
   const { showSuccess, showError } = useNotification();
   const { numberFormats } = useCRMReferenceData();
   const { getNumberFormat } = useCompanyAttributes();
@@ -91,6 +91,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
   const [showSendModal, setShowSendModal] = useState(false);
   const [savedQuote, setSavedQuote] = useState<any>(null);
   const [showClientModal, setShowClientModal] = useState(false);
+
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
@@ -521,8 +522,9 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
               clients={allContacts}
               selectedClientId={contactId}
               onSelect={setContactId}
-              loading={contactsLoading}
+              loading={contactsLoading || contactsSearching}
               triggerRef={clientButtonRef as React.RefObject<HTMLElement>}
+              onSearch={setClientServerSearch}
             />
           </div>
         </div>

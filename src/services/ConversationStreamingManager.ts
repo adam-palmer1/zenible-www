@@ -48,6 +48,10 @@ interface ToolErrorEventData {
   toolName: string;
   error: string;
   validationErrors: unknown;
+  errorType?: string;
+  reason?: string;
+  current?: number | null;
+  limit?: number | null;
 }
 
 interface ErrorEventData {
@@ -57,6 +61,8 @@ interface ErrorEventData {
 interface SocketEventData {
   conversation_id: string;
   message_id?: string;
+  user_message_id?: string;
+  tracking_id?: string;
   chunk?: string;
   chunk_index?: number;
   tool_name?: string;
@@ -69,18 +75,29 @@ interface SocketEventData {
   duration_ms?: number;
   message?: string;
   error?: string;
+  error_type?: string;
+  reason?: string;
+  current?: number | null;
+  limit?: number | null;
   validation_errors?: unknown;
+}
+
+interface StreamingStartEventData {
+  messageId?: string;
+  userMessageId?: string;
 }
 
 class ConversationStreamingManager {
   private wsService: WebSocketService;
   private conversations: Map<string, ConversationState>;
   private activeTrackingIds: Map<string, string>;
+  private trackingIdToConversation: Map<string, string>;
 
   constructor(wsService: WebSocketService) {
     this.wsService = wsService;
     this.conversations = new Map(); // conversationId -> conversation state
     this.activeTrackingIds = new Map(); // conversationId -> trackingId (for cancellation)
+    this.trackingIdToConversation = new Map(); // trackingId -> conversationId (reverse lookup)
     this.setupGlobalHandlers();
   }
 
@@ -106,6 +123,12 @@ class ConversationStreamingManager {
         streamContent: '',
         currentMessageId: data.message_id
       });
+
+      // Forward user_message_id so UI can tag the local user message
+      this.notifyHandlers(data.conversation_id, 'streaming_start', {
+        messageId: data.message_id,
+        userMessageId: data.user_message_id,
+      } as StreamingStartEventData);
     });
 
     // Streaming chunks
@@ -141,6 +164,13 @@ class ConversationStreamingManager {
         streamContent: ''
       });
 
+      // Clear tracking IDs for this conversation
+      const trackingId = this.activeTrackingIds.get(data.conversation_id);
+      if (trackingId) {
+        this.trackingIdToConversation.delete(trackingId);
+        this.activeTrackingIds.delete(data.conversation_id);
+      }
+
       // Notify listeners with complete data
       this.notifyHandlers(data.conversation_id, 'complete', {
         fullResponse: data.full_response,
@@ -155,6 +185,33 @@ class ConversationStreamingManager {
           durationMs: data.duration_ms
         }
       } as CompleteEventData);
+    });
+
+    // Response cancelled by backend (confirms user-initiated stop)
+    socket.on('ai_response_cancelled', (data: SocketEventData) => {
+      const trackingId = data.tracking_id;
+      if (!trackingId) return;
+
+      const conversationId = this.trackingIdToConversation.get(trackingId);
+      this.trackingIdToConversation.delete(trackingId);
+
+      if (!conversationId) return;
+
+      this.updateConversation(conversationId, {
+        isStreaming: false,
+        isProcessing: false,
+        streamContent: ''
+      });
+
+      this.activeTrackingIds.delete(conversationId);
+
+      // Notify listeners so UI resets even if our optimistic local reset missed.
+      // fullResponse/messageId are undefined — the hook should simply reset state.
+      this.notifyHandlers(conversationId, 'complete', {
+        fullResponse: undefined,
+        messageId: undefined,
+        toolName: null,
+      } as unknown as CompleteEventData);
     });
 
     // Tool error
@@ -175,7 +232,11 @@ class ConversationStreamingManager {
         this.notifyHandlers(conversationId, 'tool_error', {
           toolName: data.tool_name,
           error: data.message,
-          validationErrors: data.validation_errors
+          validationErrors: data.validation_errors,
+          errorType: data.error_type,
+          reason: data.reason,
+          current: data.current,
+          limit: data.limit,
         } as ToolErrorEventData);
       }
     });
@@ -193,6 +254,13 @@ class ConversationStreamingManager {
           isStreaming: false,
           isProcessing: false
         });
+
+        // Clear tracking IDs
+        const trackingId = this.activeTrackingIds.get(conversationId);
+        if (trackingId) {
+          this.trackingIdToConversation.delete(trackingId);
+          this.activeTrackingIds.delete(conversationId);
+        }
 
         this.notifyHandlers(conversationId, 'error', {
           error: data.message || data.error
@@ -260,7 +328,10 @@ class ConversationStreamingManager {
   /**
    * Send a message in a conversation
    */
-  sendMessage(conversationId: string, characterId: string, message: string): void {
+  sendMessage(conversationId: string, characterId: string, message: string, options?: {
+    attachments?: Array<{ document_id: string; file_name: string; file_type: string; url: string; thumbnail_url?: string }>;
+    metadata?: Record<string, unknown>;
+  }): void {
     const socket = this.wsService.getSocket();
     if (!socket?.connected) {
       throw new Error('WebSocket not connected');
@@ -269,14 +340,18 @@ class ConversationStreamingManager {
     // Generate unique tracking ID for this request
     const trackingId = crypto.randomUUID();
 
-    // Store tracking ID for potential cancellation
+    // Store tracking ID for potential cancellation (both directions)
     this.activeTrackingIds.set(conversationId, trackingId);
+    this.trackingIdToConversation.set(trackingId, conversationId);
 
     socket.emit('message_ai_conversation', {
       conversation_id: conversationId,
       character_id: characterId,
       tracking_id: trackingId,
-      message
+      message,
+      ...(options?.metadata?.feature ? { feature: options.metadata.feature } : {}),
+      ...(options?.attachments?.length ? { attachments: options.attachments } : {}),
+      ...(options?.metadata ? { metadata: options.metadata } : {}),
     });
   }
 
@@ -292,8 +367,9 @@ class ConversationStreamingManager {
     // Generate unique tracking ID for this request
     const trackingId = crypto.randomUUID();
 
-    // Store tracking ID for potential cancellation
+    // Store tracking ID for potential cancellation (both directions)
     this.activeTrackingIds.set(conversationId, trackingId);
+    this.trackingIdToConversation.set(trackingId, conversationId);
 
     socket.emit('message_ai_conversation', {
       conversation_id: conversationId,
@@ -324,7 +400,7 @@ class ConversationStreamingManager {
       tracking_id: trackingId
     });
 
-    // Clear the tracking ID
+    // Keep reverse lookup until backend confirms; clear forward mapping now
     this.activeTrackingIds.delete(conversationId);
   }
 

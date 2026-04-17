@@ -7,6 +7,7 @@ import BookingGeneralSettings from './booking/BookingGeneralSettings';
 import AvailabilityEditor from './booking/AvailabilityEditor';
 import CallTypesList from './booking/CallTypesList';
 import CalendarSourcesEditor from './booking/CalendarSourcesEditor';
+import RemindersEditor from './booking/RemindersEditor';
 import EmbedSettings from './booking/EmbedSettings';
 
 interface BookingTabProps {
@@ -68,6 +69,7 @@ const BookingTab: React.FC<BookingTabProps> = ({ onUnsavedChanges }) => {
     { id: 'general', label: 'General Settings' },
     { id: 'availability', label: 'Availability' },
     { id: 'call-types', label: 'Call Types' },
+    { id: 'reminders', label: 'Reminders' },
     { id: 'calendars', label: 'Calendar Sources' },
     { id: 'embed', label: 'Embed Widget' },
   ];
@@ -145,6 +147,9 @@ const BookingTab: React.FC<BookingTabProps> = ({ onUnsavedChanges }) => {
         )}
         {activeSection === 'call-types' && (
           <CallTypesList />
+        )}
+        {activeSection === 'reminders' && (
+          <RemindersEditor />
         )}
         {activeSection === 'calendars' && (
           <CalendarSourcesEditor />

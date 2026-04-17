@@ -233,7 +233,15 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
       initializeForm();
       // Check Google Calendar connection status
       appointmentsAPI.getGoogleStatus<{ accounts?: unknown[] }>()
-        .then((status) => setGoogleConnected((status?.accounts?.length ?? 0) > 0))
+        .then((status) => {
+          const connected = (status?.accounts?.length ?? 0) > 0;
+          setGoogleConnected(connected);
+          // Auto-enable "Generate Google Meet link" for new appointments
+          // when Google Calendar is connected and no meeting link exists
+          if (connected && !appointment?.meeting_link) {
+            setGenerateMeetLink(true);
+          }
+        })
         .catch(() => setGoogleConnected(false));
     } else {
       setGenerateMeetLink(false);

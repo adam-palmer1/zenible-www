@@ -198,6 +198,11 @@ export const queryKeys = {
     all: ['usageDashboard'] as const,
   },
 
+  // Usage History
+  usageHistory: {
+    all: ['usageHistory'] as const,
+  },
+
   // Payment Integrations
   paymentIntegrations: {
     all: ['paymentIntegrations'] as const,

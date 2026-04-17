@@ -153,8 +153,8 @@ export const CRMReferenceDataProvider = ({ children }: { children: React.ReactNo
   const queryClient = useQueryClient();
   const usageDashboard = useUsageDashboardOptional();
 
-  // Check if calendar feature is enabled (default to false if usage data not yet loaded)
-  const calendarEnabled = usageDashboard?.isFeatureEnabled('calendar') ?? false;
+  // Check if calendar feature is enabled (default to true so enums load immediately)
+  const calendarEnabled = usageDashboard?.isFeatureEnabled('calendar') ?? true;
 
   const { data, isLoading, error, dataUpdatedAt } = useQuery({
     queryKey: [...queryKeys.referenceData.all, { calendarEnabled }],

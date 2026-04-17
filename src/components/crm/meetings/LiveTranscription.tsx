@@ -15,6 +15,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClose }) => {
   const { darkMode } = usePreferences();
   const [connected, setConnected] = useState(false);
+  const [bridgeReady, setBridgeReady] = useState(false);
   const [botStatus, setBotStatus] = useState('connecting');
   const [entries, setEntries] = useState<TranscriptEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -27,12 +28,24 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
 
   const getToken = useCallback(() => localStorage.getItem('access_token'), []);
 
+  // Fetch real bot status immediately on mount (WebSocket only sends changes, not current state)
   useEffect(() => {
+    meetingIntelligenceAPI.getBotStatus(sessionId).then((data: any) => {
+      if (data?.status) setBotStatus(data.status);
+    }).catch(() => {});
+  }, [sessionId]);
+
+  useEffect(() => {
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+
     const ws = new ZMIWebSocketService({
       baseUrl: API_BASE_URL,
       getAccessToken: getToken,
       onConnectionChange: setConnected,
       onTranscript: (entry) => {
+        retryCount = 0; // reset on successful transcript
         setEntries((prev) => {
           // Replace partial with final for same speaker
           if (entry.is_final && prev.length > 0) {
@@ -49,8 +62,19 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
           setBotStatus(data.status);
         }
       },
+      onTranscriptionReady: () => {
+        setBridgeReady(true);
+      },
       onError: (data) => {
-        setError(data.message);
+        // Retry subscription on transient bridge errors
+        if (data.error === 'bot_not_in_meeting' && retryCount < MAX_RETRIES) {
+          retryCount++;
+          retryTimer = setTimeout(() => {
+            ws.subscribeSession(sessionId);
+          }, 5000);
+          return;
+        }
+        setError(data.message || 'Transcription connection failed');
       },
     });
 
@@ -65,10 +89,59 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
       });
 
     return () => {
+      if (retryTimer) clearTimeout(retryTimer);
       ws.unsubscribeSession(sessionId);
       ws.disconnect();
     };
   }, [sessionId, getToken]);
+
+  // Track when this component mounted (for joining timeout detection)
+  const mountedAtRef = useRef(Date.now());
+
+  // Poll REST status when WebSocket disconnects OR when stuck in connecting/joining
+  useEffect(() => {
+    const isStuckJoining = (botStatus === 'connecting' || botStatus === 'joining') &&
+      (Date.now() - mountedAtRef.current) > 30_000;
+
+    // Only poll if disconnected or stuck in joining state
+    if (connected && !isStuckJoining) return;
+
+    let cancelled = false;
+    const checkStatus = async () => {
+      try {
+        const data = await meetingIntelligenceAPI.getBotStatus(sessionId) as { status?: string };
+        if (cancelled) return;
+        const status = data?.status;
+        if (status) setBotStatus(status);
+        if (status === 'ended' || status === 'error') {
+          setTimeout(() => { if (!cancelled) onClose?.(); }, 2000);
+        }
+      } catch (err: unknown) {
+        if (cancelled) return;
+        // 404 = session not found on bot, treat as error
+        const is404 = err instanceof Error && err.message.includes('404');
+        setBotStatus(is404 ? 'error' : 'ended');
+        setTimeout(() => { if (!cancelled) onClose?.(); }, 2000);
+      }
+    };
+
+    checkStatus();
+    const interval = setInterval(checkStatus, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [connected, botStatus, sessionId, onClose]);
+
+  // Joining timeout: if stuck in connecting/joining for >60s with no transcription, auto-close
+  useEffect(() => {
+    if (botStatus !== 'connecting' && botStatus !== 'joining') return;
+    const timer = setTimeout(() => {
+      if (entries.length === 0) {
+        setBotStatus('error');
+        setError('Bot failed to join the meeting');
+        setTimeout(() => onClose?.(), 3000);
+      }
+    }, 60_000);
+    return () => clearTimeout(timer);
+  }, [botStatus, entries.length, onClose]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -192,10 +265,14 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
       )}
 
       {/* Transcript entries */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3" style={{ maxHeight: '400px' }}>
+      <div ref={scrollRef} className="overflow-y-auto p-4 space-y-3" style={{ height: '20rem' }}>
         {entries.length === 0 && !error && (
           <p className={`text-sm text-center py-8 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-400'}`}>
-            Waiting for transcription...
+            {!connected
+              ? 'Connecting to transcription service...'
+              : !bridgeReady
+                ? 'Establishing audio bridge...'
+                : 'Listening — transcripts will appear when someone speaks'}
           </p>
         )}
         {entries.map((entry, i) => (

@@ -65,8 +65,20 @@ class AppointmentsAPI {
   }
 
   // Get single appointment by ID
-  async get<T = unknown>(appointmentId: string): Promise<T> {
-    return this.request<T>(`/crm/appointments/${appointmentId}`, { method: 'GET' });
+  async get<T = unknown>(appointmentId: string, queryParams: Record<string, string> = {}): Promise<T> {
+    const cleanParams = Object.entries(queryParams).reduce<Record<string, string>>((acc, [key, value]) => {
+      if (value !== null && value !== undefined && value !== '' && value !== 'null') {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+
+    const queryString = new URLSearchParams(cleanParams).toString();
+    const endpoint = queryString
+      ? `/crm/appointments/${appointmentId}?${queryString}`
+      : `/crm/appointments/${appointmentId}`;
+
+    return this.request<T>(endpoint, { method: 'GET' });
   }
 
   // Create new appointment
@@ -182,6 +194,31 @@ class AppointmentsAPI {
   async generateMeetLink(): Promise<{ meeting_link: string }> {
     return this.request<{ meeting_link: string }>('/crm/appointments/generate-meet-link', {
       method: 'POST',
+    });
+  }
+
+  // ========== Multi-Calendar Management ==========
+
+  // List all calendars available in a Google account
+  async listAccountCalendars<T = unknown>(accountId: string): Promise<T> {
+    return this.request<T>(`/crm/appointments/google/accounts/${accountId}/calendars`, {
+      method: 'GET',
+    });
+  }
+
+  // Update which calendars are selected for sync
+  async updateSelectedCalendars<T = unknown>(accountId: string, selectedCalendarIds: string[]): Promise<T> {
+    return this.request<T>(`/crm/appointments/google/accounts/${accountId}/calendars`, {
+      method: 'PUT',
+      body: JSON.stringify({ selected_calendar_ids: selectedCalendarIds }),
+    });
+  }
+
+  // Set or clear the user's color override for a specific subcalendar
+  async updateSubcalendarColor<T = unknown>(accountId: string, calendarId: string, color: string | null): Promise<T> {
+    return this.request<T>(`/crm/appointments/google/accounts/${accountId}/calendars/${encodeURIComponent(calendarId)}/color`, {
+      method: 'PATCH',
+      body: JSON.stringify({ color }),
     });
   }
 

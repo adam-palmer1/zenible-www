@@ -7,6 +7,7 @@ export interface ZMISettings {
   minutes_remaining: number | null;
   caption_language: string | null;
   recording_enabled: boolean;
+  meeting_display_name: string | null;
 }
 
 export interface UpcomingMeeting {
@@ -21,11 +22,13 @@ export interface UpcomingMeeting {
   bot_dispatch_source: string | null;
   bot_session_id: string | null;
   bot_dispatch_error: string | null;
+  bot_status: string | null;
+  parent_appointment_id: string | null;
 }
 
 export interface BotStatus {
   session_id: string;
-  status: 'scheduling' | 'joining' | 'in_meeting' | 'listening' | 'leaving' | 'ended' | 'error';
+  status: 'scheduling' | 'joining' | 'waiting_room' | 'in_meeting' | 'listening' | 'leaving' | 'ended' | 'error';
   platform: string | null;
   participant_count: number;
   duration_s: number;
@@ -40,7 +43,6 @@ export interface MeetingListItem {
   title: string | null;
   start_time: string | null;
   duration_ms: number | null;
-  source: string | null;
   is_processed: boolean;
   transcript_count: number;
   system_audio_path: string | null;
@@ -60,8 +62,23 @@ export interface MeetingDetail {
   title: string | null;
   start_time: string;
   duration_ms: number | null;
-  summary_json: { overview?: string; keyPoints?: string[]; actionItems?: string[] } | null;
-  source: string | null;
+  summary_json: {
+    _analyzing?: boolean;
+    _quota_exceeded?: boolean;
+    _analysis_failed?: boolean;
+    _plan_access_denied?: boolean;
+    reason?: string;
+    message?: string;
+    character_name?: string;
+    usage_type?: string;
+    current?: number;
+    limit?: number;
+    overview?: string;
+    keyPoints?: string[];
+    actionItems?: string[];
+    sentiment?: string;
+    topics?: string[];
+  } | null;
   is_processed: boolean;
   has_video_recording: boolean;
   video_duration_ms: number | null;

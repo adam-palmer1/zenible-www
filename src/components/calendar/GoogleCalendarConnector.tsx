@@ -12,9 +12,12 @@ interface GoogleCalendarConnectorProps {
   onColorChange: (accountId: any, color: string) => Promise<any>;
   onToggleReadOnly: (accountId: any, isReadOnly: boolean) => Promise<any>;
   onSync: (accountId: any) => Promise<any>;
+  onListCalendars?: (accountId: string) => Promise<any[]>;
+  onUpdateSelectedCalendars?: (accountId: string, calendarIds: string[]) => Promise<any>;
+  onSubcalendarColorChange?: (accountId: string, calendarId: string, color: string | null) => Promise<any>;
 }
 
-export default function GoogleCalendarConnector({ isConnected, accounts, primaryAccount, onAddAccount, onSetPrimary, onDisconnect, onRename, onColorChange, onToggleReadOnly, onSync }: GoogleCalendarConnectorProps) {
+export default function GoogleCalendarConnector({ isConnected, accounts, primaryAccount, onAddAccount, onSetPrimary, onDisconnect, onRename, onColorChange, onToggleReadOnly, onSync, onListCalendars, onUpdateSelectedCalendars, onSubcalendarColorChange }: GoogleCalendarConnectorProps) {
   const [syncingAccountId, setSyncingAccountId] = useState<any>(null);
   const [syncResult, setSyncResult] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -22,8 +25,24 @@ export default function GoogleCalendarConnector({ isConnected, accounts, primary
   const [editName, setEditName] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<any>(null);
   const [openMenuId, setOpenMenuId] = useState<any>(null);
+  const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
+  const [accountCalendars, setAccountCalendars] = useState<Record<string, any[]>>({});
+  const [loadingCalendars, setLoadingCalendars] = useState<string | null>(null);
+  const [savingCalendars, setSavingCalendars] = useState(false);
 
   const DEFAULT_ACCOUNT_COLOR = '#3b82f6';
+
+  // Normalize calendar data from either source (fetched from Google or stored sync sources)
+  const getCalendarsForAccount = (accountId: string, account: any): any[] => {
+    if (accountCalendars[accountId]?.length) return accountCalendars[accountId];
+    return (account.calendars || []).map((s: any) => ({
+      calendar_id: s.calendar_id,
+      name: s.calendar_name || s.name || s.calendar_id,
+      color: s.color || s.google_color,
+      is_primary: s.is_primary_calendar ?? s.is_primary,
+      is_selected: s.is_selected,
+    }));
+  };
 
   const handleSync = async (accountId: any) => {
     setSyncingAccountId(accountId);
@@ -39,6 +58,15 @@ export default function GoogleCalendarConnector({ isConnected, accounts, primary
         setTimeout(() => setSyncResult(null), 5000);
       } else {
         setSyncResult({ accountId, success: false, message: result.error });
+      }
+      // Also refresh calendar list after sync
+      if (onListCalendars) {
+        try {
+          const calendars = await onListCalendars(accountId);
+          setAccountCalendars(prev => ({ ...prev, [accountId]: calendars }));
+        } catch {
+          // Non-critical — calendar list refresh failed
+        }
       }
     } catch (_error) {
       setSyncResult({ accountId, success: false, message: 'Sync failed' });
@@ -73,6 +101,76 @@ export default function GoogleCalendarConnector({ isConnected, accounts, primary
   const handleCancelRename = () => {
     setEditingAccountId(null);
     setEditName('');
+  };
+
+  const handleToggleExpand = (accountId: string) => {
+    setExpandedAccountId(expandedAccountId === accountId ? null : accountId);
+  };
+
+  const handleSyncCalendars = async (accountId: string) => {
+    setOpenMenuId(null);
+    if (!onListCalendars) return;
+    setLoadingCalendars(accountId);
+    try {
+      const calendars = await onListCalendars(accountId);
+      setAccountCalendars(prev => ({ ...prev, [accountId]: calendars }));
+      setExpandedAccountId(accountId);
+    } catch {
+      // Error handled by hook
+    } finally {
+      setLoadingCalendars(null);
+    }
+  };
+
+  const handleToggleCalendar = async (accountId: string, calendarId: string, isCurrentlySelected: boolean, account: any) => {
+    if (!onUpdateSelectedCalendars) return;
+    const calendars = getCalendarsForAccount(accountId, account);
+    let newSelectedIds: string[];
+
+    if (isCurrentlySelected) {
+      // Deselecting — remove from selected
+      newSelectedIds = calendars
+        .filter((c: any) => c.is_selected && c.calendar_id !== calendarId)
+        .map((c: any) => c.calendar_id);
+    } else {
+      // Selecting — add to selected
+      newSelectedIds = [
+        ...calendars.filter((c: any) => c.is_selected).map((c: any) => c.calendar_id),
+        calendarId
+      ];
+    }
+
+    setSavingCalendars(true);
+    try {
+      await onUpdateSelectedCalendars(accountId, newSelectedIds);
+      // Update local state to reflect the change (ensure we store in accountCalendars)
+      setAccountCalendars(prev => ({
+        ...prev,
+        [accountId]: calendars.map((c: any) =>
+          c.calendar_id === calendarId ? { ...c, is_selected: !isCurrentlySelected } : c
+        )
+      }));
+    } catch {
+      // Error handled by hook
+    } finally {
+      setSavingCalendars(false);
+    }
+  };
+
+  const handleSubcalendarColorChange = async (accountId: string, calendarId: string, color: string, account: any) => {
+    if (!onSubcalendarColorChange) return;
+    const calendars = getCalendarsForAccount(accountId, account);
+    setAccountCalendars(prev => ({
+      ...prev,
+      [accountId]: calendars.map((c: any) =>
+        c.calendar_id === calendarId ? { ...c, color } : c
+      ),
+    }));
+    try {
+      await onSubcalendarColorChange(accountId, calendarId, color);
+    } catch {
+      // Error handled by hook
+    }
   };
 
   const handleAddAccount = (setAsPrimary: boolean) => {
@@ -193,8 +291,20 @@ export default function GoogleCalendarConnector({ isConnected, accounts, primary
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
-                            Sync Now
+                            Force Sync
                           </button>
+                          {onListCalendars && (
+                            <button
+                              onClick={() => handleSyncCalendars(account.id)}
+                              disabled={loadingCalendars === account.id}
+                              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              Fetch Calendar List
+                            </button>
+                          )}
                           {!account.is_primary && (
                             <button
                               onClick={() => {
@@ -276,19 +386,41 @@ export default function GoogleCalendarConnector({ isConnected, accounts, primary
               )}
 
               {editingAccountId !== account.id && (
-                <div className="flex items-center gap-1.5 mt-1 ml-9">
-                  <svg
-                    className={`w-3.5 h-3.5 flex-shrink-0 ${account.is_primary ? 'text-purple-600' : 'text-gray-300'}`}
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <title>{account.is_primary ? 'Primary account' : 'Import only'}</title>
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                  </svg>
-                  {account.last_sync_at && (
-                    <span className="text-xs text-gray-400">
-                      Last Sync: {formatLastSync(account.last_sync_at)}
-                    </span>
+                <div className="flex items-center justify-between mt-1 ml-9">
+                  <div className="flex items-center gap-1.5">
+                    <svg
+                      className={`w-3.5 h-3.5 flex-shrink-0 ${account.is_primary ? 'text-purple-600' : 'text-gray-300'}`}
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <title>{account.is_primary ? 'Primary account' : 'Import only'}</title>
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    </svg>
+                    {account.last_sync_at && (
+                      <span className="text-xs text-gray-400">
+                        Last Sync: {formatLastSync(account.last_sync_at)}
+                      </span>
+                    )}
+                  </div>
+                  {onListCalendars && (
+                    <button
+                      onClick={() => handleToggleExpand(account.id)}
+                      className="p-0.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
+                      title={expandedAccountId === account.id ? 'Hide calendars' : 'Show calendars'}
+                    >
+                      {loadingCalendars === account.id ? (
+                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-purple-600"></div>
+                      ) : (
+                        <svg
+                          className={`w-4 h-4 transition-transform ${expandedAccountId === account.id ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      )}
+                    </button>
                   )}
                 </div>
               )}
@@ -298,6 +430,44 @@ export default function GoogleCalendarConnector({ isConnected, accounts, primary
                   syncResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                 }`}>
                   {syncResult.message}
+                </div>
+              )}
+
+              {/* Expandable calendar list */}
+              {expandedAccountId === account.id && getCalendarsForAccount(account.id, account).length > 0 && (
+                <div className="mt-2 ml-9 space-y-0.5">
+                  {getCalendarsForAccount(account.id, account).map((cal: any) => {
+                    const isPrimaryCalOfPrimaryAccount = cal.is_primary && account.is_primary;
+                    return (
+                      <label
+                        key={cal.calendar_id}
+                        className={`flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-50 cursor-pointer ${savingCalendars ? 'opacity-50 pointer-events-none' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={cal.is_selected}
+                          disabled={isPrimaryCalOfPrimaryAccount || savingCalendars}
+                          onChange={() => handleToggleCalendar(account.id, cal.calendar_id, cal.is_selected, account)}
+                          className="w-3.5 h-3.5 text-purple-600 rounded focus:ring-purple-500"
+                        />
+                        <input
+                          type="color"
+                          value={cal.color || '#3b82f6'}
+                          onChange={(e) => handleSubcalendarColorChange(account.id, cal.calendar_id, e.target.value, account)}
+                          onClick={(e) => e.stopPropagation()}
+                          disabled={!onSubcalendarColorChange}
+                          className="w-4 h-4 rounded border border-gray-300 cursor-pointer flex-shrink-0 disabled:cursor-not-allowed"
+                          title="Choose calendar color"
+                        />
+                        <span className="text-xs text-gray-700 truncate">
+                          {cal.name}
+                        </span>
+                        {cal.is_primary && (
+                          <span className="text-[10px] text-gray-400 flex-shrink-0">(primary)</span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -96,7 +96,13 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, cont
       onClose();
     } catch (error: any) {
       console.error('Failed to save contact:', error);
-      setSubmitError(error.message);
+      // Handle duplicate name (409)
+      if (error?.status === 409) {
+        const detail = (error?.data as any)?.detail;
+        setSubmitError(detail?.message || 'A contact with this name already exists');
+      } else {
+        setSubmitError(error.message);
+      }
     } finally {
       setLoading(false);
     }

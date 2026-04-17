@@ -59,11 +59,14 @@ export function useProfileAnalysis({
     metrics,
     messageId,
     isConnected,
+    deletingMessageId,
     invokeTool,
     sendFollowUpMessage,
+    deleteMessage,
     reset,
     clearConversation,
-    setConversationId
+    setConversationId,
+    setStructuredAnalysis
   } = useBaseAIAnalysis({
     characterId,
     panelId,
@@ -104,13 +107,16 @@ export function useProfileAnalysis({
     metrics,
     messageId,
     isConnected,
+    deletingMessageId,
 
     // Functions
     analyzeProfile,
     generateProfile,
     sendFollowUpMessage,
+    deleteMessage,
     reset,
     clearConversation,
-    setConversationId
+    setConversationId,
+    setStructuredAnalysis
   };
 }

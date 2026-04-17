@@ -74,8 +74,9 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
     if (selectedPayment && invoice) {
       const outstanding = parseFloat(invoice.outstanding_balance || '0');
       const unallocated = parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || '0');
-      // Default to the smaller of outstanding balance or unallocated amount
-      const suggestedAmount = Math.min(outstanding, unallocated);
+      // If invoice is already paid, suggest the full unallocated amount (record-keeping link)
+      // Otherwise, suggest the smaller of outstanding balance or unallocated amount
+      const suggestedAmount = outstanding <= 0 ? unallocated : Math.min(outstanding, unallocated);
       setAmountToApply(suggestedAmount.toFixed(2));
     }
   }, [selectedPayment, invoice]);
@@ -155,7 +156,7 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
     }
 
     const outstanding = parseFloat(invoice.outstanding_balance || '0');
-    if (amount > outstanding) {
+    if (outstanding > 0 && amount > outstanding) {
       showError(`Amount cannot exceed outstanding balance of ${formatCurrency(outstanding, invoice.currency?.code)}`);
       return;
     }
@@ -208,6 +209,8 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
     return paymentName.includes(query) || reference.includes(query);
   });
 
+  const isAlreadyPaid = parseFloat(invoice?.outstanding_balance || '0') <= 0;
+
   const getAmountHelper = () => {
     if (!selectedPayment || !amountToApply) return null;
 
@@ -219,6 +222,13 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
       return {
         text: `Exceeds unallocated balance (${formatCurrency(unallocated, invoice.currency?.code)})`,
         color: 'text-red-600 dark:text-red-400',
+      };
+    }
+
+    if (isAlreadyPaid) {
+      return {
+        text: 'Record-keeping link — invoice is already paid',
+        color: 'text-blue-600 dark:text-blue-400',
       };
     }
 
@@ -292,9 +302,11 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-300">Outstanding Balance:</span>
-                    <span className="font-bold text-gray-900 dark:text-white">
-                      {formatCurrency(invoice.outstanding_balance, invoice.currency?.code)}
+                    <span className="text-gray-600 dark:text-gray-300">
+                      {isAlreadyPaid ? 'Status:' : 'Outstanding Balance:'}
+                    </span>
+                    <span className={`font-bold ${isAlreadyPaid ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
+                      {isAlreadyPaid ? 'Paid' : formatCurrency(invoice.outstanding_balance, invoice.currency?.code)}
                     </span>
                   </div>
                 </div>
@@ -388,10 +400,13 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
                       type="number"
                       step="0.01"
                       min="0.01"
-                      max={Math.min(
-                        parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || '0'),
-                        parseFloat(invoice.outstanding_balance || '0')
-                      )}
+                      max={isAlreadyPaid
+                        ? parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || '0')
+                        : Math.min(
+                            parseFloat(selectedPayment.unallocated_amount || selectedPayment.amount || '0'),
+                            parseFloat(invoice.outstanding_balance || '0')
+                          )
+                      }
                       value={amountToApply}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAmountToApply(e.target.value)}
                       disabled={submitting}

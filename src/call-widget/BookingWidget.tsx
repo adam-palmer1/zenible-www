@@ -163,6 +163,7 @@ interface BookingWidgetProps {
 interface BookingFormData {
   name: string;
   email: string;
+  country_code?: string;
   phone?: string;
   notes?: string;
 }
@@ -299,6 +300,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
         name: formData.name,
         email: formData.email,
         phone: formData.phone || null,
+        country_code: formData.country_code || null,
         notes: formData.notes || null,
       };
 

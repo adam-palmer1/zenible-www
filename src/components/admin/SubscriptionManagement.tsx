@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Search, ChevronDown, Check, SortAsc, Filter, CreditCard, Loader2, MoreVertical } from 'lucide-react';
+import { Search, ChevronDown, Check, SortAsc, Filter, CreditCard, Loader2, MoreVertical, UserCheck, Users } from 'lucide-react';
 import { adminSubscriptionsAPI, adminPlansAPI } from '../../services/adminAPI';
 import { useModalState } from '../../hooks/useModalState';
 import SubscriptionActionsDropdown from './subscription-management/SubscriptionActionsDropdown';
@@ -462,6 +462,7 @@ export default function SubscriptionManagement() {
                     <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>User</th>
                     <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Email</th>
                     <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Plan</th>
+                    <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Type</th>
                     <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Status</th>
                     <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Billing</th>
                     <th className={`px-4 sm:px-6 py-3 text-left text-xs font-medium uppercase whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Price</th>
@@ -480,6 +481,26 @@ export default function SubscriptionManagement() {
                       </td>
                       <td className={`px-4 sm:px-6 py-4 text-sm whitespace-nowrap ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                         {sub.plan?.name || 'N/A'}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                        {sub.is_inherited ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                              <Users className="h-3 w-3" />
+                              Inherited
+                            </span>
+                            {sub.billing_owner_name && (
+                              <span className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                                via {sub.billing_owner_name}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                            <UserCheck className="h-3 w-3" />
+                            Direct
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         {(() => {

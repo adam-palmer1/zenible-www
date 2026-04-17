@@ -11,7 +11,7 @@ const meetingIntelligenceAPI = {
   getSettings: () => request('/crm/meeting-intelligence/settings', { method: 'GET' }),
 
   /** Update ZMI settings */
-  updateSettings: (data: { enabled?: boolean; caption_language?: string; recording_enabled?: boolean }) => request('/crm/meeting-intelligence/settings', {
+  updateSettings: (data: { enabled?: boolean; caption_language?: string; recording_enabled?: boolean; meeting_display_name?: string }) => request('/crm/meeting-intelligence/settings', {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
@@ -20,9 +20,12 @@ const meetingIntelligenceAPI = {
   getUpcoming: () => request('/crm/meeting-intelligence/upcoming', { method: 'GET' }),
 
   /** Dispatch a bot to join a meeting */
-  dispatchBot: (appointmentId: string) => request('/crm/meeting-intelligence/bot/join', {
+  dispatchBot: (appointmentId: string, instanceStartDatetime?: string) => request('/crm/meeting-intelligence/bot/join', {
     method: 'POST',
-    body: JSON.stringify({ appointment_id: appointmentId }),
+    body: JSON.stringify({
+      appointment_id: appointmentId,
+      ...(instanceStartDatetime && { instance_start_datetime: instanceStartDatetime }),
+    }),
   }),
 
   /** Dispatch a bot directly to a meeting link (no appointment needed) */
@@ -30,6 +33,9 @@ const meetingIntelligenceAPI = {
     method: 'POST',
     body: JSON.stringify({ meeting_link: meetingLink }),
   }),
+
+  /** Get all active bot sessions for the current user */
+  getActiveBotSessions: () => request('/crm/meeting-intelligence/bot/active', { method: 'GET' }) as Promise<Array<{ session_id: string; status: string }>>,
 
   /** Get bot session status */
   getBotStatus: (sessionId: string) => request(`/crm/meeting-intelligence/bot/${sessionId}/status`, { method: 'GET' }),
@@ -59,6 +65,17 @@ const meetingIntelligenceAPI = {
   /** Delete a meeting */
   deleteMeeting: (meetingId: string) => request(`/crm/meeting-intelligence/meetings/${meetingId}`, {
     method: 'DELETE',
+  }),
+
+  /** Bulk delete meetings */
+  bulkDeleteMeetings: (meetingIds: string[]) => request(`/crm/meeting-intelligence/meetings/bulk-delete`, {
+    method: 'POST',
+    body: JSON.stringify({ meeting_ids: meetingIds }),
+  }),
+
+  /** Trigger or re-trigger AI analysis for a meeting */
+  analyzeMeeting: (meetingId: string) => request(`/crm/meeting-intelligence/meetings/${meetingId}/analyze`, {
+    method: 'POST',
   }),
 
   /** Rename a meeting */

@@ -45,6 +45,8 @@ class AICharacterAPI {
     if (params.provider) queryParams.append('backend_provider', params.provider);
     if (params.page) queryParams.append('page', params.page);
     if (params.per_page) queryParams.append('per_page', params.per_page);
+    if (params.include_gated) queryParams.append('include_gated', params.include_gated);
+    if (params.feature) queryParams.append('feature', params.feature);
 
     const queryString = queryParams.toString();
     const endpoint = queryString ? `/ai/characters/?${queryString}` : '/ai/characters/';
@@ -53,8 +55,12 @@ class AICharacterAPI {
   }
 
   // Get specific character details
-  async getCharacter(characterId: string): Promise<unknown> {
-    return this.request(`/ai/characters/${characterId}`, { method: 'GET' });
+  async getCharacter(characterId: string, params: Record<string, string> = {}): Promise<unknown> {
+    const queryParams = new URLSearchParams();
+    if (params.feature) queryParams.append('feature', params.feature);
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/ai/characters/${characterId}?${queryString}` : `/ai/characters/${characterId}`;
+    return this.request(endpoint, { method: 'GET' });
   }
 
   // Get character categories

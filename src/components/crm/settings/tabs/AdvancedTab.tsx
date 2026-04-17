@@ -14,27 +14,31 @@ interface AdvancedTabProps {
  */
 const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
   const { numberFormats, loading: formatsLoading } = useCRMReferenceData();
-  const { getNumberFormat, setNumberFormat, getTimezone, setTimezone, loading: attributesLoading } = useCompanyAttributes();
+  const { getNumberFormat, setNumberFormat, getTimezone, setTimezone, getDateFormat, setDateFormat, loading: attributesLoading } = useCompanyAttributes();
   const { showSuccess, showError } = useNotification();
   const { getPreference, updatePreference, reloadPreferences } = usePreferences();
 
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
   const [selectedTimezone, setSelectedTimezone] = useState('Europe/London');
+  const [selectedDateFormat, setSelectedDateFormat] = useState('DD/MM/YYYY');
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showTimezoneModal, setShowTimezoneModal] = useState(false);
   const [timezoneSearch, setTimezoneSearch] = useState('');
   const [showNumberFormatModal, setShowNumberFormatModal] = useState(false);
+  const [showDateFormatModal, setShowDateFormatModal] = useState(false);
   const [resettingSetup, setResettingSetup] = useState(false);
 
   useEffect(() => {
     if (!attributesLoading) {
       const numberFormat = getNumberFormat();
       const timezone = getTimezone();
+      const dateFormat = getDateFormat();
       if (numberFormat) setSelectedFormat(numberFormat);
       if (timezone) setSelectedTimezone(timezone);
+      if (dateFormat) setSelectedDateFormat(dateFormat);
     }
-  }, [attributesLoading, getNumberFormat, getTimezone]);
+  }, [attributesLoading, getNumberFormat, getTimezone, getDateFormat]);
 
   const timezones = [
     { value: 'America/New_York', label: 'New York', region: 'US' },
@@ -95,14 +99,28 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
     return { name: 'Select format', example: '' };
   };
 
+  const dateFormats = [
+    { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY', example: '03/04/2026' },
+    { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY', example: '04/03/2026' },
+    { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD', example: '2026-04-03' },
+    { value: 'DD-MM-YYYY', label: 'DD-MM-YYYY', example: '03-04-2026' },
+    { value: 'DD.MM.YYYY', label: 'DD.MM.YYYY', example: '03.04.2026' },
+    { value: 'D MMM YYYY', label: 'D MMM YYYY', example: '3 Apr 2026' },
+    { value: 'MMM D, YYYY', label: 'MMM D, YYYY', example: 'Apr 3, 2026' },
+    { value: 'D MMMM YYYY', label: 'D MMMM YYYY', example: '3 April 2026' },
+    { value: 'MMMM D, YYYY', label: 'MMMM D, YYYY', example: 'April 3, 2026' },
+  ];
+
   const handleFormatChange = (formatId: string) => { setSelectedFormat(formatId); setHasChanges(true); onUnsavedChanges?.(true); };
   const handleTimezoneChange = (timezone: string) => { setSelectedTimezone(timezone); setHasChanges(true); onUnsavedChanges?.(true); };
+  const handleDateFormatChange = (format: string) => { setSelectedDateFormat(format); setHasChanges(true); onUnsavedChanges?.(true); };
 
   const handleSave = async () => {
     setSaving(true);
     try {
       if (selectedFormat) await setNumberFormat(selectedFormat);
       if (selectedTimezone) await setTimezone(selectedTimezone);
+      if (selectedDateFormat) await setDateFormat(selectedDateFormat);
       setHasChanges(false);
       onUnsavedChanges?.(false);
       showSuccess('Advanced settings saved successfully');
@@ -159,6 +177,18 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
       </div>
 
       <div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Date Format</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Choose how dates are displayed throughout the application</p>
+        <button type="button" onClick={() => setShowDateFormatModal(true)} className="w-full md:w-96 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-left flex items-center justify-between hover:border-zenible-primary transition-colors">
+          <div>
+            <span className="text-gray-900 dark:text-white">{selectedDateFormat}</span>
+            <span className="text-gray-500 dark:text-gray-400 ml-2 text-sm">(e.g. {dateFormats.find(f => f.value === selectedDateFormat)?.example || selectedDateFormat})</span>
+          </div>
+          <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+        </button>
+      </div>
+
+      <div>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Data Export</h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Export your company data for backup or migration purposes</p>
         <div className="flex gap-3">
@@ -196,7 +226,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
       </div>
 
       <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-        <button onClick={() => { setSelectedFormat(getNumberFormat()); setSelectedTimezone(getTimezone() || 'Europe/London'); setHasChanges(false); onUnsavedChanges?.(false); }} disabled={!hasChanges} className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
+        <button onClick={() => { setSelectedFormat(getNumberFormat()); setSelectedTimezone(getTimezone() || 'Europe/London'); setSelectedDateFormat(getDateFormat() || 'DD/MM/YYYY'); setHasChanges(false); onUnsavedChanges?.(false); }} disabled={!hasChanges} className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
         <button onClick={handleSave} disabled={!hasChanges || saving} className="px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors">{saving ? 'Saving...' : 'Save Changes'}</button>
       </div>
 
@@ -247,6 +277,32 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
                         <div className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">Example: {format.format_string}</div>
                       </div>
                       {selectedFormat === format.id && <div className="h-2 w-2 rounded-full bg-zenible-primary" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showDateFormatModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setShowDateFormatModal(false)} />
+            <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Select Date Format</h3>
+                <button onClick={() => setShowDateFormatModal(false)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"><XMarkIcon className="h-6 w-6" /></button>
+              </div>
+              <div className="p-4">
+                <div className="max-h-64 overflow-y-auto">
+                  {dateFormats.map((format) => (
+                    <button key={format.value} onClick={() => { handleDateFormatChange(format.value); setShowDateFormatModal(false); }} className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-between rounded-lg ${selectedDateFormat === format.value ? 'bg-zenible-primary/10 text-zenible-primary' : ''}`}>
+                      <div>
+                        <div className={`font-medium ${selectedDateFormat === format.value ? 'text-zenible-primary' : 'text-gray-900 dark:text-white'}`}>{format.label}</div>
+                        <div className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">Example: {format.example}</div>
+                      </div>
+                      {selectedDateFormat === format.value && <div className="h-2 w-2 rounded-full bg-zenible-primary" />}
                     </button>
                   ))}
                 </div>

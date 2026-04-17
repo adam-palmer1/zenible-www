@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+
+# Block authenticated app routes from crawling
+Disallow: /dashboard
+Disallow: /crm
+Disallow: /finance
+Disallow: /settings
+Disallow: /admin
+Disallow: /calendar
+Disallow: /proposal-wizard
+Disallow: /profile-positioning
+Disallow: /content-creator
+Disallow: /boardroom
+Disallow: /notifications
+
+# Allow public pages
+Allow: /pricing
+Allow: /book/
+Allow: /signin
+Allow: /register
+
+Sitemap: https://www.zenible.com/sitemap.xml

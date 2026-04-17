@@ -11,6 +11,7 @@ import squareLogoPng from './square-logo.png';
 import logoMark from './logo-mark.png';
 import zenibleDark from './zenible-dark.svg';
 import zenibleDarkPng from './zenible-dark.png';
+import zenibleLight from './zenible-light.svg';
 
 export {
   brandIcon,
@@ -23,4 +24,5 @@ export {
   logoMark,
   zenibleDark,
   zenibleDarkPng,
+  zenibleLight,
 };

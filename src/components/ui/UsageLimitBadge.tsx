@@ -116,42 +116,66 @@ export default function UsageLimitBadge({
     isUnlimited = data.limit === null || data.limit === undefined || data.limit === -1;
     limit = data.limit ?? 0;
     label = formatEntityLabel(entityType);
-  } else if (characterId) {
-    // For AI features - compare character limit vs total AI limit, show the greater limit
+  } else if (characterId || aiUsage) {
     if (!aiData) return null;
 
     const totalData = aiData.total;
-    const characterData = aiData.per_character?.find((c) => c.character_id === characterId);
+    const totalLimit = totalData?.limit;
+    const totalCurrent = totalData?.current ?? 0;
 
-    // Get both limits (treat null as unlimited/very high)
-    const totalLimit = totalData?.limit ?? Infinity;
-    const characterLimit = characterData?.limit ?? Infinity;
+    // Candidate = one possible limit we might display. We compare by
+    // `remaining` (not `limit`) so the user sees the cap they'll hit first.
+    type Candidate = { label: string; current: number; limit: number; remaining: number };
+    const candidates: Candidate[] = [];
 
-    // If both are unlimited, don't show anything
-    if (totalLimit === Infinity && characterLimit === Infinity) {
-      return null;
+    if (characterId) {
+      const characterData = aiData.per_character?.find((c) => c.character_id === characterId);
+      const charName = characterData?.character_name || 'AI messages';
+
+      // Character daily
+      if (typeof characterData?.daily_limit === 'number' && characterData.daily_limit !== null) {
+        const cur = characterData.daily_usage ?? 0;
+        candidates.push({
+          label: `${charName} daily`,
+          current: cur,
+          limit: characterData.daily_limit,
+          remaining: Math.max(0, characterData.daily_limit - cur),
+        });
+      }
+
+      // Character monthly
+      if (typeof characterData?.limit === 'number' && characterData.limit !== null) {
+        const cur = characterData.usage ?? 0;
+        candidates.push({
+          label: `${charName} monthly`,
+          current: cur,
+          limit: characterData.limit,
+          remaining: Math.max(0, characterData.limit - cur),
+        });
+      }
     }
 
-    // Use whichever has the greater limit
-    if (totalLimit >= characterLimit && totalLimit !== Infinity) {
-      current = totalData?.current ?? 0;
-      limit = totalLimit;
-      isUnlimited = false;
-      label = 'AI messages';
-    } else if (characterLimit !== Infinity) {
-      current = characterData?.usage ?? 0;
-      limit = characterLimit;
-      isUnlimited = false;
-      label = characterData?.character_name || 'AI messages';
-    } else {
-      return null;
+    // Total monthly (always a candidate if limited)
+    if (typeof totalLimit === 'number' && totalLimit !== null && totalLimit !== -1) {
+      candidates.push({
+        label: 'AI messages',
+        current: totalCurrent,
+        limit: totalLimit,
+        remaining: Math.max(0, totalLimit - totalCurrent),
+      });
     }
-  } else if (aiUsage) {
-    if (!aiData?.total) return null;
-    current = aiData.total.current ?? 0;
-    isUnlimited = aiData.total.limit === null || aiData.total.limit === undefined;
-    limit = aiData.total.limit ?? 0;
-    label = 'AI messages';
+
+    if (candidates.length === 0) return null;
+
+    // Pick the one closest to being hit (smallest remaining). Tie-break by
+    // smaller limit so a 50-cap beats a 1600-cap when both have the same
+    // remaining — this matches the user's intent of "will limit first".
+    candidates.sort((a, b) => a.remaining - b.remaining || a.limit - b.limit);
+    const winner = candidates[0];
+    current = winner.current;
+    limit = winner.limit;
+    isUnlimited = false;
+    label = winner.label;
   } else {
     return null;
   }
