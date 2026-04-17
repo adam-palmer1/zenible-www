@@ -6,12 +6,9 @@ import { createRequest } from '../httpClient';
 
 const request = createRequest('BookingRemindersAPI');
 
-export type ReminderAnchor = 'before_appointment' | 'after_booking';
-
 export interface BookingReminderRuleInput {
   slot: number;
   offset_hours: number;
-  offset_anchor: ReminderAnchor;
   send_email: boolean;
   send_sms: boolean;
 }

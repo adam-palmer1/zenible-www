@@ -8,19 +8,17 @@ import {
 } from '@heroicons/react/24/outline';
 import bookingRemindersAPI, {
   BookingReminderRule,
-  ReminderAnchor,
 } from '../../../../../services/api/crm/bookingReminders';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
 
 type TimeUnit = 'hours' | 'days';
-type PickerField = 'amount' | 'unit' | 'anchor';
+type PickerField = 'amount' | 'unit';
 
 interface ReminderRowState {
   slot: number;
   amount: number;
   unit: TimeUnit;
-  anchor: ReminderAnchor;
   send_email: boolean;
   send_sms: boolean;
 }
@@ -39,18 +37,12 @@ const UNIT_OPTIONS: { value: TimeUnit; label: string }[] = [
   { value: 'days', label: 'Days' },
 ];
 
-const ANCHOR_OPTIONS: { value: ReminderAnchor; label: string }[] = [
-  { value: 'before_appointment', label: 'Before appointment' },
-  { value: 'after_booking', label: 'After booking' },
-];
-
 const fromRule = (rule: BookingReminderRule): ReminderRowState => {
   const useDays = rule.offset_hours % 24 === 0 && rule.offset_hours >= 24;
   return {
     slot: rule.slot,
     amount: useDays ? rule.offset_hours / 24 : rule.offset_hours,
     unit: useDays ? 'days' : 'hours',
-    anchor: rule.offset_anchor,
     send_email: rule.send_email,
     send_sms: rule.send_sms,
   };
@@ -59,16 +51,12 @@ const fromRule = (rule: BookingReminderRule): ReminderRowState => {
 const toPayload = (row: ReminderRowState) => ({
   slot: row.slot,
   offset_hours: row.unit === 'days' ? row.amount * 24 : row.amount,
-  offset_anchor: row.anchor,
   send_email: row.send_email,
   send_sms: row.send_sms,
 });
 
 const unitLabel = (unit: TimeUnit) =>
   UNIT_OPTIONS.find((o) => o.value === unit)?.label ?? unit;
-
-const anchorLabel = (anchor: ReminderAnchor) =>
-  ANCHOR_OPTIONS.find((o) => o.value === anchor)?.label ?? anchor;
 
 const RemindersEditor: React.FC = () => {
   const { showSuccess, showError } = useNotification();
@@ -127,7 +115,6 @@ const RemindersEditor: React.FC = () => {
         slot: nextFreeSlot(),
         amount: 1,
         unit: 'hours',
-        anchor: 'before_appointment',
         send_email: true,
         send_sms: false,
       },
@@ -202,7 +189,6 @@ const RemindersEditor: React.FC = () => {
     </button>
   );
 
-  // Render the picker modal based on current state
   const renderPicker = () => {
     if (!picker) return null;
     const row = rows[picker.rowIndex];
@@ -216,26 +202,21 @@ const RemindersEditor: React.FC = () => {
     if (picker.field === 'amount') {
       const range = row.unit === 'hours' ? HOURS_RANGE : DAYS_RANGE;
       title = row.unit === 'hours' ? 'Select Hours' : 'Select Days';
-      options = range.map((n) => ({ value: n, label: `${n} ${row.unit === 'hours' ? (n === 1 ? 'hour' : 'hours') : (n === 1 ? 'day' : 'days')}` }));
+      options = range.map((n) => ({
+        value: n,
+        label: `${n} ${row.unit === 'hours' ? (n === 1 ? 'hour' : 'hours') : (n === 1 ? 'day' : 'days')}`,
+      }));
       current = row.amount;
       onPick = (value) => {
         setRow(picker.rowIndex, { amount: Number(value) });
         setPicker(null);
       };
-    } else if (picker.field === 'unit') {
+    } else {
       title = 'Select Unit';
       options = UNIT_OPTIONS.map((o) => ({ value: o.value, label: o.label }));
       current = row.unit;
       onPick = (value) => {
         handleUnitChange(picker.rowIndex, value as TimeUnit);
-        setPicker(null);
-      };
-    } else {
-      title = 'Select Anchor';
-      options = ANCHOR_OPTIONS.map((o) => ({ value: o.value, label: o.label }));
-      current = row.anchor;
-      onPick = (value) => {
-        setRow(picker.rowIndex, { anchor: value as ReminderAnchor });
         setPicker(null);
       };
     }
@@ -287,10 +268,8 @@ const RemindersEditor: React.FC = () => {
           Booking Reminders
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Send up to {MAX_REMINDERS} automatic reminders to the guest. A reminder is
-          only sent when the booking time actually crosses its trigger — e.g. a
-          "10 days before" reminder will not fire for a booking made only 5 days in
-          advance.
+          Send up to {MAX_REMINDERS} automatic reminders to the guest before the
+          appointment.
         </p>
       </div>
 
@@ -326,11 +305,9 @@ const RemindersEditor: React.FC = () => {
                 className="w-28"
               />
 
-              <PickerButton
-                label={anchorLabel(row.anchor)}
-                onClick={() => setPicker({ rowIndex: idx, field: 'anchor' })}
-                className="w-44"
-              />
+              <span className="text-sm text-gray-600 dark:text-gray-300">
+                before appointment
+              </span>
 
               <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 ml-2">
                 <input
