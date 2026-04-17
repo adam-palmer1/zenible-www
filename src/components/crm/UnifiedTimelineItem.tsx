@@ -20,6 +20,7 @@ import {
   NoSymbolIcon,
   FolderIcon,
   ClipboardIcon,
+  DevicePhoneMobileIcon,
 } from '@heroicons/react/24/outline';
 
 interface UnifiedTimelineItemProps {
@@ -343,6 +344,18 @@ const UnifiedTimelineItem: React.FC<UnifiedTimelineItemProps> = ({ activity, isL
         color: 'bg-red-100 text-red-600',
         borderColor: 'border-red-300',
         label: 'Appointment Cancelled',
+      },
+      appointment_reminder_sent_email: {
+        icon: EnvelopeIcon,
+        color: 'bg-blue-100 text-blue-600',
+        borderColor: 'border-blue-300',
+        label: 'Email Reminder Sent',
+      },
+      appointment_reminder_sent_sms: {
+        icon: DevicePhoneMobileIcon,
+        color: 'bg-purple-100 text-purple-600',
+        borderColor: 'border-purple-300',
+        label: 'SMS Reminder Sent',
       },
 
       // Projects
