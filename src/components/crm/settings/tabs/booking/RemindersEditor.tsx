@@ -11,6 +11,8 @@ import bookingRemindersAPI, {
 } from '../../../../../services/api/crm/bookingReminders';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
+import { useDeleteConfirmation } from '../../../../../hooks/useDeleteConfirmation';
+import ConfirmationModal from '../../../../common/ConfirmationModal';
 
 type TimeUnit = 'hours' | 'days';
 type PickerField = 'amount' | 'unit';
@@ -67,6 +69,7 @@ const RemindersEditor: React.FC = () => {
   const [smsTemplate, setSmsTemplate] = useState<string>('');
   const [smsEnabled, setSmsEnabled] = useState<boolean>(false);
   const [picker, setPicker] = useState<PickerState | null>(null);
+  const deleteConfirm = useDeleteConfirmation<number>();
 
   useEscapeKey(() => setPicker(null), picker !== null);
 
@@ -122,7 +125,13 @@ const RemindersEditor: React.FC = () => {
   };
 
   const handleRemove = (index: number) => {
-    setRows((prev) => prev.filter((_, i) => i !== index));
+    deleteConfirm.requestDelete(index);
+  };
+
+  const confirmRemove = async () => {
+    await deleteConfirm.confirmDelete(async (index) => {
+      setRows((prev) => prev.filter((_, i) => i !== index));
+    });
   };
 
   const setRow = (index: number, next: Partial<ReminderRowState>) => {
@@ -395,6 +404,17 @@ const RemindersEditor: React.FC = () => {
       </div>
 
       {renderPicker()}
+
+      <ConfirmationModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={deleteConfirm.cancelDelete}
+        onConfirm={confirmRemove}
+        title="Delete Reminder"
+        message="Are you sure you want to delete this reminder?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmColor="red"
+      />
     </div>
   );
 };
