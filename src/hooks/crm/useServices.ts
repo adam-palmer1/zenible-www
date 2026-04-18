@@ -2,23 +2,33 @@ import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { servicesAPI } from '../../services/api/crm';
 import { queryKeys } from '../../lib/query-keys';
+import type { PaginatedResponse } from '../../types';
+
+/** Default page size for the services catalog query. High enough that every
+ * current consumer (autocomplete, CRM dashboard) sees the full catalog in one
+ * page; callers that need real pagination should pass page/per_page in options.
+ */
+const DEFAULT_PER_PAGE = 200;
 
 /**
- * Custom hook for managing services
- * Uses React Query for caching, deduplication, and background refetching
+ * Custom hook for managing services.
+ * Uses React Query for caching, deduplication, and background refetching.
+ * Exposes `services` as an array for backward-compatibility; pagination
+ * metadata is available via the `pagination` field.
  */
 export function useServices(options: Record<string, unknown> = {}, refreshKey: number = 0) {
   const queryClient = useQueryClient();
+  const mergedOptions = { per_page: DEFAULT_PER_PAGE, ...options };
   const hasOptions = Object.keys(options).length > 0;
 
-  // Query for services list
+  // Query for services list (paginated; unwrap items for the main return)
   const servicesQuery = useQuery({
     queryKey: hasOptions
-      ? queryKeys.services.list(options)
+      ? queryKeys.services.list(mergedOptions)
       : queryKeys.services.lists(),
     queryFn: async () => {
-      const response = await servicesAPI.list(options as Record<string, string>);
-      return (response as unknown[]) || [];
+      const response = await servicesAPI.list(mergedOptions);
+      return response as PaginatedResponse<unknown>;
     },
   });
 
@@ -75,11 +85,22 @@ export function useServices(options: Record<string, unknown> = {}, refreshKey: n
     if (forceRefresh || refreshKey > 0) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
     }
-    return servicesQuery.data;
+    return servicesQuery.data?.items ?? [];
   }, [queryClient, servicesQuery.data, refreshKey]);
 
+  const paginated = servicesQuery.data;
   return {
-    services: (servicesQuery.data || []) as unknown[],
+    services: (paginated?.items || []) as unknown[],
+    pagination: paginated
+      ? {
+          total: paginated.total,
+          page: paginated.page,
+          per_page: paginated.per_page,
+          total_pages: paginated.total_pages,
+          has_next: paginated.has_next,
+          has_prev: paginated.has_prev,
+        }
+      : null,
     loading: servicesQuery.isLoading,
     error: servicesQuery.error?.message || null,
     fetchServices,

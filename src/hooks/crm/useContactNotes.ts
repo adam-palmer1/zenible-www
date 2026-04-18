@@ -2,19 +2,26 @@ import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { contactsAPI } from '../../services/api/crm';
 import { queryKeys } from '../../lib/query-keys';
-import type { ContactNoteCreate } from '../../types';
+import type { ContactNoteCreate, PaginatedResponse, ContactNoteResponse } from '../../types';
+
+/** Default page size — covers virtually all contacts; consumers needing
+ * real pagination can call the API directly.
+ */
+const DEFAULT_PER_PAGE = 100;
 
 /**
- * Custom hook for managing contact notes
- * Uses React Query for caching, deduplication, and automatic invalidation
+ * Custom hook for managing contact notes.
+ * Uses React Query for caching, deduplication, and automatic invalidation.
+ * Exposes `notes` as an array for backward-compatibility; pagination
+ * metadata is available via `pagination`.
  */
 export function useContactNotes(contactId: string | undefined) {
   const queryClient = useQueryClient();
 
-  // Notes list query
+  // Notes list query (paginated; unwrap items for the main return)
   const notesQuery = useQuery({
     queryKey: queryKeys.contactNotes.byContact(contactId!),
-    queryFn: () => contactsAPI.getNotes(contactId!),
+    queryFn: () => contactsAPI.getNotes(contactId!, { per_page: DEFAULT_PER_PAGE }),
     enabled: !!contactId,
   });
 
@@ -47,7 +54,7 @@ export function useContactNotes(contactId: string | undefined) {
   const fetchNotes = useCallback(async (): Promise<unknown> => {
     if (!contactId) return;
     await queryClient.invalidateQueries({ queryKey: queryKeys.contactNotes.byContact(contactId) });
-    return notesQuery.data;
+    return notesQuery.data?.items ?? [];
   }, [queryClient, contactId, notesQuery.data]);
 
   const createNote = useCallback(async (data: ContactNoteCreate): Promise<unknown> => {
@@ -66,8 +73,19 @@ export function useContactNotes(contactId: string | undefined) {
     return true;
   }, [contactId, deleteMutation]);
 
+  const paginated = notesQuery.data as PaginatedResponse<ContactNoteResponse> | undefined;
   return {
-    notes: (notesQuery.data as unknown[]) || [],
+    notes: paginated?.items ?? [],
+    pagination: paginated
+      ? {
+          total: paginated.total,
+          page: paginated.page,
+          per_page: paginated.per_page,
+          total_pages: paginated.total_pages,
+          has_next: paginated.has_next,
+          has_prev: paginated.has_prev,
+        }
+      : null,
     loading: notesQuery.isLoading,
     error: notesQuery.error?.message || null,
     fetchNotes,

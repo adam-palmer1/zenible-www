@@ -117,9 +117,16 @@ const contactsAPI = {
     });
   },
 
-  // Get contact notes
-  async getNotes(contactId: string): Promise<ContactNoteResponse[]> {
-    return baseCRUD.request(`${baseCRUD.baseEndpoint}${contactId}/notes`, { method: 'GET' });
+  // Get contact notes (paginated)
+  async getNotes(
+    contactId: string,
+    params: { page?: number; per_page?: number } = {},
+  ): Promise<PaginatedResponse<ContactNoteResponse>> {
+    const query = new URLSearchParams();
+    if (params.page !== undefined) query.set('page', String(params.page));
+    if (params.per_page !== undefined) query.set('per_page', String(params.per_page));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return baseCRUD.request(`${baseCRUD.baseEndpoint}${contactId}/notes${suffix}`, { method: 'GET' });
   },
 
   // Create contact note

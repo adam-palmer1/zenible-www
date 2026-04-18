@@ -3,15 +3,19 @@
  */
 
 import { createRequest, buildQueryString } from '../httpClient';
+import type { PaginatedResponse } from '@/types';
 
 const request = createRequest('ServicesAPI');
 
+/** Shape of a single service entry (kept loose here; full typing via hooks). */
+type ServiceEntry = unknown;
+
 const servicesAPI = {
-  /** List services */
-  list: (params: Record<string, unknown> = {}) => {
+  /** List services (paginated). */
+  list: (params: Record<string, unknown> = {}): Promise<PaginatedResponse<ServiceEntry>> => {
     const queryString = buildQueryString(params as Record<string, string>);
     const endpoint = queryString ? `/crm/services/?${queryString}` : '/crm/services/';
-    return request(endpoint, { method: 'GET' });
+    return request(endpoint, { method: 'GET' }) as Promise<PaginatedResponse<ServiceEntry>>;
   },
 
   /** Get single service */
