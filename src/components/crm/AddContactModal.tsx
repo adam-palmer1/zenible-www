@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/modal/Modal';
+import logger from '../../utils/logger';
 import ContactFormTabbed from './forms/ContactFormTabbed';
 import { useCRM } from '../../contexts/CRMContext';
 import { useContacts, useContactStatuses, useCompanyCurrencies } from '../../hooks/crm';
@@ -35,7 +36,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, cont
     if (isOpen) {
       loadCurrencies();
       // Fetch company taxes
-      taxesAPI.list().then((taxes: unknown) => setCompanyTaxes(taxes as any[])).catch(console.error);
+      taxesAPI.list().then((taxes: unknown) => setCompanyTaxes(taxes as any[])).catch(logger.error);
     }
   }, [isOpen, loadCurrencies]);
 
@@ -48,7 +49,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, cont
           const fullData = await getContact(contact.id);
           setFullContact(fullData);
         } catch (error) {
-          console.error('Failed to fetch full contact:', error);
+          logger.error('Failed to fetch full contact:', error);
           // Fallback to partial contact if fetch fails
           setFullContact(contact);
         } finally {
@@ -84,7 +85,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, cont
               content: notes.trim(),
             });
           } catch (noteError) {
-            console.error('Failed to create initial note:', noteError);
+            logger.error('Failed to create initial note:', noteError);
             // Don't fail the whole operation if note creation fails
           }
         }
@@ -95,7 +96,7 @@ const AddContactModal: React.FC<AddContactModalProps> = ({ isOpen, onClose, cont
 
       onClose();
     } catch (error: any) {
-      console.error('Failed to save contact:', error);
+      logger.error('Failed to save contact:', error);
       // Handle duplicate name (409)
       if (error?.status === 409) {
         const detail = (error?.data as any)?.detail;

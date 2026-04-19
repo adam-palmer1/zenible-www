@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { PencilIcon, TrashIcon, BellIcon } from '@heroicons/react/24/outline';
 import { ApiError } from '../../services/api/ApiError';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
+import logger from '../../utils/logger';
 import { useModalState } from '../../hooks/useModalState';
 import { useContactActions } from '../../contexts/ContactActionsContext';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
@@ -11,6 +12,158 @@ import ConfirmationModal from '../common/ConfirmationModal';
 import FollowUpDetailsModal from './FollowUpDetailsModal';
 import FollowUpReminderModal from './FollowUpReminderModal';
 import { EmptyState } from '../shared';
+
+const getStatusBadgeStyles = (statusName: string): string => {
+  const name = statusName.toLowerCase();
+  if (name.includes('lead')) return 'bg-gray-100 text-gray-800';
+  if (name.includes('follow')) return 'bg-blue-50 text-blue-800';
+  if (name.includes('confirm')) return 'bg-yellow-50 text-yellow-800';
+  if (name.includes('call') || name.includes('book')) return 'bg-purple-50 text-purple-800';
+  if (name.includes('won')) return 'bg-green-50 text-green-800';
+  if (name.includes('lost')) return 'bg-red-50 text-red-800';
+  return 'bg-gray-100 text-gray-800';
+};
+
+const formatDate = (dateString: string): string | null => {
+  if (!dateString) return null;
+  try {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    });
+  } catch {
+    return null;
+  }
+};
+
+interface ContactRowProps {
+  contact: any;
+  isSelected: boolean;
+  isLast: boolean;
+  statusName: string;
+  statusBadgeClass: string;
+  onToggleSelect: (contactId: string) => void;
+  onContactClick?: (contact: any) => void;
+  onFollowUp: (contact: any) => void;
+  onEdit: (contact: any) => void;
+  onDelete: (contact: any) => void;
+  onToggleHidden: (contact: any, scope: 'crm') => void;
+}
+
+/**
+ * Row component memoized so filter/search re-renders of the parent don't re-render
+ * every row. Changes only when this specific contact's data or selection flips.
+ */
+const ContactRow: React.FC<ContactRowProps> = memo(({
+  contact,
+  isSelected,
+  isLast,
+  statusName,
+  statusBadgeClass,
+  onToggleSelect,
+  onContactClick,
+  onFollowUp,
+  onEdit,
+  onDelete,
+  onToggleHidden,
+}) => {
+  const handleRowClick = () => onContactClick?.(contact);
+  const stopProp = (e: React.MouseEvent) => e.stopPropagation();
+  return (
+    <tr className={`border-b border-[#e5e5e5] dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${isLast ? 'border-b-0' : ''}`}>
+      <td className="px-2 lg:px-4 py-4" onClick={stopProp}>
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggleSelect(contact.id)}
+          aria-label={`Select ${contact.first_name} ${contact.last_name}`}
+          className="w-4 h-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+        />
+      </td>
+      <td className="px-2 lg:px-4 py-4 cursor-pointer" onClick={handleRowClick}>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            {contact.follow_up_reminder_at && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onFollowUp(contact); }}
+                className="shrink-0 hover:scale-110 transition-transform"
+                aria-label="View follow-up reminder"
+              >
+                <BellIcon className="h-4 w-4 text-amber-500" />
+              </button>
+            )}
+            <p className={`font-normal text-sm text-gray-900 dark:text-white ${contact.is_hidden_crm ? 'line-through italic opacity-60' : ''}`}>
+              {contact.first_name} {contact.last_name}
+            </p>
+          </div>
+        </div>
+      </td>
+      <td className="px-2 lg:px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer" onClick={handleRowClick}>
+        {contact.email || '-'}
+      </td>
+      <td className="px-2 lg:px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer hidden lg:table-cell" onClick={handleRowClick}>
+        {contact.phone ? `${contact.country_code || ''} ${contact.phone}`.trim() : '-'}
+      </td>
+      <td className="px-2 lg:px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer hidden lg:table-cell" onClick={handleRowClick}>
+        {contact.business_name || '-'}
+      </td>
+      <td className="px-2 lg:px-4 py-4 cursor-pointer" onClick={handleRowClick}>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusBadgeClass}`}>
+          {statusName}
+        </span>
+      </td>
+      <td className="px-2 lg:px-4 py-4 cursor-pointer hidden lg:table-cell" onClick={handleRowClick}>
+        <div className="flex gap-1">
+          {contact.is_client && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+              Client
+            </span>
+          )}
+          {contact.is_vendor && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-purple-50 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+              Vendor
+            </span>
+          )}
+        </div>
+      </td>
+      <td className="px-2 lg:px-4 py-4 text-sm text-gray-600 dark:text-gray-400 cursor-pointer hidden lg:table-cell" onClick={handleRowClick}>
+        {formatDate(contact.created_at) || '-'}
+      </td>
+      <td className="px-2 lg:px-4 py-4 text-right">
+        <Dropdown
+          trigger={
+            <button
+              onClick={stopProp}
+              aria-label="Contact actions"
+              className="p-2 rounded-full transition-colors text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M10 10.8334C10.4603 10.8334 10.8334 10.4603 10.8334 10C10.8334 9.53978 10.4603 9.16669 10 9.16669C9.53978 9.16669 9.16669 9.53978 9.16669 10C9.16669 10.4603 9.53978 10.8334 10 10.8334Z" fill="currentColor" />
+                <path d="M10 5.00002C10.4603 5.00002 10.8334 4.62692 10.8334 4.16669C10.8334 3.70645 10.4603 3.33335 10 3.33335C9.53978 3.33335 9.16669 3.70645 9.16669 4.16669C9.16669 4.62692 9.53978 5.00002 10 5.00002Z" fill="currentColor" />
+                <path d="M10 16.6667C10.4603 16.6667 10.8334 16.2936 10.8334 15.8334C10.8334 15.3731 10.4603 15 10 15C9.53978 15 9.16669 15.3731 9.16669 15.8334C9.16669 16.2936 9.53978 16.6667 10 16.6667Z" fill="currentColor" />
+              </svg>
+            </button>
+          }
+          align="end"
+          side="bottom"
+        >
+          <Dropdown.Item onSelect={(e: any) => { e.stopPropagation(); onEdit(contact); }}>
+            <PencilIcon className="h-4 w-4" />
+            Edit Contact
+          </Dropdown.Item>
+          <Dropdown.Item onSelect={(e: any) => { e.stopPropagation(); onToggleHidden(contact, 'crm'); }}>
+            {contact.is_hidden_crm ? 'Show on CRM' : 'Hide on CRM'}
+          </Dropdown.Item>
+          <Dropdown.Item onSelect={(e: any) => { e.stopPropagation(); onDelete(contact); }} destructive>
+            <TrashIcon className="h-4 w-4" />
+            Delete Contact
+          </Dropdown.Item>
+        </Dropdown>
+      </td>
+    </tr>
+  );
+});
+ContactRow.displayName = 'ContactRow';
 
 interface ContactsListViewProps {
   contacts: any[];
@@ -36,23 +189,31 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
     }
   };
 
-  const handleSelectContact = (contactId: string) => {
-    setSelectedContacts(prev =>
+  // Stable handlers so memoized ContactRow can skip re-renders when unrelated state
+  // (filters, search) changes on the parent.
+  const handleSelectContact = useCallback((contactId: string) => {
+    setSelectedContacts((prev) =>
       prev.includes(contactId)
-        ? prev.filter(id => id !== contactId)
-        : [...prev, contactId]
+        ? prev.filter((id) => id !== contactId)
+        : [...prev, contactId],
     );
-  };
+  }, []);
 
-  const handleEditContact = (contact: any) => {
-    if (onEdit) {
-      onEdit(contact);
-    }
-  };
+  const handleEditContact = useCallback((contact: any) => {
+    onEdit?.(contact);
+  }, [onEdit]);
 
-  const handleDeleteContact = (contact: any) => {
+  const handleDeleteContact = useCallback((contact: any) => {
     deleteConfirm.requestDelete(contact);
-  };
+  }, [deleteConfirm]);
+
+  const handleFollowUp = useCallback((contact: any) => {
+    followUpModal.open(contact);
+  }, [followUpModal]);
+
+  const handleToggleHidden = useCallback((contact: any, scope: 'crm') => {
+    toggleHidden(contact, scope);
+  }, [toggleHidden]);
 
   const confirmDeleteContact = async () => {
     await deleteConfirm.confirmDelete(async (contact) => {
@@ -62,7 +223,7 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
         }
         showSuccess('Contact deleted successfully');
       } catch (error) {
-        console.error('Error deleting contact:', error);
+        logger.error('Error deleting contact:', error);
         if (error instanceof ApiError && error.isInsufficientPermissions) {
           showError('Insufficient permission to perform the requested action.');
         } else {
@@ -73,39 +234,14 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
     });
   };
 
-  const getStatus = (contact: any) => {
+  const getStatus = useCallback((contact: any) => {
     const statusId = contact.current_global_status_id || contact.current_custom_status_id;
     const foundStatus = statuses.find((s: any) => s.id === statusId);
     return {
       name: foundStatus?.friendly_name || foundStatus?.name || 'No Status',
-      color: foundStatus?.color || '#6B7280'
+      color: foundStatus?.color || '#6B7280',
     };
-  };
-
-  const getStatusBadgeStyles = (statusName: string) => {
-    const name = statusName.toLowerCase();
-    if (name.includes('lead')) return 'bg-gray-100 text-gray-800';
-    if (name.includes('follow')) return 'bg-blue-50 text-blue-800';
-    if (name.includes('confirm')) return 'bg-yellow-50 text-yellow-800';
-    if (name.includes('call') || name.includes('book')) return 'bg-purple-50 text-purple-800';
-    if (name.includes('won')) return 'bg-green-50 text-green-800';
-    if (name.includes('lost')) return 'bg-red-50 text-red-800';
-    return 'bg-gray-100 text-gray-800';
-  };
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return null;
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-      });
-    } catch (_error) {
-      return null;
-    }
-  };
+  }, [statuses]);
 
   return (
     <>
@@ -139,120 +275,21 @@ const ContactsListView: React.FC<ContactsListViewProps> = ({ contacts, statuses,
             ) : (
               contacts.map((contact: any, index: number) => {
                 const status = getStatus(contact);
-                const statusBadgeClass = getStatusBadgeStyles(status.name);
-
                 return (
-                  <tr
+                  <ContactRow
                     key={contact.id}
-                    className={`border-b border-[#e5e5e5] dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${index === contacts.length - 1 ? 'border-b-0' : ''}`}
-                  >
-                    <td className="px-2 lg:px-4 py-4" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedContacts.includes(contact.id)}
-                        onChange={() => handleSelectContact(contact.id)}
-                        className="w-4 h-4 rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
-                      />
-                    </td>
-                    <td className="px-2 lg:px-4 py-4 cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5">
-                          {contact.follow_up_reminder_at && (
-                            <button
-                              type="button"
-                              onClick={(e: React.MouseEvent) => { e.stopPropagation(); followUpModal.open(contact); }}
-                              className="shrink-0 hover:scale-110 transition-transform"
-                              aria-label="View follow-up reminder"
-                            >
-                              <BellIcon className="h-4 w-4 text-amber-500" />
-                            </button>
-                          )}
-                          <p className={`font-normal text-sm text-gray-900 dark:text-white ${contact.is_hidden_crm ? 'line-through italic opacity-60' : ''}`}>
-                            {contact.first_name} {contact.last_name}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-2 lg:px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
-                      {contact.email || '-'}
-                    </td>
-                    <td className="px-2 lg:px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer hidden lg:table-cell" onClick={() => onContactClick && onContactClick(contact)}>
-                      {contact.phone ? `${contact.country_code || ''} ${contact.phone}`.trim() : '-'}
-                    </td>
-                    <td className="px-2 lg:px-4 py-4 text-sm text-gray-900 dark:text-white cursor-pointer hidden lg:table-cell" onClick={() => onContactClick && onContactClick(contact)}>
-                      {contact.business_name || '-'}
-                    </td>
-                    <td className="px-2 lg:px-4 py-4 cursor-pointer" onClick={() => onContactClick && onContactClick(contact)}>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusBadgeClass}`}>
-                        {status.name}
-                      </span>
-                    </td>
-                    <td className="px-2 lg:px-4 py-4 cursor-pointer hidden lg:table-cell" onClick={() => onContactClick && onContactClick(contact)}>
-                      <div className="flex gap-1">
-                        {contact.is_client && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                            Client
-                          </span>
-                        )}
-                        {contact.is_vendor && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-purple-50 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                            Vendor
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-2 lg:px-4 py-4 text-sm text-gray-600 dark:text-gray-400 cursor-pointer hidden lg:table-cell" onClick={() => onContactClick && onContactClick(contact)}>
-                      {formatDate(contact.created_at) || '-'}
-                    </td>
-                    <td className="px-2 lg:px-4 py-4 text-right">
-                      <Dropdown
-                        trigger={
-                          <button
-                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                            className="p-2 rounded-full transition-colors text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
-                          >
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M10 10.8334C10.4603 10.8334 10.8334 10.4603 10.8334 10C10.8334 9.53978 10.4603 9.16669 10 9.16669C9.53978 9.16669 9.16669 9.53978 9.16669 10C9.16669 10.4603 9.53978 10.8334 10 10.8334Z" fill="currentColor"/>
-                              <path d="M10 5.00002C10.4603 5.00002 10.8334 4.62692 10.8334 4.16669C10.8334 3.70645 10.4603 3.33335 10 3.33335C9.53978 3.33335 9.16669 3.70645 9.16669 4.16669C9.16669 4.62692 9.53978 5.00002 10 5.00002Z" fill="currentColor"/>
-                              <path d="M10 16.6667C10.4603 16.6667 10.8334 16.2936 10.8334 15.8334C10.8334 15.3731 10.4603 15 10 15C9.53978 15 9.16669 15.3731 9.16669 15.8334C9.16669 16.2936 9.53978 16.6667 10 16.6667Z" fill="currentColor"/>
-                            </svg>
-                          </button>
-                        }
-                        align="end"
-                        side="bottom"
-                      >
-                        <Dropdown.Item
-                          onSelect={(e: any) => {
-                            e.stopPropagation();
-                            handleEditContact(contact);
-                          }}
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                          Edit Contact
-                        </Dropdown.Item>
-
-                        <Dropdown.Item
-                          onSelect={(e: any) => {
-                            e.stopPropagation();
-                            toggleHidden(contact, 'crm');
-                          }}
-                        >
-                          {contact.is_hidden_crm ? 'Show on CRM' : 'Hide on CRM'}
-                        </Dropdown.Item>
-
-                        <Dropdown.Item
-                          onSelect={(e: any) => {
-                            e.stopPropagation();
-                            handleDeleteContact(contact);
-                          }}
-                          destructive
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                          Delete Contact
-                        </Dropdown.Item>
-                      </Dropdown>
-                    </td>
-                  </tr>
+                    contact={contact}
+                    isSelected={selectedContacts.includes(contact.id)}
+                    isLast={index === contacts.length - 1}
+                    statusName={status.name}
+                    statusBadgeClass={getStatusBadgeStyles(status.name)}
+                    onToggleSelect={handleSelectContact}
+                    onContactClick={onContactClick}
+                    onFollowUp={handleFollowUp}
+                    onEdit={handleEditContact}
+                    onDelete={handleDeleteContact}
+                    onToggleHidden={handleToggleHidden}
+                  />
                 );
               })
             )}

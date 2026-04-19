@@ -3,6 +3,7 @@ import { ArrowsRightLeftIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from 
 import { useCurrencyConversion } from '../../../hooks/crm/useCurrencyConversion';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { usePreferences } from '../../../contexts/PreferencesContext';
+import logger from '../../../utils/logger';
 import currencyConversionAPI from '../../../services/api/crm/currencyConversion';
 import { AVAILABLE_CURRENCIES } from './WidgetRegistry';
 import { LoadingSpinner } from '../../shared';
@@ -91,12 +92,12 @@ const CurrencyExchangeWidget = ({ settings = {}, widgetId = 'currency-exchange' 
             const dataPoints = data.data_points || data.rates || [];
             setHistoricalData(dataPoints);
           } catch (histError) {
-            console.warn('Historical data not available:', histError);
+            logger.warn('Historical data not available:', histError);
             setHistoricalData([]);
           }
         }
       } catch (err) {
-        console.error('Failed to load exchange rate:', err);
+        logger.error('Failed to load exchange rate:', err);
         setError('Failed to load rate');
       } finally {
         setLoading(false);

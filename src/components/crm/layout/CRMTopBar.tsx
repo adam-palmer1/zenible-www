@@ -6,6 +6,7 @@ import {
   ListBulletIcon,
 } from '@heroicons/react/24/outline';
 import { useUsageDashboardOptional } from '../../../contexts/UsageDashboardContext';
+import logger from '../../../utils/logger';
 import UsageLimitBadge from '../../ui/UsageLimitBadge';
 
 interface CRMTopBarProps {
@@ -60,7 +61,7 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
     try {
       await updatePreference('crm_view_mode', mode, 'crm');
     } catch (error) {
-      console.error('Failed to save view mode preference:', error);
+      logger.error('Failed to save view mode preference:', error);
     }
   };
 

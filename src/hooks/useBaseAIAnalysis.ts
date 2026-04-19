@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { WebSocketContext } from '../contexts/WebSocketContext';
 import { queryKeys } from '../lib/query-keys';
 import { messageAPI } from '../services/messageAPI';
+import logger from '../utils/logger';
 
 interface ChunkEventData {
   chunk: string;
@@ -197,14 +198,16 @@ export function useBaseAIAnalysis({
       // Handle completion
       onConversationEvent(convId, 'complete', (data: unknown) => {
         const completeData = data as CompleteEventData;
+
+        // Every AI response (tool or follow-up) counts against the quota,
+        // so always refresh usage data regardless of tool name.
+        queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.usageHistory.all });
+
         // Check if this is a response from one of our supported tools
         if (supportedTools.includes(completeData.toolName)) {
           setIsAnalyzing(false);
           setIsStreaming(false);
-
-          // Invalidate usage caches so Settings → Subscription reflects new usage
-          queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
-          queryClient.invalidateQueries({ queryKey: queryKeys.usageHistory.all });
 
           // Set structured analysis if available
           let mappedStructuredAnalysis: unknown = null;
@@ -257,7 +260,7 @@ export function useBaseAIAnalysis({
       // Handle tool errors
       onConversationEvent(convId, 'tool_error', (data: unknown) => {
         const errorData = data as ToolErrorEventData;
-        console.error('[useBaseAIAnalysis] Tool error:', errorData);
+        logger.error('[useBaseAIAnalysis] Tool error:', errorData);
 
         if (supportedTools.includes(errorData.toolName)) {
           setIsAnalyzing(false);
@@ -282,7 +285,7 @@ export function useBaseAIAnalysis({
       // Handle general errors
       onConversationEvent(convId, 'error', (data: unknown) => {
         const errorData = data as ErrorEventData;
-        console.error('[useBaseAIAnalysis] General error:', errorData);
+        logger.error('[useBaseAIAnalysis] General error:', errorData);
 
         setIsAnalyzing(false);
         setIsStreaming(false);
@@ -323,7 +326,7 @@ export function useBaseAIAnalysis({
     }
 
     if (!supportedTools.includes(toolName)) {
-      console.error('[useBaseAIAnalysis] Unsupported tool:', toolName);
+      logger.error('[useBaseAIAnalysis] Unsupported tool:', toolName);
       setError(`Tool '${toolName}' is not supported by this hook`);
       return null;
     }
@@ -370,7 +373,7 @@ export function useBaseAIAnalysis({
 
       return convId;
     } catch (err: unknown) {
-      console.error('[useBaseAIAnalysis] Failed to invoke tool:', err);
+      logger.error('[useBaseAIAnalysis] Failed to invoke tool:', err);
       setIsAnalyzing(false);
       setError((err as Error).message || `Failed to invoke tool: ${toolName}`);
 
@@ -434,7 +437,7 @@ export function useBaseAIAnalysis({
         setMessageId(null);
       }
     } catch (err: unknown) {
-      console.error('[useBaseAIAnalysis] Failed to delete message:', err);
+      logger.error('[useBaseAIAnalysis] Failed to delete message:', err);
       setError((err as Error).message || 'Failed to delete message');
     } finally {
       setDeletingMessageId(null);

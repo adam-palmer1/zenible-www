@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useDebouncedPreference } from '../useDebouncedPreference';
+import logger from '../../utils/logger';
 
 /**
  * Custom hook for managing Services tab filter state
@@ -53,7 +54,7 @@ export function useServicesFilters() {
   const setActiveSubtab = useCallback((subtab: string): void => {
     setActiveSubtabState(subtab);
     updateDebouncedPreference('services_active_subtab', subtab, 'services').catch(err =>
-      console.error('Failed to save subtab preference:', err)
+      logger.error('Failed to save subtab preference:', err)
     );
   }, [updateDebouncedPreference]);
 
@@ -62,7 +63,7 @@ export function useServicesFilters() {
     setStatusFilters(prev => {
       const newStatuses = prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status];
       updateDebouncedPreference('services_status_filter', newStatuses, 'services').catch(err =>
-        console.error('Failed to save status filter preference:', err)
+        logger.error('Failed to save status filter preference:', err)
       );
       return newStatuses;
     });
@@ -71,7 +72,7 @@ export function useServicesFilters() {
   const clearStatusFilters = useCallback((): void => {
     setStatusFilters([]);
     updateDebouncedPreference('services_status_filter', [], 'services').catch(err =>
-      console.error('Failed to clear status filter preference:', err)
+      logger.error('Failed to clear status filter preference:', err)
     );
   }, [updateDebouncedPreference]);
 
@@ -80,7 +81,7 @@ export function useServicesFilters() {
     setFrequencyTypeFilters(prev => {
       const newFreqs = prev.includes(freq) ? prev.filter(f => f !== freq) : [...prev, freq];
       updateDebouncedPreference('services_frequency_filter', newFreqs, 'services').catch(err =>
-        console.error('Failed to save frequency filter preference:', err)
+        logger.error('Failed to save frequency filter preference:', err)
       );
       return newFreqs;
     });
@@ -89,7 +90,7 @@ export function useServicesFilters() {
   const clearFrequencyTypeFilters = useCallback((): void => {
     setFrequencyTypeFilters([]);
     updateDebouncedPreference('services_frequency_filter', [], 'services').catch(err =>
-      console.error('Failed to clear frequency filter preference:', err)
+      logger.error('Failed to clear frequency filter preference:', err)
     );
   }, [updateDebouncedPreference]);
 
@@ -97,14 +98,14 @@ export function useServicesFilters() {
   const setShowHiddenContacts = useCallback((value: boolean): void => {
     setShowHiddenContactsState(value);
     updateDebouncedPreference('services_show_hidden_contacts', value, 'services').catch(err =>
-      console.error('Failed to save hidden contacts preference:', err)
+      logger.error('Failed to save hidden contacts preference:', err)
     );
   }, [updateDebouncedPreference]);
 
   const setShowLostContacts = useCallback((value: boolean): void => {
     setShowLostContactsState(value);
     updateDebouncedPreference('services_show_lost_contacts', value, 'services').catch(err =>
-      console.error('Failed to save lost contacts preference:', err)
+      logger.error('Failed to save lost contacts preference:', err)
     );
   }, [updateDebouncedPreference]);
 
@@ -121,7 +122,7 @@ export function useServicesFilters() {
       updateDebouncedPreference('services_frequency_filter', [], 'services'),
       updateDebouncedPreference('services_show_hidden_contacts', false, 'services'),
       updateDebouncedPreference('services_show_lost_contacts', false, 'services'),
-    ]).catch(err => console.error('Failed to clear all filter preferences:', err));
+    ]).catch(err => logger.error('Failed to clear all filter preferences:', err));
   }, [updateDebouncedPreference]);
 
   // Count active filters (for badge display)

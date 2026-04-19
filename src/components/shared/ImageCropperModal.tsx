@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import logger from '../../utils/logger';
 
 interface CroppedAreaPixels {
   x: number;
@@ -52,7 +53,7 @@ export default function ImageCropperModal({
       );
       onComplete(croppedImage as Blob);
     } catch (e) {
-      console.error('Error cropping image:', e);
+      logger.error('Error cropping image:', e);
       alert('Failed to crop image. Please try again.');
     }
   };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AppLayout from '../layout/AppLayout';
+import logger from '../../utils/logger';
 import ChatPanel from './ChatPanel';
 import ConversationHistoryModal from '../shared/ConversationHistoryModal';
 import PersonalizeAIBanner from '../shared/PersonalizeAIBanner';
@@ -41,6 +42,9 @@ export default function Boardroom() {
 
   const [characters, setCharacters] = useState<AICharacter[]>([]);
   const [loadingCharacters, setLoadingCharacters] = useState(true);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const [sidebarFadeTop, setSidebarFadeTop] = useState(false);
+  const [sidebarFadeBottom, setSidebarFadeBottom] = useState(false);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [selectedCharacterName, setSelectedCharacterName] = useState('');
   const [selectedCharacterAvatar, setSelectedCharacterAvatar] = useState<string | null>(null);
@@ -125,7 +129,7 @@ export default function Boardroom() {
           setSelectedCharacterStarters(first.metadata?.conversation_starters || []);
         }
       } catch (err) {
-        console.error('[Boardroom] Failed to load characters:', err);
+        logger.error('[Boardroom] Failed to load characters:', err);
         setCharacters([]);
       } finally {
         setLoadingCharacters(false);
@@ -133,6 +137,27 @@ export default function Boardroom() {
     };
     load();
   }, []);
+
+  // Fade sidebar edges only when cards extend beyond the visible area.
+  useEffect(() => {
+    const el = sidebarRef.current;
+    if (!el) return;
+    const check = () => {
+      const overflowing = el.scrollHeight > el.clientHeight + 1;
+      const atTop = el.scrollTop < 2;
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 2;
+      setSidebarFadeTop(overflowing && !atTop);
+      setSidebarFadeBottom(overflowing && !atBottom);
+    };
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', check);
+      ro.disconnect();
+    };
+  }, [characters.length, loadingCharacters]);
 
   // Auto-attach meeting when navigated from meetings page via query params
   useEffect(() => {
@@ -181,7 +206,7 @@ export default function Boardroom() {
         }
         setLinkedMeeting(linkedMeeting, context);
       } catch (err) {
-        console.error('[Boardroom] Failed to auto-attach meeting:', err);
+        logger.error('[Boardroom] Failed to auto-attach meeting:', err);
       }
     })();
   }, [loadingCharacters, characters, searchParams, setSearchParams, clearChat, setLinkedMeeting]);
@@ -355,7 +380,12 @@ export default function Boardroom() {
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-2">
           {/* Expert Sidebar */}
           {!loadingCharacters && characters.length > 0 && (
-            <div className="boardroom-sidebar-scroll w-full lg:w-[260px] flex-shrink-0 flex lg:flex-col gap-3 overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto">
+            <div
+              ref={sidebarRef}
+              data-fade-top={sidebarFadeTop ? 'true' : 'false'}
+              data-fade-bottom={sidebarFadeBottom ? 'true' : 'false'}
+              className="boardroom-sidebar-scroll w-full lg:w-[260px] flex-shrink-0 flex lg:flex-col gap-3 overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto"
+            >
               {characters.map((char) => {
                 const isGated = char.is_accessible === false;
                 return (

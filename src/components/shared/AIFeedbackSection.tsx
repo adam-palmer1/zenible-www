@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { brandIcon } from '../../assets/logos';
 import AICharacterTypingIndicator from '../ai/AICharacterTypingIndicator';
 import { messageAPI } from '../../services/messageAPI';
+import logger from '../../utils/logger';
 import { markdownToPlainText } from './ai-feedback/utils';
 import EmptyState from './ai-feedback/EmptyState';
 import ConversationHistory from './ai-feedback/ConversationHistory';
@@ -179,7 +180,7 @@ export default function AIFeedbackSection({
       // Send message through parent component
       await onSendMessage(userMessage);
     } catch (error) {
-      console.error('[AIFeedbackSection] Error sending message:', error);
+      logger.error('[AIFeedbackSection] Error sending message:', error);
       // Error handling - could add error message to conversation
     } finally {
       setIsSendingMessage(false);
@@ -214,7 +215,7 @@ export default function AIFeedbackSection({
     try {
       await onSendMessage(cleanText);
     } catch (error) {
-      console.error('[AIFeedbackSection] Error sending completion question:', error);
+      logger.error('[AIFeedbackSection] Error sending completion question:', error);
       setQuestionsSent(false); // Re-show buttons on error
     } finally {
       setIsSendingMessage(false);
@@ -269,7 +270,7 @@ export default function AIFeedbackSection({
       setCopiedMessageId(msgId);
       setTimeout(() => setCopiedMessageId(null), 2000);
     } catch (err) {
-      console.error('[AIFeedbackSection] Failed to copy message:', err);
+      logger.error('[AIFeedbackSection] Failed to copy message:', err);
     }
   };
 

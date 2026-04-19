@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CheckCircle, CreditCard, Loader2, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '../../../../utils/currency';
 import invoicesAPI from '../../../../services/api/finance/invoices';
+import logger from '../../../../utils/logger';
 
 const invoicesAPITyped = invoicesAPI;
 
@@ -34,7 +35,7 @@ const SavedCardPaymentInline: React.FC<SavedCardPaymentInlineProps> = ({ shareCo
         throw new Error('Payment was not successful. Please try again.');
       }
     } catch (err: any) {
-      console.error('[SavedCardPayment] Error:', err);
+      logger.error('[SavedCardPayment] Error:', err);
       setError(err.message || 'Failed to process payment. Please try again.');
     } finally {
       setProcessing(false);

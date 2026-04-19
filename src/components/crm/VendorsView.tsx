@@ -2,6 +2,7 @@ import React from 'react';
 import { UserMinusIcon, EyeSlashIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useContacts, useCompanyCurrencies } from '../../hooks/crm';
 import { ApiError } from '../../services/api/ApiError';
+import logger from '../../utils/logger';
 import { useNotification } from '../../contexts/NotificationContext';
 import { formatCurrencyWithCommas } from '../../utils/currency';
 import Dropdown from '../ui/dropdown/Dropdown';
@@ -116,7 +117,7 @@ const VendorsView: React.FC<VendorsViewProps> = ({
       // Refetch so the server-side filter removes/adds the vendor appropriately
       fetchContacts();
     } catch (error) {
-      console.error('Error updating vendor visibility:', error);
+      logger.error('Error updating vendor visibility:', error);
       showError('Failed to update vendor visibility');
     }
   };
@@ -128,7 +129,7 @@ const VendorsView: React.FC<VendorsViewProps> = ({
         const displayName = getContactDisplayName(vendor);
         showSuccess(`${displayName} removed from vendor list`);
       } catch (error) {
-        console.error('Error removing vendor from list:', error);
+        logger.error('Error removing vendor from list:', error);
         showError('Failed to remove vendor from list');
         throw error;
       }
@@ -142,7 +143,7 @@ const VendorsView: React.FC<VendorsViewProps> = ({
         const displayName = getContactDisplayName(vendor);
         showSuccess(`${displayName} deleted permanently`);
       } catch (error) {
-        console.error('Error deleting vendor:', error);
+        logger.error('Error deleting vendor:', error);
         if (error instanceof ApiError && error.isInsufficientPermissions) {
           showError('Insufficient permission to perform the requested action.');
         } else {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { adminAPI, subscriptionAPI } from '../utils/auth';
+import logger from '../utils/logger';
 
 interface UserEditModalProps {
   user: any;
@@ -35,7 +36,7 @@ export default function UserEditModal({ user, onClose, onSave }: UserEditModalPr
       const plansData = await subscriptionAPI.getAvailablePlans();
       setPlans(plansData);
     } catch (err) {
-      console.error('Failed to load plans:', err);
+      logger.error('Failed to load plans:', err);
     }
   };
 

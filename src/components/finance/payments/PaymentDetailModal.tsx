@@ -14,6 +14,7 @@ import { formatDate } from '../../../utils/dateUtils';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import paymentsAPI from '../../../services/api/finance/payments';
+import logger from '../../../utils/logger';
 import AssignExpenseModal from '../expenses/AssignExpenseModal';
 import { AllocationSummaryBar, ProjectAllocationModal, ExpenseAllocationSummaryBar } from '../allocations';
 
@@ -50,7 +51,7 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, onClose
         project_allocations: allocationsData.allocations || [],
       });
     } catch (err) {
-      console.error('Error fetching payment details:', err);
+      logger.error('Error fetching payment details:', err);
       setPayment(paymentProp);
     } finally {
       if (showLoading) setLoadingDetails(false);
@@ -79,8 +80,8 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, onClose
   // Show loading state while fetching details
   if (loadingDetails || !payment) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Payment details">
+        <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
         <div className="relative bg-white rounded-xl shadow-xl p-8 dark:bg-gray-800">
           <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
         </div>
@@ -120,9 +121,9 @@ const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ isOpen, onClose
 
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Payment details">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
 
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-auto dark:bg-gray-800">

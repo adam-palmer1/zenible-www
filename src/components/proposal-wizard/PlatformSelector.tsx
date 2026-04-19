@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import platformAPI from '../../services/platformAPI';
+import logger from '../../utils/logger';
 
 interface PlatformSelectorProps {
   darkMode: boolean;
@@ -42,7 +43,7 @@ export default function PlatformSelector({ darkMode, selectedPlatform, setSelect
         setSelectedPlatform(fetchedPlatforms[0].system_id as string);
       }
     } catch (err) {
-      console.error('Failed to fetch platforms:', err);
+      logger.error('Failed to fetch platforms:', err);
       setError('Failed to load platforms');
     } finally {
       setLoading(false);

@@ -29,6 +29,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 }) => {
   return (
     <div className="min-h-screen-safe bg-gray-50 dark:bg-gray-900">
+      {/* Skip link — visible only when focused. Lets keyboard users bypass the sidebar. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[1000] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-zenible-primary focus:text-white focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+
       {/* Sidebar (fixed on desktop, drawer on mobile) */}
       <Sidebar />
 
@@ -42,18 +50,20 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
         {/* Optional page header */}
         {header && (
-          <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             {header}
-          </div>
+          </header>
         )}
 
         {/* Page content */}
         {rawContent ? (
-          children
-        ) : (
-          <div className="flex-1 overflow-auto">
+          <main id="main-content" className="flex-1 min-h-0 flex flex-col">
             {children}
-          </div>
+          </main>
+        ) : (
+          <main id="main-content" className="flex-1 overflow-auto">
+            {children}
+          </main>
         )}
       </div>
     </div>

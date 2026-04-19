@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import { LoadingSpinner } from '../shared';
 import Combobox from '../ui/combobox/Combobox';
 
@@ -90,7 +91,7 @@ export default function ThreadManagement() {
       setTotalPages(response.total_pages || 1);
     } catch (err: any) {
       setError(err.message);
-      console.error('Error fetching threads:', err);
+      logger.error('Error fetching threads:', err);
     } finally {
       setLoading(false);
     }
@@ -105,7 +106,7 @@ export default function ThreadManagement() {
       const details = await adminAPI.getOpenAIThread(thread.id) as OpenAIThreadDetails;
       setOpenAIDetails(details);
     } catch (err: any) {
-      console.error('Error fetching OpenAI thread details:', err);
+      logger.error('Error fetching OpenAI thread details:', err);
       setOpenAIDetails(null);
     }
   };
@@ -122,7 +123,7 @@ export default function ThreadManagement() {
       }) as { items?: ThreadMessage[] };
       setThreadMessages(messages.items || []);
     } catch (err: any) {
-      console.error('Error fetching thread messages:', err);
+      logger.error('Error fetching thread messages:', err);
       setThreadMessages([]);
     } finally {
       setLoadingMessages(false);

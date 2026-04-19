@@ -70,6 +70,8 @@ const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
       {/* Dropdown */}
       <div
         ref={dropdownRef}
+        role="listbox"
+        aria-label="Select currency"
         className="fixed bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-64 overflow-y-auto"
         style={{
           top: dropdownPosition.top,
@@ -91,6 +93,8 @@ const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
                 <button
                   key={currencyId}
                   type="button"
+                  role="option"
+                  aria-selected={isSelected}
                   onClick={() => {
                     onSelect(currencyId);
                     onClose();
@@ -100,7 +104,7 @@ const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-base font-medium text-gray-700 dark:text-gray-300 w-6">
+                    <span className="text-base font-medium text-gray-700 dark:text-gray-300 w-6" aria-hidden="true">
                       {c.currency?.symbol || '$'}
                     </span>
                     <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -108,7 +112,7 @@ const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
                     </span>
                   </div>
                   {isSelected && (
-                    <CheckIcon className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0 ml-2" />
+                    <CheckIcon className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0 ml-2" aria-hidden="true" />
                   )}
                 </button>
               );

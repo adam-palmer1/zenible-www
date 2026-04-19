@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import currencyConversionAPI from '../../services/api/crm/currencyConversion';
 import { queryKeys } from '../../lib/query-keys';
+import logger from '../../utils/logger';
 
 interface CurrencyConversionResponse {
   amount: string;
@@ -51,7 +52,7 @@ export const useCurrencyConversion = () => {
       ) as CurrencyConversionResponse;
       return Number(response.converted_amount);
     } catch (err: unknown) {
-      console.error('Currency conversion failed:', err);
+      logger.error('Currency conversion failed:', err);
       return amount; // Fallback to original amount
     }
   }, []);
@@ -69,7 +70,7 @@ export const useCurrencyConversion = () => {
       });
       return response.rates;
     } catch (err: unknown) {
-      console.error('Failed to get exchange rates:', err);
+      logger.error('Failed to get exchange rates:', err);
       return {};
     }
   }, [queryClient]);
@@ -82,7 +83,7 @@ export const useCurrencyConversion = () => {
       const response = await currencyConversionAPI.batchConvert(conversions) as BatchConversionResponse;
       return response.results;
     } catch (err: unknown) {
-      console.error('Batch conversion failed:', err);
+      logger.error('Batch conversion failed:', err);
       return [];
     }
   }, []);

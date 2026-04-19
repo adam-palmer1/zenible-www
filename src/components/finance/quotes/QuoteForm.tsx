@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Calendar, Loader2, ArrowLeft, ChevronDown, Settings } from 'lucide-react';
 import { useQuotes } from '../../../contexts/QuoteContext';
 import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts';
+import logger from '../../../utils/logger';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
@@ -125,7 +126,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
           const data = await quotesAPI.get(id);
           setQuote(data);
         } catch (error: any) {
-          console.error('Failed to load quote:', error);
+          logger.error('Failed to load quote:', error);
           showError('Failed to load quote');
           navigate('/finance/quotes');
         } finally {
@@ -265,7 +266,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
             setQuoteNumber(data.next_number);
           }
         } catch (error) {
-          console.error('Failed to load next quote number:', error);
+          logger.error('Failed to load next quote number:', error);
         }
       }
     };
@@ -468,7 +469,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
         }
       }
     } catch (error: any) {
-      console.error('Error saving quote:', error);
+      logger.error('Error saving quote:', error);
       showError(error.message || 'Failed to save quote');
     } finally {
       setSaving(false);

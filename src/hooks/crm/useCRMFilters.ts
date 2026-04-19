@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useDebouncedPreference } from '../useDebouncedPreference';
+import logger from '../../utils/logger';
 
 /**
  * Hook for managing CRM filter state and persistence
@@ -60,7 +61,7 @@ export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, 
       if (validStatuses.length !== selectedStatuses.length) {
         setSelectedStatuses(validStatuses);
         updateDebouncedPreference('crm_status', validStatuses, 'crm').catch(err =>
-          console.error('[useCRMFilters] Failed to clean up stale status IDs:', err)
+          logger.error('[useCRMFilters] Failed to clean up stale status IDs:', err)
         );
       }
     }
@@ -109,7 +110,7 @@ export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, 
     try {
       await updateDebouncedPreference('crm_status', newStatuses, 'crm');
     } catch (error) {
-      console.error('[useCRMFilters] Failed to save status filter:', error);
+      logger.error('[useCRMFilters] Failed to save status filter:', error);
     }
   }, [selectedStatuses, updateDebouncedPreference]);
 
@@ -118,7 +119,7 @@ export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, 
     try {
       await updateDebouncedPreference('crm_status', [], 'crm');
     } catch (error) {
-      console.error('[useCRMFilters] Failed to clear status filter:', error);
+      logger.error('[useCRMFilters] Failed to clear status filter:', error);
     }
   }, [updateDebouncedPreference]);
 
@@ -127,7 +128,7 @@ export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, 
     try {
       await updateDebouncedPreference('crm_show_hidden', checked, 'crm');
     } catch (error) {
-      console.error('[useCRMFilters] Failed to save show hidden preference:', error);
+      logger.error('[useCRMFilters] Failed to save show hidden preference:', error);
     }
   }, [updateDebouncedPreference]);
 
@@ -136,7 +137,7 @@ export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, 
     try {
       await updateDebouncedPreference('crm_sort_order', order, 'crm');
     } catch (error) {
-      console.error('[useCRMFilters] Failed to save sort order preference:', error);
+      logger.error('[useCRMFilters] Failed to save sort order preference:', error);
     }
   }, [updateDebouncedPreference]);
 
@@ -152,7 +153,7 @@ export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, 
         updateDebouncedPreference('crm_sort_order', null, 'crm'),
       ]);
     } catch (error) {
-      console.error('[useCRMFilters] Failed to clear all filters:', error);
+      logger.error('[useCRMFilters] Failed to clear all filters:', error);
     }
   }, [updateDebouncedPreference]);
 
@@ -161,7 +162,7 @@ export function useCRMFilters(contacts: any[] = [], baseFilters: Record<string, 
     try {
       await updateDebouncedPreference('crm_column_order', newOrder, 'crm');
     } catch (error) {
-      console.error('[useCRMFilters] Failed to save column order:', error);
+      logger.error('[useCRMFilters] Failed to save column order:', error);
     }
   }, [updateDebouncedPreference]);
 

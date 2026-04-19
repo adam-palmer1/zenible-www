@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useInvoices, type Invoice } from '../../../contexts/InvoiceContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import logger from '../../../utils/logger';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
@@ -107,7 +108,7 @@ const InvoiceList: React.FC = () => {
     if (parentInvoiceId) {
       updateFilters({ parent_invoice_id: parentInvoiceId });
       // Load parent template info for display
-      invoicesAPI.get(parentInvoiceId).then(setParentTemplateInfo).catch((err: unknown) => { console.error('Failed to load parent template:', err); });
+      invoicesAPI.get(parentInvoiceId).then(setParentTemplateInfo).catch((err: unknown) => { logger.error('Failed to load parent template:', err); });
     } else if (prevParentId && !parentInvoiceId) {
       // Only clear if there was a previous parent filter and now it's null
       updateFilters({ parent_invoice_id: null });
@@ -454,7 +455,7 @@ const InvoiceList: React.FC = () => {
 
           successCount++;
         } catch (err) {
-          console.error(`Failed to download invoice ${invoiceId}:`, err);
+          logger.error(`Failed to download invoice ${invoiceId}:`, err);
           failCount++;
         }
       }
@@ -568,7 +569,7 @@ const InvoiceList: React.FC = () => {
       // Navigate to edit the cloned invoice
       navigate(`/finance/invoices/${clonedInvoice.id}/edit`);
     } catch (error: any) {
-      console.error('Failed to clone invoice:', error);
+      logger.error('Failed to clone invoice:', error);
       showError(error.message || 'Failed to clone invoice');
     }
   }, [cloneInvoice, showSuccess, showError, navigate]);

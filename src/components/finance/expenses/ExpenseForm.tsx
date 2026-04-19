@@ -8,6 +8,7 @@ import { useProjects } from '../../../hooks/crm/useProjects';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
+import logger from '../../../utils/logger';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { applyNumberFormat } from '../../../utils/numberFormatUtils';
 import { PAYMENT_METHOD } from '../../../constants/finance';
@@ -253,7 +254,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
         const companyData = await companiesAPI.getCurrent();
         setCompany(companyData);
       } catch (error) {
-        console.error('Failed to load company data:', error);
+        logger.error('Failed to load company data:', error);
         showError('Failed to load form data');
       }
     };
@@ -279,7 +280,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
             setExpenseNumber(data.next_number);
           }
         } catch (error) {
-          console.error('Failed to load next expense number:', error);
+          logger.error('Failed to load next expense number:', error);
         }
       }
     };
@@ -298,7 +299,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
             setProjectId('');
           }
         } catch (error) {
-          console.error('Failed to load client projects:', error);
+          logger.error('Failed to load client projects:', error);
           setClientProjects([]);
         } finally {
           setLoadingClientProjects(false);
@@ -346,7 +347,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
           setCategoryId(selectedVendor.default_expense_category_id);
         }
       } catch (error) {
-        console.error('Failed to fetch vendor details:', error);
+        logger.error('Failed to fetch vendor details:', error);
       }
     }
   }, [currencyManuallyChanged, taxManuallyChanged, categoryManuallyChanged, currencies]);
@@ -433,7 +434,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
       });
       showSuccess('Receipt uploaded successfully');
     } catch (error) {
-      console.error('Receipt upload failed:', error);
+      logger.error('Receipt upload failed:', error);
       throw error;
     }
   }, [expense?.id, showSuccess]);
@@ -450,7 +451,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
       setReceipt(null);
       showSuccess('Receipt deleted');
     } catch (error) {
-      console.error('Receipt delete failed:', error);
+      logger.error('Receipt delete failed:', error);
       throw error;
     }
   }, [expense?.id, showSuccess]);
@@ -553,7 +554,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
             }
           }
         } catch (allocError) {
-          console.error('Failed to update project allocation:', allocError);
+          logger.error('Failed to update project allocation:', allocError);
         }
       }
 
@@ -563,7 +564,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense = null, onSuccess, is
         navigate('/finance/expenses');
       }
     } catch (error: any) {
-      console.error('Error saving expense:', error);
+      logger.error('Error saving expense:', error);
       showError(error.message || 'Failed to save expense');
     } finally {
       setSaving(false);

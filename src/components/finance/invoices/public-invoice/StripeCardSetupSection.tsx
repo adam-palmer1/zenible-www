@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import invoicesAPI from '../../../../services/api/finance/invoices';
+import logger from '../../../../utils/logger';
 import StripeCardSetupForm from './StripeCardSetupForm';
 
 const invoicesAPITyped = invoicesAPI;
@@ -42,7 +43,7 @@ const StripeCardSetupSection: React.FC<StripeCardSetupSectionProps> = ({ shareCo
           : undefined;
         setStripePromise(loadStripe(setupData.publishable_key, stripeOptions));
       } catch (err: any) {
-        console.error('[StripeCardSetup] Init error:', err);
+        logger.error('[StripeCardSetup] Init error:', err);
         setError(err.message || 'Failed to initialize card setup');
       } finally {
         setLoading(false);

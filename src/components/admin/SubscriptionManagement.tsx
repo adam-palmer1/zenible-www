@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Search, ChevronDown, Check, SortAsc, Filter, CreditCard, Loader2, MoreVertical, UserCheck, Users } from 'lucide-react';
 import { adminSubscriptionsAPI, adminPlansAPI } from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import { useModalState } from '../../hooks/useModalState';
 import SubscriptionActionsDropdown from './subscription-management/SubscriptionActionsDropdown';
 import SubscriptionHistoryModal from './subscription-management/SubscriptionHistoryModal';
@@ -198,7 +199,7 @@ export default function SubscriptionManagement() {
       const response = await adminPlansAPI.getPlans({ is_active: 'true', per_page: '100' }) as PlanList & { plans?: PlanResponse[] };
       setPlans(response.plans || []);
     } catch (err: any) {
-      console.error('Error fetching plans:', err);
+      logger.error('Error fetching plans:', err);
     }
   };
 

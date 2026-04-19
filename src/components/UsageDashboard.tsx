@@ -320,20 +320,20 @@ export default function UsageDashboard() {
 
                   {/* Per-Character Usage */}
                   {ai_usage.per_character && ai_usage.per_character.length > 0 && (
-                    <div className={`p-4 rounded-lg ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
+                    <div>
                       <h5 className={`text-sm font-medium mb-3 ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                         Per Character
                       </h5>
-                      <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {ai_usage.per_character.map((char, index) => {
                           const charName = char.character_name || char.name || `Character ${index + 1}`;
                           const hasMonthly = typeof char.limit === 'number' && char.limit !== null;
                           const hasDaily = typeof char.daily_limit === 'number' && char.daily_limit !== null;
 
                           return (
-                            <div key={index}>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className={`text-xs font-medium ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                            <div key={index} className={`p-4 rounded-lg ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className={`text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
                                   {charName}
                                 </span>
                               </div>

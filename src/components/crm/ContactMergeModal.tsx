@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import logger from '../../utils/logger';
 import {
   XMarkIcon,
   ArrowRightIcon,
@@ -59,7 +60,7 @@ const ContactMergeModal: React.FC<ContactMergeModalProps> = ({ isOpen, onClose, 
       const result = await contactsAPI.searchForMerge(query, sourceContact?.id);
       setSearchResults(result.items || []);
     } catch (error) {
-      console.error('Failed to search contacts:', error);
+      logger.error('Failed to search contacts:', error);
       setSearchResults([]);
     } finally {
       setSearching(false);

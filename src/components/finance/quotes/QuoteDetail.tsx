@@ -4,6 +4,7 @@ import { ChevronLeft, Loader2, FileText, Eye, ChevronDown, ChevronUp, Monitor, S
 import { useQuotes } from '../../../contexts/QuoteContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
+import logger from '../../../utils/logger';
 import { QUOTE_STATUS, QUOTE_STATUS_COLORS } from '../../../constants/finance';
 import { formatCurrency } from '../../../utils/currency';
 import { formatDate } from '../../../utils/dateUtils';
@@ -64,7 +65,7 @@ const QuoteDetail: React.FC = () => {
       const data = await companiesAPI.getCurrent();
       setCompany(data);
     } catch (_error) {
-      console.error('Error loading company:', _error);
+      logger.error('Error loading company:', _error);
       // Non-critical, don't show error to user
     }
   };
@@ -93,7 +94,7 @@ const QuoteDetail: React.FC = () => {
       const data = await quotesAPI.get(id!);
       setQuote(data);
     } catch (_error) {
-      console.error('Error loading quote:', _error);
+      logger.error('Error loading quote:', _error);
       showError('Failed to load quote');
       navigate('/finance/quotes');
     } finally {
@@ -107,7 +108,7 @@ const QuoteDetail: React.FC = () => {
       const data = await quotesAPI.getViews(id!);
       setViewHistory(data);
     } catch (_error) {
-      console.error('Error loading view history:', _error);
+      logger.error('Error loading view history:', _error);
       // Non-critical, don't show error to user
     } finally {
       setLoadingViewHistory(false);

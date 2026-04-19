@@ -100,21 +100,44 @@ const createRequestWithBase = (baseUrl: string, context: string): RequestFn => {
         return null as T;
       }
 
-      const data = await response.json().catch(() => null);
+      let data: Record<string, unknown> | null = null;
+      let parseError: unknown = null;
+      try {
+        data = await response.json();
+      } catch (err) {
+        parseError = err;
+      }
 
       if (!response.ok) {
         let errorMessage: string;
 
         // Handle Pydantic validation errors (detail is an array)
         if (Array.isArray(data?.detail)) {
-          errorMessage = formatValidationErrors(data.detail);
-        } else if (typeof data?.detail === 'object' && data?.detail?.message) {
-          errorMessage = data.detail.message;
+          errorMessage = formatValidationErrors(data.detail as ValidationError[]);
+        } else if (typeof data?.detail === 'object' && data?.detail && 'message' in data.detail) {
+          errorMessage = (data.detail as { message: string }).message;
+        } else if (typeof data?.detail === 'string') {
+          errorMessage = data.detail;
+        } else if (typeof data?.message === 'string') {
+          errorMessage = data.message;
+        } else if (parseError) {
+          logger.error(`[${context}] Error response body was not valid JSON (status ${response.status}):`, parseError);
+          errorMessage = `Request failed with status ${response.status} (unparseable response body)`;
         } else {
-          errorMessage = data?.detail || data?.message || `Request failed with status ${response.status}`;
+          errorMessage = `Request failed with status ${response.status}`;
         }
 
         throw new ApiError(errorMessage, response.status, response.statusText, data);
+      }
+
+      if (parseError) {
+        logger.error(`[${context}] Success response body was not valid JSON:`, parseError);
+        throw new ApiError(
+          'Malformed response body (expected JSON)',
+          response.status,
+          response.statusText,
+          null,
+        );
       }
 
       return data as T;

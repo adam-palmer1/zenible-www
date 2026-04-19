@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useCRMReferenceData } from '../contexts/CRMReferenceDataContext';
+import logger from '../utils/logger';
 import { useCountries } from '../hooks/crm/useCountries';
 import { useCompanyCurrencies } from '../hooks/crm/useCompanyCurrencies';
 import { useCompanyAttributes } from '../hooks/crm/useCompanyAttributes';
@@ -151,7 +152,11 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
     setLoading(true);
     setError(null);
     try {
-      const companyData = await companiesAPI.getCurrent().catch(() => null) as CompanyData | null;
+      const companyData = await companiesAPI.getCurrent().catch((err: unknown) => {
+        // First-sign-in flow: no company yet is expected (404). Treat any error as "no company".
+        logger.warn('[FirstSignInModal] Could not load current company:', err);
+        return null;
+      }) as CompanyData | null;
 
       if (companyData) {
         setCompanyProfile({
@@ -165,7 +170,7 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
         });
       }
     } catch (_err) {
-      console.error('Failed to load data:', _err);
+      logger.error('Failed to load data:', _err);
       setError('Failed to load data. Please try again.');
     } finally {
       setLoading(false);
@@ -317,7 +322,7 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
       await updatePreference('onboarding_reminder_date', reminderDate.toISOString(), 'user');
       await reloadPreferences();
     } catch (error) {
-      console.error('Error updating preferences:', error);
+      logger.error('Error updating preferences:', error);
     }
     onClose();
   };

@@ -3,6 +3,7 @@ import { RectangleStackIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { PROJECT_STATUS, PROJECT_STATUS_LABELS, PROJECT_STATUS_COLORS, type ProjectStatus } from '../../constants/crm';
 import projectsAPI from '../../services/api/crm/projects';
 import { useNavigate } from 'react-router-dom';
+import logger from '../../utils/logger';
 
 /**
  * Current Projects Widget for Dashboard
@@ -31,7 +32,7 @@ const CurrentProjectsWidget = () => {
           .slice(0, 3);
         setProjects(sortedProjects);
       } catch (error) {
-        console.error('Failed to load projects:', error);
+        logger.error('Failed to load projects:', error);
       } finally {
         setLoading(false);
       }

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import planAPI from '../services/planAPI';
+import logger from '../utils/logger';
 import { useAuth } from './AuthContext';
 import { queryKeys } from '../lib/query-keys';
 
@@ -132,6 +133,7 @@ export function UsageDashboardProvider({ children }: { children: React.ReactNode
   });
 
   const usageData = usageQuery.data || null;
+  const usageLoaded = usageQuery.isSuccess;
 
   // Refresh function
   const refresh = useCallback(async () => {
@@ -173,15 +175,23 @@ export function UsageDashboardProvider({ children }: { children: React.ReactNode
 
   const canUseTool = useCallback((toolName: string) => {
     const tool = getToolUsage(toolName);
-    if (!tool) return true; // If tool not in list, assume unlimited
+    if (!tool) {
+      // Before the first load we must be permissive (UI would otherwise lock).
+      // After a successful load, a missing tool means the dashboard's tool_usage list
+      // is out of sync with what the app actually uses — surface it so it gets noticed.
+      if (usageLoaded) {
+        logger.warn(`[UsageDashboard] canUseTool("${toolName}"): tool not present in tool_usage. Defaulting to allowed; backend should add it.`);
+      }
+      return true;
+    }
     if (tool.limit === null) return true; // Unlimited
     return tool.remaining > 0;
-  }, [getToolUsage]);
+  }, [getToolUsage, usageLoaded]);
 
   const value = useMemo((): UsageDashboardContextValue => ({
     // Data
     usageData,
-    loading: usageQuery.isLoading,
+    loading: usageQuery.isLoading || usageQuery.isRefetching,
     error: usageQuery.error ? (usageQuery.error as Error).message : null,
 
     // Actions

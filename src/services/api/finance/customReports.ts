@@ -61,8 +61,9 @@ class CustomReportsAPI {
     page = 1,
     perPage = 50
   ): Promise<ReportExecutionResponse> {
+    const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) }).toString();
     const raw = await request<RawReportExecutionResponse>(
-      `${this.baseEndpoint}/execute?page=${page}&per_page=${perPage}`,
+      `${this.baseEndpoint}/execute?${qs}`,
       {
         method: 'POST',
         body: JSON.stringify(configuration),

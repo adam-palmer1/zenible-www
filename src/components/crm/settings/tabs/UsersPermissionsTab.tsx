@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { MagnifyingGlassIcon, PlusIcon, PencilIcon, TrashIcon, ShieldCheckIcon, PlayIcon, EnvelopeIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { usePreferences } from '../../../../contexts/PreferencesContext';
 import { useNotification } from '../../../../contexts/NotificationContext';
+import logger from '../../../../utils/logger';
 import { useAuth } from '../../../../contexts/AuthContext';
 import companyUsersAPI from '../../../../services/api/crm/companyUsers';
 import InviteUserModal from './users/InviteUserModal';
@@ -76,7 +77,7 @@ const UsersPermissionsTab: React.FC = () => {
       setPermissions(permsData.permissions || []);
       setCategories(permsData.categories || []);
     } catch (error) {
-      console.error('Failed to load users and permissions:', error);
+      logger.error('Failed to load users and permissions:', error);
       showError('Failed to load users. Please try again.');
     } finally {
       setLoading(false);
@@ -116,7 +117,7 @@ const UsersPermissionsTab: React.FC = () => {
       showSuccess(`${user.full_name || user.email} has been reactivated`);
       loadData();
     } catch (error: unknown) {
-      console.error('Failed to reactivate user:', error);
+      logger.error('Failed to reactivate user:', error);
       showError((error as Error).message || 'Failed to reactivate user. Please try again.');
     }
   };
@@ -128,7 +129,7 @@ const UsersPermissionsTab: React.FC = () => {
       showSuccess(`Invitation for ${email} cancelled`);
       loadData();
     } catch (error: unknown) {
-      console.error('Failed to cancel invitation:', error);
+      logger.error('Failed to cancel invitation:', error);
       showError((error as Error).message || 'Failed to cancel invitation. Please try again.');
     }
   };
@@ -139,7 +140,7 @@ const UsersPermissionsTab: React.FC = () => {
       showSuccess(`Invitation resent to ${email}`);
       loadData();
     } catch (error: unknown) {
-      console.error('Failed to resend invitation:', error);
+      logger.error('Failed to resend invitation:', error);
       showError((error as Error).message || 'Failed to resend invitation. Please try again.');
     }
   };

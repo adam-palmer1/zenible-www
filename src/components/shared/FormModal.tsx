@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Modal, { type ModalSize } from '../ui/modal/Modal';
 import { Loader2 } from 'lucide-react';
+import logger from '../../utils/logger';
 
 interface FormModalProps {
   isOpen: boolean;
@@ -53,7 +54,7 @@ const FormModal: React.FC<FormModalProps> = ({
       await onSubmit();
     } catch (error) {
       // Error should be handled by onSubmit
-      console.error('FormModal submit error:', error);
+      logger.error('FormModal submit error:', error);
     } finally {
       setInternalLoading(false);
     }

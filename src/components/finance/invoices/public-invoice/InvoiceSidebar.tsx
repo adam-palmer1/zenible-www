@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle, CreditCard, Loader2, RefreshCw, AlertTriangle, Clock, Download, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../../../../utils/currency';
+import logger from '../../../../utils/logger';
 import { StripeLogo, PayPalLogo } from './PaymentLogos';
 import StripeCardSetupSection from './StripeCardSetupSection';
 import StripePaymentSection from './StripePaymentSection';
@@ -372,7 +373,7 @@ const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
               setCardSetupSuccess(true);
               loadInvoice(); // Reload to get updated has_saved_payment_method
             }}
-            onError={(err) => console.error(err)}
+            onError={(err) => logger.error(err)}
             onBack={() => setPaymentMethod(null)}
           />
         )}
@@ -396,7 +397,7 @@ const InvoiceSidebar: React.FC<InvoiceSidebarProps> = ({
             amount={paymentAmount}
             currency={invoice.currency_code}
             onSuccess={handlePaymentSuccess}
-            onError={(err) => console.error(err)}
+            onError={(err) => logger.error(err)}
             onBack={() => setPaymentMethod(null)}
           />
         )}

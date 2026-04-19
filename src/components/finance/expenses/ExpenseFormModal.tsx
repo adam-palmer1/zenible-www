@@ -4,6 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import ExpenseForm from './ExpenseForm';
 import expensesAPI from '../../../services/api/finance/expenses';
 import { ModalPortalContext } from '../../../contexts/ModalPortalContext';
+import logger from '../../../utils/logger';
 
 interface ExpenseFormModalProps {
   isOpen: boolean;
@@ -58,7 +59,7 @@ const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({ isOpen, onClose, ex
         const data = await expensesAPI.get(expenseId);
         setExpense(data);
       } catch (err: any) {
-        console.error('Failed to fetch expense:', err);
+        logger.error('Failed to fetch expense:', err);
         setError(err.message || 'Failed to load expense');
       } finally {
         setLoading(false);

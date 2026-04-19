@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { adminPaymentsAPI } from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import { useModalState } from '../../hooks/useModalState';
 import { LoadingSpinner } from '../shared';
 import DatePickerCalendar from '../shared/DatePickerCalendar';
@@ -92,7 +93,7 @@ export default function PaymentTracking() {
       const response = await adminPaymentsAPI.getPaymentStats(params) as PaymentStats;
       setStatistics(response);
     } catch (err: any) {
-      console.error('Failed to fetch statistics:', err);
+      logger.error('Failed to fetch statistics:', err);
     } finally {
       setStatsLoading(false);
     }
@@ -119,7 +120,7 @@ export default function PaymentTracking() {
       setTotalPages(response.total_pages || 1);
       setTotalPayments(response.total || 0);
     } catch (err: any) {
-      console.error('Failed to fetch payments:', err);
+      logger.error('Failed to fetch payments:', err);
       setError('Failed to load payments: ' + err.message);
     } finally {
       setLoading(false);

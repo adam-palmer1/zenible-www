@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AppLayout from '../layout/AppLayout';
+import logger from '../../utils/logger';
 import PlatformSelector from './PlatformSelector';
 import JobPostSection from './JobPostSection';
 import ProposalInput from './ProposalInput';
@@ -192,7 +193,7 @@ export default function ProposalWizard() {
       // Optional: handle streaming chunks if needed
     },
     onError: (error: { error: string; validationErrors?: unknown[]; toolName?: string }) => {
-      console.error('[ProposalWizard] Analysis error:', error);
+      logger.error('[ProposalWizard] Analysis error:', error);
       setFeedback({
         isProcessing: false,
         error: error.error || 'An error occurred during analysis'
@@ -254,7 +255,7 @@ export default function ProposalWizard() {
     unsubscribers.push(
       onConversationEvent(conversationId, 'error', (...args: unknown[]) => {
         const data = args[0];
-        console.error('[ProposalWizard] Follow-up error:', data);
+        logger.error('[ProposalWizard] Follow-up error:', data);
         setIsFollowUpStreaming(false);
         setFollowUpStreamingContent('');
       })
@@ -274,7 +275,7 @@ export default function ProposalWizard() {
         const isEnabled = features?.proposal_wizard?.enabled ?? true;
         setFeatureEnabled(isEnabled);
       } catch (error) {
-        console.error('Failed to load user features:', error);
+        logger.error('Failed to load user features:', error);
         setFeatureEnabled(true);
       }
     };
@@ -315,7 +316,7 @@ export default function ProposalWizard() {
           setSelectedCharacterDescription(defaultChar.description || '');
         }
       } catch (error) {
-        console.error('Failed to load AI characters:', error);
+        logger.error('Failed to load AI characters:', error);
 
         // Fallback: if features endpoint fails, just load all characters
         try {
@@ -330,7 +331,7 @@ export default function ProposalWizard() {
             setSelectedCharacterDescription(defaultChar.description || '');
           }
         } catch (fallbackError) {
-          console.error('Failed to load characters even in fallback:', fallbackError);
+          logger.error('Failed to load characters even in fallback:', fallbackError);
           setAvailableCharacters([]);
         }
       } finally {
@@ -359,13 +360,13 @@ export default function ProposalWizard() {
         );
 
         if (!hasAnalyzeTool) {
-          console.warn('[ProposalWizard] Character does not have analyze_proposal tool');
+          logger.warn('[ProposalWizard] Character does not have analyze_proposal tool');
         }
         if (!hasGenerateTool) {
-          console.warn('[ProposalWizard] Character does not have generate_proposal tool');
+          logger.warn('[ProposalWizard] Character does not have generate_proposal tool');
         }
       } catch (error) {
-        console.error('[ProposalWizard] Failed to load character tools:', error);
+        logger.error('[ProposalWizard] Failed to load character tools:', error);
       }
     };
 
@@ -569,7 +570,7 @@ export default function ProposalWizard() {
       setExportStatus('Exported successfully!');
       setTimeout(() => setExportStatus(null), 3000);
     } catch (error) {
-      console.error('Error exporting conversation:', error);
+      logger.error('Error exporting conversation:', error);
       setExportStatus('Export failed. Please try again.');
       setTimeout(() => setExportStatus(null), 5000);
     }

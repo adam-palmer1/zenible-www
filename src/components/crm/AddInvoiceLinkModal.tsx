@@ -3,6 +3,7 @@ import Modal from '../ui/modal/Modal';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { useNotification } from '../../contexts/NotificationContext';
 import { invoicesAPI } from '../../services/api/finance';
+import logger from '../../utils/logger';
 
 interface AddInvoiceLinkModalProps {
   isOpen: boolean;
@@ -71,7 +72,7 @@ const AddInvoiceLinkModal: React.FC<AddInvoiceLinkModalProps> = ({
         const allInvoices = response?.items || [];
         setInvoices(allInvoices.filter((inv: any) => !linkedInvoiceIds.includes(inv.id)));
       } catch (error) {
-        console.error('Failed to search invoices:', error);
+        logger.error('Failed to search invoices:', error);
       } finally {
         setSearching(false);
       }

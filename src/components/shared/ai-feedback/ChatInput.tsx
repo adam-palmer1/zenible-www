@@ -2,6 +2,27 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import sendIcon from '../../../assets/icons/send.svg';
 import type { MessageAttachment, LinkedMeeting } from './types';
 
+/** Per-file size cap for chat attachments. UX guardrail only — server MUST enforce. */
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Filter a FileList to those under MAX_FILE_BYTES. Returns the filtered list and the
+ * names of any rejected files so the caller can surface a toast.
+ */
+function filterBySize(files: FileList): { kept: File[]; rejected: string[] } {
+  const kept: File[] = [];
+  const rejected: string[] = [];
+  for (let i = 0; i < files.length; i += 1) {
+    const f = files[i];
+    if (f.size > MAX_FILE_BYTES) {
+      rejected.push(f.name);
+    } else {
+      kept.push(f);
+    }
+  }
+  return { kept, rejected };
+}
+
 interface ChatInputProps {
   darkMode: boolean;
   question: string;
@@ -88,8 +109,23 @@ export default function ChatInput({
     e.stopPropagation();
     setIsDragOver(false);
     if (onFileSelect && e.dataTransfer.files.length > 0) {
-      onFileSelect(e.dataTransfer.files);
+      deliverFiles(e.dataTransfer.files);
     }
+  };
+
+  const deliverFiles = (files: FileList) => {
+    if (!onFileSelect) return;
+    const { kept, rejected } = filterBySize(files);
+    if (rejected.length > 0) {
+      // Keep behaviour simple: log + alert. A toast system would be nicer but
+      // would require coupling to the parent — this is a shared leaf component.
+      // eslint-disable-next-line no-alert
+      window.alert(`Some files exceed the 25 MB limit and were skipped:\n${rejected.join('\n')}`);
+    }
+    if (kept.length === 0) return;
+    const dt = new DataTransfer();
+    kept.forEach((f) => dt.items.add(f));
+    onFileSelect(dt.files);
   };
 
   const handleAttachFile = useCallback(() => {
@@ -230,7 +266,7 @@ export default function ChatInput({
             className="hidden"
             onChange={(e) => {
               if (e.target.files && e.target.files.length > 0) {
-                onFileSelect(e.target.files);
+                deliverFiles(e.target.files);
                 e.target.value = '';
               }
             }}

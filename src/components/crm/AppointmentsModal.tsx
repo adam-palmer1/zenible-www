@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarIcon, PlusIcon, PencilIcon, TrashIcon, XMarkIcon, ClockIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import logger from '../../utils/logger';
 import { Z_INDEX } from '../../constants/crm';
 import { getContactDisplayName } from '../../utils/crm/contactUtils';
 import { getScheduledAppointments, getNextHour, calculateEndDateTime, formatAppointmentTitle } from '../../utils/crm/appointmentUtils';
@@ -87,7 +88,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       const items = Array.isArray(data) ? data : (data.items || []);
       setFetchedAppointments(items);
     } catch (err) {
-      console.error('Error fetching appointments:', err);
+      logger.error('Error fetching appointments:', err);
       setFetchedAppointments([]);
     } finally {
       setLoadingAppointments(false);
@@ -213,7 +214,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
 
       setMode('list');
     } catch (error: any) {
-      console.error('Failed to update appointment:', error);
+      logger.error('Failed to update appointment:', error);
       showError(error.message || 'Failed to update appointment');
     }
   };
@@ -237,7 +238,7 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
       await fetchAppointments();
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
     } catch (error: any) {
-      console.error('Failed to cancel appointment:', error);
+      logger.error('Failed to cancel appointment:', error);
       showError(error.message || 'Failed to cancel appointment');
     }
   };

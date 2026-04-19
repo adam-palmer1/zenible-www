@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ClockIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import publicBookingAPI from '../../services/api/public/booking';
+import logger from '../../utils/logger';
 
 interface CallType {
   id: string;
@@ -37,7 +38,7 @@ const PublicUserPage: React.FC = () => {
         const data = await publicBookingAPI.getUserPage(username!) as UserPageData;
         setPageData(data);
       } catch (err) {
-        console.error('Error fetching user page:', err);
+        logger.error('Error fetching user page:', err);
         const error = err as Error & { status?: number };
         if (error.status === 404) {
           setError('User not found');

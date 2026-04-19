@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { adminAPI } from '../../services/adminAPI';
 import { getSchemaTemplates } from '../../utils/schemaValidation';
 import Combobox from '../ui/combobox/Combobox';
-import { useEscapeKey } from '../../hooks/useEscapeKey';
+import logger from '../../utils/logger';
 
 interface AIToolModalProps {
   tool: any;
@@ -12,8 +13,6 @@ interface AIToolModalProps {
 }
 
 export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps) {
-  useEscapeKey(onClose);
-
   const [formData, setFormData] = useState<{
     name: string;
     description: string;
@@ -213,7 +212,7 @@ export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps)
       }
       onSave();
     } catch (err) {
-      console.error('Error saving tool:', err);
+      logger.error('[AIToolModal] Error saving tool:', err);
       setError((err as Error).message || 'Failed to save tool');
     } finally {
       setLoading(false);
@@ -238,33 +237,34 @@ export default function AIToolModal({ tool, onClose, onSave }: AIToolModalProps)
     handleResponseSchemaChange(templateText);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        {/* Background overlay */}
-        <div className="fixed inset-0 transition-opacity" onClick={onClose}>
-          <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-        </div>
+  const title = tool && tool.id ? `Edit Tool: ${tool.name}` : tool ? `Clone Tool: ${tool.name}` : 'Create New AI Tool';
 
-        {/* Modal */}
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle max-w-[95vw] sm:w-full md:max-w-6xl">
+  return (
+    <Dialog.Root open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-gray-500/75 z-50" />
+        <Dialog.Content
+          aria-describedby={undefined}
+          className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] bg-white rounded-lg shadow-xl max-w-[95vw] sm:w-full md:max-w-6xl focus:outline-none"
+        >
           <form onSubmit={handleSubmit}>
             {/* Header */}
             <div className="bg-white px-4 sm:px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-base sm:text-lg font-medium text-gray-900">
-                  {tool && tool.id ? `Edit Tool: ${tool.name}` : tool ? `Clone Tool: ${tool.name}` : 'Create New AI Tool'}
-                </h3>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <span className="sr-only">Close</span>
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <Dialog.Title className="text-base sm:text-lg font-medium text-gray-900">
+                  {title}
+                </Dialog.Title>
+                <Dialog.Close asChild>
+                  <button
+                    type="button"
+                    className="text-gray-400 hover:text-gray-600"
+                    aria-label="Close"
+                  >
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </Dialog.Close>
               </div>
             </div>
 
@@ -469,8 +469,8 @@ Example:
               </button>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

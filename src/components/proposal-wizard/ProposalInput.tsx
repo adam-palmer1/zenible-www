@@ -1,4 +1,5 @@
 import React from 'react';
+import logger from '../../utils/logger';
 
 interface ProposalInputProps {
   darkMode: boolean;
@@ -60,7 +61,7 @@ export default function ProposalInput({ darkMode, proposal, setProposal, jobPost
               if (onAnalyze) {
                 onAnalyze();
               } else {
-                console.error('[ProposalInput] onAnalyze callback is not defined!');
+                logger.error('[ProposalInput] onAnalyze callback is not defined!');
               }
             }
           }}

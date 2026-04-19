@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
+import logger from '../../../utils/logger';
 import {
   Search,
   Filter,
@@ -84,21 +85,40 @@ const QuoteList: React.FC = () => {
     return applyNumberFormat(num, numberFormat);
   };
 
-  // Calculate stats from quotes if API stats not available
+  // Calculate stats from quotes if API stats not available.
+  // Single pass over `quotes` instead of 4 separate filter().reduce() chains.
   const calculatedStats = useMemo(() => {
+    let totalValue = 0;
+    let acceptedValue = 0;
+    let pendingValue = 0;
+    let acceptedCount = 0;
+    let rejectedCount = 0;
+    for (const q of quotes) {
+      const qTotal = Number(q.total) || 0;
+      totalValue += qTotal;
+      if (q.status === QUOTE_STATUS.ACCEPTED) {
+        acceptedValue += qTotal;
+        acceptedCount += 1;
+      } else if (q.status === QUOTE_STATUS.SENT) {
+        pendingValue += qTotal;
+      } else if (q.status === QUOTE_STATUS.REJECTED) {
+        rejectedCount += 1;
+      }
+    }
+
     const total = stats?.total_count ?? quotes.length;
-    const totalValue = stats?.total_value ?? quotes.reduce((sum: number, q) => sum + (Number(q.total) || 0), 0);
-    const acceptedValue = stats?.accepted_value ?? quotes.filter(q => q.status === QUOTE_STATUS.ACCEPTED).reduce((sum: number, q) => sum + (Number(q.total) || 0), 0);
-    const pendingValue = stats?.pending_value ?? quotes.filter(q => q.status === QUOTE_STATUS.SENT).reduce((sum: number, q) => sum + (Number(q.total) || 0), 0);
-    const acceptedCount = stats?.accepted_count ?? quotes.filter(q => q.status === QUOTE_STATUS.ACCEPTED).length;
-    const rejectedCount = stats?.rejected_count ?? quotes.filter(q => q.status === QUOTE_STATUS.REJECTED).length;
+    const decidedCount = acceptedCount + rejectedCount;
     const acceptanceRate = stats?.acceptance_rate ?? (
-      (acceptedCount + rejectedCount) > 0
-        ? Math.round((acceptedCount / (acceptedCount + rejectedCount)) * 100)
-        : 0
+      decidedCount > 0 ? Math.round((acceptedCount / decidedCount) * 100) : 0
     );
 
-    return { total, totalValue, acceptedValue, pendingValue, acceptanceRate };
+    return {
+      total,
+      totalValue: stats?.total_value ?? totalValue,
+      acceptedValue: stats?.accepted_value ?? acceptedValue,
+      pendingValue: stats?.pending_value ?? pendingValue,
+      acceptanceRate,
+    };
   }, [quotes, stats]);
 
   // Date filter presets
@@ -466,7 +486,7 @@ const QuoteList: React.FC = () => {
 
           successCount++;
         } catch (err) {
-          console.error(`Failed to download quote ${quoteId}:`, err);
+          logger.error(`Failed to download quote ${quoteId}:`, err);
           failCount++;
         }
       }
@@ -563,7 +583,7 @@ const QuoteList: React.FC = () => {
       showSuccess(`Quote cloned successfully. New quote: ${clonedQuote.quote_number}`);
       navigate(`/finance/quotes/${clonedQuote.id}/edit`);
     } catch (error: unknown) {
-      console.error('Failed to clone quote:', error);
+      logger.error('Failed to clone quote:', error);
       showError((error instanceof Error ? error.message : null) || 'Failed to clone quote');
     }
   };

@@ -2,6 +2,7 @@ import React from 'react';
 import { crmFeatures, meetingsFeatures, financeFeatures } from '../data/features';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { APP_URL } from '../../../utils/hostname';
+import LazyImage from './LazyImage';
 import type { FeatureBlock } from '../data/features';
 
 function FeatureBlockSection({ block }: { block: FeatureBlock }) {
@@ -55,11 +56,10 @@ function FeatureBlockSection({ block }: { block: FeatureBlock }) {
       {/* Section screenshot */}
       {block.image && (
         <div className="mt-8 rounded-xl overflow-hidden border border-gray-100 shadow-sm">
-          <img
+          <LazyImage
             src={block.image}
             alt={`${block.badge} screenshot`}
             className="w-full h-auto"
-            loading="lazy"
           />
         </div>
       )}

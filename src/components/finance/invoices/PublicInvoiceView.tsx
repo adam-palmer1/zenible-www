@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import invoicesAPI from '../../../services/api/finance/invoices';
+import logger from '../../../utils/logger';
 import type { PaymentStatusResponse } from '../../../types/finance';
 import { API_BASE_URL } from '../../../config/api';
 import InvoiceHeader from './public-invoice/InvoiceHeader';
@@ -69,7 +70,7 @@ const PublicInvoiceView: React.FC = () => {
         setPaymentSuccess(true);
       }
     } catch (err: any) {
-      console.error('[PublicInvoiceView] Error loading invoice:', err);
+      logger.error('[PublicInvoiceView] Error loading invoice:', err);
       if (err.status === 404) {
         setError('Invoice not found or link has expired.');
       } else {
@@ -89,7 +90,7 @@ const PublicInvoiceView: React.FC = () => {
       const data = await invoicesAPITyped.getSavedCards(invoiceCode) as { payment_methods?: Array<{ id: string; brand: string; last4: string; exp_month?: number; exp_year?: number }> };
       setSavedCards(data.payment_methods || []);
     } catch (err: any) {
-      console.error('[PublicInvoiceView] Error loading saved cards:', err);
+      logger.error('[PublicInvoiceView] Error loading saved cards:', err);
       // Don't show error to user - just means no cards saved
       setSavedCards([]);
     } finally {
@@ -119,7 +120,7 @@ const PublicInvoiceView: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
-      console.error('[PublicInvoiceView] Error downloading PDF:', err);
+      logger.error('[PublicInvoiceView] Error downloading PDF:', err);
     } finally {
       setDownloadingPdf(false);
     }
@@ -147,7 +148,7 @@ const PublicInvoiceView: React.FC = () => {
       setShowDeleteCardModal(false);
       setCardToDelete(null);
     } catch (err: any) {
-      console.error('[PublicInvoiceView] Error deleting card:', err);
+      logger.error('[PublicInvoiceView] Error deleting card:', err);
       setDeleteCardError(err.message || 'Failed to remove card. Please try again.');
     } finally {
       setDeletingCard(null);
@@ -186,7 +187,7 @@ const PublicInvoiceView: React.FC = () => {
               setPaymentSuccess(true);
             }
           } catch (err: any) {
-            console.error('[PublicInvoiceView] PayPal capture error:', err);
+            logger.error('[PublicInvoiceView] PayPal capture error:', err);
             setError('Failed to complete PayPal payment. Please try again.');
           } finally {
             setCapturingPayPal(false);
@@ -252,7 +253,7 @@ const PublicInvoiceView: React.FC = () => {
         setPaymentSuccess(true);
       }
     } catch (err: unknown) {
-      console.error('[PublicInvoiceView] Error refreshing invoice after payment:', err);
+      logger.error('[PublicInvoiceView] Error refreshing invoice after payment:', err);
       setPaymentSuccess(true);
     }
   }, [invoiceCode]);

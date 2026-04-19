@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useInvoices } from '../../../contexts/InvoiceContext';
@@ -10,17 +10,21 @@ import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
 import { queryKeys } from '../../../lib/query-keys';
 import invoicesAPI from '../../../services/api/finance/invoices';
 import companiesAPI from '../../../services/api/crm/companies';
-import SendInvoiceDialog from './SendInvoiceDialog';
-import SendReminderDialog from './SendReminderDialog';
-import SendPaymentReceiptDialog from './SendPaymentReceiptDialog';
+import logger from '../../../utils/logger';
 import { LoadingSpinner } from '../../shared';
-import AddPaymentModal from './AddPaymentModal';
-import LinkPaymentModal from './LinkPaymentModal';
 import ConfirmationModal from '../../shared/ConfirmationModal';
-import AssignExpenseModal from '../expenses/AssignExpenseModal';
 import AutoBillingConfirmModal from './AutoBillingConfirmModal';
 import { ProjectAllocationModal } from '../allocations';
 import type { InvoiceResponse, InvoiceViewHistoryResponse, CompanyResponse } from '../../../types';
+
+// Heavy action modals — only rendered when the user triggers a send/payment flow.
+// Deferring them keeps InvoiceDetail's initial paint fast.
+const SendInvoiceDialog = lazy(() => import('./SendInvoiceDialog'));
+const SendReminderDialog = lazy(() => import('./SendReminderDialog'));
+const SendPaymentReceiptDialog = lazy(() => import('./SendPaymentReceiptDialog'));
+const AddPaymentModal = lazy(() => import('./AddPaymentModal'));
+const LinkPaymentModal = lazy(() => import('./LinkPaymentModal'));
+const AssignExpenseModal = lazy(() => import('../expenses/AssignExpenseModal'));
 
 import {
   InvoiceDetailTopBar,
@@ -103,7 +107,7 @@ const InvoiceDetail: React.FC = () => {
       const data = await companiesAPI.getCurrent<CompanyResponse>();
       setCompany(data);
     } catch (error) {
-      console.error('Error loading company:', error);
+      logger.error('Error loading company:', error);
       // Non-critical, don't show error to user
     }
   };
@@ -132,7 +136,7 @@ const InvoiceDetail: React.FC = () => {
       const data = await invoicesAPI.get(id!) as InvoiceDetailData;
       setInvoice(data);
     } catch (error) {
-      console.error('Error loading invoice:', error);
+      logger.error('Error loading invoice:', error);
       showError('Failed to load invoice');
       navigate('/finance/invoices');
     } finally {
@@ -146,7 +150,7 @@ const InvoiceDetail: React.FC = () => {
       const data = await invoicesAPI.getViewHistory(id!);
       setViewHistory(data);
     } catch (error) {
-      console.error('Error loading view history:', error);
+      logger.error('Error loading view history:', error);
       // Non-critical, don't show error to user
     } finally {
       setLoadingViewHistory(false);
@@ -176,7 +180,7 @@ const InvoiceDetail: React.FC = () => {
 
       showSuccess('Invoice downloaded successfully');
     } catch (error) {
-      console.error('Error downloading invoice:', error);
+      logger.error('Error downloading invoice:', error);
       showError('Failed to download invoice');
     } finally {
       setDownloadingPdf(false);
@@ -189,7 +193,7 @@ const InvoiceDetail: React.FC = () => {
       showSuccess('Invoice cloned successfully');
       navigate(`/finance/invoices/${cloned.id}/edit`);
     } catch (error) {
-      console.error('Error cloning invoice:', error);
+      logger.error('Error cloning invoice:', error);
       showError('Failed to clone invoice');
     }
   };
@@ -206,7 +210,7 @@ const InvoiceDetail: React.FC = () => {
           showSuccess('Invoice deleted successfully');
           navigate('/finance/invoices');
         } catch (error) {
-          console.error('Error deleting invoice:', error);
+          logger.error('Error deleting invoice:', error);
           showError('Failed to delete invoice');
         }
       }
@@ -231,7 +235,7 @@ const InvoiceDetail: React.FC = () => {
           setInvoice(updated);
           showSuccess('Invoice marked as sent');
         } catch (error) {
-          console.error('Error marking invoice as sent:', error);
+          logger.error('Error marking invoice as sent:', error);
           showError('Failed to mark invoice as sent');
         }
       }
@@ -250,7 +254,7 @@ const InvoiceDetail: React.FC = () => {
           setInvoice(updated);
           showSuccess('Invoice reverted to draft');
         } catch (error) {
-          console.error('Error reverting invoice to draft:', error);
+          logger.error('Error reverting invoice to draft:', error);
           showError('Failed to revert invoice to draft');
         }
       }
@@ -285,7 +289,7 @@ const InvoiceDetail: React.FC = () => {
               showError(result.error_message || 'Payment was not successful');
             }
           } catch (error: unknown) {
-            console.error('Error charging card:', error);
+            logger.error('Error charging card:', error);
             showError((error as Error).message || 'Failed to charge card');
           }
         }
@@ -310,7 +314,7 @@ const InvoiceDetail: React.FC = () => {
         showError(result.error_message || 'Payment was not successful');
       }
     } catch (error: unknown) {
-      console.error('Error charging card:', error);
+      logger.error('Error charging card:', error);
       showError((error as Error).message || 'Failed to charge card');
     } finally {
       setChargingCard(false);
@@ -429,59 +433,74 @@ const InvoiceDetail: React.FC = () => {
         />
       </div>
 
-      {/* Modals */}
-      <SendInvoiceDialog
-        isOpen={showSendModal}
-        onClose={() => setShowSendModal(false)}
-        invoice={invoice}
-        contact={invoice.contact}
-        onSuccess={loadInvoice}
-        skipAutoBilling={skipAutoBillingRef.current}
-      />
+      {/* Lazy modals — each only mounts when toggled open. Suspense fallback is null
+          because the trigger click already gives visual feedback; the chunk is tiny. */}
+      <Suspense fallback={null}>
+        {showSendModal && (
+          <SendInvoiceDialog
+            isOpen={showSendModal}
+            onClose={() => setShowSendModal(false)}
+            invoice={invoice}
+            contact={invoice.contact}
+            onSuccess={loadInvoice}
+            skipAutoBilling={skipAutoBillingRef.current}
+          />
+        )}
 
-      <SendReminderDialog
-        isOpen={showReminderModal}
-        onClose={() => setShowReminderModal(false)}
-        invoice={invoice}
-        contact={invoice.contact}
-        onSuccess={loadInvoice}
-      />
+        {showReminderModal && (
+          <SendReminderDialog
+            isOpen={showReminderModal}
+            onClose={() => setShowReminderModal(false)}
+            invoice={invoice}
+            contact={invoice.contact}
+            onSuccess={loadInvoice}
+          />
+        )}
 
-      <SendPaymentReceiptDialog
-        isOpen={showReceiptModal}
-        onClose={() => { setShowReceiptModal(false); setReceiptPaymentData(null); }}
-        invoice={invoice}
-        contact={invoice.contact}
-        onSuccess={loadInvoice}
-        paymentData={receiptPaymentData}
-      />
+        {showReceiptModal && (
+          <SendPaymentReceiptDialog
+            isOpen={showReceiptModal}
+            onClose={() => { setShowReceiptModal(false); setReceiptPaymentData(null); }}
+            invoice={invoice}
+            contact={invoice.contact}
+            onSuccess={loadInvoice}
+            paymentData={receiptPaymentData}
+          />
+        )}
 
-      <AddPaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        invoice={invoice}
-        onSuccess={handlePaymentSuccess}
-        onSendReceipt={(paymentData) => { setReceiptPaymentData(paymentData); setShowReceiptModal(true); }}
-      />
+        {showPaymentModal && (
+          <AddPaymentModal
+            isOpen={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
+            invoice={invoice}
+            onSuccess={handlePaymentSuccess}
+            onSendReceipt={(paymentData) => { setReceiptPaymentData(paymentData); setShowReceiptModal(true); }}
+          />
+        )}
 
-      <LinkPaymentModal
-        isOpen={showLinkPaymentModal}
-        onClose={() => setShowLinkPaymentModal(false)}
-        invoice={invoice}
-        onSuccess={handlePaymentSuccess}
-      />
+        {showLinkPaymentModal && (
+          <LinkPaymentModal
+            isOpen={showLinkPaymentModal}
+            onClose={() => setShowLinkPaymentModal(false)}
+            invoice={invoice}
+            onSuccess={handlePaymentSuccess}
+          />
+        )}
 
-      <AssignExpenseModal
-        open={showExpenseModal}
-        onOpenChange={setShowExpenseModal}
-        entityType="invoice"
-        entityId={invoice.id}
-        entityName={`Invoice #${invoice.invoice_number}`}
-        currency={invoice.currency?.code}
-        onUpdate={loadInvoice}
-        entityTotal={parseFloat(invoice.total || '0')}
-        entityCurrencyCode={invoice.currency?.code}
-      />
+        {showExpenseModal && (
+          <AssignExpenseModal
+            open={showExpenseModal}
+            onOpenChange={setShowExpenseModal}
+            entityType="invoice"
+            entityId={invoice.id}
+            entityName={`Invoice #${invoice.invoice_number}`}
+            currency={invoice.currency?.code}
+            onUpdate={loadInvoice}
+            entityTotal={parseFloat(invoice.total || '0')}
+            entityCurrencyCode={invoice.currency?.code}
+          />
+        )}
+      </Suspense>
 
       <ConfirmationModal
         isOpen={confirmModal.isOpen}

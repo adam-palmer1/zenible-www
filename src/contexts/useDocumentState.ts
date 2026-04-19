@@ -20,6 +20,7 @@ import { useAuth } from './AuthContext';
 import { usePreferences } from './PreferencesContext';
 import { useUsageDashboardOptional } from './UsageDashboardContext';
 import { DEFAULT_PAGE_SIZE } from '../constants/pagination';
+import logger from '../utils/logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -391,7 +392,7 @@ export function useDocumentState<TFilters extends object>(
       const result = await createMutation.mutateAsync(data);
       return result;
     } catch (err) {
-      console.error(`[${name}Context] Error creating ${name.toLowerCase()}:`, err);
+      logger.error(`[${name}Context] Error creating ${name.toLowerCase()}:`, err);
       throw err;
     } finally {
       setLocalLoading(false);
@@ -405,7 +406,7 @@ export function useDocumentState<TFilters extends object>(
       const result = await updateMutation.mutateAsync({ id, data });
       return result;
     } catch (err) {
-      console.error(`[${name}Context] Error updating ${name.toLowerCase()}:`, err);
+      logger.error(`[${name}Context] Error updating ${name.toLowerCase()}:`, err);
       throw err;
     } finally {
       setLocalLoading(false);
@@ -418,7 +419,7 @@ export function useDocumentState<TFilters extends object>(
     try {
       await deleteMutation.mutateAsync(id);
     } catch (err) {
-      console.error(`[${name}Context] Error deleting ${name.toLowerCase()}:`, err);
+      logger.error(`[${name}Context] Error deleting ${name.toLowerCase()}:`, err);
       throw err;
     } finally {
       setLocalLoading(false);

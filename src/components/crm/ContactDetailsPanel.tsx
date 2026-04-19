@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/modal/Modal';
+import logger from '../../utils/logger';
 import NotesSection from './NotesSection';
 import UnifiedTimelineItem from './UnifiedTimelineItem';
 import ServicesList from './ServicesList';
@@ -90,7 +91,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
           const fullContact = await getContact(initialContact.id) as ContactWithExtras;
           setContact(fullContact);
         } catch (err) {
-          console.error('Failed to load full contact details:', err);
+          logger.error('Failed to load full contact details:', err);
           setContact(initialContact);
         } finally {
           setLoadingContact(false);
@@ -133,7 +134,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
       // Refresh CRM list to show updated service count/value on contact cards
       refresh();
     } catch (err) {
-      console.error('Failed to assign service:', err);
+      logger.error('Failed to assign service:', err);
     }
   };
 
@@ -150,7 +151,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
       // Refresh CRM list to show updated service count/value on contact cards
       refresh();
     } catch (err) {
-      console.error('Failed to remove service:', err);
+      logger.error('Failed to remove service:', err);
     }
   };
 
@@ -169,7 +170,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
 
       return updatedService;
     } catch (err) {
-      console.error('Failed to update service:', err);
+      logger.error('Failed to update service:', err);
       throw err;
     }
   };
@@ -194,7 +195,7 @@ const ContactDetailsPanel: React.FC<ContactDetailsPanelProps> = ({ contact: init
       }
       refresh();
     } catch (err) {
-      console.error('Failed to refresh contact:', err);
+      logger.error('Failed to refresh contact:', err);
     }
   };
 

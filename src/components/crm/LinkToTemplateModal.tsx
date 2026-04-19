@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ExclamationTriangleIcon, LinkIcon } from '@heroicons/react/24/outline';
 import Modal from '../ui/modal/Modal';
 import { formatCurrency } from '../../utils/currencyUtils';
+import logger from '../../utils/logger';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useContacts } from '../../hooks/crm';
 import { invoicesAPI } from '../../services/api/finance';
@@ -63,7 +64,7 @@ const LinkToTemplateModal: React.FC<LinkToTemplateModalProps> = ({
         const response = await invoicesAPI.list(params);
         setTemplates(response?.items || []);
       } catch (error) {
-        console.error('Failed to search templates:', error);
+        logger.error('Failed to search templates:', error);
       } finally {
         setSearching(false);
       }

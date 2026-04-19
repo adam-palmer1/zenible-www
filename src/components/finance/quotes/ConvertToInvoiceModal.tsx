@@ -4,6 +4,7 @@ import { X, FileText, Loader2 } from 'lucide-react';
 import { useQuotes } from '../../../contexts/QuoteContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
+import logger from '../../../utils/logger';
 import { formatCurrency } from '../../../utils/currency';
 
 interface ConvertToInvoiceModalProps {
@@ -31,7 +32,7 @@ const ConvertToInvoiceModal: React.FC<ConvertToInvoiceModalProps> = ({ isOpen, o
       onClose();
       navigate(`/finance/invoices/${invoice.id}`);
     } catch (error: any) {
-      console.error('Error converting quote:', error);
+      logger.error('Error converting quote:', error);
       showError(error.message || 'Failed to convert quote to invoice');
     } finally {
       setConverting(false);

@@ -100,9 +100,9 @@ const useDataFetch = <T = unknown>(
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {
     if (autoFetch) {
-      fetchData().catch(() => {
-        // Error already handled in fetchData
-      });
+      // fetchData sets error state internally — suppress the rejection here.
+      // eslint-disable-next-line no-restricted-syntax -- handled above
+      fetchData().catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoFetch, ...dependencies]);

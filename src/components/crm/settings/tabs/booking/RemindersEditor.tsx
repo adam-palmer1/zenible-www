@@ -6,6 +6,7 @@ import {
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import logger from '../../../../../utils/logger';
 import bookingRemindersAPI, {
   BookingReminderRule,
 } from '../../../../../services/api/crm/bookingReminders';
@@ -88,7 +89,7 @@ const RemindersEditor: React.FC = () => {
         setSmsTemplate(tpl.template);
         setSmsEnabled(tpl.sms_enabled);
       } catch (e) {
-        console.error(e);
+        logger.error(e);
         showError('Failed to load reminder settings');
       } finally {
         if (!cancelled) setLoading(false);
@@ -168,7 +169,7 @@ const RemindersEditor: React.FC = () => {
       setOriginal(JSON.parse(JSON.stringify(loaded)));
       showSuccess('Reminder settings saved');
     } catch (e) {
-      console.error(e);
+      logger.error(e);
       showError('Failed to save reminder settings');
     } finally {
       setSaving(false);

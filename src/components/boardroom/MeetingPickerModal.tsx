@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import meetingIntelligenceAPI from '../../services/api/crm/meetingIntelligence';
+import logger from '../../utils/logger';
 import type { MeetingListItem, MeetingDetail } from '../../types/meetingIntelligence';
 import type { LinkedMeeting } from '../shared/ai-feedback/types';
 
@@ -35,7 +36,7 @@ export default function MeetingPickerModal({ darkMode, onSelect, onClose }: Meet
       const items = (Array.isArray(result) ? result : (result as { items?: MeetingListItem[] }).items || []) as MeetingListItem[];
       setMeetings(items.filter(m => m.is_processed));
     } catch (err) {
-      console.error('[MeetingPicker] Failed to fetch meetings:', err);
+      logger.error('[MeetingPicker] Failed to fetch meetings:', err);
       setError('Failed to load meetings');
     } finally {
       setLoading(false);
@@ -80,7 +81,7 @@ export default function MeetingPickerModal({ darkMode, onSelect, onClose }: Meet
 
       onSelect(linkedMeeting, context);
     } catch (err) {
-      console.error('[MeetingPicker] Failed to fetch meeting detail:', err);
+      logger.error('[MeetingPicker] Failed to fetch meeting detail:', err);
       setError('Failed to load meeting details');
     } finally {
       setLoadingDetail(null);

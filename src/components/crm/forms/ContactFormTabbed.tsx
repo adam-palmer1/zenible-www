@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormField, FormSelect, FormCheckbox, FormTextarea } from '../../ui/form';
+import logger from '../../../utils/logger';
 import { contactSchema, getContactDefaultValues } from '../schemas/contactSchema';
 import ChipSelector from '../../ui/ChipSelector';
 import Combobox from '../../ui/combobox/Combobox';
@@ -177,7 +178,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
       setTaxRates([...taxRates, createdTax]);
       setShowTaxDropdown(false);
     } catch (err: any) {
-      console.error('Failed to add tax:', err);
+      logger.error('Failed to add tax:', err);
       setTaxError(err.message);
     } finally {
       setTaxLoading(false);
@@ -194,7 +195,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
       await contactsAPI.deleteContactTax(contact.id, taxId);
       setTaxRates(taxRates.filter((tax: any) => tax.id !== taxId));
     } catch (err: any) {
-      console.error('Failed to delete tax:', err);
+      logger.error('Failed to delete tax:', err);
       setTaxError(err.message);
     } finally {
       setTaxLoading(false);
@@ -245,7 +246,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
       setContactPersons([...contactPersons, createdPerson]);
       setNewPerson({ first_name: '', last_name: '', email: '' });
     } catch (err: any) {
-      console.error('Failed to add contact person:', err);
+      logger.error('Failed to add contact person:', err);
       setPersonError(err.message);
     } finally {
       setPersonLoading(false);
@@ -267,7 +268,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
       );
       setEditingPersonId(null);
     } catch (err: any) {
-      console.error('Failed to update contact person:', err);
+      logger.error('Failed to update contact person:', err);
       setPersonError(err.message);
     } finally {
       setPersonLoading(false);
@@ -286,7 +287,7 @@ const ContactFormTabbed: React.FC<ContactFormTabbedProps> = ({
       setShowDeletePersonModal(false);
       setPersonToDelete(null);
     } catch (err: any) {
-      console.error('Failed to delete contact person:', err);
+      logger.error('Failed to delete contact person:', err);
       setPersonError(err.message);
     } finally {
       setPersonLoading(false);

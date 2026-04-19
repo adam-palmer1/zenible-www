@@ -1,41 +1,11 @@
 // API service for Tip of the Day endpoints
-import { ZBI_API_BASE_URL } from '@/config/api';
 import logger from '../utils/logger';
+import { createZbiRequest } from './api/httpClient';
 import aiCharacterAPI from './aiCharacterAPI';
 
+const request = createZbiRequest('TipAPI');
+
 class TipAPI {
-  private async request<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${ZBI_API_BASE_URL}${endpoint}`;
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string>),
-    };
-
-    // Add auth token
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        throw new Error(error.detail || `Request failed with status ${response.status}`);
-      }
-
-      return await response.json() as T;
-    } catch (error) {
-      logger.error('Tip API request failed:', error);
-      throw error;
-    }
-  }
-
   // Get random tip of the day with caching
   async getRandomTip(params: { character_id?: string; exclude_recent_days?: number } = {}): Promise<unknown> {
     const cacheKey = 'tip_of_the_day';
@@ -60,7 +30,7 @@ class TipAPI {
     const endpoint = queryString ? `/tips/random?${queryString}` : '/tips/random';
 
     try {
-      const response = await this.request(endpoint, { method: 'GET' });
+      const response = await request(endpoint, { method: 'GET' });
 
       // Cache the response for 1 hour
       this.cacheTip(response, cacheKey, cacheExpiryKey);

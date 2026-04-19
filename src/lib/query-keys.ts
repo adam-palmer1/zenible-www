@@ -14,12 +14,43 @@
 
 import type { QueryClient } from '@tanstack/react-query';
 
+/**
+ * Normalize a filter-like value so semantically-equal inputs produce equal query keys.
+ *
+ * tanstack-query uses structural equality on query keys. Two filter objects that
+ * look equivalent (`{a: 1, b: 2}` vs `{b: 2, a: 1}`) hash differently because
+ * React / reducers don't guarantee key order. We also drop keys whose value is
+ * `undefined`, `null`, or `''` so "not set" reliably collapses to the same key.
+ *
+ * Arrays are sorted shallowly; nested plain objects are normalized recursively.
+ * Date / non-plain-object values pass through unchanged.
+ */
+export function normalizeFilters(input: unknown): unknown {
+  if (input === null || input === undefined) return undefined;
+  if (Array.isArray(input)) {
+    return input
+      .map(normalizeFilters)
+      .filter((v) => v !== undefined);
+  }
+  if (typeof input === 'object' && Object.getPrototypeOf(input) === Object.prototype) {
+    const src = input as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(src).sort()) {
+      const value = normalizeFilters(src[key]);
+      if (value === undefined || value === '') continue;
+      out[key] = value;
+    }
+    return out;
+  }
+  return input;
+}
+
 export const queryKeys = {
   // Contacts
   contacts: {
     all: ['contacts'] as const,
     lists: () => [...queryKeys.contacts.all, 'list'] as const,
-    list: (filters: unknown) => [...queryKeys.contacts.lists(), { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.contacts.lists(), { filters: normalizeFilters(filters) }] as const,
     details: () => [...queryKeys.contacts.all, 'detail'] as const,
     detail: (id: string) => [...queryKeys.contacts.details(), id] as const,
   },
@@ -36,7 +67,7 @@ export const queryKeys = {
   services: {
     all: ['services'] as const,
     lists: () => [...queryKeys.services.all, 'list'] as const,
-    list: (filters: unknown) => [...queryKeys.services.lists(), { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.services.lists(), { filters: normalizeFilters(filters) }] as const,
     byContact: (contactId: string) => [...queryKeys.services.all, 'contact', contactId] as const,
   },
 
@@ -44,7 +75,7 @@ export const queryKeys = {
   appointments: {
     all: ['appointments'] as const,
     lists: () => [...queryKeys.appointments.all, 'list'] as const,
-    list: (filters: unknown) => [...queryKeys.appointments.lists(), { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.appointments.lists(), { filters: normalizeFilters(filters) }] as const,
     byContact: (contactId: string) => [...queryKeys.appointments.all, 'contact', contactId] as const,
     upcoming: () => [...queryKeys.appointments.all, 'upcoming'] as const,
   },
@@ -53,7 +84,7 @@ export const queryKeys = {
   projects: {
     all: ['projects'] as const,
     lists: () => [...queryKeys.projects.all, 'list'] as const,
-    list: (filters: unknown) => [...queryKeys.projects.lists(), { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.projects.lists(), { filters: normalizeFilters(filters) }] as const,
     byContact: (contactId: string) => [...queryKeys.projects.all, 'contact', contactId] as const,
     stats: () => [...queryKeys.projects.all, 'stats'] as const,
   },
@@ -77,7 +108,7 @@ export const queryKeys = {
   emailTemplates: {
     all: ['emailTemplates'] as const,
     lists: () => [...queryKeys.emailTemplates.all, 'list'] as const,
-    list: (filters: unknown) => [...queryKeys.emailTemplates.lists(), { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.emailTemplates.lists(), { filters: normalizeFilters(filters) }] as const,
     details: () => [...queryKeys.emailTemplates.all, 'detail'] as const,
     detail: (id: string) => [...queryKeys.emailTemplates.details(), id] as const,
     variables: (templateType: string) => [...queryKeys.emailTemplates.all, 'variables', templateType] as const,
@@ -87,15 +118,15 @@ export const queryKeys = {
   // Finance Reports
   financeReports: {
     all: ['financeReports'] as const,
-    transactions: (params: unknown) => [...queryKeys.financeReports.all, 'transactions', { params }] as const,
-    summary: (params: unknown) => [...queryKeys.financeReports.all, 'summary', { params }] as const,
+    transactions: (params: unknown) => [...queryKeys.financeReports.all, 'transactions', { params: normalizeFilters(params) }] as const,
+    summary: (params: unknown) => [...queryKeys.financeReports.all, 'summary', { params: normalizeFilters(params) }] as const,
   },
 
   // Invoices
   invoices: {
     all: ['invoices'] as const,
     lists: () => [...queryKeys.invoices.all, 'list'] as const,
-    list: (filters: unknown) => [...queryKeys.invoices.lists(), { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.invoices.lists(), { filters: normalizeFilters(filters) }] as const,
     stats: () => [...queryKeys.invoices.all, 'stats'] as const,
     detail: (id: string) => [...queryKeys.invoices.all, 'detail', id] as const,
   },
@@ -104,7 +135,7 @@ export const queryKeys = {
   expenses: {
     all: ['expenses'] as const,
     lists: () => [...queryKeys.expenses.all, 'list'] as const,
-    list: (filters: unknown) => [...queryKeys.expenses.lists(), { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.expenses.lists(), { filters: normalizeFilters(filters) }] as const,
     detail: (id: string) => [...queryKeys.expenses.all, 'detail', id] as const,
     categories: () => [...queryKeys.expenses.all, 'categories'] as const,
   },
@@ -113,7 +144,7 @@ export const queryKeys = {
   quotes: {
     all: ['quotes'] as const,
     lists: () => [...queryKeys.quotes.all, 'list'] as const,
-    list: (filters: unknown) => [...queryKeys.quotes.lists(), { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.quotes.lists(), { filters: normalizeFilters(filters) }] as const,
     detail: (id: string) => [...queryKeys.quotes.all, 'detail', id] as const,
     stats: () => [...queryKeys.quotes.all, 'stats'] as const,
     templates: () => [...queryKeys.quotes.all, 'templates'] as const,
@@ -123,7 +154,7 @@ export const queryKeys = {
   payments: {
     all: ['payments'] as const,
     lists: () => [...queryKeys.payments.all, 'list'] as const,
-    list: (filters: unknown) => [...queryKeys.payments.lists(), { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.payments.lists(), { filters: normalizeFilters(filters) }] as const,
     detail: (id: string) => [...queryKeys.payments.all, 'detail', id] as const,
   },
 
@@ -136,7 +167,7 @@ export const queryKeys = {
   // Dashboard
   dashboard: {
     all: ['dashboard'] as const,
-    widgets: (visibleIds: string[]) => [...queryKeys.dashboard.all, 'widgets', { visibleIds }] as const,
+    widgets: (visibleIds: string[]) => [...queryKeys.dashboard.all, 'widgets', { visibleIds: [...visibleIds].sort() }] as const,
   },
 
   // Reference data (countries, industries, etc.)
@@ -151,7 +182,7 @@ export const queryKeys = {
     company: () => [...queryKeys.currencies.all, 'company'] as const,
     numberFormat: () => [...queryKeys.currencies.all, 'numberFormat'] as const,
     numberFormatDetails: (formatId: string) => [...queryKeys.currencies.all, 'numberFormatDetails', formatId] as const,
-    rates: (params: unknown) => [...queryKeys.currencies.all, 'rates', { params }] as const,
+    rates: (params: unknown) => [...queryKeys.currencies.all, 'rates', { params: normalizeFilters(params) }] as const,
   },
 
   // Contact Fields
@@ -172,7 +203,7 @@ export const queryKeys = {
   // Contact Services (services assigned to contacts)
   contactServices: {
     all: ['contactServices'] as const,
-    list: (filters: unknown) => [...queryKeys.contactServices.all, 'list', { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.contactServices.all, 'list', { filters: normalizeFilters(filters) }] as const,
   },
 
   // Contact Financials
@@ -212,14 +243,14 @@ export const queryKeys = {
   billableHours: {
     all: ['billableHours'] as const,
     byProject: (projectId: string) => [...queryKeys.billableHours.all, 'project', projectId] as const,
-    list: (filters: unknown) => [...queryKeys.billableHours.all, 'list', { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.billableHours.all, 'list', { filters: normalizeFilters(filters) }] as const,
     byContact: (contactId: string) => [...queryKeys.billableHours.all, 'contact', contactId] as const,
   },
 
   // Calendar
   calendar: {
     all: ['calendar'] as const,
-    appointments: (filters: unknown) => [...queryKeys.calendar.all, 'appointments', { filters }] as const,
+    appointments: (filters: unknown) => [...queryKeys.calendar.all, 'appointments', { filters: normalizeFilters(filters) }] as const,
     googleStatus: () => [...queryKeys.calendar.all, 'googleStatus'] as const,
   },
 
@@ -234,7 +265,7 @@ export const queryKeys = {
   notifications: {
     all: ['notifications'] as const,
     lists: () => [...queryKeys.notifications.all, 'list'] as const,
-    list: (filters: unknown) => [...queryKeys.notifications.lists(), { filters }] as const,
+    list: (filters: unknown) => [...queryKeys.notifications.lists(), { filters: normalizeFilters(filters) }] as const,
     unreadCount: () => [...queryKeys.notifications.all, 'unread-count'] as const,
   },
 
@@ -244,8 +275,8 @@ export const queryKeys = {
     columns: () => [...queryKeys.customReports.all, 'columns'] as const,
     list: (page?: number) => [...queryKeys.customReports.all, 'list', { page }] as const,
     detail: (id: string) => [...queryKeys.customReports.all, 'detail', id] as const,
-    execution: (params: unknown) => [...queryKeys.customReports.all, 'execution', { params }] as const,
-    savedExecution: (id: string, params: unknown) => [...queryKeys.customReports.all, 'savedExecution', id, { params }] as const,
+    execution: (params: unknown) => [...queryKeys.customReports.all, 'execution', { params: normalizeFilters(params) }] as const,
+    savedExecution: (id: string, params: unknown) => [...queryKeys.customReports.all, 'savedExecution', id, { params: normalizeFilters(params) }] as const,
   },
 };
 

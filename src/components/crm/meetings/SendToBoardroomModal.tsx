@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import aiCharacterAPI from '../../../services/aiCharacterAPI';
 import userAPI from '../../../services/userAPI';
+import logger from '../../../utils/logger';
 
 interface AICharacter {
   id: string;
@@ -51,7 +52,7 @@ export default function SendToBoardroomModal({ meetingId, meetingTitle, onClose 
 
         setCharacters(chars);
       } catch (err) {
-        console.error('[SendToBoardroom] Failed to load characters:', err);
+        logger.error('[SendToBoardroom] Failed to load characters:', err);
       } finally {
         setLoading(false);
       }
@@ -65,8 +66,8 @@ export default function SendToBoardroomModal({ meetingId, meetingTitle, onClose 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Send to Boardroom">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
 
       <div className={`relative w-full max-w-md rounded-xl shadow-xl border flex flex-col max-h-[70vh] ${
         darkMode ? 'bg-[#1e1e1e] border-[#333]' : 'bg-white border-gray-200'

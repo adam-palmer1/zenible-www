@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import logger from '../../../../../utils/logger';
 import {
   ClipboardDocumentIcon,
   CheckIcon,
@@ -46,7 +47,7 @@ const EmbedSettings = ({ username }: { username: string }) => {
         }
       } catch (error) {
         showError('Failed to load call types');
-        console.error('Failed to load call types:', error);
+        logger.error('Failed to load call types:', error);
       } finally {
         setLoading(false);
       }
@@ -76,7 +77,7 @@ const EmbedSettings = ({ username }: { username: string }) => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      logger.error('Failed to copy:', err);
       showError('Failed to copy to clipboard');
     }
   };
@@ -296,10 +297,10 @@ const widget = new ZenibleBookingWidget('#container', {
   callType: '${selectedCallType}',
   theme: '${theme}',
   onBookingComplete: (booking) => {
-    console.log('Booking created:', booking);
+    logger.debug('Booking created:', booking);
   },
   onError: (error) => {
-    console.error('Booking error:', error);
+    logger.error('Booking error:', error);
   }
 });
 

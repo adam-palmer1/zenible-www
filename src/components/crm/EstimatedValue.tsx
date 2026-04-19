@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useCurrencyConversion } from '../../hooks/crm/useCurrencyConversion';
 import { calculateServiceTotal, formatCurrency } from '../../utils/currencyUtils';
+import logger from '../../utils/logger';
 
 interface EstimatedValueProps {
   services?: any[];
@@ -75,7 +76,7 @@ const EstimatedValue: React.FC<EstimatedValueProps> = ({
         setHasMixedCurrencies(result.hasMixedCurrencies);
         setLoading(false);
       } catch (error) {
-        console.error('Failed to convert currencies:', error);
+        logger.error('Failed to convert currencies:', error);
         // Fallback to simple sum without conversion
         const fallbackTotal = services.reduce((sum: number, service: any) => {
           return sum + (parseFloat(service.price) || 0);

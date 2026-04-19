@@ -2,6 +2,7 @@ import React, { Suspense, useState, useRef, useCallback, useEffect } from 'react
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import CRMLayout from './layout/CRMLayout';
 import CRMTopBar from './layout/CRMTopBar';
+import logger from '../../utils/logger';
 import CRMHeader from './layout/CRMHeader';
 import CRMTabContent from './layout/CRMTabContent';
 import { useCRM } from '../../contexts/CRMContext';
@@ -161,7 +162,7 @@ const CRMDashboard: React.FC = () => {
     try {
       await fetchStatuses(true);
     } catch (error) {
-      console.error('Failed to refresh statuses:', error);
+      logger.error('Failed to refresh statuses:', error);
     }
   }, [fetchStatuses]);
 
@@ -176,7 +177,7 @@ const CRMDashboard: React.FC = () => {
       }
       refresh();
     } catch (error) {
-      console.error('Failed to refresh CRM data:', error);
+      logger.error('Failed to refresh CRM data:', error);
     }
   }, [fetchStatuses, refresh, selectedStatuses, handleStatusToggle]);
 
@@ -191,7 +192,7 @@ const CRMDashboard: React.FC = () => {
             selectContact(contact);
           }
         } catch (error) {
-          console.error('Failed to load contact:', error);
+          logger.error('Failed to load contact:', error);
         }
         // Clear the query param after loading
         const newParams = new URLSearchParams(searchParams);
@@ -231,7 +232,7 @@ const CRMDashboard: React.FC = () => {
           >
             {/* CRM tab filters */}
             {activeTab === 'crm' && (
-              <Suspense fallback={null}>
+              <Suspense fallback={<div className="h-10" aria-hidden="true" />}>
                 <CRMFiltersBar
                   filters={filters}
                   updateFilters={updateFilters}
@@ -252,7 +253,7 @@ const CRMDashboard: React.FC = () => {
 
             {/* Clients tab filters */}
             {activeTab === 'clients' && (
-              <Suspense fallback={null}>
+              <Suspense fallback={<div className="h-10" aria-hidden="true" />}>
                 <ClientsFiltersBar
                   searchQuery={clientsFilters.searchQuery}
                   onSearchChange={clientsFilters.setSearchQuery}
@@ -274,7 +275,7 @@ const CRMDashboard: React.FC = () => {
 
             {/* Vendors tab filters */}
             {activeTab === 'vendors' && (
-              <Suspense fallback={null}>
+              <Suspense fallback={<div className="h-10" aria-hidden="true" />}>
                 <VendorsFiltersBar
                   searchQuery={vendorsFilters.searchQuery}
                   onSearchChange={vendorsFilters.setSearchQuery}
@@ -294,7 +295,7 @@ const CRMDashboard: React.FC = () => {
 
             {/* Projects tab filters */}
             {activeTab === 'projects' && (
-              <Suspense fallback={null}>
+              <Suspense fallback={<div className="h-10" aria-hidden="true" />}>
                 <ProjectsFiltersBar
                   selectedStatuses={projectsFilters.selectedStatuses}
                   onStatusToggle={projectsFilters.handleStatusToggle}
@@ -312,7 +313,7 @@ const CRMDashboard: React.FC = () => {
 
             {/* Services tab filters */}
             {activeTab === 'services' && (
-              <Suspense fallback={null}>
+              <Suspense fallback={<div className="h-10" aria-hidden="true" />}>
                 <ServicesFiltersBar
                   activeSubtab={servicesFilters.activeSubtab}
                   onSubtabChange={servicesFilters.setActiveSubtab}

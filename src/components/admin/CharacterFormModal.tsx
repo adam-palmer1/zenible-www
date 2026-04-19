@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import adminAPI from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import {
   AvatarUploadSection,
   BasicInfoFields,
@@ -209,7 +210,8 @@ export default function CharacterFormModal({
         },
         category_id: '',
         is_active: true,
-        avatar_url: ''
+        avatar_url: '',
+        display_order: 0,
       });
     }
     setModalError(null);
@@ -291,7 +293,7 @@ export default function CharacterFormModal({
       setAvatarFile(null);
       setAvatarPreview(null);
     } catch (_err: any) {
-      console.error('Failed to upload avatar:', _err);
+      logger.error('Failed to upload avatar:', _err);
       throw new Error('Failed to upload avatar: ' + _err.message);
     } finally {
       setUploadingAvatar(false);
@@ -320,7 +322,7 @@ export default function CharacterFormModal({
         setCharacterForm({ ...characterForm, avatar_url: '' });
         onSave(); // Refresh the list to update avatar display
       } catch (_err: any) {
-        console.error('Failed to delete avatar:', _err);
+        logger.error('Failed to delete avatar:', _err);
         setAvatarError('Failed to delete avatar: ' + _err.message);
       }
     }

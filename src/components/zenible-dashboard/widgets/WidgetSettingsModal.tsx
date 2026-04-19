@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import Modal from '../../ui/modal/Modal';
 import { WIDGET_REGISTRY, getDefaultWidgetSettings, AVAILABLE_CURRENCIES } from './WidgetRegistry';
 import type { WidgetSettingsField } from './WidgetRegistry';
+import logger from '../../../utils/logger';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
 import { useModalPortal } from '../../../contexts/ModalPortalContext';
@@ -65,7 +66,7 @@ const WidgetSettingsModal = ({ widgetId, open, onOpenChange }: WidgetSettingsMod
       );
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to save widget settings:', error);
+      logger.error('Failed to save widget settings:', error);
     } finally {
       setSaving(false);
     }

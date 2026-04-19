@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import invoicesAPI from '../../../services/api/finance/invoices';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
+import logger from '../../../utils/logger';
 
 interface AutomaticPaymentConsentModalProps {
   isOpen: boolean;
@@ -54,7 +55,7 @@ const AutomaticPaymentConsentModal: React.FC<AutomaticPaymentConsentModalProps> 
       onConsent(result);
       onClose();
     } catch (err: any) {
-      console.error('[AutomaticPaymentConsentModal] Error:', err);
+      logger.error('[AutomaticPaymentConsentModal] Error:', err);
       setError(err.message || 'Failed to enable automatic payments. Please try again.');
     } finally {
       setSubmitting(false);

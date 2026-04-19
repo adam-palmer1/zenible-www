@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, ReactNode, lazy, Suspense } from 'react';
 import DOMPurify from 'dompurify';
 import { X, Mail, Eye, Plus, Users } from 'lucide-react';
+import logger from '../../../utils/logger';
 import { useEffectiveTemplateQuery } from '../../../hooks/queries/useEmailTemplatesQuery';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
@@ -260,7 +261,7 @@ const SendDocumentModal: React.FC<SendDocumentModalProps> = ({
           setSelectedContactIds([contact.id]);
         }
       } catch (error: any) {
-        console.error('Failed to fetch related contacts:', error);
+        logger.error('Failed to fetch related contacts:', error);
         if (contact.email) {
           setRelatedContacts([contact]);
           setSelectedContactIds([contact.id]);

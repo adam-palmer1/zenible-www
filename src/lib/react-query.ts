@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+import { ApiError } from '@/services/api/ApiError';
 
 /**
  * React Query configuration for Zenible CRM
@@ -29,8 +30,16 @@ export const queryClient = new QueryClient({
       // Don't refetch on mount if data is fresh
       refetchOnMount: false,
 
-      // Retry failed requests (exponential backoff)
-      retry: 1,
+      // Retry only transient failures. Client errors (4xx) are terminal — don't burn
+      // retries on "bad request" or "not found". Only 5xx + network failures retry.
+      retry: (failureCount, error) => {
+        if (error instanceof ApiError) {
+          if (error.status >= 400 && error.status < 500) return false;
+        }
+        return failureCount < 2;
+      },
+      // Exponential backoff: 500ms, 1s, 2s... capped at 30s.
+      retryDelay: (attemptIndex) => Math.min(500 * 2 ** attemptIndex, 30000),
     },
     mutations: {
       // Don't retry mutations by default (user actions)

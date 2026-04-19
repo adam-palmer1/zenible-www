@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import { LoadingSpinner } from '../shared';
 import DatePickerCalendar from '../shared/DatePickerCalendar';
 import Combobox from '../ui/combobox/Combobox';
@@ -70,7 +71,7 @@ export default function ConversationManagement() {
       setTotalPages(response.total_pages || 1);
     } catch (err) {
       setError((err as Error).message);
-      console.error('Error fetching conversations:', err);
+      logger.error('Error fetching conversations:', err);
     } finally {
       setLoading(false);
     }
@@ -85,7 +86,7 @@ export default function ConversationManagement() {
       const details = await adminAPI.getConversation(conversation.id);
       setConversationDetails(details);
     } catch (err) {
-      console.error('Error fetching conversation details:', err);
+      logger.error('Error fetching conversation details:', err);
       setConversationDetails(null);
     } finally {
       setLoadingDetails(false);
@@ -104,7 +105,7 @@ export default function ConversationManagement() {
       const stats = await adminAPI.getConversationStats(params);
       setConversationStats(stats);
     } catch (err) {
-      console.error('Error fetching conversation stats:', err);
+      logger.error('Error fetching conversation stats:', err);
       setConversationStats(null);
     } finally {
       setLoadingStats(false);
@@ -120,7 +121,7 @@ export default function ConversationManagement() {
       setShowExportModal(false);
       setSelectedConversation(null);
     } catch (err) {
-      console.error('Error exporting conversation:', err);
+      logger.error('Error exporting conversation:', err);
       alert(`Failed to export conversation: ${(err as Error).message}`);
     } finally {
       setExportLoading(false);

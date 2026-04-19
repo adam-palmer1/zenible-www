@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import logger from '../../utils/logger';
 
 // Back arrow icon
 const BackArrowIcon: React.FC = () => (
@@ -145,7 +146,7 @@ export default function ForgotPassword() {
         setError(result.error || 'Failed to send reset email. Please try again.');
       }
     } catch (err) {
-      console.error('Forgot password error:', err);
+      logger.error('Forgot password error:', err);
       setError('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
@@ -171,7 +172,7 @@ export default function ForgotPassword() {
         setError(result.error || 'Failed to resend email. Please try again.');
       }
     } catch (err) {
-      console.error('Resend error:', err);
+      logger.error('Resend error:', err);
       setError('Failed to resend email. Please try again.');
     } finally {
       setIsResending(false);

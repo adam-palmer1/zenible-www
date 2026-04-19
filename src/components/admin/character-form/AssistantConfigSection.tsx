@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CharacterFormState, CustomFunction, SelectOption, ToolDefinition } from './types';
 import Combobox from '../../ui/combobox/Combobox';
 
@@ -21,6 +21,10 @@ export default function AssistantConfigSection({
   toolDefinitions,
   darkMode
 }: AssistantConfigSectionProps) {
+  // Track per-function JSON parse errors so users see what's wrong instead of
+  // their edits silently not being saved.
+  const [paramErrors, setParamErrors] = useState<Record<number, string | null>>({});
+
   const addCustomFunction = () => {
     const newFunction = {
       name: '',
@@ -227,22 +231,31 @@ export default function AssistantConfigSection({
                     />
                     <textarea
                       placeholder='Parameters JSON (e.g., {"type": "object", "properties": {...}})'
-                      value={JSON.stringify(func.parameters, null, 2)}
+                      defaultValue={JSON.stringify(func.parameters, null, 2)}
                       onChange={(e) => {
                         try {
                           const params = JSON.parse(e.target.value);
                           updateCustomFunction(index, {...func, parameters: params});
-                        } catch (_err: any) {
-                          // Invalid JSON, just update the string for now
+                          setParamErrors((prev) => ({ ...prev, [index]: null }));
+                        } catch (err) {
+                          setParamErrors((prev) => ({
+                            ...prev,
+                            [index]: err instanceof Error ? err.message : 'Invalid JSON',
+                          }));
                         }
                       }}
                       className={`w-full px-2 py-1 border rounded font-mono text-xs ${
-                        darkMode
+                        paramErrors[index]
+                          ? 'border-red-500'
+                          : darkMode
                           ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text'
                           : 'bg-white border-gray-300 text-gray-900'
                       }`}
                       rows={4}
                     />
+                    {paramErrors[index] && (
+                      <p className="text-xs text-red-500 mt-1">JSON error: {paramErrors[index]}</p>
+                    )}
                   </>
                 )}
               </div>

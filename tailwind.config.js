@@ -65,7 +65,9 @@ module.exports = {
           'border-input': '#aaaaaa',
           'text-primary': '#000000',
           'text-secondary': '#404040',
-          'text-muted': '#808080',
+          // Was #808080 (3.95:1 on white — fails WCAG AA 4.5 for normal text).
+          // Bumped to #6b7280 which hits 4.83:1 and matches text-placeholder.
+          'text-muted': '#6b7280',
           'text-placeholder': '#6b7280',
           bg: '#f8f9fa',
         },

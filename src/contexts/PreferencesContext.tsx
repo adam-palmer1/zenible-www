@@ -1,5 +1,6 @@
-import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef, useMemo } from 'react';
 import adminAPI from '../services/adminAPI';
+import logger from '../utils/logger';
 import { useAuth } from './AuthContext';
 
 interface PreferenceUpdate {
@@ -87,7 +88,7 @@ export const PreferencesProvider = ({ children }: { children: React.ReactNode })
       setPreferences((data as Record<string, unknown>) || {});
       setInitialized(true);
     } catch (err) {
-      console.error('[PreferencesContext] Error loading preferences:', err);
+      logger.error('[PreferencesContext] Error loading preferences:', err);
       // Set default preferences on error
       setPreferences({
         theme: { mode: 'light', darkMode: false }
@@ -112,7 +113,7 @@ export const PreferencesProvider = ({ children }: { children: React.ReactNode })
         category
       });
     } catch (err) {
-      console.error('Error updating preference:', err);
+      logger.error('[PreferencesContext] Error updating preference:', err);
       // Reload preferences on error to sync with server
       loadPreferences();
       throw err;
@@ -138,7 +139,7 @@ export const PreferencesProvider = ({ children }: { children: React.ReactNode })
         replace_all: replaceAll
       });
     } catch (err) {
-      console.error('Error bulk updating preferences:', err);
+      logger.error('[PreferencesContext] Error bulk updating preferences:', err);
       // Reload preferences on error to sync with server
       loadPreferences();
       throw err;
@@ -155,7 +156,7 @@ export const PreferencesProvider = ({ children }: { children: React.ReactNode })
       // Delete on server
       await adminAPI.deletePreference(key);
     } catch (err) {
-      console.error('Error deleting preference:', err);
+      logger.error('[PreferencesContext] Error deleting preference:', err);
       // Reload preferences on error to sync with server
       loadPreferences();
       throw err;
@@ -200,7 +201,7 @@ export const PreferencesProvider = ({ children }: { children: React.ReactNode })
     await bulkUpdatePreferences(updates);
   };
 
-  const value: PreferencesContextValue = {
+  const value = useMemo<PreferencesContextValue>(() => ({
     preferences,
     setPreferences,  // Needed by useDebouncedPreference for optimistic updates
     loading,
@@ -215,7 +216,7 @@ export const PreferencesProvider = ({ children }: { children: React.ReactNode })
     // CRM helpers
     getCRMFilters,
     setCRMFilters,
-  };
+  }), [preferences, loading, initialized, darkMode, toggleDarkMode, updatePreference, bulkUpdatePreferences, deletePreference, getPreference, loadPreferences, getCRMFilters, setCRMFilters]);
 
   return (
     <PreferencesContext.Provider value={value}>

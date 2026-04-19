@@ -3,6 +3,7 @@ import { CreditCard, Loader2, ArrowLeft } from 'lucide-react';
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { formatCurrency } from '../../../../utils/currency';
 import invoicesAPI from '../../../../services/api/finance/invoices';
+import logger from '../../../../utils/logger';
 import type { PaymentStatusResponse } from '../../../../types/finance';
 import { StripeLogo } from './PaymentLogos';
 import { CARD_ELEMENT_OPTIONS } from './cardElementOptions';
@@ -70,7 +71,7 @@ const StripeCardForm: React.FC<StripeCardFormProps> = ({ clientSecret, paymentId
         }
       }
     } catch (err: any) {
-      console.error('[StripeCardForm] Payment error:', err);
+      logger.error('[StripeCardForm] Payment error:', err);
       setError(err.message || 'Payment failed. Please try again.');
       onError?.(err);
     } finally {

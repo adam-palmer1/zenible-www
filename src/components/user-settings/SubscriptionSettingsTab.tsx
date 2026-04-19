@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import planAPI from '../../services/planAPI';
+import logger from '../../utils/logger';
 import UsageDashboard from '../UsageDashboard';
 import UsageHistoryPanel from './UsageHistoryPanel';
 import PaymentHistory from '../PaymentHistory';
@@ -57,7 +58,7 @@ export default function SubscriptionSettingsTab({
       const response = await planAPI.getPublicPlanDetails(planId) as { display_features?: any[] };
       setPlanFeatures(response.display_features || []);
     } catch (err) {
-      console.error('Failed to fetch plan features:', err);
+      logger.error('Failed to fetch plan features:', err);
     } finally {
       setLoadingFeatures(false);
     }

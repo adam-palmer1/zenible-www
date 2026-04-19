@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { CheckCircleIcon, CalendarIcon, ClockIcon, VideoCameraIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import publicBookingAPI from '../../services/api/public/booking';
+import { safeHref } from '../../utils/urls';
+import logger from '../../utils/logger';
 
 interface BookingData {
   call_type_name: string;
@@ -29,7 +31,7 @@ const BookingConfirmation: React.FC = () => {
         const data = await publicBookingAPI.lookupBooking(token!) as BookingData;
         setBooking(data);
       } catch (err) {
-        console.error('Error fetching booking:', err);
+        logger.error('Error fetching booking:', err);
         const error = err as Error & { status?: number };
         if (error.status === 404) {
           setError('Booking not found');
@@ -223,7 +225,7 @@ const BookingConfirmation: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <VideoCameraIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                   <a
-                    href={booking.meeting_link}
+                    href={safeHref(booking.meeting_link)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-zenible-primary hover:underline"

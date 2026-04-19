@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrashIcon, UserIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../utils/currencyUtils';
 import contactsAPI from '../../services/api/crm/contacts';
+import logger from '../../utils/logger';
 import { LoadingSpinner } from '../shared';
 
 interface AttributionsListProps {
@@ -42,7 +43,7 @@ const AttributionsList: React.FC<AttributionsListProps> = ({
             const contact = await contactsAPI.get(contactId);
             newContacts[contactId] = contact;
           } catch (error) {
-            console.error(`Failed to fetch contact ${contactId}:`, error);
+            logger.error(`Failed to fetch contact ${contactId}:`, error);
             newContacts[contactId] = null;
           }
         })

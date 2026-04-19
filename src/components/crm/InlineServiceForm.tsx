@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PlusIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import ServiceAutocomplete from './ServiceAutocomplete';
 import GenericDropdown from './GenericDropdown';
+import logger from '../../utils/logger';
 import ServiceStatusDropdown from './ServiceStatusDropdown';
 import { useServiceEnums } from '../../hooks/crm';
 
@@ -549,7 +550,7 @@ const InlineServiceForm: React.FC<InlineServiceFormProps> = ({
                                 return next;
                               });
                             } catch (error) {
-                              console.error('Failed to update service:', error);
+                              logger.error('Failed to update service:', error);
                               // Keep in modified set so user can try again
                             }
                           }

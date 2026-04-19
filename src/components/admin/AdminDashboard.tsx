@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import Combobox from '../ui/combobox/Combobox';
 
 interface AdminOutletContext {
@@ -35,7 +36,7 @@ export default function AdminDashboard() {
       setUserAnalytics(userAnalyticsData);
     } catch (err: any) {
       setError(err.message);
-      console.error('Error fetching dashboard data:', err);
+      logger.error('Error fetching dashboard data:', err);
     } finally {
       setLoading(false);
     }

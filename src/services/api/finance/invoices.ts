@@ -4,6 +4,8 @@
  */
 
 import { API_BASE_URL } from '@/config/api';
+import logger from '@/utils/logger';
+import { ApiError } from '../ApiError';
 import { createCRUDService } from '../createCRUDService';
 import type {
   InvoiceResponse,
@@ -57,6 +59,41 @@ const baseCRUD = createCRUDService<InvoiceResponse, InvoiceListResponse, Invoice
   '/crm/invoices',
   'InvoicesAPI',
 );
+
+/**
+ * Parse a fetch Response for payment endpoints that bypass httpClient (needed for
+ * public-token access). Preserves HTTP status via ApiError, logs parse failures so
+ * gateway-level issues are diagnosable in production.
+ */
+async function parsePaymentResponse<T>(
+  response: Response,
+  defaultMessage: string,
+  context: string,
+): Promise<T> {
+  let data: { detail?: string; message?: string } | null = null;
+  let parseError: unknown = null;
+  try {
+    data = await response.json();
+  } catch (err) {
+    parseError = err;
+  }
+
+  if (!response.ok) {
+    if (parseError) {
+      logger.error(`[${context}] Error response body was not valid JSON (status ${response.status}):`, parseError);
+    }
+    const message = data?.detail || data?.message ||
+      (parseError ? `${defaultMessage} (HTTP ${response.status}, unparseable body)` : `${defaultMessage} (HTTP ${response.status})`);
+    throw new ApiError(message, response.status, response.statusText, data);
+  }
+
+  if (parseError) {
+    logger.error(`[${context}] Success response body was not valid JSON:`, parseError);
+    throw new ApiError('Malformed response body (expected JSON)', response.status, response.statusText, null);
+  }
+
+  return data as T;
+}
 
 /**
  * Invoices API Client
@@ -489,12 +526,7 @@ const invoicesAPI = {
       }),
     });
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      throw new Error(data?.detail || 'Failed to create payment intent');
-    }
-
-    return response.json();
+    return parsePaymentResponse<StripePaymentResponse>(response, 'Failed to create payment intent', 'StripePaymentIntent');
   },
 
   /**
@@ -524,12 +556,7 @@ const invoicesAPI = {
       }),
     });
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      throw new Error(data?.detail || 'Failed to create PayPal order');
-    }
-
-    return response.json();
+    return parsePaymentResponse<PayPalOrderResponse>(response, 'Failed to create PayPal order', 'PayPalOrder');
   },
 
   /**
@@ -567,12 +594,7 @@ const invoicesAPI = {
       body: JSON.stringify(body),
     });
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      throw new Error(data?.detail || 'Failed to confirm payment');
-    }
-
-    return response.json();
+    return parsePaymentResponse<PaymentStatusResponse>(response, 'Failed to confirm payment', 'ConfirmPayment');
   },
 
   /**
@@ -593,12 +615,7 @@ const invoicesAPI = {
       }),
     });
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      throw new Error(data?.detail || 'Failed to update payment consent');
-    }
-
-    return response.json();
+    return parsePaymentResponse<{ success: boolean }>(response, 'Failed to update payment consent', 'PaymentConsent');
   },
   /**
    * Get expense allocation capacity for an invoice

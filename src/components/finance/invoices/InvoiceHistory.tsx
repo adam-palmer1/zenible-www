@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Edit2, LucideIcon } from 'lucide-react';
 import invoicesAPI from '../../../services/api/finance/invoices';
+import logger from '../../../utils/logger';
 
 interface InvoiceHistoryProps {
   invoiceId: string | number;
@@ -22,7 +23,7 @@ const InvoiceHistory: React.FC<InvoiceHistoryProps> = ({ invoiceId }) => {
       const data = await invoicesAPI.getHistory(String(invoiceId));
       setHistory(data);
     } catch (error) {
-      console.error('Error loading history:', error);
+      logger.error('Error loading history:', error);
       setError('Failed to load change history');
     } finally {
       setLoading(false);

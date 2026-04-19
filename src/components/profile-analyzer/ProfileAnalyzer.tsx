@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import AppLayout from '../layout/AppLayout';
+import logger from '../../utils/logger';
 import PlatformSelector from '../proposal-wizard/PlatformSelector';
 import ProfileInput from './ProfileInput';
 import AIFeedbackSection from '../shared/AIFeedbackSection';
@@ -155,7 +156,7 @@ export default function ProfileAnalyzer() {
       // Optional: handle streaming chunks if needed
     },
     onError: (error: { error: string; validationErrors?: unknown[]; toolName?: string }) => {
-      console.error('[ProfileAnalyzer] Analysis error:', error);
+      logger.error('[ProfileAnalyzer] Analysis error:', error);
       setFeedback({
         isProcessing: false,
         error: error.error || 'An error occurred during analysis'
@@ -206,7 +207,7 @@ export default function ProfileAnalyzer() {
     unsubscribers.push(
       onConversationEvent(conversationId, 'error', (...args: unknown[]) => {
         const data = args[0];
-        console.error('[ProfileAnalyzer] Follow-up error:', data);
+        logger.error('[ProfileAnalyzer] Follow-up error:', data);
         setIsFollowUpStreaming(false);
         setFollowUpStreamingContent('');
       })
@@ -226,7 +227,7 @@ export default function ProfileAnalyzer() {
         const isEnabled = features?.profile_analyzer?.enabled ?? true;
         setFeatureEnabled(isEnabled);
       } catch (error) {
-        console.error('Failed to load user features:', error);
+        logger.error('Failed to load user features:', error);
         setFeatureEnabled(true);
       }
     };
@@ -267,7 +268,7 @@ export default function ProfileAnalyzer() {
           setSelectedCharacterDescription(defaultChar.description || '');
         }
       } catch (error) {
-        console.error('Failed to load AI characters:', error);
+        logger.error('Failed to load AI characters:', error);
 
         // Fallback: if features endpoint fails, just load all characters
         try {
@@ -282,7 +283,7 @@ export default function ProfileAnalyzer() {
             setSelectedCharacterDescription(defaultChar.description || '');
           }
         } catch (fallbackError) {
-          console.error('Failed to load characters even in fallback:', fallbackError);
+          logger.error('Failed to load characters even in fallback:', fallbackError);
           setAvailableCharacters([]);
         }
       } finally {
@@ -311,13 +312,13 @@ export default function ProfileAnalyzer() {
         );
 
         if (!hasAnalyzeTool) {
-          console.warn('[ProfileAnalyzer] Character does not have analyze_profile tool');
+          logger.warn('[ProfileAnalyzer] Character does not have analyze_profile tool');
         }
         if (!hasGenerateTool) {
-          console.warn('[ProfileAnalyzer] Character does not have generate_profile tool');
+          logger.warn('[ProfileAnalyzer] Character does not have generate_profile tool');
         }
       } catch (error) {
-        console.error('[ProfileAnalyzer] Failed to load character tools:', error);
+        logger.error('[ProfileAnalyzer] Failed to load character tools:', error);
       }
     };
 
@@ -446,7 +447,7 @@ export default function ProfileAnalyzer() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Error exporting conversation:', error);
+      logger.error('Error exporting conversation:', error);
     }
   };
 

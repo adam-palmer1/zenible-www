@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import logger from '../../utils/logger';
 import {
   DndContext,
   DragOverlay,
@@ -233,7 +234,7 @@ const SalesPipelineNew: React.FC<SalesPipelineNewProps> = ({
           await onUpdateContact(contactId, statusData, { skipLoading: true });
         }
       } catch (error) {
-        console.error('Failed to move contact:', error);
+        logger.error('Failed to move contact:', error);
         showError('Failed to move contact. Please try again.');
       }
     },

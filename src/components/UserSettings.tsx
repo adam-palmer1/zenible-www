@@ -1,27 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { authAPI } from '../utils/auth';
 import planAPI from '../services/planAPI';
 import companyUsersAPI from '../services/api/crm/companyUsers';
-import UpdatePaymentModal from './UpdatePaymentModal';
+import logger from '../utils/logger';
 import SettingsSidebar from './SettingsSidebar';
 import MobileSettingsTabBar from './user-settings/MobileSettingsTabBar';
 import MobileHeader from './layout/MobileHeader';
-import ProfileSettingsTab from './user-settings/ProfileSettingsTab';
-import SubscriptionSettingsTab from './user-settings/SubscriptionSettingsTab';
-import CustomizationSettingsTab from './user-settings/CustomizationSettingsTab';
-import CompanySettingsTab from './user-settings/CompanySettingsTab';
-import LocalizationSettingsTab from './user-settings/LocalizationSettingsTab';
-import EmailTemplatesSettingsTab from './user-settings/EmailTemplatesSettingsTab';
-import BookingSettingsTab from './user-settings/BookingSettingsTab';
-import IntegrationsSettingsTab from './user-settings/IntegrationsSettingsTab';
-import UsersSettingsTab from './user-settings/UsersSettingsTab';
-import AdvancedSettingsTab from './user-settings/AdvancedSettingsTab';
-import MeetingIntelligenceSettingsTab from './user-settings/MeetingIntelligenceSettingsTab';
-import CancelSubscriptionModal from './user-settings/CancelSubscriptionModal';
-import PasswordResetModal from './user-settings/PasswordResetModal';
+
+// Tab panels are lazy-loaded — visiting /settings shouldn't download all 11 tabs.
+// Each tab lives in its own chunk, fetched only when the user selects it.
+const ProfileSettingsTab = lazy(() => import('./user-settings/ProfileSettingsTab'));
+const SubscriptionSettingsTab = lazy(() => import('./user-settings/SubscriptionSettingsTab'));
+const CustomizationSettingsTab = lazy(() => import('./user-settings/CustomizationSettingsTab'));
+const CompanySettingsTab = lazy(() => import('./user-settings/CompanySettingsTab'));
+const LocalizationSettingsTab = lazy(() => import('./user-settings/LocalizationSettingsTab'));
+const EmailTemplatesSettingsTab = lazy(() => import('./user-settings/EmailTemplatesSettingsTab'));
+const BookingSettingsTab = lazy(() => import('./user-settings/BookingSettingsTab'));
+const IntegrationsSettingsTab = lazy(() => import('./user-settings/IntegrationsSettingsTab'));
+const UsersSettingsTab = lazy(() => import('./user-settings/UsersSettingsTab'));
+const AdvancedSettingsTab = lazy(() => import('./user-settings/AdvancedSettingsTab'));
+const MeetingIntelligenceSettingsTab = lazy(() => import('./user-settings/MeetingIntelligenceSettingsTab'));
+
+// Deferred — only load when the user opens the specific action.
+const UpdatePaymentModal = lazy(() => import('./UpdatePaymentModal'));
+const CancelSubscriptionModal = lazy(() => import('./user-settings/CancelSubscriptionModal'));
+const PasswordResetModal = lazy(() => import('./user-settings/PasswordResetModal'));
 
 export default function UserSettings() {
   const { user } = useAuth();
@@ -114,7 +120,7 @@ export default function UserSettings() {
       setCurrentSubscription(subscriptionData);
     } catch (err) {
       setError('Failed to load user profile');
-      console.error('Error fetching profile:', err);
+      logger.error('Error fetching profile:', err);
     } finally {
       setLoading(false);
     }
@@ -240,80 +246,86 @@ export default function UserSettings() {
               </div>
             )}
 
-            {/* Tab Content */}
-        {activeTab === 'profile' ? (
-          <ProfileSettingsTab
-            profile={profile}
-            setProfile={setProfile}
-            setError={setError}
-            setSuccessMessage={setSuccessMessage}
-            formatDate={formatDate}
-            showPasswordResetModal={showPasswordResetModal}
-            setShowPasswordResetModal={setShowPasswordResetModal}
-          />
-        ) : activeTab === 'subscription' ? (
-          <SubscriptionSettingsTab
-            currentSubscription={currentSubscription}
-            saving={saving}
-            setSaving={setSaving}
-            setError={setError}
-            setSuccessMessage={setSuccessMessage}
-            setShowUpdatePaymentModal={setShowUpdatePaymentModal}
-            setShowCancelModal={setShowCancelModal}
-            handleReactivateSubscription={handleReactivateSubscription}
-            formatDate={formatDate}
-            fetchUserProfile={fetchUserProfile}
-          />
-        ) : activeTab === 'customization' ? (
-          <CustomizationSettingsTab />
-        ) : activeTab === 'company' ? (
-          <CompanySettingsTab />
-        ) : activeTab === 'localization' ? (
-          <LocalizationSettingsTab />
-        ) : activeTab === 'email-templates' ? (
-          <EmailTemplatesSettingsTab />
-        ) : activeTab === 'booking' ? (
-          <BookingSettingsTab />
-        ) : activeTab === 'meeting-intelligence' ? (
-          <MeetingIntelligenceSettingsTab />
-        ) : activeTab === 'integrations' ? (
-          <IntegrationsSettingsTab />
-        ) : activeTab === 'users' ? (
-          <UsersSettingsTab isCompanyAdmin={isCompanyAdmin} />
-        ) : activeTab === 'advanced' ? (
-          <AdvancedSettingsTab />
-        ) : null}
+            {/* Tab Content — each tab is its own lazy chunk. */}
+        <Suspense fallback={<div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400" role="status">Loading…</div>}>
+          {activeTab === 'profile' ? (
+            <ProfileSettingsTab
+              profile={profile}
+              setProfile={setProfile}
+              setError={setError}
+              setSuccessMessage={setSuccessMessage}
+              formatDate={formatDate}
+              showPasswordResetModal={showPasswordResetModal}
+              setShowPasswordResetModal={setShowPasswordResetModal}
+            />
+          ) : activeTab === 'subscription' ? (
+            <SubscriptionSettingsTab
+              currentSubscription={currentSubscription}
+              saving={saving}
+              setSaving={setSaving}
+              setError={setError}
+              setSuccessMessage={setSuccessMessage}
+              setShowUpdatePaymentModal={setShowUpdatePaymentModal}
+              setShowCancelModal={setShowCancelModal}
+              handleReactivateSubscription={handleReactivateSubscription}
+              formatDate={formatDate}
+              fetchUserProfile={fetchUserProfile}
+            />
+          ) : activeTab === 'customization' ? (
+            <CustomizationSettingsTab />
+          ) : activeTab === 'company' ? (
+            <CompanySettingsTab />
+          ) : activeTab === 'localization' ? (
+            <LocalizationSettingsTab />
+          ) : activeTab === 'email-templates' ? (
+            <EmailTemplatesSettingsTab />
+          ) : activeTab === 'booking' ? (
+            <BookingSettingsTab />
+          ) : activeTab === 'meeting-intelligence' ? (
+            <MeetingIntelligenceSettingsTab />
+          ) : activeTab === 'integrations' ? (
+            <IntegrationsSettingsTab />
+          ) : activeTab === 'users' ? (
+            <UsersSettingsTab isCompanyAdmin={isCompanyAdmin} />
+          ) : activeTab === 'advanced' ? (
+            <AdvancedSettingsTab />
+          ) : null}
+        </Suspense>
           </div>
         </div>
 
+      <Suspense fallback={null}>
         {/* Cancel Subscription Modal */}
-      {showCancelModal && (
-        <CancelSubscriptionModal
-          saving={saving}
-          cancelReason={cancelReason}
-          setCancelReason={setCancelReason}
-          onClose={() => setShowCancelModal(false)}
-          onConfirm={handleCancelSubscription}
-        />
-      )}
+        {showCancelModal && (
+          <CancelSubscriptionModal
+            saving={saving}
+            cancelReason={cancelReason}
+            setCancelReason={setCancelReason}
+            onClose={() => setShowCancelModal(false)}
+            onConfirm={handleCancelSubscription}
+          />
+        )}
 
-      {/* Password Reset Modal */}
-      {showPasswordResetModal && (
-        <PasswordResetModal
-          email={profile?.email || ''}
-          passwordResetSent={passwordResetSent}
-          onClose={() => setShowPasswordResetModal(false)}
-          onConfirm={handlePasswordReset}
-        />
-      )}
+        {/* Password Reset Modal */}
+        {showPasswordResetModal && (
+          <PasswordResetModal
+            email={profile?.email || ''}
+            passwordResetSent={passwordResetSent}
+            onClose={() => setShowPasswordResetModal(false)}
+            onConfirm={handlePasswordReset}
+          />
+        )}
 
-      {/* Update Payment Method Modal */}
-      <UpdatePaymentModal
-        isOpen={showUpdatePaymentModal}
-        onClose={() => setShowUpdatePaymentModal(false)}
-        onSuccess={handleUpdatePaymentMethod}
-        onError={(error) => setError(error.message)}
-      />
+        {/* Update Payment Method Modal */}
+        {showUpdatePaymentModal && (
+          <UpdatePaymentModal
+            isOpen={showUpdatePaymentModal}
+            onClose={() => setShowUpdatePaymentModal(false)}
+            onSuccess={handleUpdatePaymentMethod}
+            onError={(error) => setError(error.message)}
+          />
+        )}
+      </Suspense>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import CircularScoreIndicator from '../CircularScoreIndicator';
+import logger from '../../../utils/logger';
 import { StructuredAnalysisData } from './types';
 
 interface StructuredAnalysisProps {
@@ -23,7 +24,7 @@ export default function StructuredAnalysis({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('[StructuredAnalysis] Failed to copy proposal:', err);
+      logger.error('[StructuredAnalysis] Failed to copy proposal:', err);
     }
   };
 

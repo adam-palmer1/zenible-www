@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { adminAPI } from '../../services/adminAPI';
-import AIToolModal from './AIToolModal';
+import logger from '../../utils/logger';
 import Combobox from '../ui/combobox/Combobox';
+
+// Deferred — only loads when the admin opens the tool editor.
+const AIToolModal = lazy(() => import('./AIToolModal'));
 import CharacterToolAssignment from './CharacterToolAssignment';
 import { useModalState } from '../../hooks/useModalState';
 import { LoadingSpinner } from '../shared';
@@ -60,7 +63,7 @@ export default function AIToolsManager() {
       const totalTools = toolsList.length;
       setTotalPages(Math.max(1, Math.ceil(totalTools / TOOLS_PER_PAGE)));
     } catch (err) {
-      console.error('Error loading AI tools:', err);
+      logger.error('Error loading AI tools:', err);
       setError(err instanceof Error ? err.message : 'Failed to load AI tools');
       setTools([]);
     } finally {
@@ -100,7 +103,7 @@ export default function AIToolsManager() {
       await adminAPI.deleteAITool(tool.id);
       await loadTools(); // Reload the list
     } catch (err) {
-      console.error('Error deleting tool:', err);
+      logger.error('Error deleting tool:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete tool');
     }
   };
@@ -112,7 +115,7 @@ export default function AIToolsManager() {
       });
       await loadTools(); // Reload the list
     } catch (err) {
-      console.error('Error updating tool status:', err);
+      logger.error('Error updating tool status:', err);
       setError(err instanceof Error ? err.message : 'Failed to update tool status');
     }
   };
@@ -441,15 +444,17 @@ export default function AIToolsManager() {
 
       {/* Tool Modal */}
       {toolModal.isOpen && (
-        <AIToolModal
-          tool={editingTool}
-          onClose={() => {
-            toolModal.close();
-            setEditingTool(null);
-          }}
-          onSave={handleToolSaved}
-          darkMode={darkMode}
-        />
+        <Suspense fallback={null}>
+          <AIToolModal
+            tool={editingTool}
+            onClose={() => {
+              toolModal.close();
+              setEditingTool(null);
+            }}
+            onSave={handleToolSaved}
+            darkMode={darkMode}
+          />
+        </Suspense>
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import adminAPI from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 
@@ -50,7 +51,7 @@ export default function AdminSettings() {
       });
     } catch (_err) {
       setError('Failed to load user profile');
-      console.error('Error fetching profile:', _err);
+      logger.error('Error fetching profile:', _err);
     } finally {
       setLoading(false);
     }

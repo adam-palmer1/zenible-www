@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { useQuotes } from '../../../contexts/QuoteContext';
+import logger from '../../../utils/logger';
 import QuoteList from './QuoteList';
 import QuoteFormModal from './QuoteFormModal';
 import AppLayout from '../../layout/AppLayout';
@@ -41,7 +42,7 @@ const QuoteDashboard: React.FC = () => {
           setSelectedQuote(quote);
           setShowFormModal(true);
         } catch (error) {
-          console.error('Failed to load quote for editing:', error);
+          logger.error('Failed to load quote for editing:', error);
           navigate('/finance/quotes');
         }
       }

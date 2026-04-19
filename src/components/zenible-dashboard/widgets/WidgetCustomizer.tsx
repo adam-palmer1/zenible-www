@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../../ui/modal/Modal';
+import logger from '../../../utils/logger';
 import {
   WIDGET_REGISTRY,
   WIDGET_CATEGORIES,
@@ -73,7 +74,7 @@ const WidgetCustomizer = ({ open, onOpenChange }: WidgetCustomizerProps) => {
       }, 'dashboard');
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to save widget preferences:', error);
+      logger.error('Failed to save widget preferences:', error);
     } finally {
       setSaving(false);
     }

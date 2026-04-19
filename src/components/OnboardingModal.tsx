@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import customizationAPI from '../services/customizationAPI';
+import logger from '../utils/logger';
 import DatePickerCalendar from './shared/DatePickerCalendar';
 import { ModalPortalContext } from '../contexts/ModalPortalContext';
 
@@ -115,7 +116,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
       setAnswers(answersMap);
     } catch (err) {
       setError('Failed to load questions. Please try again.');
-      console.error('Failed to load questions:', err);
+      logger.error('Failed to load questions:', err);
     } finally {
       setLoading(false);
     }
@@ -176,7 +177,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
       try {
         await customizationAPI.submitBulkAnswers(answersToSave);
       } catch (err) {
-        console.error('Failed to save answers:', err);
+        logger.error('Failed to save answers:', err);
         throw err;
       }
     }
@@ -256,7 +257,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
       // Reload preferences to ensure they're synced
       await reloadPreferences();
     } catch (error) {
-      console.error('Error updating preferences:', error);
+      logger.error('Error updating preferences:', error);
     }
 
     onClose();

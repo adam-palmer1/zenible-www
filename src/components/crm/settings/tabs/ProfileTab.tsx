@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, Check, ChevronDown } from 'lucide-react';
 import { useCRMReferenceData } from '../../../../contexts/CRMReferenceDataContext';
 import companiesAPI from '../../../../services/api/crm/companies';
+import logger from '../../../../utils/logger';
 import countriesAPI from '../../../../services/api/crm/countries';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import TaxesSection from './TaxesSection';
@@ -69,7 +70,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
         });
       } catch (error) {
         showError('Failed to load company settings');
-        console.error('Failed to load company:', error);
+        logger.error('Failed to load company:', error);
       } finally {
         setLoading(false);
       }
@@ -84,7 +85,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
         const data = await countriesAPI.list() as CountryResponse[];
         setCountries(data);
       } catch (error) {
-        console.error('Failed to load countries:', error);
+        logger.error('Failed to load countries:', error);
       }
     };
     loadCountries();
@@ -177,7 +178,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
       showSuccess('Logo uploaded successfully');
     } catch (error) {
       showError('Failed to upload logo');
-      console.error('Logo upload failed:', error);
+      logger.error('Logo upload failed:', error);
     } finally {
       setUploadingLogo(false);
       // Reset file input
@@ -195,7 +196,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
       showSuccess('Logo removed successfully');
     } catch (error) {
       showError('Failed to remove logo');
-      console.error('Logo delete failed:', error);
+      logger.error('Logo delete failed:', error);
     }
   };
 
@@ -220,7 +221,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ onUnsavedChanges }) => {
       } else {
         showError('Failed to save company settings');
       }
-      console.error('Failed to save:', error);
+      logger.error('Failed to save:', error);
     } finally {
       setSaving(false);
     }

@@ -77,8 +77,9 @@ export default function BotCalendarManagement() {
       setCallbackProcessing(true);
       setLoading(true);
 
-      // CSRF validation
+      // CSRF validation — consume the saved state immediately so it's single-use.
       const savedState = sessionStorage.getItem('bot_calendar_oauth_state');
+      sessionStorage.removeItem('bot_calendar_oauth_state');
       if (state !== savedState) {
         setError('Invalid state token. Possible CSRF attack. Please try again.');
         logger.error('Bot calendar OAuth state mismatch', { received: state, expected: savedState });
@@ -89,7 +90,6 @@ export default function BotCalendarManagement() {
 
       const result = await adminAPI.handleBotCalendarCallback(code, state) as { success: boolean; email: string };
 
-      sessionStorage.removeItem('bot_calendar_oauth_state');
       setSearchParams({}, { replace: true });
 
       if (result.success) {
@@ -100,7 +100,6 @@ export default function BotCalendarManagement() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } }; message?: string };
       setError(e.response?.data?.detail || e.message || 'Failed to complete OAuth connection');
-      sessionStorage.removeItem('bot_calendar_oauth_state');
       setSearchParams({}, { replace: true });
       await fetchStatus();
     } finally {

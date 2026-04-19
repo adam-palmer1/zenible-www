@@ -3,6 +3,7 @@ import { X, Mail, Send } from 'lucide-react';
 import { useInvoices } from '../../../contexts/InvoiceContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
+import logger from '../../../utils/logger';
 import invoicesAPI from '../../../services/api/finance/invoices';
 
 interface SendInvoiceModalProps {
@@ -47,7 +48,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({ isOpen, onClose, in
       setMessage(data.body || getDefaultMessage());
       setPreview(data);
     } catch (error: any) {
-      console.error('Error loading email preview:', error);
+      logger.error('Error loading email preview:', error);
       setSubject(`Invoice ${invoice.invoice_number}`);
       setMessage(getDefaultMessage());
     } finally {
@@ -88,7 +89,7 @@ Thank you for your business!`;
       refresh();
       onClose();
     } catch (error: any) {
-      console.error('Error sending invoice:', error);
+      logger.error('Error sending invoice:', error);
       showError(error.message || 'Failed to send invoice');
     } finally {
       setSending(false);
@@ -98,9 +99,9 @@ Thank you for your business!`;
   if (!isOpen || !invoice) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Send invoice">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75" onClick={onClose}></div>
+        <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75" onClick={onClose} aria-hidden="true"></div>
 
         <div className="inline-block align-bottom design-bg-primary rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
           <div className="design-bg-primary px-6 pt-6 pb-4">

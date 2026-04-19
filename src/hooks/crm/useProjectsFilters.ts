@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useDebouncedPreference } from '../useDebouncedPreference';
+import logger from '../../utils/logger';
 
 /**
  * Hook to manage projects filter state
@@ -41,7 +42,7 @@ export function useProjectsFilters() {
     try {
       await updateDebouncedPreference('projects_status_filter', newStatuses, 'projects');
     } catch (error) {
-      console.error('Failed to save status filter preference:', error);
+      logger.error('Failed to save status filter preference:', error);
     }
   }, [selectedStatuses, updateDebouncedPreference]);
 
@@ -51,7 +52,7 @@ export function useProjectsFilters() {
     try {
       await updateDebouncedPreference('projects_status_filter', [], 'projects');
     } catch (error) {
-      console.error('Failed to clear status filter preference:', error);
+      logger.error('Failed to clear status filter preference:', error);
     }
   }, [updateDebouncedPreference]);
 
@@ -59,14 +60,14 @@ export function useProjectsFilters() {
   const setShowHiddenContacts = useCallback((value: boolean): void => {
     setShowHiddenContactsState(value);
     updateDebouncedPreference('projects_show_hidden_contacts', value, 'projects').catch(err =>
-      console.error('Failed to save hidden contacts preference:', err)
+      logger.error('Failed to save hidden contacts preference:', err)
     );
   }, [updateDebouncedPreference]);
 
   const setShowLostContacts = useCallback((value: boolean): void => {
     setShowLostContactsState(value);
     updateDebouncedPreference('projects_show_lost_contacts', value, 'projects').catch(err =>
-      console.error('Failed to save lost contacts preference:', err)
+      logger.error('Failed to save lost contacts preference:', err)
     );
   }, [updateDebouncedPreference]);
 

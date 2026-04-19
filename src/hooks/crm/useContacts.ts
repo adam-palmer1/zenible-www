@@ -104,7 +104,8 @@ export function useContacts(
   const createMutation = useMutation({
     mutationFn: (data: ContactCreate) => contactsAPI.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+      // A new contact only affects lists, not existing details.
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
     },
   });
@@ -136,8 +137,10 @@ export function useContacts(
   // Delete contact mutation
   const deleteMutation = useMutation({
     mutationFn: (contactId: string) => contactsAPI.delete(contactId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    onSuccess: (_result, contactId) => {
+      // Lists change; the specific deleted detail is stale.
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.detail(contactId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.usageDashboard.all });
     },
   });

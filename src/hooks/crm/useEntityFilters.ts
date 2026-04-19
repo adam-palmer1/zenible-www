@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import logger from '../../utils/logger';
 
 /**
  * Configuration for the generic entity filters factory hook.
@@ -185,7 +186,7 @@ export function useEntityFilters(config: EntityFiltersConfig): EntityFiltersRetu
       try {
         await updatePreference(prefKeys.visibleColumns, visibleColumns, preferenceCategory);
       } catch (error) {
-        console.error('Failed to save column preferences:', error);
+        logger.error('Failed to save column preferences:', error);
       }
     };
 
@@ -223,7 +224,7 @@ export function useEntityFilters(config: EntityFiltersConfig): EntityFiltersRetu
         updatePreference(prefKeys.sortDirection, newDirection, preferenceCategory),
       ]);
     } catch (error) {
-      console.error('Failed to save sort preferences:', error);
+      logger.error('Failed to save sort preferences:', error);
     }
   }, [sortField, sortDirection, updatePreference, prefKeys.sortField, prefKeys.sortDirection, preferenceCategory]);
 
@@ -232,7 +233,7 @@ export function useEntityFilters(config: EntityFiltersConfig): EntityFiltersRetu
     try {
       await updatePreference(prefKeys.showHidden, value, preferenceCategory);
     } catch (error) {
-      console.error('Failed to save show hidden preference:', error);
+      logger.error('Failed to save show hidden preference:', error);
     }
   }, [updatePreference, prefKeys.showHidden, preferenceCategory]);
 
@@ -241,7 +242,7 @@ export function useEntityFilters(config: EntityFiltersConfig): EntityFiltersRetu
     try {
       await updatePreference(prefKeys.showPreferredCurrency, value, preferenceCategory);
     } catch (error) {
-      console.error('Failed to save preferred currency preference:', error);
+      logger.error('Failed to save preferred currency preference:', error);
     }
   }, [updatePreference, prefKeys.showPreferredCurrency, preferenceCategory]);
 

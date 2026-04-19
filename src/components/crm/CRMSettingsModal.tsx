@@ -3,6 +3,7 @@ import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon } from '@heroicons/rea
 import Modal from '../ui/modal/Modal';
 import Dropdown from '../ui/dropdown/Dropdown';
 import statusesAPI from '../../services/api/crm/statuses';
+import logger from '../../utils/logger';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useModalState } from '../../hooks/useModalState';
 import { useCRMPermissions } from '../../hooks/crm/useCRMPermissions';
@@ -85,7 +86,7 @@ const CRMSettingsModal: React.FC<CRMSettingsModalProps> = ({ isOpen, onClose, on
       setRoles(data.roles || {});
     } catch (error) {
       showError('Failed to load statuses');
-      console.error(error);
+      logger.error(error);
     } finally {
       setLoading(false);
     }

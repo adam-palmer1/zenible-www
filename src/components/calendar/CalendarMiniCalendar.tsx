@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import {
   format,
@@ -13,21 +13,29 @@ import {
   parseISO,
   startOfDay,
 } from 'date-fns';
-import { getEffectiveEndDate } from './calendarUtils';
+import { getInclusiveEndDate } from './calendarUtils';
 
 interface CalendarMiniCalendarProps {
   currentDate: Date;
   onDateSelect: (date: Date) => void;
   appointments: any[];
+  onVisibleMonthChange?: (start: Date, end: Date) => void;
 }
 
-export default function CalendarMiniCalendar({ currentDate, onDateSelect, appointments }: CalendarMiniCalendarProps) {
+export default function CalendarMiniCalendar({ currentDate, onDateSelect, appointments, onVisibleMonthChange }: CalendarMiniCalendarProps) {
   const [miniCalendarDate, setMiniCalendarDate] = useState(new Date());
 
   const monthStart = startOfMonth(miniCalendarDate);
   const monthEnd = endOfMonth(miniCalendarDate);
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
   const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+  useEffect(() => {
+    onVisibleMonthChange?.(startDate, endDate);
+    // miniCalendarDate is the only input that changes the visible window;
+    // startDate/endDate are derived from it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [miniCalendarDate]);
 
   const days: Date[] = [];
   let day = startDate;
@@ -41,9 +49,7 @@ export default function CalendarMiniCalendar({ currentDate, onDateSelect, appoin
       if (isSameDay(parseISO(apt.start_datetime), day)) return true;
       // Check if day falls within a multi-day event's range
       const aptStart = startOfDay(parseISO(apt.start_datetime));
-      // All-day events store inclusive end dates; skip getEffectiveEndDate
-      const effectiveEnd = apt.all_day ? parseISO(apt.end_datetime) : getEffectiveEndDate(apt.end_datetime, parseISO);
-      const aptEnd = startOfDay(effectiveEnd);
+      const aptEnd = startOfDay(getInclusiveEndDate(apt, parseISO));
       if (aptEnd.getTime() <= aptStart.getTime()) return false;
       const current = startOfDay(day);
       return current >= aptStart && current <= aptEnd;

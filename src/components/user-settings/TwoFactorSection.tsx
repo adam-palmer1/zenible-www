@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { twoFactorAPI } from '../../utils/auth';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import logger from '../../utils/logger';
 import TwoFactorSetupModal from './TwoFactorSetupModal';
 
 interface TwoFactorSectionProps {
@@ -56,7 +57,7 @@ export default function TwoFactorSection({ setError, setSuccessMessage }: TwoFac
         setDevices(deviceData);
       }
     } catch (err) {
-      console.error('Failed to load 2FA status:', err);
+      logger.error('Failed to load 2FA status:', err);
     } finally {
       setIsLoading(false);
     }

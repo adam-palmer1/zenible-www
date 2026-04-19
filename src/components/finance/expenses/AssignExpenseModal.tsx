@@ -15,6 +15,7 @@ import Modal from '../../ui/modal/Modal';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { formatCurrency } from '../../../utils/currency';
 import expensesAPI from '../../../services/api/finance/expenses';
+import logger from '../../../utils/logger';
 import invoicesAPI from '../../../services/api/finance/invoices';
 import { useCurrencyConversion } from '../../../hooks/crm/useCurrencyConversion';
 
@@ -97,7 +98,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
       const result = await expensesAPI.list(params) as { items?: unknown[] };
       setAllExpenses(result.items || []);
     } catch (error) {
-      console.error('Failed to search expenses:', error);
+      logger.error('Failed to search expenses:', error);
     } finally {
       setExpensesLoading(false);
     }
@@ -126,7 +127,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
       if (isInvoice) {
         promises.push(
           invoicesAPI.getExpenseAllocationCapacity(entityId).catch((err: unknown) => {
-            console.error('Failed to load allocation capacity:', err);
+            logger.error('Failed to load allocation capacity:', err);
             return null;
           })
         );
@@ -139,7 +140,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
         setOtherAllocatedTotal(parseFloat(results[2].allocated_expenses_total) || 0);
       }
     } catch (error) {
-      console.error('Failed to load data:', error);
+      logger.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
@@ -173,7 +174,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
       setAssignedExpenses(assignments);
       setInitialExpenseIds(new Set(assignments.map((a: any) => a.expense_id)));
     } catch (error) {
-      console.error('Failed to load assignments:', error);
+      logger.error('Failed to load assignments:', error);
       showError('Failed to load expense assignments');
     }
   };
@@ -353,7 +354,7 @@ const AssignExpenseModal: React.FC<AssignExpenseModalProps> = ({
       onUpdate?.();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Failed to save assignments:', error);
+      logger.error('Failed to save assignments:', error);
       showError(error.message || 'Failed to save expense assignments');
     } finally {
       setSaving(false);

@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import BookingWidget from './BookingWidget';
 import widgetStyles from './widget.css?inline';
+import logger from '../utils/logger';
 
 declare const __ZENIBLE_API_URL__: string | undefined;
 
@@ -42,7 +43,7 @@ class ZenibleBookingWidget {
       : container;
 
     if (!this.container) {
-      console.error('[ZenibleBooking] Container not found');
+      logger.error('[ZenibleBooking] Container not found');
       this.options = {} as WidgetConfig;
       return;
     }
@@ -60,7 +61,7 @@ class ZenibleBookingWidget {
     };
 
     if (!this.options.username || !this.options.callType) {
-      console.error('[ZenibleBooking] username and callType are required');
+      logger.error('[ZenibleBooking] username and callType are required');
       return;
     }
 

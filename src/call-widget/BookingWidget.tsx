@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import WidgetAPI from './api';
+import { safeHref } from '../utils/urls';
+import logger from '../utils/logger';
 import BookingCalendar from './components/BookingCalendar';
 import TimeSlotPicker from './components/TimeSlotPicker';
 import BookingForm from './components/BookingForm';
@@ -209,7 +211,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
         const data = await api.getCallTypePage(config.username, config.callType);
         setPageData(data);
       } catch (err: any) {
-        console.error('[ZenibleBooking] Error fetching page data:', err);
+        logger.error('[ZenibleBooking] Error fetching page data:', err);
         if (err.status === 404) {
           setError('Booking page not found');
         } else if (err.status === 403) {
@@ -253,7 +255,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
         hasAutoSelectedRef.current = true;
       }
     } catch (err) {
-      console.error('[ZenibleBooking] Error fetching availability:', err);
+      logger.error('[ZenibleBooking] Error fetching availability:', err);
       setAvailabilityData({});
     }
   }, [api, config.username, config.callType]);
@@ -313,7 +315,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
         config.onBookingComplete(result);
       }
     } catch (err: any) {
-      console.error('[ZenibleBooking] Error creating booking:', err);
+      logger.error('[ZenibleBooking] Error creating booking:', err);
       if (err.status === 409) {
         setSubmitError('This time slot is no longer available. Please select another time.');
         setStep('calendar');
@@ -327,7 +329,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
           setAvailabilityData((prev) => ({ ...prev, [selectedDate!]: slots }));
           setAvailableSlots(slots);
         } catch (refetchErr) {
-          console.error('[ZenibleBooking] Error refetching slots:', refetchErr);
+          logger.error('[ZenibleBooking] Error refetching slots:', refetchErr);
         } finally {
           setSlotsLoading(false);
         }
@@ -416,7 +418,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
             visitorTime: visitorTimeFormatted, // Pre-formatted for display
           });
         } catch (e) {
-          console.error('[ZenibleBooking] Error converting timezone for slot:', e);
+          logger.error('[ZenibleBooking] Error converting timezone for slot:', e);
           // On error, keep original date
           if (!visitorSlots[hostDate]) {
             visitorSlots[hostDate] = [];
@@ -547,7 +549,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
               <div className="zw-confirmation-row">
                 <span className="zw-confirmation-label">Meeting Link</span>
                 <a
-                  href={bookingResult.meeting_link}
+                  href={safeHref(bookingResult.meeting_link)}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: 'var(--zenible-primary)', textDecoration: 'none' }}

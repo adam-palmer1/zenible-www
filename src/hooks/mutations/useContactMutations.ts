@@ -2,6 +2,7 @@ import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-quer
 import { contactsAPI } from '../../services/api/crm';
 import { queryKeys, invalidateContactQueries } from '../../lib/query-keys';
 import type { ContactServiceCreate, ContactCreate } from '../../types';
+import logger from '../../utils/logger';
 
 // ---- Shared types ----
 
@@ -92,7 +93,7 @@ export function useCreateContactMutation(options: MutationCallbacks = {}) {
       }
     },
     onError: (error: Error) => {
-      console.error('[useCreateContactMutation] Failed:', error);
+      logger.error('[useCreateContactMutation] Failed:', error);
 
       if (options.onError) {
         options.onError(error);
@@ -147,7 +148,7 @@ export function useUpdateContactMutation(options: MutationCallbacks<unknown, Upd
       return { previousLists, previousDetail, contactId };
     },
     onError: (error: Error, { contactId }: UpdateContactVariables, context: UpdateContactContext | undefined) => {
-      console.error('[useUpdateContactMutation] Failed:', error);
+      logger.error('[useUpdateContactMutation] Failed:', error);
 
       // Rollback optimistic updates
       if (context?.previousLists) {
@@ -216,7 +217,7 @@ export function useDeleteContactMutation(options: MutationCallbacks<string> = {}
       return { previousLists, contactId };
     },
     onError: (error: Error, contactId: string, context: DeleteContactContext | undefined) => {
-      console.error('[useDeleteContactMutation] Failed:', error);
+      logger.error('[useDeleteContactMutation] Failed:', error);
 
       // Rollback
       if (context?.previousLists) {
@@ -284,7 +285,7 @@ export function useChangeContactStatusMutation(options: MutationCallbacks<unknow
       return { previousLists, contactId, statusData };
     },
     onError: (error: Error, variables: ChangeStatusVariables, context: ChangeStatusContext | undefined) => {
-      console.error('[useChangeContactStatusMutation] Failed:', error);
+      logger.error('[useChangeContactStatusMutation] Failed:', error);
 
       // Rollback optimistic update
       if (context?.previousLists) {
@@ -337,7 +338,7 @@ export function useCreateContactServiceMutation(options: MutationCallbacks = {})
       }
     },
     onError: (error: Error) => {
-      console.error('[useCreateContactServiceMutation] Failed:', error);
+      logger.error('[useCreateContactServiceMutation] Failed:', error);
 
       if (options.onError) {
         options.onError(error);
@@ -364,7 +365,7 @@ export function useAssignServiceMutation(options: MutationCallbacks = {}) {
       }
     },
     onError: (error: Error) => {
-      console.error('[useAssignServiceMutation] Failed:', error);
+      logger.error('[useAssignServiceMutation] Failed:', error);
 
       if (options.onError) {
         options.onError(error);
@@ -392,7 +393,7 @@ export function useUnassignServiceMutation(options: MutationCallbacks = {}) {
       }
     },
     onError: (error: Error) => {
-      console.error('[useUnassignServiceMutation] Failed:', error);
+      logger.error('[useUnassignServiceMutation] Failed:', error);
 
       if (options.onError) {
         options.onError(error);
@@ -419,7 +420,7 @@ export function useUpdateContactServiceMutation(options: MutationCallbacks = {})
       }
     },
     onError: (error: Error) => {
-      console.error('[useUpdateContactServiceMutation] Failed:', error);
+      logger.error('[useUpdateContactServiceMutation] Failed:', error);
 
       if (options.onError) {
         options.onError(error);

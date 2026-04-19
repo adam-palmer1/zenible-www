@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import planAPI from '../../services/planAPI';
+import logger from '../../utils/logger';
 import type { PlanDetailResponse } from '../../types';
 import { favicon } from '../../assets/logos';
 import NotificationBell from '../notifications/NotificationBell';
@@ -25,7 +26,7 @@ export default function SidebarHeader({ isCollapsed, onToggle, isMobile = false 
             setPlanName(`${planDetails.name} Plan`);
           }
         } catch (error) {
-          console.error('Failed to fetch plan details:', error);
+          logger.error('Failed to fetch plan details:', error);
         }
       }
     };

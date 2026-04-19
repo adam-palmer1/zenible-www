@@ -131,8 +131,14 @@ input[type="number"] {
 @media (min-width: 1024px) {
   .boardroom-sidebar-scroll {
     margin-right: -8px;
-    padding-right: 4px;
+    padding-right: 8px;
+    --fade-top: 0px;
+    --fade-bottom: 0px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black var(--fade-top), black calc(100% - var(--fade-bottom)), transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0, black var(--fade-top), black calc(100% - var(--fade-bottom)), transparent 100%);
   }
+  .boardroom-sidebar-scroll[data-fade-top="true"] { --fade-top: 48px; }
+  .boardroom-sidebar-scroll[data-fade-bottom="true"] { --fade-bottom: 48px; }
 }
 
 .boardroom-sidebar-scroll:hover {

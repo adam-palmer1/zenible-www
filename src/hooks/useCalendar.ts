@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import appointmentsAPI from '../services/api/crm/appointments';
+import logger from '../utils/logger';
 import { queryKeys } from '../lib/query-keys';
 import type {
   CalendarAppointmentResponse,
@@ -61,6 +62,9 @@ export function useCalendar() {
 
   // Appointments local state (populated by fetch methods)
   const [appointments, setAppointments] = useState<CalendarAppointmentResponse[]>([]);
+  // Separate dataset for the mini calendar so its month grid can show dots for
+  // days outside the main view's narrow fetch range.
+  const [miniCalendarAppointments, setMiniCalendarAppointments] = useState<CalendarAppointmentResponse[]>([]);
   const [fetchLoading, setFetchLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,7 +120,7 @@ export function useCalendar() {
       return response;
     } catch (err: unknown) {
       setError((err as Error).message);
-      console.error('Failed to fetch appointments:', err);
+      logger.error('[useCalendar] Failed to fetch appointments:', err);
       return null;
     } finally {
       setFetchLoading(false);
@@ -138,10 +142,27 @@ export function useCalendar() {
       return response;
     } catch (err: unknown) {
       setError((err as Error).message);
-      console.error('Failed to fetch calendar appointments:', err);
+      logger.error('[useCalendar] Failed to fetch calendar appointments:', err);
       return null;
     } finally {
       setFetchLoading(false);
+    }
+  }, []);
+
+  // Fetch appointments for the mini-calendar's visible month grid. Does not
+  // touch the main `appointments` state or the loading flag (avoids spinner
+  // flicker on the main view when the user navigates the mini calendar).
+  const fetchAppointmentsForMiniCalendar = useCallback(async (startDate: Date, endDate: Date): Promise<CalendarAppointmentsResponse | null> => {
+    try {
+      const response = await appointmentsAPI.getCalendarAppointments<CalendarAppointmentsResponse>(
+        startDate.toISOString(),
+        endDate.toISOString()
+      );
+      setMiniCalendarAppointments(response.appointments || []);
+      return response;
+    } catch (err: unknown) {
+      logger.error('[useCalendar] Failed to fetch mini-calendar appointments:', err);
+      return null;
     }
   }, []);
 
@@ -150,6 +171,7 @@ export function useCalendar() {
     mutationFn: (data: unknown) => appointmentsAPI.create<CalendarAppointmentResponse>(data),
     onSuccess: (newAppointment) => {
       setAppointments(prev => [newAppointment, ...prev]);
+      setMiniCalendarAppointments(prev => [newAppointment, ...prev]);
       setTotalAppointments(prev => prev + 1);
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
@@ -168,6 +190,9 @@ export function useCalendar() {
         setAppointments(prev =>
           prev.map(apt => apt.id === updated.id ? updated : apt)
         );
+        setMiniCalendarAppointments(prev =>
+          prev.map(apt => apt.id === updated.id ? updated : apt)
+        );
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
@@ -183,6 +208,7 @@ export function useCalendar() {
     onSuccess: (_, { appointmentId, stringParams }) => {
       if (!stringParams.delete_scope) {
         setAppointments(prev => prev.filter(apt => apt.id !== appointmentId));
+        setMiniCalendarAppointments(prev => prev.filter(apt => apt.id !== appointmentId));
         setTotalAppointments(prev => prev - 1);
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all });
@@ -250,7 +276,7 @@ export function useCalendar() {
       const result = await googleStatusQuery.refetch();
       return result.data || null;
     } catch (err) {
-      console.error('Failed to check Google connection:', err);
+      logger.error('[useCalendar] Failed to check Google connection:', err);
       return null;
     }
   };
@@ -451,6 +477,7 @@ export function useCalendar() {
   return {
     // State
     appointments,
+    miniCalendarAppointments,
     loading: fetchLoading,
     error,
     googleConnected,
@@ -468,6 +495,7 @@ export function useCalendar() {
     // Actions
     fetchAppointments,
     fetchAppointmentsForDateRange,
+    fetchAppointmentsForMiniCalendar,
     createAppointment,
     updateAppointment,
     deleteAppointment,

@@ -1,9 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { List, type RowComponentProps } from 'react-window';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import meetingIntelligenceAPI from '../../../services/api/crm/meetingIntelligence';
 import ConfirmationModal from '../../common/ConfirmationModal';
 import contactsAPI from '../../../services/api/crm/contacts';
 import type { MeetingDetail, LinkedContactInfo } from '../../../types/meetingIntelligence';
+
+/** Groups above this size are virtualized; below, we render flat for simplicity. */
+const VIRTUALIZE_THRESHOLD = 80;
 
 type DetailTab = 'summary' | 'transcript' | 'recording' | 'intelligence';
 
@@ -256,24 +260,42 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
     { id: 'intelligence', label: 'Meeting Intelligence' },
   ];
 
-  // Group consecutive same-speaker transcripts
-  const groupedTranscripts: Array<{
-    speaker: string;
-    speakerName: string;
-    entries: MeetingDetail['transcripts'];
-  }> = [];
-  for (const t of detail.transcripts) {
-    const last = groupedTranscripts[groupedTranscripts.length - 1];
-    if (last && last.speaker === t.speaker) {
-      last.entries.push(t);
-    } else {
-      groupedTranscripts.push({
-        speaker: t.speaker,
-        speakerName: getSpeakerName(t),
-        entries: [t],
-      });
+  // Group consecutive same-speaker transcripts.
+  // Memoized because downstream virtualization depends on stable references.
+  const groupedTranscripts = useMemo(() => {
+    const groups: Array<{
+      speaker: string;
+      speakerName: string;
+      content: string;
+      timestamp_ms: number;
+    }> = [];
+    for (const t of detail.transcripts) {
+      const last = groups[groups.length - 1];
+      if (last && last.speaker === t.speaker) {
+        last.content = `${last.content} ${t.content}`;
+      } else {
+        groups.push({
+          speaker: t.speaker,
+          speakerName: getSpeakerName(t),
+          content: t.content,
+          timestamp_ms: t.timestamp_ms,
+        });
+      }
     }
-  }
+    return groups;
+  }, [detail.transcripts]);
+
+  // Estimate row height for virtualization: base (header + padding) + lines of wrapped text.
+  // Slightly over-estimating keeps scrolling smooth; mild layout slack is acceptable.
+  const rowHeights = useMemo(() => {
+    const CHARS_PER_LINE = 75;
+    const BASE = 56;
+    const LINE_HEIGHT = 20;
+    return groupedTranscripts.map((g) => {
+      const lines = Math.max(1, Math.ceil(g.content.length / CHARS_PER_LINE));
+      return BASE + lines * LINE_HEIGHT;
+    });
+  }, [groupedTranscripts]);
 
   return (
     <div className="space-y-4">
@@ -491,7 +513,8 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
             <div className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
               <p>No transcript available</p>
             </div>
-          ) : (
+          ) : groupedTranscripts.length < VIRTUALIZE_THRESHOLD ? (
+            // Small transcripts render flat — virtualization adds overhead not worth paying.
             <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[600px] overflow-y-auto">
               {groupedTranscripts.map((group, gi) => (
                 <div key={gi} className="p-3">
@@ -500,15 +523,30 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
                       {group.speakerName}
                     </span>
                     <span className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-400'}`}>
-                      {formatTimestamp(group.entries[0].timestamp_ms)}
+                      {formatTimestamp(group.timestamp_ms)}
                     </span>
                   </div>
                   <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-700'}`}>
-                    {group.entries.map(e => e.content).join(' ')}
+                    {group.content}
                   </p>
                 </div>
               ))}
             </div>
+          ) : (
+            // Large transcripts: virtualize so only visible rows render.
+            <List
+              rowCount={groupedTranscripts.length}
+              rowHeight={(index) => rowHeights[index] ?? 80}
+              rowComponent={TranscriptRow}
+              rowProps={{
+                groups: groupedTranscripts,
+                darkMode,
+                getSpeakerColor,
+                formatTimestamp,
+              }}
+              style={{ height: 600 }}
+              className="divide-y divide-gray-200 dark:divide-gray-700"
+            />
           )}
         </div>
       )}
@@ -803,5 +841,40 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
     </div>
   );
 };
+
+/** Row component rendered by react-window for large transcripts. */
+interface TranscriptRowProps {
+  groups: Array<{ speaker: string; speakerName: string; content: string; timestamp_ms: number }>;
+  darkMode: boolean;
+  getSpeakerColor: (speaker: string) => string;
+  formatTimestamp: (ms: number) => string;
+}
+
+function TranscriptRow({
+  index,
+  style,
+  groups,
+  darkMode,
+  getSpeakerColor,
+  formatTimestamp,
+}: RowComponentProps<TranscriptRowProps>): React.ReactElement | null {
+  const group = groups[index];
+  if (!group) return null;
+  return (
+    <div style={style} className="p-3">
+      <div className="flex items-center gap-2 mb-1">
+        <span className={`text-xs font-medium ${getSpeakerColor(group.speaker)}`}>
+          {group.speakerName}
+        </span>
+        <span className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-400'}`}>
+          {formatTimestamp(group.timestamp_ms)}
+        </span>
+      </div>
+      <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-700'}`}>
+        {group.content}
+      </p>
+    </div>
+  );
+}
 
 export default MeetingDetailView;

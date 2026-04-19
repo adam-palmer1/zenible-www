@@ -1,6 +1,7 @@
 import React from 'react';
 import { testimonials } from '../data/testimonials';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
+import LazyImage from './LazyImage';
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -47,12 +48,11 @@ export default function TestimonialsSection() {
               <p className="text-gray-700 leading-relaxed mb-6">{t.quote}</p>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <img
+                  <LazyImage
                     src={t.avatar}
                     alt={t.name}
                     width={40}
                     height={40}
-                    loading="lazy"
                     className="w-10 h-10 rounded-full object-cover"
                   />
                   <div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { heroCopy } from '../data/copy';
 import { APP_URL } from '../../../utils/hostname';
 import { useTypewriter } from '../hooks/useTypewriter';
+import LazyImage from './LazyImage';
 
 const heroHooks = [
   'Stop juggling 5 tools to run your freelance business',
@@ -69,7 +70,7 @@ export default function HeroSection() {
           {/* Avatar stack */}
           <div className="flex -space-x-2">
             {[1, 2, 3, 4].map((i) => (
-              <img
+              <LazyImage
                 key={i}
                 src={`/landing/avatars/avatar-${i}.png`}
                 alt=""
@@ -99,65 +100,61 @@ export default function HeroSection() {
           <div className="relative mx-auto max-w-5xl">
             {/* Main dashboard screenshot */}
             <div className="rounded-2xl overflow-hidden shadow-2xl shadow-purple-900/10 border border-purple-100/60">
-              <img
+              <LazyImage
                 src="/landing/hero/dashboard-main.png"
                 alt="Zenible dashboard showing projects, invoices, and AI tools"
                 width={1280}
                 height={770}
                 className="w-full h-auto"
+                loading="eager"
                 fetchPriority="high"
               />
             </div>
 
             {/* Floating cards */}
             <div className="hidden lg:block absolute -left-16 top-8 w-48 rounded-xl overflow-hidden shadow-xl shadow-purple-900/10 border border-purple-100/60">
-              <img
+              <LazyImage
                 src="/landing/hero/crm-sidebar.png"
                 alt="CRM sidebar"
                 width={278}
                 height={112}
                 className="w-full h-auto"
-                loading="lazy"
               />
             </div>
             <div className="hidden lg:block absolute -left-12 bottom-20 w-56 rounded-xl overflow-hidden shadow-xl shadow-purple-900/10 border border-purple-100/60">
-              <img
+              <LazyImage
                 src="/landing/hero/invoiced.png"
                 alt="Total invoiced amount"
                 width={277}
                 height={165}
                 className="w-full h-auto"
-                loading="lazy"
               />
             </div>
             <div className="hidden lg:block absolute -left-8 top-1/3 w-44 rounded-xl overflow-hidden shadow-xl shadow-purple-900/10 border border-purple-100/60">
-              <img
+              <LazyImage
                 src="/landing/hero/crm-contacts.png"
                 alt="CRM contacts view"
                 width={251}
                 height={260}
                 className="w-full h-auto"
-                loading="lazy"
               />
             </div>
             <div className="hidden lg:block absolute -right-8 top-12 w-40 rounded-xl overflow-hidden shadow-xl shadow-purple-900/10 border border-purple-100/60">
-              <img
+              <LazyImage
                 src="/landing/hero/dashboard-sidebar.png"
                 alt="Dashboard widgets"
                 width={225}
                 height={271}
                 className="w-full h-auto"
-                loading="lazy"
               />
             </div>
             <div className="hidden lg:block absolute -right-4 bottom-8 w-52 rounded-xl overflow-hidden shadow-xl shadow-purple-900/10 border border-purple-100/60">
-              <img
+              <LazyImage
                 src="/landing/hero/calendar.png"
                 alt="Calendar view"
                 width={274}
                 height={299}
                 className="w-full h-auto"
-                loading="lazy"
               />
             </div>
 

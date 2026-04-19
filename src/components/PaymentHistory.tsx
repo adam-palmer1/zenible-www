@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePreferences } from '../contexts/PreferencesContext';
 import planAPI from '../services/planAPI';
+import logger from '../utils/logger';
 import { LoadingSpinner } from './shared';
 import DatePickerCalendar from './shared/DatePickerCalendar';
 
@@ -81,7 +82,7 @@ export default function PaymentHistory() {
       setTotalPages(response.total_pages || 1);
       setTotalItems(response.total || 0);
     } catch (err) {
-      console.error('Error fetching payments:', err);
+      logger.error('Error fetching payments:', err);
       setError('Failed to load payment history');
     } finally {
       setLoading(false);
@@ -104,7 +105,7 @@ export default function PaymentHistory() {
       setTotalPages(response.total_pages || 1);
       setTotalItems(response.total || 0);
     } catch (err) {
-      console.error('Error fetching invoices:', err);
+      logger.error('Error fetching invoices:', err);
       setError('Failed to load invoices');
     } finally {
       setLoading(false);
@@ -204,7 +205,7 @@ export default function PaymentHistory() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err) {
-      console.error('Error downloading invoice PDF:', err);
+      logger.error('Error downloading invoice PDF:', err);
       setError('Failed to download invoice PDF');
     } finally {
       setDownloadingInvoiceId(null);
@@ -456,29 +457,30 @@ export default function PaymentHistory() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
+                  <caption className="sr-only">Payment history</caption>
                   <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`}>
                     <tr>
-                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th scope="col" className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Date
                       </th>
-                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th scope="col" className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Amount
                       </th>
-                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th scope="col" className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Type
                       </th>
-                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th scope="col" className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Status
                       </th>
-                      <th className={`hidden md:table-cell px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th scope="col" className={`hidden md:table-cell px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Payment ID
@@ -526,34 +528,35 @@ export default function PaymentHistory() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
+                  <caption className="sr-only">Subscription invoices</caption>
                   <thead className={`border-b ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`}>
                     <tr>
-                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th scope="col" className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Date
                       </th>
-                      <th className={`hidden md:table-cell px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th scope="col" className={`hidden md:table-cell px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Invoice ID
                       </th>
-                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th scope="col" className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Amount
                       </th>
-                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th scope="col" className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Status
                       </th>
-                      <th className={`hidden md:table-cell px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th scope="col" className={`hidden md:table-cell px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Period
                       </th>
-                      <th className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      <th scope="col" className={`px-2 md:px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                         darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'
                       }`}>
                         Actions

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '../../../../utils/currency';
 import invoicesAPI from '../../../../services/api/finance/invoices';
+import logger from '../../../../utils/logger';
 import { PayPalLogo } from './PaymentLogos';
 
 const invoicesAPITyped = invoicesAPI;
@@ -41,7 +42,7 @@ const PayPalPaymentSection: React.FC<PayPalPaymentSectionProps> = ({ shareCode, 
       // Redirect to PayPal
       window.location.href = orderData.approve_url;
     } catch (err: any) {
-      console.error('[PayPalPayment] Error:', err);
+      logger.error('[PayPalPayment] Error:', err);
       setError(err.message || 'Failed to initiate PayPal payment');
       setLoading(false);
     }

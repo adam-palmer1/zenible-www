@@ -3,6 +3,7 @@ import { usePreferences } from '../../../contexts/PreferencesContext';
 import ZMIWebSocketService from '../../../services/ZMIWebSocketService';
 import BotStatusBadge from './BotStatusBadge';
 import meetingIntelligenceAPI from '../../../services/api/crm/meetingIntelligence';
+import logger from '../../../utils/logger';
 import type { TranscriptEntry } from '../../../types/meetingIntelligence';
 
 interface LiveTranscriptionProps {
@@ -20,9 +21,8 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
   const [entries, setEntries] = useState<TranscriptEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const [recordingLoading, setRecordingLoading] = useState(false);
-  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<ZMIWebSocketService | null>(null);
 
@@ -32,7 +32,10 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
   useEffect(() => {
     meetingIntelligenceAPI.getBotStatus(sessionId).then((data: any) => {
       if (data?.status) setBotStatus(data.status);
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      // Initial poll fails when the session just started — WS will catch us up.
+      logger.debug('[LiveTranscription] Initial bot status fetch failed:', err);
+    });
   }, [sessionId]);
 
   useEffect(() => {
@@ -148,29 +151,12 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [entries]);
 
-  // Recording duration timer
-  useEffect(() => {
-    if (isRecording) {
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration((prev) => prev + 1);
-      }, 1000);
-    } else {
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-      setRecordingDuration(0);
-    }
-    return () => {
-      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-    };
-  }, [isRecording]);
-
   const handleStartRecording = async () => {
     setRecordingLoading(true);
     try {
       await meetingIntelligenceAPI.startRecording(sessionId);
       setIsRecording(true);
+      setRecordingStartedAt(Date.now());
     } catch (err: any) {
       setError(`Failed to start recording: ${err.message || 'Unknown error'}`);
     } finally {
@@ -183,17 +169,12 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
     try {
       await meetingIntelligenceAPI.stopRecording(sessionId);
       setIsRecording(false);
+      setRecordingStartedAt(null);
     } catch (err: any) {
       setError(`Failed to stop recording: ${err.message || 'Unknown error'}`);
     } finally {
       setRecordingLoading(false);
     }
-  };
-
-  const formatRecordingTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -207,12 +188,9 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
           <BotStatusBadge status={botStatus} />
           {/* Connection indicator */}
           <span className={`inline-flex h-2 w-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
-          {/* Recording indicator */}
-          {isRecording && (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-red-500">
-              <span className="inline-flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-              REC {formatRecordingTime(recordingDuration)}
-            </span>
+          {/* Recording indicator — isolated so the 1s tick doesn't re-render the transcript list. */}
+          {isRecording && recordingStartedAt != null && (
+            <RecordingIndicator startTime={recordingStartedAt} />
           )}
         </div>
         {/* Recording controls */}
@@ -294,6 +272,27 @@ const LiveTranscription: React.FC<LiveTranscriptionProps> = ({ sessionId, onClos
         ))}
       </div>
     </div>
+  );
+};
+
+/**
+ * Localized 1-second ticker for the REC badge. Isolated from LiveTranscription so
+ * per-second ticks only re-render this tiny component, not the transcript list.
+ */
+const RecordingIndicator: React.FC<{ startTime: number }> = ({ startTime }) => {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const seconds = Math.max(0, Math.floor((now - startTime) / 1000));
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return (
+    <span className="flex items-center gap-1.5 text-xs font-medium text-red-500" role="status" aria-live="off">
+      <span className="inline-flex h-2 w-2 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />
+      REC {m}:{s.toString().padStart(2, '0')}
+    </span>
   );
 };
 

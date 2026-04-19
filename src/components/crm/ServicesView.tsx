@@ -3,6 +3,7 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 import ServicesTable from './ServicesTable';
 import ContactServicesTable from './ContactServicesTable';
 import ConfirmationModal from '../common/ConfirmationModal';
+import logger from '../../utils/logger';
 import { useContactServices } from '../../hooks/crm/useContactServices';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -100,7 +101,7 @@ const ServicesView: React.FC<ServicesViewProps> = ({
       try {
         await onDeleteService(deleteConfirm.item);
       } catch (error) {
-        console.error('Failed to delete service:', error);
+        logger.error('Failed to delete service:', error);
         if (error instanceof ApiError && error.isInsufficientPermissions) {
           showError('Insufficient permission to perform the requested action.');
         } else {
@@ -131,7 +132,7 @@ const ServicesView: React.FC<ServicesViewProps> = ({
         await contactsAPI.unassignService(service.contact_id, service.id);
         refreshContactServices();
       } catch (error) {
-        console.error('Failed to remove contact service:', error);
+        logger.error('Failed to remove contact service:', error);
         if (error instanceof ApiError && error.isInsufficientPermissions) {
           showError('Insufficient permission to perform the requested action.');
         } else {

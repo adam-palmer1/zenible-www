@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Check, Loader2, Trash2 } from 'lucide-react';
 import taxesAPI from '../../../services/api/crm/taxes';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
+import logger from '../../../utils/logger';
 
 interface TaxItem {
   tax_name: string;
@@ -62,7 +63,7 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
       const data = await (taxesAPI as Record<string, Function>).list();
       setCompanyTaxes(data || []);
     } catch (err: any) {
-      console.error('Failed to fetch taxes:', err);
+      logger.error('Failed to fetch taxes:', err);
       setError('Failed to load taxes');
     } finally {
       setLoading(false);
@@ -115,7 +116,7 @@ const TaxSelectModal: React.FC<TaxSelectModalProps> = ({
       setNewTaxRate('');
       setShowAddForm(false);
     } catch (err: any) {
-      console.error('Failed to create tax:', err);
+      logger.error('Failed to create tax:', err);
       setError(err.message || 'Failed to create tax');
     } finally {
       setSaving(false);

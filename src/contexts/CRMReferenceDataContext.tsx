@@ -8,6 +8,7 @@ import employeeRangesAPI from '../services/api/crm/employeeRanges';
 import vendorTypesAPI from '../services/api/crm/vendorTypes';
 import numberFormatsAPI from '../services/api/crm/numberFormats';
 import appointmentEnumsAPI from '../services/api/crm/appointmentEnums';
+import logger from '../utils/logger';
 import { queryKeys } from '../lib/query-keys';
 
 export interface ReferenceCountry {
@@ -118,14 +119,14 @@ async function fetchAllReferenceData(calendarEnabled: boolean) {
     numberFormatsData,
     appointmentEnumsData
   ] = await Promise.all([
-    countriesAPI.list().catch((err: unknown) => { console.error('Failed to load countries:', err); failedSources.push('countries'); return []; }),
-    countriesAPI.getCompanyCountries().catch((err: unknown) => { console.error('Failed to load company countries:', err); failedSources.push('companyCountries'); return []; }),
-    industriesAPI.list().catch((err: unknown) => { console.error('Failed to load industries:', err); failedSources.push('industries'); return []; }),
-    employeeRangesAPI.list().catch((err: unknown) => { console.error('Failed to load employee ranges:', err); failedSources.push('employeeRanges'); return []; }),
-    vendorTypesAPI.list().catch((err: unknown) => { console.error('Failed to load vendor types:', err); failedSources.push('vendorTypes'); return []; }),
-    numberFormatsAPI.list().catch((err: unknown) => { console.error('Failed to load number formats:', err); failedSources.push('numberFormats'); return []; }),
+    countriesAPI.list().catch((err: unknown) => { logger.error('Failed to load countries:', err); failedSources.push('countries'); return []; }),
+    countriesAPI.getCompanyCountries().catch((err: unknown) => { logger.error('Failed to load company countries:', err); failedSources.push('companyCountries'); return []; }),
+    industriesAPI.list().catch((err: unknown) => { logger.error('Failed to load industries:', err); failedSources.push('industries'); return []; }),
+    employeeRangesAPI.list().catch((err: unknown) => { logger.error('Failed to load employee ranges:', err); failedSources.push('employeeRanges'); return []; }),
+    vendorTypesAPI.list().catch((err: unknown) => { logger.error('Failed to load vendor types:', err); failedSources.push('vendorTypes'); return []; }),
+    numberFormatsAPI.list().catch((err: unknown) => { logger.error('Failed to load number formats:', err); failedSources.push('numberFormats'); return []; }),
     calendarEnabled
-      ? appointmentEnumsAPI.getEnums().catch((err: unknown) => { console.error('Failed to load appointment enums:', err); failedSources.push('appointmentEnums'); return {}; })
+      ? appointmentEnumsAPI.getEnums().catch((err: unknown) => { logger.error('Failed to load appointment enums:', err); failedSources.push('appointmentEnums'); return {}; })
       : Promise.resolve({})
   ]);
 

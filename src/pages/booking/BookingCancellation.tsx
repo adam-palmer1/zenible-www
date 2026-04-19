@@ -135,6 +135,8 @@ const TIMEZONES: TimezoneEntry[] = [
   { value: 'Africa/Nairobi', label: 'Nairobi', region: 'Kenya' },
 ];
 import publicBookingAPI from '../../services/api/public/booking';
+import { safeHref } from '../../utils/urls';
+import logger from '../../utils/logger';
 import BookingCalendar from '../../components/booking/BookingCalendar';
 import TimeSlotPicker from '../../components/booking/TimeSlotPicker';
 
@@ -185,7 +187,7 @@ const BookingCancellation: React.FC = () => {
           setCancelled(true);
         }
       } catch (err: unknown) {
-        console.error('Error fetching booking:', err);
+        logger.error('Error fetching booking:', err);
         const apiErr = err as ApiErrorLike;
         if (apiErr.status === 404) {
           setError('Booking not found');
@@ -243,7 +245,7 @@ const BookingCancellation: React.FC = () => {
       await publicBookingAPI.cancelBooking(token!, reason.trim() || null);
       setCancelled(true);
     } catch (err: unknown) {
-      console.error('Error cancelling booking:', err);
+      logger.error('Error cancelling booking:', err);
       setError((err as Error).message || 'Failed to cancel booking');
     } finally {
       setCancelling(false);
@@ -272,7 +274,7 @@ const BookingCancellation: React.FC = () => {
 
       setAvailabilityData(newAvailability);
     } catch (err) {
-      console.error('Error fetching availability:', err);
+      logger.error('Error fetching availability:', err);
       setAvailabilityData({});
     } finally {
       setSlotsLoading(false);
@@ -385,7 +387,7 @@ const BookingCancellation: React.FC = () => {
       setRescheduleResult(result);
       setRescheduled(true);
     } catch (err: unknown) {
-      console.error('Error rescheduling booking:', err);
+      logger.error('Error rescheduling booking:', err);
       setError((err as Error).message || 'Failed to reschedule booking. The time slot may no longer be available.');
       setSelectedTime(null);
     } finally {
@@ -491,7 +493,7 @@ const BookingCancellation: React.FC = () => {
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                 <strong>Meeting Link:</strong>{' '}
                 <a
-                  href={rescheduleResult.meeting_link}
+                  href={safeHref(rescheduleResult.meeting_link)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-zenible-primary hover:underline"
@@ -899,7 +901,7 @@ const BookingCancellation: React.FC = () => {
               {booking.meeting_link && (
                 <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
                   <a
-                    href={booking.meeting_link}
+                    href={safeHref(booking.meeting_link)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-zenible-primary hover:underline text-sm"

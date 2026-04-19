@@ -4,6 +4,7 @@ import Modal from '../ui/modal/Modal';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { SERVICE_STATUS_LABELS, SERVICE_STATUS_COLORS, type ServiceStatus } from '../../constants/crm';
 import { useContacts } from '../../hooks/crm';
+import logger from '../../utils/logger';
 import type { ContactServiceAttributionResponse, ContactServiceInvoiceResponse } from '../../types/crm';
 import { useNotification } from '../../contexts/NotificationContext';
 import AttributionsList from './AttributionsList';
@@ -79,7 +80,7 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
       const data = await listAttributions(contactId, service.id) as ContactServiceAttributionResponse[];
       setAttributions(data || []);
     } catch (error) {
-      console.error('Failed to load attributions:', error);
+      logger.error('Failed to load attributions:', error);
     } finally {
       setLoadingAttributions(false);
     }
@@ -91,7 +92,7 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
       const data = await listInvoiceLinks(contactId, service.id) as ContactServiceInvoiceResponse[];
       setInvoiceLinks(data || []);
     } catch (error) {
-      console.error('Failed to load invoice links:', error);
+      logger.error('Failed to load invoice links:', error);
     } finally {
       setLoadingInvoiceLinks(false);
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { X, Mail, Eye, Plus, Users, Bell, AlertCircle } from 'lucide-react';
+import logger from '../../../utils/logger';
 import { useEffectiveTemplateQuery } from '../../../hooks/queries/useEmailTemplatesQuery';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useInvoices } from '../../../contexts/InvoiceContext';
@@ -111,7 +112,7 @@ const SendReminderDialog: React.FC<SendReminderDialogProps> = ({
           setSelectedContactIds([contact.id]);
         }
       } catch (error: any) {
-        console.error('Failed to fetch related contacts:', error);
+        logger.error('Failed to fetch related contacts:', error);
         // Fall back to just the primary contact
         if (contact.email) {
           setRelatedContacts([contact]);

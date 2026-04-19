@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDownIcon, XMarkIcon, MagnifyingGlassIcon, CheckIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useModalPortal } from '../../../contexts/ModalPortalContext';
+import logger from '../../../utils/logger';
 
 interface ComboboxOption {
   id: string;
@@ -203,7 +204,7 @@ const Combobox: React.FC<ComboboxProps> = ({
       setIsOpen(false);
     } catch (err) {
       // Error handling is done by parent
-      console.error('Failed to create item:', err);
+      logger.error('Failed to create item:', err);
     }
   }, [newItemName, onCreate, onChange]);
 

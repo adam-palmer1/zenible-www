@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import PlatformManagement from './PlatformManagement';
 import CharacterPlatformConfig from './CharacterPlatformConfig';
 import CharacterFilters from './CharacterFilters';
 import CharacterTable from './CharacterTable';
-import CharacterFormModal from './CharacterFormModal';
-import CategoryFormModal from './CategoryFormModal';
 import { LoadingSpinner } from '../shared';
+
+// Modals deferred — only load when the admin opens a create/edit dialog.
+const CharacterFormModal = lazy(() => import('./CharacterFormModal'));
+const CategoryFormModal = lazy(() => import('./CategoryFormModal'));
 import type {
   AICharacterResponse,
   AICharacterList,
@@ -101,7 +104,7 @@ export default function AICharacterManagement() {
       try {
         setVisibleColumns(JSON.parse(savedColumns));
       } catch (err: any) {
-        console.error('Error loading column preferences:', err);
+        logger.error('Error loading column preferences:', err);
       }
     }
   }, []);
@@ -154,7 +157,7 @@ export default function AICharacterManagement() {
       setAvailableModels(chatModels);
       setEmbeddingModels(embedModels);
     } catch (err: any) {
-      console.error('Failed to fetch OpenAI models:', err);
+      logger.error('Failed to fetch OpenAI models:', err);
       setAvailableModels([
         { value: 'gpt-4', label: 'GPT-4' },
         { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
@@ -192,13 +195,13 @@ export default function AICharacterManagement() {
           tools.push(transformedTool);
         });
       } else {
-        console.warn('Response is not an array:', response);
+        logger.warn('Response is not an array:', response);
       }
 
       setAvailableTools(tools);
       setToolDefinitions(definitions);
     } catch (err: any) {
-      console.error('Failed to fetch OpenAI tools:', err);
+      logger.error('Failed to fetch OpenAI tools:', err);
       const fallbackTools = [
         { value: 'calculate', label: 'Calculator', description: 'Mathematical calculations', enabled: true, category: 'general' }
       ];
@@ -219,7 +222,7 @@ export default function AICharacterManagement() {
         setShortcodes([]);
       }
     } catch (err: any) {
-      console.error('Failed to fetch shortcodes:', err);
+      logger.error('Failed to fetch shortcodes:', err);
       setShortcodes([]);
     } finally {
       setShortcodesLoading(false);
@@ -249,7 +252,7 @@ export default function AICharacterManagement() {
       }
     } catch (err: any) {
       setError(err.message);
-      console.error('Error fetching AI characters:', err);
+      logger.error('Error fetching AI characters:', err);
       setCharacters([]);
     } finally {
       setLoading(false);
@@ -271,7 +274,7 @@ export default function AICharacterManagement() {
         setCategories([]);
       }
     } catch (err: any) {
-      console.error('Error fetching categories:', err);
+      logger.error('Error fetching categories:', err);
       setCategories([]);
     }
   };
@@ -432,34 +435,40 @@ export default function AICharacterManagement() {
         )}
       </div>
 
-      {/* Character Form Modal */}
-      <CharacterFormModal
-        isOpen={showCharacterModal}
-        onClose={() => setShowCharacterModal(false)}
-        character={editingCharacter}
-        isCloning={isCloning}
-        categories={categories}
-        availableModels={availableModels}
-        embeddingModels={embeddingModels}
-        modelsLoading={modelsLoading}
-        availableTools={availableTools}
-        toolDefinitions={toolDefinitions}
-        shortcodes={shortcodes}
-        shortcodesLoading={shortcodesLoading}
-        backendProviders={backendProviders}
-        onSave={handleCharacterSaved}
-        darkMode={darkMode}
-      />
+      <Suspense fallback={null}>
+        {/* Character Form Modal */}
+        {showCharacterModal && (
+          <CharacterFormModal
+            isOpen={showCharacterModal}
+            onClose={() => setShowCharacterModal(false)}
+            character={editingCharacter}
+            isCloning={isCloning}
+            categories={categories}
+            availableModels={availableModels}
+            embeddingModels={embeddingModels}
+            modelsLoading={modelsLoading}
+            availableTools={availableTools}
+            toolDefinitions={toolDefinitions}
+            shortcodes={shortcodes}
+            shortcodesLoading={shortcodesLoading}
+            backendProviders={backendProviders}
+            onSave={handleCharacterSaved}
+            darkMode={darkMode}
+          />
+        )}
 
-      {/* Category Form Modal */}
-      <CategoryFormModal
-        isOpen={showCategoryModal}
-        onClose={() => setShowCategoryModal(false)}
-        category={editingCategory}
-        categories={categories}
-        onSave={handleCategorySaved}
-        darkMode={darkMode}
-      />
+        {/* Category Form Modal */}
+        {showCategoryModal && (
+          <CategoryFormModal
+            isOpen={showCategoryModal}
+            onClose={() => setShowCategoryModal(false)}
+            category={editingCategory}
+            categories={categories}
+            onSave={handleCategorySaved}
+            darkMode={darkMode}
+          />
+        )}
+      </Suspense>
 
       {/* Sync Confirmation Modal */}
       {showSyncModal && syncingCharacter && (

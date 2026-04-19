@@ -3,6 +3,7 @@ import { X, Loader2 } from 'lucide-react';
 import { formatCurrency } from '../../../../utils/currency';
 import invoicesAPI from '../../../../services/api/finance/invoices';
 import { useNotification } from '../../../../contexts/NotificationContext';
+import logger from '../../../../utils/logger';
 import type { InvoiceDetailData, InvoicePaymentAllocation } from './InvoiceDetailTypes';
 
 interface InvoiceDetailPaymentSummaryProps {
@@ -27,7 +28,7 @@ const InvoiceDetailPaymentSummary: React.FC<InvoiceDetailPaymentSummaryProps> = 
       showSuccess('Payment unlinked from invoice');
       onPaymentUnlinked?.();
     } catch (error: any) {
-      console.error('Error unlinking payment:', error);
+      logger.error('Error unlinking payment:', error);
       showError(error.message || 'Failed to unlink payment');
     } finally {
       setUnlinkingId(null);

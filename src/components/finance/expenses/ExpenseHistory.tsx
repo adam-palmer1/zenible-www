@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, User } from 'lucide-react';
 import expensesAPI from '../../../services/api/finance/expenses';
 import { useExpenses } from '../../../contexts/ExpenseContext';
+import logger from '../../../utils/logger';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { formatExpenseChange } from '../../../utils/expenseFieldFormatter';
 
@@ -27,7 +28,7 @@ const ExpenseHistory: React.FC<ExpenseHistoryProps> = ({ expenseId }) => {
       const data = await expensesAPI.getHistory(expenseId);
       setHistory(data);
     } catch (error) {
-      console.error('Error loading history:', error);
+      logger.error('Error loading history:', error);
       setError('Failed to load change history');
     } finally {
       setLoading(false);

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
 import planAPI from '../services/planAPI';
+import logger from '../utils/logger';
 import { favicon } from '../assets/logos';
 import companyUsersAPI from '../services/api/crm/companyUsers';
 import type { PlanDetailResponse, UserPermissionsResponse } from '../types';
@@ -42,7 +43,7 @@ export default function SettingsSidebar({ activeTab, setActiveTab }: SettingsSid
             setPlanName(`${planDetails.name} Plan`);
           }
         } catch (error) {
-          console.error('Failed to fetch plan details:', error);
+          logger.error('Failed to fetch plan details:', error);
         }
       }
     };

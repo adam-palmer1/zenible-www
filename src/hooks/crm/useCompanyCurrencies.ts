@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import currenciesAPI from '../../services/api/crm/currencies';
 import numberFormatsAPI from '../../services/api/crm/numberFormats';
 import { queryKeys } from '../../lib/query-keys';
+import logger from '../../utils/logger';
 
 export interface Currency {
   id: string;
@@ -79,7 +80,7 @@ export const useCompanyCurrencies = () => {
         return await currenciesAPI.getNumberFormat() as NumberFormatAttribute;
       } catch (err: unknown) {
         // Number format might not be set, which is okay
-        console.warn('Failed to fetch number format:', err);
+        logger.warn('Failed to fetch number format:', err);
         return null;
       }
     },
@@ -96,7 +97,7 @@ export const useCompanyCurrencies = () => {
       try {
         return await numberFormatsAPI.get(formatId!) as NumberFormatConfig;
       } catch (err: unknown) {
-        console.warn('Failed to fetch number format details:', err);
+        logger.warn('Failed to fetch number format details:', err);
         return null;
       }
     },

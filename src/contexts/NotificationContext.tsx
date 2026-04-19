@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { XMarkIcon, CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 
@@ -90,9 +90,9 @@ const Toast = ({ notification, onClose, onAction }: ToastProps) => {
   return (
     <div
       className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg ${colors[notification.type]} transition-all duration-300 max-w-md`}
-      role="alert"
+      role={notification.type === 'error' ? 'alert' : 'status'}
     >
-      <Icon className={`h-5 w-5 flex-shrink-0 ${iconColors[notification.type]}`} />
+      <Icon className={`h-5 w-5 flex-shrink-0 ${iconColors[notification.type]}`} aria-hidden="true" />
       <div className="flex-1 min-w-0">
         {notification.title && (
           <p className="font-semibold text-sm mb-1">{notification.title}</p>
@@ -247,21 +247,28 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     }
   }, [notifications]);
 
-  const value: NotificationContextValue = {
+  // Memoize the actions object so consumers aren't re-rendered on every provider render.
+  const value = useMemo<NotificationContextValue>(() => ({
     showSuccess,
     showError,
     showInfo,
     showWarning,
     showConfirm,
-    removeNotification
-  };
+    removeNotification,
+  }), [showSuccess, showError, showInfo, showWarning, showConfirm, removeNotification]);
 
   return (
     <NotificationContext.Provider value={value}>
       {children}
 
-      {/* Toast Container */}
-      <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
+      {/* Toast Container — aria-live so screen readers announce toasts as they appear. */}
+      <div
+        className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"
+        aria-live="polite"
+        aria-atomic="false"
+        role="region"
+        aria-label="Notifications"
+      >
         {notifications.map(notification => (
           <div key={notification.id} className="pointer-events-auto">
             <Toast

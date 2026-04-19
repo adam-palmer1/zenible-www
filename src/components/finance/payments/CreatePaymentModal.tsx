@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, CreditCard, Loader2, User, DollarSign, Calendar, FileText, ChevronDown, Check, Search } from 'lucide-react';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import logger from '../../../utils/logger';
 import { PAYMENT_METHOD, PAYMENT_METHOD_LABELS } from '../../../constants/finance';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
@@ -192,7 +193,7 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
           setNextNumber((data as { next_number?: string }).next_number || '');
         })
         .catch((err: unknown) => {
-          console.error('Error fetching next payment number:', err);
+          logger.error('Error fetching next payment number:', err);
         });
     }
   }, [isOpen]);
@@ -299,9 +300,9 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ isOpen, onClose
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Create payment">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
 
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-auto dark:bg-gray-800">

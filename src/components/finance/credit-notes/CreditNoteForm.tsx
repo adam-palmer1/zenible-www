@@ -6,6 +6,7 @@ import { useNotification } from '../../../contexts/NotificationContext';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
+import logger from '../../../utils/logger';
 import { CREDIT_NOTE_STATUS } from '../../../constants/finance';
 import { calculateInvoiceTotal } from '../../../utils/invoiceCalculations';
 import { useCompanyCurrencies } from '../../../hooks/crm/useCompanyCurrencies';
@@ -99,7 +100,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
           const data = await creditNotesAPI.get(id);
           setCreditNote(data);
         } catch (error: any) {
-          console.error('Failed to load credit note:', error);
+          logger.error('Failed to load credit note:', error);
           showError('Failed to load credit note');
           navigate('/finance/credit-notes');
         } finally {
@@ -116,7 +117,10 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
       if (prefill.contact_id) setContactId(prefill.contact_id);
       if (prefill.invoice_id) {
         setLinkedInvoiceId(prefill.invoice_id);
-        invoicesAPI.get(prefill.invoice_id).then((inv) => setLinkedInvoice(inv)).catch(() => {});
+        invoicesAPI.get(prefill.invoice_id).then((inv) => setLinkedInvoice(inv)).catch((err: unknown) => {
+          // Prefill is a convenience — if the invoice can't load we still let the user fill the form.
+          logger.debug('[CreditNoteForm] Prefill invoice fetch failed:', err);
+        });
       }
       if (prefill.currency_id) setCurrency(prefill.currency_id);
       if (prefill.reason) setReason(prefill.reason);
@@ -200,7 +204,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
             setCreditNoteNumber(data.next_number);
           }
         } catch (error: any) {
-          console.error('Failed to load next credit note number:', error);
+          logger.error('Failed to load next credit note number:', error);
         }
       }
     };
@@ -214,7 +218,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
           const invoice = await invoicesAPI.get(creditNote.invoice_id);
           setLinkedInvoice(invoice);
         } catch (error: any) {
-          console.error('Failed to load linked invoice:', error);
+          logger.error('Failed to load linked invoice:', error);
         }
       }
     };
@@ -337,7 +341,7 @@ const CreditNoteForm: React.FC<CreditNoteFormProps> = ({ creditNote: creditNoteP
         }
       }
     } catch (error: any) {
-      console.error('Error saving credit note:', error);
+      logger.error('Error saving credit note:', error);
       showError(error.message || 'Failed to save credit note');
     } finally {
       setSavingAction(null);

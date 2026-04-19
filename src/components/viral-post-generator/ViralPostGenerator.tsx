@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import AppLayout from '../layout/AppLayout';
+import logger from '../../utils/logger';
 import DraftPostSection from './DraftPostSection';
 import StrategyInputSection from './StrategyInputSection';
 import PlatformSelector from '../proposal-wizard/PlatformSelector';
@@ -168,7 +169,7 @@ export default function ViralPostGenerator() {
       // Optional: handle streaming chunks if needed
     },
     onError: (error: { error: string; validationErrors?: unknown[]; toolName?: string }) => {
-      console.error('[ViralPostGenerator] Analysis error:', error);
+      logger.error('[ViralPostGenerator] Analysis error:', error);
       setFeedback({
         isProcessing: false,
         error: error.error || 'An error occurred during analysis'
@@ -219,7 +220,7 @@ export default function ViralPostGenerator() {
     unsubscribers.push(
       onConversationEvent(conversationId, 'error', (...args: unknown[]) => {
         const data = args[0] as WebSocketErrorData;
-        console.error('[ViralPostGenerator] Follow-up error:', data);
+        logger.error('[ViralPostGenerator] Follow-up error:', data);
         setIsFollowUpStreaming(false);
         setFollowUpStreamingContent('');
       })
@@ -239,7 +240,7 @@ export default function ViralPostGenerator() {
         const isEnabled = features?.viral_post_generator?.enabled ?? true;
         setFeatureEnabled(isEnabled);
       } catch (error) {
-        console.error('Failed to load user features:', error);
+        logger.error('Failed to load user features:', error);
         setFeatureEnabled(true);
       }
     };
@@ -279,7 +280,7 @@ export default function ViralPostGenerator() {
           setSelectedCharacterDescription(defaultChar.description || '');
         }
       } catch (error) {
-        console.error('Failed to load AI characters:', error);
+        logger.error('Failed to load AI characters:', error);
 
         // Fallback: load all characters
         try {
@@ -294,7 +295,7 @@ export default function ViralPostGenerator() {
             setSelectedCharacterDescription(defaultChar.description || '');
           }
         } catch (fallbackError) {
-          console.error('Failed to load characters even in fallback:', fallbackError);
+          logger.error('Failed to load characters even in fallback:', fallbackError);
           setAvailableCharacters([]);
         }
       } finally {
@@ -323,13 +324,13 @@ export default function ViralPostGenerator() {
         );
 
         if (!hasPolishTool) {
-          console.warn('[ViralPostGenerator] Character does not have linkedin_post_from_draft tool');
+          logger.warn('[ViralPostGenerator] Character does not have linkedin_post_from_draft tool');
         }
         if (!hasStrategyTool) {
-          console.warn('[ViralPostGenerator] Character does not have linkedin_strategy_from_topic_goal_audience tool');
+          logger.warn('[ViralPostGenerator] Character does not have linkedin_strategy_from_topic_goal_audience tool');
         }
       } catch (error) {
-        console.error('[ViralPostGenerator] Failed to load character tools:', error);
+        logger.error('[ViralPostGenerator] Failed to load character tools:', error);
       }
     };
 

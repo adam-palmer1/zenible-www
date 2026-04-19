@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import adminAPI from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import Combobox from '../ui/combobox/Combobox';
 import {
   DndContext,
@@ -268,7 +269,7 @@ export default function OnboardingQuestions() {
       setAnswers(answersData.answers || []);
       setTotalAnswers(answersData.total || 0);
     } catch (err: any) {
-      console.error('Failed to load answers:', err);
+      logger.error('Failed to load answers:', err);
     }
   };
 
@@ -280,7 +281,7 @@ export default function OnboardingQuestions() {
       setQuestions(data.questions || []);
     } catch (err: any) {
       setError(err.message);
-      console.error('Failed to load questions:', err);
+      logger.error('Failed to load questions:', err);
     } finally {
       setLoading(false);
     }
@@ -296,7 +297,7 @@ export default function OnboardingQuestions() {
       setAnswersPage(1);
       await loadAnswers(1);
     } catch (err: any) {
-      console.error('Failed to load statistics:', err);
+      logger.error('Failed to load statistics:', err);
     } finally {
       setLoading(false);
     }
@@ -346,7 +347,7 @@ export default function OnboardingQuestions() {
       setActiveTab('questions');
     } catch (err: any) {
       setError(err.message);
-      console.error('Failed to save question:', err);
+      logger.error('Failed to save question:', err);
     } finally {
       setLoading(false);
     }
@@ -376,7 +377,7 @@ export default function OnboardingQuestions() {
         });
       } else {
         setError(err.message);
-        console.error('Failed to delete question:', err);
+        logger.error('Failed to delete question:', err);
       }
     } finally {
       setDeleteLoading(false);
@@ -434,7 +435,7 @@ export default function OnboardingQuestions() {
 
       await Promise.all(updatePromises);
     } catch (err: any) {
-      console.error('Failed to reorder questions:', err);
+      logger.error('Failed to reorder questions:', err);
       // Reload questions to get correct order
       loadQuestions();
     }

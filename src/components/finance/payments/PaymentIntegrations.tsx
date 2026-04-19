@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePaymentIntegrations } from '../../../contexts/PaymentIntegrationsContext';
 import paymentIntegrationsAPI from '../../../services/api/finance/paymentIntegrations';
+import logger from '../../../utils/logger';
 import { format } from 'date-fns';
 
 interface OAuthURLResponse {
@@ -51,7 +52,7 @@ const PaymentIntegrations: React.FC = () => {
       // Redirect to Stripe OAuth
       window.location.href = oauth_url;
     } catch (error) {
-      console.error('Failed to initiate Stripe OAuth:', error);
+      logger.error('Failed to initiate Stripe OAuth:', error);
       alert('Failed to connect Stripe. Please try again.');
     }
   };
@@ -71,7 +72,7 @@ const PaymentIntegrations: React.FC = () => {
       // Redirect to PayPal OAuth
       window.location.href = oauth_url;
     } catch (error) {
-      console.error('Failed to initiate PayPal OAuth:', error);
+      logger.error('Failed to initiate PayPal OAuth:', error);
       alert('Failed to connect PayPal. Please try again.');
     }
   };
@@ -88,7 +89,7 @@ const PaymentIntegrations: React.FC = () => {
       await disconnectIntegration(integrationId);
       alert(`${provider} disconnected successfully`);
     } catch (error) {
-      console.error(`Failed to disconnect ${provider}:`, error);
+      logger.error(`Failed to disconnect ${provider}:`, error);
       alert(`Failed to disconnect ${provider}. Please try again.`);
     }
   };
@@ -114,7 +115,7 @@ const PaymentIntegrations: React.FC = () => {
 
       await refresh();
     } catch (error) {
-      console.error(`Failed to sync ${provider} transactions:`, error);
+      logger.error(`Failed to sync ${provider} transactions:`, error);
       setSyncResult({
         provider,
         error: true,

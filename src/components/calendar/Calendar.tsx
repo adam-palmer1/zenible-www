@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import AppLayout from '../layout/AppLayout';
 import { useMobile } from '../../hooks/useMobile';
 import { useCalendar } from '../../hooks/useCalendar';
+import logger from '../../utils/logger';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import type { CalendarAppointmentResponse } from '../../types/crm';
 import AppointmentModal from './AppointmentModal';
@@ -61,27 +62,38 @@ export default function Calendar() {
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const viewContainerRef = useRef<HTMLDivElement>(null);
 
-  // Lock page scroll and constrain the calendar view to the viewport
-  useLayoutEffect(() => {
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
+  // Lock page scroll so only the calendar view scrolls internally.
+  useEffect(() => {
+    const { style: htmlStyle } = document.documentElement;
+    const { style: bodyStyle } = document.body;
+    const prevHtml = htmlStyle.overflow;
+    const prevBody = bodyStyle.overflow;
+    htmlStyle.overflow = 'hidden';
+    bodyStyle.overflow = 'hidden';
+    return () => {
+      htmlStyle.overflow = prevHtml;
+      bodyStyle.overflow = prevBody;
+    };
+  }, []);
 
+  // Size the calendar view to fill the remaining viewport height.
+  // useLayoutEffect avoids a flash on mount; ResizeObserver catches parent layout shifts
+  // that window resize alone misses (sidebar toggles, header size changes, etc.).
+  useLayoutEffect(() => {
+    const el = viewContainerRef.current;
+    if (!el) return;
     const updateHeight = () => {
-      const el = viewContainerRef.current;
-      if (!el) return;
       const rect = el.getBoundingClientRect();
       const bottomPadding = window.innerWidth >= 768 ? 16 : 8;
-      const height = window.innerHeight - rect.top - bottomPadding;
       const minHeight = window.innerWidth >= 768 ? 300 : 200;
-      el.style.height = `${Math.max(minHeight, height)}px`;
+      el.style.height = `${Math.max(minHeight, window.innerHeight - rect.top - bottomPadding)}px`;
     };
-
     updateHeight();
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(document.body);
     window.addEventListener('resize', updateHeight);
-
     return () => {
-      document.documentElement.style.overflow = '';
-      document.body.style.overflow = '';
+      ro.disconnect();
       window.removeEventListener('resize', updateHeight);
     };
   }, []);
@@ -102,22 +114,21 @@ export default function Calendar() {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [appointmentToDelete, setAppointmentToDelete] = useState<CalendarAppointmentResponse | null>(null);
 
-  // Auto-switch to day view on mobile (week view needs 800px+)
+  // Auto-switch to day view on mobile (week view needs 800px+).
+  // Functional setState avoids needing viewMode as a dependency.
   useEffect(() => {
-    if (isMobile && viewMode === 'weekly') {
-      setViewMode('daily');
-    }
-  }, [isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Track whether we've already handled the deep-link so we don't re-trigger
-  const deepLinkHandled = useRef(false);
+    if (!isMobile) return;
+    setViewMode((current) => (current === 'weekly' ? 'daily' : current));
+  }, [isMobile]);
 
   const {
     appointments,
+    miniCalendarAppointments,
     googleConnected,
     googleAccounts,
     primaryAccount,
     fetchAppointmentsForDateRange,
+    fetchAppointmentsForMiniCalendar,
     createAppointment,
     updateAppointment,
     deleteAppointment,
@@ -159,31 +170,35 @@ export default function Calendar() {
     return () => clearInterval(pollInterval);
   }, [currentDate, viewMode, fetchAppointmentsForDateRange]);
 
-  // Handle deep-link: /calendar?appointment={id}
+  // Handle deep-link: /calendar?appointment={id}.
+  // We depend on the id (not the full searchParams object) and self-clear it,
+  // so the early-return on a null id prevents re-triggering without a ref hack.
+  const deepLinkAppointmentId = searchParams.get('appointment');
   useEffect(() => {
-    const appointmentId = searchParams.get('appointment');
-    if (!appointmentId || deepLinkHandled.current) return;
-    deepLinkHandled.current = true;
-
+    if (!deepLinkAppointmentId) return;
+    let cancelled = false;
     (async () => {
-      const result = await getAppointment(appointmentId);
+      const result = await getAppointment(deepLinkAppointmentId);
+      if (cancelled) return;
       if (result.success && result.appointment) {
         const apt = result.appointment as CalendarAppointmentResponse;
-        // Switch to day view on the appointment's date
         setCurrentDate(parseISO(apt.start_datetime));
         setViewMode('daily');
-        // Scroll to the appointment's hour
         setScrollToHour(parseISO(apt.start_datetime).getHours());
-        // Open the appointment modal
         setSelectedAppointment(apt);
         setShowAppointmentModal(true);
       }
-      // Clear the query param
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('appointment');
-      setSearchParams(newParams, { replace: true });
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('appointment');
+          return next;
+        },
+        { replace: true },
+      );
     })();
-  }, [searchParams, setSearchParams, getAppointment]);
+    return () => { cancelled = true; };
+  }, [deepLinkAppointmentId, getAppointment, setSearchParams]);
 
   // Get date range based on view mode
   const getDateRange = () => {
@@ -249,8 +264,6 @@ export default function Calendar() {
 
     return false;
   }, [googleAccounts]);
-
-  const filteredAppointments = appointments;
 
   // Update view mode and save to preferences
   const handleViewModeChange = async (newViewMode: string) => {
@@ -333,7 +346,7 @@ export default function Calendar() {
 
   // Handle appointment click
   const handleAppointmentClick = (appointment: CalendarAppointmentResponse) => {
-    const isRecurring = isRecurringAppointment(filteredAppointments, appointment.id);
+    const isRecurring = isRecurringAppointment(appointments, appointment.id);
 
     if (isRecurring) {
       setScopeDialogAppointment(appointment);
@@ -376,7 +389,7 @@ export default function Calendar() {
 
   // Handle appointment delete
   const handleAppointmentDelete = async (appointment: CalendarAppointmentResponse) => {
-    const isRecurring = isRecurringAppointment(filteredAppointments, appointment.id);
+    const isRecurring = isRecurringAppointment(appointments, appointment.id);
 
     if (isRecurring) {
       setShowAppointmentModal(false);
@@ -475,14 +488,14 @@ export default function Calendar() {
       const queryParams: Record<string, string> = {};
 
       // For recurring appointments, default to editing just this occurrence
-      if (isRecurringAppointment(filteredAppointments, draggingAppointment.id)) {
+      if (isRecurringAppointment(appointments, draggingAppointment.id)) {
         updateData.edit_scope = 'this';
         queryParams.occurrence_date = draggingAppointment.start_datetime;
       }
 
       await updateAppointment(draggingAppointment.id, updateData, queryParams);
     } catch (error) {
-      console.error('Failed to update appointment:', error);
+      logger.error('Failed to update appointment:', error);
     }
 
     setDraggingAppointment(null);
@@ -547,7 +560,7 @@ export default function Calendar() {
             <div ref={viewContainerRef} className="flex-1 overflow-hidden relative min-h-0">
               {viewMode === 'weekly' && <CalendarWeekView
                 currentDate={currentDate}
-                appointments={filteredAppointments}
+                appointments={appointments}
                 timeSlots={timeSlots}
                 onAppointmentClick={handleAppointmentClick}
                 onNewAppointment={handleNewAppointment}
@@ -564,7 +577,7 @@ export default function Calendar() {
               />}
               {viewMode === 'monthly' && <CalendarMonthView
                 currentDate={currentDate}
-                appointments={filteredAppointments}
+                appointments={appointments}
                 onAppointmentClick={handleAppointmentClick}
                 onNewAppointment={handleNewAppointment}
                 getAppointmentColor={getAppointmentColor}
@@ -574,7 +587,7 @@ export default function Calendar() {
               />}
               {viewMode === 'daily' && <CalendarDayView
                 currentDate={currentDate}
-                appointments={filteredAppointments}
+                appointments={appointments}
                 timeSlots={timeSlots}
                 onAppointmentClick={handleAppointmentClick}
                 onNewAppointment={handleNewAppointment}
@@ -614,12 +627,13 @@ export default function Calendar() {
                 setCurrentDate(day);
                 setSelectedScheduleDate(day);
               }}
-              appointments={filteredAppointments}
+              appointments={miniCalendarAppointments}
+              onVisibleMonthChange={fetchAppointmentsForMiniCalendar}
             />
 
             {/* Upcoming Schedule */}
             <CalendarUpcomingSchedule
-              appointments={filteredAppointments}
+              appointments={appointments}
               onAppointmentClick={handleAppointmentClick}
               selectedDate={selectedScheduleDate}
               viewMode={viewMode}

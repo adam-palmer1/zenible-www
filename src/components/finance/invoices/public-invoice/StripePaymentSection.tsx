@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import invoicesAPI from '../../../../services/api/finance/invoices';
+import logger from '../../../../utils/logger';
 import StripeCardForm from './StripeCardForm';
 
 const invoicesAPITyped = invoicesAPI;
@@ -48,7 +49,7 @@ const StripePaymentSection: React.FC<StripePaymentSectionProps> = ({ shareCode, 
           : undefined;
         setStripePromise(loadStripe(paymentData.publishable_key, stripeOptions));
       } catch (err: any) {
-        console.error('[StripePayment] Init error:', err);
+        logger.error('[StripePayment] Init error:', err);
         setError(err.message || 'Failed to initialize payment');
       } finally {
         setLoading(false);

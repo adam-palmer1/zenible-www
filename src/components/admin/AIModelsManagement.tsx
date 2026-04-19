@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import { request as apiRequest } from '../../services/api/httpClient';
 import Combobox from '../ui/combobox/Combobox';
 import OpenAIModelSyncModal from './OpenAIModelSyncModal';
@@ -104,7 +105,7 @@ export default function AIModelsManagement() {
       }
     } catch (err: any) {
       setError(err.message);
-      console.error('Failed to fetch models:', err);
+      logger.error('Failed to fetch models:', err);
     } finally {
       setLoading(false);
     }

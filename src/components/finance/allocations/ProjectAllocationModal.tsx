@@ -19,6 +19,7 @@ import invoicesAPI from '../../../services/api/finance/invoices';
 import quotesAPI from '../../../services/api/finance/quotes';
 import paymentsAPI from '../../../services/api/finance/payments';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
+import logger from '../../../utils/logger';
 
 /**
  * Color palette for project allocations
@@ -255,7 +256,7 @@ const ProjectAllocationModal: React.FC<ProjectAllocationModalProps> = ({
         );
       }
     } catch (error) {
-      console.error('Failed to load allocations:', error);
+      logger.error('Failed to load allocations:', error);
       // Start with empty allocations if fetch fails
       setAllocations([]);
     } finally {
@@ -363,7 +364,7 @@ const ProjectAllocationModal: React.FC<ProjectAllocationModalProps> = ({
       onUpdate?.();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Failed to save allocations:', error);
+      logger.error('Failed to save allocations:', error);
       showError(error.message || 'Failed to save project allocations');
     } finally {
       setSaving(false);

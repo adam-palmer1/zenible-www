@@ -5,6 +5,7 @@ import { Search, Filter, MoreVertical, Repeat, ArrowUpDown, ArrowUp, ArrowDown, 
 import { useExpenses } from '../../../contexts/ExpenseContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { useNotification } from '../../../contexts/NotificationContext';
+import logger from '../../../utils/logger';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
 import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { formatCurrency } from '../../../utils/currency';
@@ -472,7 +473,7 @@ const ExpenseList: React.FC = () => {
       URL.revokeObjectURL(url);
       showSuccess('Expenses exported successfully');
     } catch (error: any) {
-      console.error('Export error:', error);
+      logger.error('Export error:', error);
       showError(error.message || 'Failed to export expenses');
     } finally {
       setExporting(false);

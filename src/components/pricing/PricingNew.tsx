@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import planAPI from '../../services/planAPI';
+import logger from '../../utils/logger';
 import StripePaymentModal from '../StripePaymentModal';
 import SubscriptionSuccessModal from '../SubscriptionSuccessModal';
 import PlanChangeConfirmModal from '../user-settings/PlanChangeConfirmModal';
@@ -119,12 +120,12 @@ export default function PricingNew() {
           const subscription = await planAPI.getCurrentSubscription();
           setCurrentSubscription(subscription);
         } catch (err) {
-          console.error('Failed to fetch subscription:', err);
+          logger.error('Failed to fetch subscription:', err);
         }
       }
     } catch (err) {
       setError('Failed to load pricing plans. Please try again later.');
-      console.error('Failed to fetch plans:', err);
+      logger.error('Failed to fetch plans:', err);
     } finally {
       setLoading(false);
     }

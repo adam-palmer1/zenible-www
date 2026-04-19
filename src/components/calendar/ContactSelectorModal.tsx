@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MagnifyingGlassIcon, CheckIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import contactsAPI from '../../services/api/crm/contacts';
+import logger from '../../utils/logger';
 
 interface ContactSelectorModalProps {
   isOpen: boolean;
@@ -79,7 +80,7 @@ const ContactSelectorModal: React.FC<ContactSelectorModalProps> = ({ isOpen, onC
       setContacts(response.items || []);
       setTotalPages(response.total_pages || 1);
     } catch (error) {
-      console.error('Failed to fetch contacts:', error);
+      logger.error('Failed to fetch contacts:', error);
     } finally {
       setLoading(false);
     }
@@ -134,7 +135,7 @@ const ContactSelectorModal: React.FC<ContactSelectorModalProps> = ({ isOpen, onC
       setShowAddForm(false);
       onClose();
     } catch (error: any) {
-      console.error('Failed to create contact:', error);
+      logger.error('Failed to create contact:', error);
       setCreateError(error.message || 'Failed to create contact');
     } finally {
       setCreating(false);

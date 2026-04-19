@@ -17,6 +17,7 @@ import { formatCurrency } from '../../../utils/currency';
 import invoicesAPI from '../../../services/api/finance/invoices';
 import quotesAPI from '../../../services/api/finance/quotes';
 import paymentsAPI from '../../../services/api/finance/payments';
+import logger from '../../../utils/logger';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
 import projectsAPI from '../../../services/api/crm/projects';
 
@@ -169,7 +170,7 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
       setAllItems(items);
       return items;
     } catch (error) {
-      console.error('Failed to search items:', error);
+      logger.error('Failed to search items:', error);
       return [];
     } finally {
       setItemsLoading(false);
@@ -220,12 +221,12 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
             });
           }
         } catch (err) {
-          console.debug(`Could not fetch allocations for ${entityType} ${item.id}:`, err);
+          logger.debug(`Could not fetch allocations for ${entityType} ${item.id}:`, err);
         }
       }
       setAssignedItems(assignments);
     } catch (error) {
-      console.error('Failed to load data:', error);
+      logger.error('Failed to load data:', error);
       showError(`Failed to load ${config.pluralLabel.toLowerCase()}`);
     } finally {
       setLoading(false);
@@ -240,7 +241,7 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
       const allocResult = await config.api[config.getAllocationsMethod](item.id);
       existingAllocations = allocResult.allocations || [];
     } catch (err) {
-      console.debug('Could not fetch allocations:', err);
+      logger.debug('Could not fetch allocations:', err);
     }
 
     setAssignedItems([
@@ -309,7 +310,7 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
         onOpenChange(false);
       }
     } catch (error: any) {
-      console.error('Failed to save allocations:', error);
+      logger.error('Failed to save allocations:', error);
       showError(error.message || `Failed to save ${config.label.toLowerCase()} allocations`);
     } finally {
       setSaving(false);
@@ -337,7 +338,7 @@ const AssignFinanceItemModal: React.FC<AssignFinanceItemModalProps> = ({
       await Promise.all(promises);
       showSuccess('Service links created');
     } catch (err: any) {
-      console.error('Failed to create service links:', err);
+      logger.error('Failed to create service links:', err);
       showError(err.message || 'Failed to link invoices to services');
     } finally {
       setSavingServiceLinks(false);

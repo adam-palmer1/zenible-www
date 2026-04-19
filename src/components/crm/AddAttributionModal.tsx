@@ -3,6 +3,7 @@ import Modal from '../ui/modal/Modal';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { useContacts } from '../../hooks/crm';
 import { useNotification } from '../../contexts/NotificationContext';
+import logger from '../../utils/logger';
 import type { ContactResponse, PaginatedResponse } from '../../types';
 
 interface AddAttributionModalProps {
@@ -58,7 +59,7 @@ const AddAttributionModal: React.FC<AddAttributionModalProps> = ({
         const response = await fetchContacts({ search: searchQuery, per_page: 10 }) as PaginatedResponse<ContactResponse> | undefined;
         setSearchResults(response?.items || []);
       } catch (error) {
-        console.error('Failed to search contacts:', error);
+        logger.error('Failed to search contacts:', error);
       } finally {
         setSearching(false);
       }

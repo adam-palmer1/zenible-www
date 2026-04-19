@@ -4,6 +4,7 @@ import { useUsageDashboardOptional } from './UsageDashboardContext';
 import expensesAPI from '../services/api/finance/expenses';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
 import { formatLocalDate } from '../utils/dateUtils';
+import logger from '../utils/logger';
 import { queryKeys } from '../lib/query-keys';
 
 interface ExpenseFilters {
@@ -221,7 +222,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
       setCategories(categoriesArray);
       setCategoriesLoaded(true);
     } catch (err) {
-      console.error('[ExpenseContext] Error fetching categories:', err);
+      logger.error('[ExpenseContext] Error fetching categories:', err);
     }
   }, [user]);
 
@@ -241,7 +242,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
       doc.setItems(prev => prev.filter((e) => !expenseIds.includes((e as Expense).id)));
       doc.refresh();
     } catch (err) {
-      console.error('[ExpenseContext] Error bulk deleting expenses:', err);
+      logger.error('[ExpenseContext] Error bulk deleting expenses:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -254,7 +255,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
       setCategories(prev => [...prev, created]);
       return created;
     } catch (err) {
-      console.error('[ExpenseContext] Error creating category:', err);
+      logger.error('[ExpenseContext] Error creating category:', err);
       throw err;
     }
   }, []);
@@ -265,7 +266,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
       setCategories(prev => prev.map((c) => c.id === categoryId ? (updated as ExpenseCategory) : c));
       return updated;
     } catch (err) {
-      console.error('[ExpenseContext] Error updating category:', err);
+      logger.error('[ExpenseContext] Error updating category:', err);
       throw err;
     }
   }, []);
@@ -275,7 +276,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
       await expensesAPI.deleteCategory(categoryId);
       setCategories(prev => prev.filter((c) => c.id !== categoryId));
     } catch (err) {
-      console.error('[ExpenseContext] Error deleting category:', err);
+      logger.error('[ExpenseContext] Error deleting category:', err);
       throw err;
     }
   }, []);
@@ -288,7 +289,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
       ));
       return result;
     } catch (err) {
-      console.error('[ExpenseContext] Error uploading attachment:', err);
+      logger.error('[ExpenseContext] Error uploading attachment:', err);
       throw err;
     }
   }, [doc.setItems]);
@@ -301,7 +302,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
       doc.refresh();
       return newExpense;
     } catch (err) {
-      console.error('[ExpenseContext] Error generating next expense:', err);
+      logger.error('[ExpenseContext] Error generating next expense:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -312,7 +313,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
     try {
       return await expensesAPI.getRecurringChildren(expenseId, params as Record<string, string>);
     } catch (err) {
-      console.error('[ExpenseContext] Error fetching recurring children:', err);
+      logger.error('[ExpenseContext] Error fetching recurring children:', err);
       throw err;
     }
   }, []);
@@ -350,7 +351,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
       await doc.fetchItems();
       clearSelection();
     } catch (err) {
-      console.error('[ExpenseContext] Error bulk updating expenses:', err);
+      logger.error('[ExpenseContext] Error bulk updating expenses:', err);
       throw err;
     } finally {
       setBulkActionLoading(false);

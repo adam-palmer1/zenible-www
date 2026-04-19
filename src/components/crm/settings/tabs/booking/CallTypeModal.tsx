@@ -3,6 +3,7 @@ import { XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
 import callTypesAPI from '../../../../../services/api/crm/callTypes';
 import { useNotification } from '../../../../../contexts/NotificationContext';
+import logger from '../../../../../utils/logger';
 
 const DURATION_OPTIONS = [
   { value: 15, label: '15 minutes' },
@@ -185,7 +186,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
       onSave(saved);
     } catch (error) {
       showError((error as Error).message || 'Failed to save call type');
-      console.error('Failed to save:', error);
+      logger.error('Failed to save:', error);
     } finally {
       setSaving(false);
     }

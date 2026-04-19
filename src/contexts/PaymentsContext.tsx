@@ -6,6 +6,7 @@ import { useUsageDashboardOptional } from './UsageDashboardContext';
 import paymentsAPI from '../services/api/finance/payments';
 import { formatLocalDate } from '../utils/dateUtils';
 import { queryKeys } from '../lib/query-keys';
+import logger from '../utils/logger';
 
 interface PaymentFilters {
   status: string | null;
@@ -167,7 +168,12 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     queryKey: [...queryKeys.payments.all, 'list', { apiParams }],
     queryFn: async () => {
       const response = await paymentsAPI.list(apiParams as Record<string, string>) as PaymentListApiResponse;
-      const items = response.items || [];
+      if (!Array.isArray(response.items)) {
+        // Backend contract violation: response must include an items array.
+        // Don't silently show "no payments" — surface it to monitoring.
+        logger.error('[PaymentsContext] Payment list response missing `items` array. Got:', response);
+      }
+      const items = Array.isArray(response.items) ? response.items : [];
       return { items, total: response.total ?? 0, total_pages: response.total_pages, stats: response.stats };
     },
     enabled: !!user && preferencesLoaded && financeEnabled,

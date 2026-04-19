@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import ConversationHistory from '../shared/ai-feedback/ConversationHistory';
 import ChatInput from '../shared/ai-feedback/ChatInput';
+import logger from '../../utils/logger';
 import DeleteMessageModal from '../shared/ai-feedback/DeleteMessageModal';
 import MeetingPickerModal from './MeetingPickerModal';
 import type { FollowUpMessage, MessageAttachment, LinkedMeeting } from '../shared/ai-feedback/types';
@@ -121,7 +122,7 @@ export default function ChatPanel({
         newRating as 'good' | 'bad' | null
       );
     } catch (err) {
-      console.error('[Boardroom] Failed to rate message:', err);
+      logger.error('[Boardroom] Failed to rate message:', err);
     }
   }, [conversationId, messageRatings]);
 

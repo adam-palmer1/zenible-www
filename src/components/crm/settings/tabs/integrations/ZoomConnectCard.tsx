@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import zoomAPI from '../../../../../services/api/crm/zoom';
+import logger from '../../../../../utils/logger';
 
 interface ZoomConnectUrlResponse {
   authorization_url: string;
@@ -38,7 +39,7 @@ const ZoomConnectCard = ({ onStatusChange }: { onStatusChange?: (gateway: string
       setStatus(data);
       return data;
     } catch (err: any) {
-      console.error('[ZoomConnect] Error loading status:', err);
+      logger.error('[ZoomConnect] Error loading status:', err);
       if (err.status !== 404) {
         setError(err.message);
       }
@@ -74,7 +75,7 @@ const ZoomConnectCard = ({ onStatusChange }: { onStatusChange?: (gateway: string
       // Redirect to Zoom OAuth
       window.location.href = authorization_url;
     } catch (err: any) {
-      console.error('[ZoomConnect] Error connecting:', err);
+      logger.error('[ZoomConnect] Error connecting:', err);
       setError(err.message || 'Failed to start Zoom connection');
       setConnecting(false);
     }

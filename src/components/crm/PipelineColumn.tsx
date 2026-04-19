@@ -3,6 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { PlusIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import logger from '../../utils/logger';
 import PipelineContactCard from './PipelineContactCard';
 import ServiceValueDisplay from './ServiceValueDisplay';
 import statusesAPI from '../../services/api/crm/statuses';
@@ -174,7 +175,7 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
         onStatusUpdate();
       }
     } catch (error: any) {
-      console.error('Failed to save column name:', error);
+      logger.error('Failed to save column name:', error);
       showError(error.message || 'Failed to rename column. Please try again.');
       handleCancelEdit();
     }

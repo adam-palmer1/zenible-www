@@ -3,6 +3,7 @@ import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../../../contexts/AuthContext';
 import bookingSettingsAPI from '../../../../services/api/crm/bookingSettings';
 import { useNotification } from '../../../../contexts/NotificationContext';
+import logger from '../../../../utils/logger';
 import BookingGeneralSettings from './booking/BookingGeneralSettings';
 import AvailabilityEditor from './booking/AvailabilityEditor';
 import CallTypesList from './booking/CallTypesList';
@@ -33,7 +34,7 @@ const BookingTab: React.FC<BookingTabProps> = ({ onUnsavedChanges }) => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      logger.error('Failed to copy:', err);
     }
   };
 
@@ -45,7 +46,7 @@ const BookingTab: React.FC<BookingTabProps> = ({ onUnsavedChanges }) => {
         setSettings(data);
       } catch (error) {
         showError('Failed to load booking settings');
-        console.error('Failed to load booking settings:', error);
+        logger.error('Failed to load booking settings:', error);
       } finally {
         setLoading(false);
       }

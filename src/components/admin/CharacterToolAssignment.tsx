@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import { LoadingSpinner } from '../shared';
 import Combobox from '../ui/combobox/Combobox';
 
@@ -67,7 +68,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
       setTools(Array.isArray(toolsRes) ? toolsRes as ToolRecord[] : []);
       setAssignments(Array.isArray(assignmentsRes) ? assignmentsRes as ToolAssignment[] : []);
     } catch (err) {
-      console.error('Error loading data:', err);
+      logger.error('Error loading data:', err);
       onError && onError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
@@ -121,7 +122,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
       setOriginalToolId(null);
       await loadData();
     } catch (err) {
-      console.error('Error saving assignment:', err);
+      logger.error('Error saving assignment:', err);
       onError && onError(err instanceof Error ? err.message : 'Failed to save assignment');
     }
   };
@@ -138,7 +139,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
       await adminAPI.removeToolFromCharacter(assignment.id);
       await loadData();
     } catch (err) {
-      console.error('Error deleting assignment:', err);
+      logger.error('Error deleting assignment:', err);
       onError && onError(err instanceof Error ? err.message : 'Failed to remove assignment');
     }
   };
@@ -150,7 +151,7 @@ export default function CharacterToolAssignment({ onError }: CharacterToolAssign
       });
       await loadData();
     } catch (err) {
-      console.error('Error toggling assignment:', err);
+      logger.error('Error toggling assignment:', err);
       onError && onError(err instanceof Error ? err.message : 'Failed to update assignment');
     }
   };

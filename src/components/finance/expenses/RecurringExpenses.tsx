@@ -13,6 +13,7 @@ import { useCompanyAttributes } from '../../../hooks/crm/useCompanyAttributes';
 import { formatCurrency } from '../../../utils/currency';
 import { calculateNextBillingDate } from '../../../utils/recurringBilling';
 import expensesAPI from '../../../services/api/finance/expenses';
+import logger from '../../../utils/logger';
 import AppLayout from '../../layout/AppLayout';
 import Modal from '../../ui/modal/Modal';
 import ActionMenu from '../../shared/ActionMenu';
@@ -173,7 +174,7 @@ const GeneratedExpensesModal: React.FC<GeneratedExpensesModalProps> = ({ open, o
       const response = await expensesAPI.getRecurringChildren(templateId!);
       setChildren(response?.items || []);
     } catch (error: any) {
-      console.error('Failed to load generated expenses:', error);
+      logger.error('Failed to load generated expenses:', error);
     } finally {
       setLoading(false);
     }
@@ -299,7 +300,7 @@ const RecurringExpenses: React.FC = () => {
       const response = await expensesAPI.list(params);
       setAllExpenses(response?.items || []);
     } catch (error: any) {
-      console.error('Failed to load recurring expenses:', error);
+      logger.error('Failed to load recurring expenses:', error);
       showError('Failed to load recurring expenses');
     } finally {
       setLoading(false);
@@ -366,7 +367,7 @@ const RecurringExpenses: React.FC = () => {
       // Reload list
       loadExpenses();
     } catch (error: any) {
-      console.error(`Action ${action} failed:`, error);
+      logger.error(`Action ${action} failed:`, error);
       showError(error.message || `Failed to ${action} recurring expense`);
     } finally {
       setActionLoading(null);

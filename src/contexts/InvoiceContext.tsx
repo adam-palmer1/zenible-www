@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import invoicesAPI from '../services/api/finance/invoices';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
 import { formatLocalDate } from '../utils/dateUtils';
+import logger from '../utils/logger';
 import { queryKeys } from '../lib/query-keys';
 
 interface InvoiceFilters {
@@ -140,7 +141,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
       doc.refresh();
       return created;
     } catch (err) {
-      console.error('[InvoiceContext] Error creating invoice:', err);
+      logger.error('[InvoiceContext] Error creating invoice:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -158,7 +159,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
       // Trigger refresh to update stats from backend
       doc.refresh();
     } catch (err) {
-      console.error('[InvoiceContext] Error deleting invoice:', err);
+      logger.error('[InvoiceContext] Error deleting invoice:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -183,7 +184,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
       doc.refresh();
       return updated;
     } catch (err) {
-      console.error('[InvoiceContext] Error updating invoice:', err);
+      logger.error('[InvoiceContext] Error updating invoice:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -204,7 +205,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
       doc.refresh();
       return result;
     } catch (err) {
-      console.error('[InvoiceContext] Error sending invoice:', err);
+      logger.error('[InvoiceContext] Error sending invoice:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -225,7 +226,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
       }));
       return result;
     } catch (err) {
-      console.error('[InvoiceContext] Error sending invoice reminder:', err);
+      logger.error('[InvoiceContext] Error sending invoice reminder:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -243,7 +244,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
       doc.refresh();
       return result;
     } catch (err) {
-      console.error('[InvoiceContext] Error marking invoice as paid:', err);
+      logger.error('[InvoiceContext] Error marking invoice as paid:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -258,7 +259,7 @@ export const InvoiceProvider = ({ children }: { children: ReactNode }) => {
       doc.refresh();
       return cloned;
     } catch (err) {
-      console.error('[InvoiceContext] Error cloning invoice:', err);
+      logger.error('[InvoiceContext] Error cloning invoice:', err);
       throw err;
     } finally {
       doc.setLoading(false);

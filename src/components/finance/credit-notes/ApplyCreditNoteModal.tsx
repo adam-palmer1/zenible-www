@@ -5,6 +5,7 @@ import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { formatCurrency } from '../../../utils/currency';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
 import invoicesAPI from '../../../services/api/finance/invoices';
+import logger from '../../../utils/logger';
 
 interface ApplyCreditNoteModalProps {
   isOpen: boolean;
@@ -65,7 +66,7 @@ const ApplyCreditNoteModal: React.FC<ApplyCreditNoteModalProps> = ({ isOpen, onC
 
       setInvoices(eligible);
     } catch (err: any) {
-      console.error('Failed to fetch invoices:', err);
+      logger.error('Failed to fetch invoices:', err);
       showError('Failed to load invoices');
     } finally {
       setLoading(false);

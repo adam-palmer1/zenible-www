@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { useInvoices } from '../../../contexts/InvoiceContext';
+import logger from '../../../utils/logger';
 import InvoiceList from './InvoiceList';
 import InvoiceFormModal from './InvoiceFormModal';
 import AppLayout from '../../layout/AppLayout';
@@ -40,7 +41,7 @@ const InvoiceDashboard: React.FC = () => {
           setSelectedInvoice(invoice);
           setShowFormModal(true);
         } catch (error) {
-          console.error('Failed to load invoice for editing:', error);
+          logger.error('Failed to load invoice for editing:', error);
           navigate('/finance/invoices');
         }
       }

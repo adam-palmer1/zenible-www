@@ -4,6 +4,8 @@
  */
 
 import { API_BASE_URL } from '@/config/api';
+import logger from '@/utils/logger';
+import { ApiError } from '../ApiError';
 import { createCRUDService } from '../createCRUDService';
 
 const baseCRUD = createCRUDService('/crm/credit-notes/', 'CreditNotesAPI', {
@@ -87,8 +89,19 @@ const creditNotesAPI = {
     });
 
     if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      throw new Error(data?.detail || 'Failed to download PDF');
+      let data: { detail?: string } | null = null;
+      let parseError: unknown = null;
+      try {
+        data = await response.json();
+      } catch (err) {
+        parseError = err;
+      }
+      if (parseError) {
+        logger.error(`[CreditNotesAPI] PDF error response was not JSON (status ${response.status}):`, parseError);
+      }
+      const message = data?.detail ||
+        (parseError ? `Failed to download PDF (HTTP ${response.status}, unparseable body)` : `Failed to download PDF (HTTP ${response.status})`);
+      throw new ApiError(message, response.status, response.statusText, data);
     }
 
     const blob = await response.blob();

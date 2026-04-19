@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import AppLayout from '../layout/AppLayout';
+import logger from '../../utils/logger';
 import PlatformSelector from '../proposal-wizard/PlatformSelector';
 import HeadlineInput from './HeadlineInput';
 import AIFeedbackSection from '../shared/AIFeedbackSection';
@@ -153,7 +154,7 @@ export default function HeadlineAnalyzer() {
       // Optional: handle streaming chunks if needed
     },
     onError: (error: { error: string; validationErrors?: unknown[]; toolName?: string }) => {
-      console.error('[HeadlineAnalyzer] Analysis error:', error);
+      logger.error('[HeadlineAnalyzer] Analysis error:', error);
       setFeedback({
         isProcessing: false,
         error: error.error || 'An error occurred during analysis'
@@ -204,7 +205,7 @@ export default function HeadlineAnalyzer() {
     unsubscribers.push(
       onConversationEvent(conversationId, 'error', (...args: unknown[]) => {
         const data = args[0];
-        console.error('[HeadlineAnalyzer] Follow-up error:', data);
+        logger.error('[HeadlineAnalyzer] Follow-up error:', data);
         setIsFollowUpStreaming(false);
         setFollowUpStreamingContent('');
       })
@@ -224,7 +225,7 @@ export default function HeadlineAnalyzer() {
         const isEnabled = features?.headline_analyzer?.enabled ?? true;
         setFeatureEnabled(isEnabled);
       } catch (error) {
-        console.error('Failed to load user features:', error);
+        logger.error('Failed to load user features:', error);
         setFeatureEnabled(true);
       }
     };
@@ -265,7 +266,7 @@ export default function HeadlineAnalyzer() {
           setSelectedCharacterDescription(defaultChar.description || '');
         }
       } catch (error) {
-        console.error('Failed to load AI characters:', error);
+        logger.error('Failed to load AI characters:', error);
 
         // Fallback: if features endpoint fails, just load all characters
         try {
@@ -280,7 +281,7 @@ export default function HeadlineAnalyzer() {
             setSelectedCharacterDescription(defaultChar.description || '');
           }
         } catch (fallbackError) {
-          console.error('Failed to load characters even in fallback:', fallbackError);
+          logger.error('Failed to load characters even in fallback:', fallbackError);
           setAvailableCharacters([]);
         }
       } finally {
@@ -309,13 +310,13 @@ export default function HeadlineAnalyzer() {
         );
 
         if (!hasAnalyzeTool) {
-          console.warn('[HeadlineAnalyzer] Character does not have analyze_headline tool');
+          logger.warn('[HeadlineAnalyzer] Character does not have analyze_headline tool');
         }
         if (!hasGenerateTool) {
-          console.warn('[HeadlineAnalyzer] Character does not have generate_headline tool');
+          logger.warn('[HeadlineAnalyzer] Character does not have generate_headline tool');
         }
       } catch (error) {
-        console.error('[HeadlineAnalyzer] Failed to load character tools:', error);
+        logger.error('[HeadlineAnalyzer] Failed to load character tools:', error);
       }
     };
 
@@ -442,7 +443,7 @@ export default function HeadlineAnalyzer() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Error exporting conversation:', error);
+      logger.error('Error exporting conversation:', error);
     }
   };
 

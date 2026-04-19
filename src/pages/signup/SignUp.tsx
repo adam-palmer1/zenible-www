@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import logger from '../../utils/logger';
 
 // Import assets from signin (reuse)
 import { zenibleDark } from '../../assets/logos';
@@ -171,7 +172,7 @@ export default function SignUp() {
         setApiError(result.error || 'Sign up failed. Please try again.');
       }
     } catch (error) {
-      console.error('Signup error:', error);
+      logger.error('Signup error:', error);
       setApiError('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);

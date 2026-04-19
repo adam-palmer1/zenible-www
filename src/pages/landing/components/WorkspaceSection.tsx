@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { workspaceCopy } from '../data/copy';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
+import LazyImage from './LazyImage';
 
 const tabIcons: Record<string, React.ReactNode> = {
   crm: (
@@ -95,11 +96,10 @@ export default function WorkspaceSection() {
 
             {/* Screenshot */}
             <div className="mt-8 rounded-xl overflow-hidden border border-gray-100 shadow-sm">
-              <img
+              <LazyImage
                 src={tabImages[activeTab]}
                 alt={`${activeTabData.label} screenshot`}
                 className="w-full h-auto"
-                loading="lazy"
               />
             </div>
           </div>

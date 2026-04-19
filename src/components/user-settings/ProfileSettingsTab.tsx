@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { userAPI } from '../../utils/auth';
+import logger from '../../utils/logger';
 import TwoFactorSection from './TwoFactorSection';
 
 interface ProfileSettingsTabProps {
@@ -70,7 +71,7 @@ export default function ProfileSettingsTab({
       setUsername(data.username || '');
       setNewUsername(data.username || '');
     } catch (error) {
-      console.error('Failed to load username:', error);
+      logger.error('Failed to load username:', error);
     }
   };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../ui/modal/Modal';
 import ServiceForm from './forms/ServiceForm';
+import logger from '../../utils/logger';
 import { useCRM } from '../../contexts/CRMContext';
 import { useServices, useCompanyCurrencies } from '../../hooks/crm';
 
@@ -45,7 +46,7 @@ const AddServiceModal: React.FC<AddServiceModalProps> = ({ isOpen, onClose, serv
       refresh();
       onClose();
     } catch (error: any) {
-      console.error('Failed to save service:', error);
+      logger.error('Failed to save service:', error);
       setSubmitError(error.message);
     } finally {
       setLoading(false);

@@ -50,8 +50,11 @@ const GoogleCalendarCallback: React.FC = () => {
         return;
       }
 
-      // CSRF Protection: Validate state token
+      // CSRF Protection: Validate state token.
+      // Consume the saved state immediately — it must be single-use regardless
+      // of what happens next, so bfcache/back-button replays can't re-match it.
       const savedState = sessionStorage.getItem('google_calendar_oauth_state');
+      sessionStorage.removeItem('google_calendar_oauth_state');
       if (state !== savedState) {
         setStatus('error');
         setMessage('Invalid state token. Possible CSRF attack.');
@@ -66,9 +69,6 @@ const GoogleCalendarCallback: React.FC = () => {
       const response = await appointmentsAPI.handleGoogleCallback<{ success: boolean }>(code, state);
 
       if (response.success) {
-        // Clean up state token
-        sessionStorage.removeItem('google_calendar_oauth_state');
-
         setStatus('success');
         setMessage('Successfully connected to Google Calendar!');
 
@@ -93,9 +93,6 @@ const GoogleCalendarCallback: React.FC = () => {
         err.message ||
         'An error occurred while connecting to Google Calendar'
       );
-
-      // Clean up state token even on error
-      sessionStorage.removeItem('google_calendar_oauth_state');
 
       setTimeout(() => navigate('/calendar'), 3000);
     }

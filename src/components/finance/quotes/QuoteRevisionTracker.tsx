@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, User } from 'lucide-react';
 import quotesAPI from '../../../services/api/finance/quotes';
+import logger from '../../../utils/logger';
 
 interface QuoteRevisionTrackerProps {
   quoteId: string;
@@ -22,7 +23,7 @@ const QuoteRevisionTracker: React.FC<QuoteRevisionTrackerProps> = ({ quoteId }) 
       const data = await quotesAPI.getRevisions(quoteId);
       setRevisions(data.changes || []);
     } catch (error) {
-      console.error('Error loading revisions:', error);
+      logger.error('Error loading revisions:', error);
     } finally {
       setLoading(false);
     }

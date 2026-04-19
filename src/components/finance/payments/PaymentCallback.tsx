@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import paymentIntegrationsAPI from '../../../services/api/finance/paymentIntegrations';
+import logger from '../../../utils/logger';
 
 /**
  * Payment Gateway OAuth Callback Handler
@@ -44,17 +45,18 @@ const PaymentCallback: React.FC = () => {
         return;
       }
 
-      // Determine provider from state (stored in session storage)
-      let provider: string | null = null;
+      // Determine provider from state. Consume both saved states up-front so
+      // neither can be replayed — they're single-use by design.
       const stripeState = sessionStorage.getItem('stripe_oauth_state');
       const paypalState = sessionStorage.getItem('paypal_oauth_state');
+      sessionStorage.removeItem('stripe_oauth_state');
+      sessionStorage.removeItem('paypal_oauth_state');
 
+      let provider: string | null = null;
       if (state === stripeState) {
         provider = 'stripe';
-        sessionStorage.removeItem('stripe_oauth_state');
       } else if (state === paypalState) {
         provider = 'paypal';
-        sessionStorage.removeItem('paypal_oauth_state');
       } else {
         setStatus('error');
         setMessage('Invalid OAuth state. Please try connecting again.');
@@ -82,7 +84,7 @@ const PaymentCallback: React.FC = () => {
         navigate('/settings/payment-integrations');
       }, 2000);
     } catch (error: any) {
-      console.error('[PaymentCallback] Error:', error);
+      logger.error('[PaymentCallback] Error:', error);
       setStatus('error');
       setMessage(error.message || 'Failed to connect payment gateway. Please try again.');
 

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { usePreferences } from '../contexts/PreferencesContext';
+import logger from '../utils/logger';
 
 interface PendingUpdate {
   value: unknown;
@@ -58,7 +59,7 @@ export function useDebouncedPreference(delay: number = 500): UseDebouncedPrefere
         try {
           await originalUpdatePreference(updateKey, updateValue, updateCategory);
         } catch (error) {
-          console.error(`Failed to update preference ${updateKey}:`, error);
+          logger.error(`Failed to update preference ${updateKey}:`, error);
         }
       }
     }, delay);
@@ -80,7 +81,7 @@ export function useDebouncedPreference(delay: number = 500): UseDebouncedPrefere
       try {
         await originalUpdatePreference(updateKey, value, category);
       } catch (error) {
-        console.error(`Failed to update preference ${updateKey}:`, error);
+        logger.error(`Failed to update preference ${updateKey}:`, error);
       }
     }
   }, [originalUpdatePreference]);

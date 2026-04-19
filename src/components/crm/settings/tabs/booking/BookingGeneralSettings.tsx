@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import bookingSettingsAPI from '../../../../../services/api/crm/bookingSettings';
 import { useNotification } from '../../../../../contexts/NotificationContext';
+import logger from '../../../../../utils/logger';
 
 // Comprehensive timezones list
 const TIMEZONES = [
@@ -98,7 +99,7 @@ const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }: { sett
       showSuccess('Booking settings saved successfully');
     } catch (error) {
       showError('Failed to save booking settings');
-      console.error('Failed to save:', error);
+      logger.error('Failed to save:', error);
     } finally {
       setSaving(false);
     }

@@ -5,6 +5,7 @@ import quotesAPI from '../services/api/finance/quotes';
 import type { QuoteCreate } from '../types';
 import { useDocumentState, type Pagination, type DocumentStateConfig } from './useDocumentState';
 import { formatLocalDate } from '../utils/dateUtils';
+import logger from '../utils/logger';
 import { queryKeys } from '../lib/query-keys';
 
 interface QuoteFilters {
@@ -169,7 +170,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       doc.refresh();
       return created;
     } catch (err) {
-      console.error('[QuoteContext] Error creating quote:', err);
+      logger.error('[QuoteContext] Error creating quote:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -193,7 +194,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       const data = await quotesAPI.getStats();
       setStats(data as QuoteStats);
     } catch (err) {
-      console.error('[QuoteContext] Error fetching stats:', err);
+      logger.error('[QuoteContext] Error fetching stats:', err);
     } finally {
       setStatsLoading(false);
     }
@@ -217,7 +218,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       const data = await quotesAPI.listTemplates() as { items?: QuoteTemplate[] } | QuoteTemplate[];
       setTemplates((Array.isArray(data) ? data : (data.items || [])) as QuoteTemplate[]);
     } catch (err) {
-      console.error('[QuoteContext] Error fetching templates:', err);
+      logger.error('[QuoteContext] Error fetching templates:', err);
     } finally {
       setTemplatesLoading(false);
     }
@@ -237,7 +238,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       fetchStats();
       return result;
     } catch (err) {
-      console.error('[QuoteContext] Error sending quote:', err);
+      logger.error('[QuoteContext] Error sending quote:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -255,7 +256,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       fetchStats();
       return result;
     } catch (err) {
-      console.error('[QuoteContext] Error accepting quote:', err);
+      logger.error('[QuoteContext] Error accepting quote:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -273,7 +274,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       fetchStats();
       return result;
     } catch (err) {
-      console.error('[QuoteContext] Error rejecting quote:', err);
+      logger.error('[QuoteContext] Error rejecting quote:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -291,7 +292,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       fetchStats();
       return invoice;
     } catch (err) {
-      console.error('[QuoteContext] Error converting quote:', err);
+      logger.error('[QuoteContext] Error converting quote:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -306,7 +307,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       fetchStats();
       return cloned;
     } catch (err) {
-      console.error('[QuoteContext] Error cloning quote:', err);
+      logger.error('[QuoteContext] Error cloning quote:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -322,7 +323,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       fetchStats();
       return revision;
     } catch (err) {
-      console.error('[QuoteContext] Error creating revision:', err);
+      logger.error('[QuoteContext] Error creating revision:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -340,7 +341,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       doc.refresh();
       fetchStats();
     } catch (err) {
-      console.error('[QuoteContext] Error deleting quote:', err);
+      logger.error('[QuoteContext] Error deleting quote:', err);
       throw err;
     } finally {
       doc.setLoading(false);
@@ -355,7 +356,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       setTemplates(prev => [template as unknown as QuoteTemplate, ...prev]);
       return template;
     } catch (err) {
-      console.error('[QuoteContext] Error creating template:', err);
+      logger.error('[QuoteContext] Error creating template:', err);
       throw err;
     } finally {
       setTemplatesLoading(false);
@@ -369,7 +370,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       setTemplates(prev => prev.map((t) => t.id === templateId ? updated as unknown as QuoteTemplate : t));
       return updated;
     } catch (err) {
-      console.error('[QuoteContext] Error updating template:', err);
+      logger.error('[QuoteContext] Error updating template:', err);
       throw err;
     } finally {
       setTemplatesLoading(false);
@@ -382,7 +383,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       await quotesAPI.deleteTemplate(templateId);
       setTemplates(prev => prev.filter((t) => t.id !== templateId));
     } catch (err) {
-      console.error('[QuoteContext] Error deleting template:', err);
+      logger.error('[QuoteContext] Error deleting template:', err);
       throw err;
     } finally {
       setTemplatesLoading(false);
@@ -396,7 +397,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       doc.setItems(prev => [quote, ...prev]);
       return quote;
     } catch (err) {
-      console.error('[QuoteContext] Error creating quote from template:', err);
+      logger.error('[QuoteContext] Error creating quote from template:', err);
       throw err;
     } finally {
       doc.setLoading(false);

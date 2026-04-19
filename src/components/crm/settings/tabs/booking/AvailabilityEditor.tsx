@@ -3,6 +3,7 @@ import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import TimePickerInput from '../../../../shared/TimePickerInput';
 import bookingSettingsAPI from '../../../../../services/api/crm/bookingSettings';
 import { useNotification } from '../../../../../contexts/NotificationContext';
+import logger from '../../../../../utils/logger';
 
 const DAYS = [
   { index: 0, name: 'Monday' },
@@ -42,7 +43,7 @@ const AvailabilityEditor = ({ callTypeId = null }: { callTypeId?: string | null 
         setWindows(data.windows || []);
       } catch (error) {
         showError('Failed to load availability');
-        console.error('Failed to load availability:', error);
+        logger.error('Failed to load availability:', error);
       } finally {
         setLoading(false);
       }
@@ -114,7 +115,7 @@ const AvailabilityEditor = ({ callTypeId = null }: { callTypeId?: string | null 
       showSuccess('Availability saved successfully');
     } catch (error) {
       showError('Failed to save availability');
-      console.error('Failed to save:', error);
+      logger.error('Failed to save:', error);
     } finally {
       setSaving(false);
     }

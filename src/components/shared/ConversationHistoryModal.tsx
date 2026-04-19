@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import userAPI from '../../services/userAPI';
 import { useMobile } from '../../hooks/useMobile';
+import logger from '../../utils/logger';
 import { senderTypeToRole } from '../../utils/messageUtils';
 import type { FollowUpMessage, MessageAttachment, LinkedMeeting } from './ai-feedback/types';
 import MessageAttachments from './ai-feedback/MessageAttachments';
@@ -135,7 +136,7 @@ export default function ConversationHistoryModal({
       setHasMore(page < (response.total_pages || 1));
       setCurrentPage(page);
     } catch (err) {
-      console.error(`[${toolType}] Failed to load conversations:`, err);
+      logger.error(`[${toolType}] Failed to load conversations:`, err);
       if (!append) setConversationError('Failed to load conversations.');
     } finally {
       setLoadingConversations(false);
@@ -151,7 +152,7 @@ export default function ConversationHistoryModal({
       ) as ConversationMessagesResponse;
       setConversationMessages(response.items || []);
     } catch (err) {
-      console.error(`[${toolType}] Failed to load messages:`, err);
+      logger.error(`[${toolType}] Failed to load messages:`, err);
     } finally {
       setLoadingMessages(false);
     }
@@ -289,7 +290,7 @@ export default function ConversationHistoryModal({
         setSelectedConversation(prev => prev ? { ...prev, is_starred: !prev.is_starred } : prev);
       }
     } catch (err) {
-      console.error('Failed to toggle star:', err);
+      logger.error('Failed to toggle star:', err);
     }
   }, [selectedConversation]);
 
@@ -303,7 +304,7 @@ export default function ConversationHistoryModal({
         setConversationMessages([]);
       }
     } catch (err) {
-      console.error('Failed to delete conversation:', err);
+      logger.error('Failed to delete conversation:', err);
     } finally {
       setDeleteConfirmId(null);
     }
@@ -332,7 +333,7 @@ export default function ConversationHistoryModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" role="dialog" aria-modal="true" aria-label="Conversation history">
       <div className={`relative w-full max-w-[95vw] md:max-w-4xl max-h-[90vh] rounded-xl shadow-xl flex flex-col ${
         darkMode ? 'bg-[#1e1e1e]' : 'bg-white'
       }`}>

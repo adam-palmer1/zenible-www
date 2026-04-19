@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import logger from '../../utils/logger';
 import {
   UserMinusIcon,
   EyeSlashIcon,
@@ -138,7 +139,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
       // Refetch so the server-side filter removes/adds the contact appropriately
       fetchContacts();
     } catch (error) {
-      console.error('Error updating client visibility:', error);
+      logger.error('Error updating client visibility:', error);
       const data = error && typeof error === 'object' ? (error as Record<string, unknown>).data : null;
       if (data && typeof data === 'object' && (data as Record<string, unknown>).type === 'feature_limit_exceeded') {
         showError('Unable to unhide, usage limit has been exceeded.');
@@ -155,7 +156,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
         const displayName = getContactDisplayName(client);
         showSuccess(`${displayName} removed from client list`);
       } catch (error) {
-        console.error('Error removing client from list:', error);
+        logger.error('Error removing client from list:', error);
         showError('Failed to remove client from list');
         throw error;
       }
@@ -169,7 +170,7 @@ const ClientsView: React.FC<ClientsViewProps> = ({
         const displayName = getContactDisplayName(client);
         showSuccess(`${displayName} deleted permanently`);
       } catch (error) {
-        console.error('Error deleting client:', error);
+        logger.error('Error deleting client:', error);
         if (error instanceof ApiError && error.isInsufficientPermissions) {
           showError('Insufficient permission to perform the requested action.');
         } else {

@@ -5,6 +5,7 @@ import ConversationStreamingManager from '../services/ConversationStreamingManag
 import StableWebSocketConnection from '../services/StableWebSocketConnection';
 import { ZBI_WS_URL } from '@/config/api';
 import logger from '../utils/logger';
+import { useAuth } from './AuthContext';
 
 interface ConnectionHealth {
   isHealthy: boolean;
@@ -44,6 +45,11 @@ export const WebSocketProvider = ({ children }: { children: React.ReactNode }) =
   });
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(localStorage.getItem('access_token'));
+  // Also react to the AuthContext user going null (logout). The custom
+  // `zenible_token_changed` event already disconnects, but binding to `user`
+  // covers any future code path that clears auth state without touching the
+  // token storage helpers.
+  const { user } = useAuth();
 
   const navigate = useNavigate();
   const wsServiceRef = useRef<WebSocketService | null>(null);
@@ -173,6 +179,21 @@ export const WebSocketProvider = ({ children }: { children: React.ReactNode }) =
       initializationRef.current = false;
     };
   }, [accessToken, initWebSocket]);
+
+  // Belt-and-suspenders: disconnect when the authenticated user goes away,
+  // even if a caller clears auth state without going through tokenStorage.
+  useEffect(() => {
+    if (user) return;
+    if (!initializationRef.current) return;
+    if (healthIntervalRef.current) {
+      clearInterval(healthIntervalRef.current);
+    }
+    stableConnectionRef.current?.destroy();
+    wsServiceRef.current?.disconnect();
+    initializationRef.current = false;
+    setIsConnected(false);
+    setAccessToken(null);
+  }, [user]);
 
   // Create a new conversation
   const createConversation = useCallback(async (characterId: string, feature: string | null = null, metadata: Record<string, unknown> = {}) => {

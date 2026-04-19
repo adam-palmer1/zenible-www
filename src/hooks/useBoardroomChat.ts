@@ -4,6 +4,7 @@ import { WebSocketContext, WebSocketContextValue } from '../contexts/WebSocketCo
 import { queryKeys } from '../lib/query-keys';
 import { messageAPI } from '../services/messageAPI';
 import type { FollowUpMessage, MessageAttachment, LinkedMeeting } from '../components/shared/ai-feedback/types';
+import logger from '../utils/logger';
 
 interface MeetingContext {
   summary?: string;
@@ -150,7 +151,7 @@ export function useBoardroomChat(characterId: string | null, characterAvatarUrl?
     unsubscribersRef.current.push(
       wsContext.onConversationEvent(convId, 'error', (...args: unknown[]) => {
         const data = args[0] as { error?: string };
-        console.error('[Boardroom] Chat error:', data);
+        logger.error('[Boardroom] Chat error:', data);
         setIsStreaming(false);
         setStreamingContent('');
         setIsSending(false);
@@ -185,7 +186,7 @@ export function useBoardroomChat(characterId: string | null, characterAvatarUrl?
     unsubscribersRef.current.push(
       wsContext.onConversationEvent(convId, 'file_upload_error', (...args: unknown[]) => {
         const data = args[0] as { error?: string };
-        console.error('[Boardroom] File upload error:', data);
+        logger.error('[Boardroom] File upload error:', data);
         setUploadingFiles(false);
         setError(data?.error || 'File upload failed');
       })
@@ -286,7 +287,7 @@ export function useBoardroomChat(characterId: string | null, characterAvatarUrl?
       await messageAPI.deleteMessage(convId, messageId);
       setMessages(prev => prev.filter(m => m.messageId !== messageId));
     } catch (err) {
-      console.error('[Boardroom] Failed to delete message:', err);
+      logger.error('[Boardroom] Failed to delete message:', err);
       setError('Failed to delete message');
     } finally {
       setDeletingMessageId(null);
@@ -372,7 +373,7 @@ export function useBoardroomChat(characterId: string | null, characterAvatarUrl?
       // Send message with options
       wsContext.sendMessage(convId, characterIdRef.current, text, Object.keys(options).length > 0 ? options : undefined);
     } catch (err) {
-      console.error('[Boardroom] Failed to send message:', err);
+      logger.error('[Boardroom] Failed to send message:', err);
       setIsSending(false);
       setError('Failed to send message. Please try again.');
     }

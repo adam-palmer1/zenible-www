@@ -4,6 +4,7 @@ import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
 import { usePreferences } from '../../../../../contexts/PreferencesContext';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 import companyUsersAPI from '../../../../../services/api/crm/companyUsers';
+import logger from '../../../../../utils/logger';
 
 /**
  * Modal for deactivating or removing a user from the company
@@ -29,7 +30,7 @@ const RemoveUserModal = ({ user, onClose, onSuccess }: { user: any; onClose: () 
       }
       onSuccess?.();
     } catch (error) {
-      console.error(`Failed to ${action} user:`, error);
+      logger.error(`Failed to ${action} user:`, error);
       showError((error as Error).message || `Failed to ${action} user. Please try again.`);
     } finally {
       setIsSubmitting(false);

@@ -3,6 +3,7 @@ import { X, DollarSign, Loader2, ChevronDown, Building2, Banknote, FileText, Cre
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { formatCurrency } from '../../../utils/currency';
+import logger from '../../../utils/logger';
 import paymentsAPI from '../../../services/api/finance/payments';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
@@ -131,7 +132,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
         })
       );
     } catch (err: any) {
-      console.error('Failed to load credit notes:', err);
+      logger.error('Failed to load credit notes:', err);
       setAvailableCreditNotes([]);
     } finally {
       setLoadingCreditNotes(false);
@@ -189,7 +190,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
         if (onSuccess) onSuccess({});
         onClose();
       } catch (error: any) {
-        console.error('Error applying credit note:', error);
+        logger.error('Error applying credit note:', error);
         showError(error.message || 'Failed to apply credit note');
       } finally {
         setSubmitting(false);
@@ -241,7 +242,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
         });
       }
     } catch (error: any) {
-      console.error('Error recording payment:', error);
+      logger.error('Error recording payment:', error);
       showError(error.message || 'Failed to record payment');
     } finally {
       setSubmitting(false);
@@ -304,7 +305,7 @@ const AddPaymentModal: React.FC<AddPaymentModalProps> = ({ isOpen, onClose, invo
   const balanceHelper = getBalanceHelper();
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Add payment">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
         <div
           className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75"

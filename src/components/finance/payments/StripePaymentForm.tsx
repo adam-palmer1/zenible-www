@@ -3,6 +3,7 @@ import { loadStripe, type Stripe, type PaymentIntent } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { usePaymentIntegrations } from '../../../contexts/PaymentIntegrationsContext';
 import invoicesAPI from '../../../services/api/finance/invoices';
+import logger from '../../../utils/logger';
 
 /**
  * Stripe card element options
@@ -108,7 +109,7 @@ const StripePaymentFormInner: React.FC<StripePaymentFormInnerProps> = ({
         onSuccess(paymentIntent);
       }
     } catch (err: any) {
-      console.error('[StripePaymentForm] Payment error:', err);
+      logger.error('[StripePaymentForm] Payment error:', err);
       setError(err.message || 'Payment failed. Please try again.');
       onError(err);
     } finally {

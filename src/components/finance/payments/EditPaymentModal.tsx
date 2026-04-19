@@ -4,6 +4,7 @@ import { usePayments } from '../../../contexts/PaymentsContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { formatCurrency } from '../../../utils/currency';
+import logger from '../../../utils/logger';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import expensesAPI from '../../../services/api/finance/expenses';
 import paymentsAPI from '../../../services/api/finance/payments';
@@ -77,7 +78,7 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
       const data = await paymentsAPI.get(paymentProp.id);
       setPayment(data);
     } catch (err) {
-      console.error('Error fetching payment details:', err);
+      logger.error('Error fetching payment details:', err);
       setPayment(paymentProp);
     } finally {
       if (showLoading) setLoadingDetails(false);
@@ -230,7 +231,7 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Edit payment">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import {
   AdminUser,
   AdminPlan,
@@ -112,7 +113,7 @@ export default function UserManagement() {
       setTotalPages((response.total_pages as number) || 1);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
-      console.error('Error fetching users:', err);
+      logger.error('Error fetching users:', err);
     } finally {
       setLoading(false);
     }
@@ -123,7 +124,7 @@ export default function UserManagement() {
       const response = await adminAPI.getPlans({ is_active: 'true' }) as Record<string, unknown>;
       setPlans((response.plans as AdminPlan[]) || []);
     } catch (err: unknown) {
-      console.error('Error fetching plans:', err);
+      logger.error('Error fetching plans:', err);
     }
   };
 

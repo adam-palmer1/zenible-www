@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import adminAPI from '../../services/adminAPI';
+import logger from '../../utils/logger';
 
 interface Platform {
   id: string;
@@ -121,7 +122,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
       setPlatforms(response.items || []);
       setTotalPages(response.total_pages || 1);
     } catch (error) {
-      console.error('Failed to fetch platforms:', error);
+      logger.error('Failed to fetch platforms:', error);
     } finally {
       setLoading(false);
     }
@@ -177,7 +178,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
       // Refresh list
       fetchPlatforms();
     } catch (error: any) {
-      console.error('Failed to save platform:', error);
+      logger.error('Failed to save platform:', error);
       setFormErrors({ submit: error.message || 'Failed to save platform' });
     }
   };
@@ -203,7 +204,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
       setDeleteConfirm(null);
       fetchPlatforms();
     } catch (error: any) {
-      console.error('Failed to delete platform:', error);
+      logger.error('Failed to delete platform:', error);
       alert(error.message || 'Failed to delete platform');
     }
   };
@@ -224,7 +225,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
       });
       fetchPlatforms();
     } catch (error) {
-      console.error('Failed to reorder platforms:', error);
+      logger.error('Failed to reorder platforms:', error);
     }
   };
 
@@ -244,7 +245,7 @@ export default function PlatformManagement({ isOpen, onClose, darkMode }: Platfo
       });
       fetchPlatforms();
     } catch (error) {
-      console.error('Failed to reorder platforms:', error);
+      logger.error('Failed to reorder platforms:', error);
     }
   };
 

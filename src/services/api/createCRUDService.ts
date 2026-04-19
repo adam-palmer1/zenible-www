@@ -21,9 +21,26 @@
  *   export default creditNotesAPI;
  */
 
+import logger from '@/utils/logger';
 import { createRequest, type RequestOptions } from './httpClient';
 
 type RequestFn = <T = unknown>(endpoint: string, options?: RequestOptions) => Promise<T>;
+
+/**
+ * Upper bound on how many records a list endpoint will return per page.
+ * Callers that pass a larger value will be clamped and a warning logged so we
+ * don't accidentally fetch "everything" from a careless or malicious caller.
+ */
+const MAX_PER_PAGE = 200;
+
+function enforcePerPageCap(params: Record<string, string>, context: string): Record<string, string> {
+  const raw = params.per_page;
+  if (raw === undefined) return params;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= MAX_PER_PAGE) return params;
+  logger.warn(`[${context}] per_page=${raw} exceeds cap ${MAX_PER_PAGE}; clamping. Paginate instead.`);
+  return { ...params, per_page: String(MAX_PER_PAGE) };
+}
 
 interface CRUDServiceOptions {
   /** HTTP method for update operations. Defaults to 'PATCH'. Use 'PUT' for services that require full replacement. */
@@ -105,7 +122,8 @@ export function createCRUDService<
     baseEndpoint,
 
     async list(params: Record<string, string> = {}): Promise<TList> {
-      const queryString = new URLSearchParams(params).toString();
+      const safeParams = enforcePerPageCap(params, context);
+      const queryString = new URLSearchParams(safeParams).toString();
       const endpoint = queryString ? `${listEndpoint}?${queryString}` : listEndpoint;
       return request<TList>(endpoint, { method: 'GET' });
     },

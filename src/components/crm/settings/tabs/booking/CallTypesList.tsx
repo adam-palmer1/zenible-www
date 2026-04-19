@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon, ClockIcon } from '@heroicons/react/24/outline';
 import callTypesAPI from '../../../../../services/api/crm/callTypes';
 import { useNotification } from '../../../../../contexts/NotificationContext';
+import logger from '../../../../../utils/logger';
 import { useDeleteConfirmation } from '../../../../../hooks/useDeleteConfirmation';
 import CallTypeModal from './CallTypeModal';
 import ConfirmationModal from '../../../../common/ConfirmationModal';
@@ -38,7 +39,7 @@ const CallTypesList = () => {
       setCallTypes(data.items || []);
     } catch (error) {
       showError('Failed to load call types');
-      console.error('Failed to load call types:', error);
+      logger.error('Failed to load call types:', error);
     } finally {
       setLoading(false);
     }
@@ -67,7 +68,7 @@ const CallTypesList = () => {
         showSuccess('Call type deleted');
       } catch (error) {
         showError('Failed to delete call type');
-        console.error('Failed to delete:', error);
+        logger.error('Failed to delete:', error);
         throw error;
       } finally {
         setDeletingId(null);
@@ -86,7 +87,7 @@ const CallTypesList = () => {
       showSuccess(updated.is_active ? 'Call type activated' : 'Call type deactivated');
     } catch (error) {
       showError('Failed to update call type');
-      console.error('Failed to update:', error);
+      logger.error('Failed to update:', error);
     }
   };
 

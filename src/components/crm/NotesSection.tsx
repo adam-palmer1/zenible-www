@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useContactNotes } from '../../hooks/crm';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
+import logger from '../../utils/logger';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { LoadingSpinner } from '../shared';
 
@@ -47,7 +48,7 @@ const NotesSection: React.FC<NotesSectionProps> = ({ contactId, readOnly = false
       setIsAddingNote(false);
       setEditingNoteId(null);
     } catch (error) {
-      console.error('Failed to save note:', error);
+      logger.error('Failed to save note:', error);
       alert('Failed to save note. Please try again.');
     } finally {
       setSubmitting(false);
@@ -69,7 +70,7 @@ const NotesSection: React.FC<NotesSectionProps> = ({ contactId, readOnly = false
       try {
         await deleteNote(noteId);
       } catch (error) {
-        console.error('Failed to delete note:', error);
+        logger.error('Failed to delete note:', error);
         alert('Failed to delete note. Please try again.');
         throw error;
       }

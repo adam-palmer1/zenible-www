@@ -6,6 +6,7 @@ import { ApiError } from '../services/api/ApiError';
 import { getContactDisplayName } from '../utils/crm/contactUtils';
 import appointmentsAPI from '../services/api/crm/appointments';
 import { prepareAppointmentData } from '../utils/crm/appointmentUtils';
+import logger from '../utils/logger';
 import { queryKeys } from '../lib/query-keys';
 
 /** Check if an error is a feature limit exceeded error */
@@ -149,7 +150,7 @@ export const ContactActionsProvider = ({
 
       return result;
     } catch (error) {
-      console.error('Failed to mark contact as lost:', error);
+      logger.error('Failed to mark contact as lost:', error);
       showError((error as Error).message || 'Failed to update contact');
       return { success: false, error };
     }
@@ -189,7 +190,7 @@ export const ContactActionsProvider = ({
 
       return result;
     } catch (error) {
-      console.error('Failed to mark contact as won:', error);
+      logger.error('Failed to mark contact as won:', error);
       showError((error as Error).message || 'Failed to update contact');
       return { success: false, error };
     }
@@ -211,7 +212,7 @@ export const ContactActionsProvider = ({
 
       return result;
     } catch (error) {
-      console.error('Failed to change contact status:', error);
+      logger.error('Failed to change contact status:', error);
       showError((error as Error).message || 'Failed to update contact');
       return { success: false, error };
     }
@@ -235,7 +236,7 @@ export const ContactActionsProvider = ({
       showSuccess(`${displayName} deleted successfully`);
       return { success: true };
     } catch (error) {
-      console.error('Failed to delete contact:', error);
+      logger.error('Failed to delete contact:', error);
       if (error instanceof ApiError && error.isInsufficientPermissions) {
         showError('Insufficient permission to perform the requested action.');
       } else {
@@ -272,7 +273,7 @@ export const ContactActionsProvider = ({
 
       return result;
     } catch (error) {
-      console.error('Failed to toggle hidden state:', error);
+      logger.error('Failed to toggle hidden state:', error);
       if (isFeatureLimitError(error)) {
         showError('Unable to unhide, usage limit has been exceeded.');
       } else {
@@ -309,7 +310,7 @@ export const ContactActionsProvider = ({
 
       return result;
     } catch (error) {
-      console.error('Failed to toggle client status:', error);
+      logger.error('Failed to toggle client status:', error);
       if (isFeatureLimitError(error)) {
         showError('Failed to update contact status, usage limit has been exceeded.');
       } else {
@@ -348,7 +349,7 @@ export const ContactActionsProvider = ({
 
       return { success: true };
     } catch (error) {
-      console.error('Failed to create appointment:', error);
+      logger.error('Failed to create appointment:', error);
       showError((error as Error).message || 'Failed to schedule appointment. Please try again.');
       return { success: false, error };
     }
@@ -380,7 +381,7 @@ export const ContactActionsProvider = ({
 
       return { success: true };
     } catch (error) {
-      console.error('Failed to dismiss appointment:', error);
+      logger.error('Failed to dismiss appointment:', error);
       showError((error as Error).message || 'Failed to dismiss appointment. Please try again.');
       return { success: false, error };
     }
@@ -403,7 +404,7 @@ export const ContactActionsProvider = ({
 
       return result;
     } catch (error) {
-      console.error('Failed to set follow-up reminder:', error);
+      logger.error('Failed to set follow-up reminder:', error);
       showError((error as Error).message || 'Failed to set reminder. Please try again.');
       return { success: false, error };
     }
@@ -426,7 +427,7 @@ export const ContactActionsProvider = ({
 
       return result;
     } catch (error) {
-      console.error('Failed to complete follow-up reminder:', error);
+      logger.error('Failed to complete follow-up reminder:', error);
       showError((error as Error).message || 'Failed to complete reminder. Please try again.');
       return { success: false, error };
     }
@@ -449,7 +450,7 @@ export const ContactActionsProvider = ({
 
       return result;
     } catch (error) {
-      console.error('Failed to dismiss follow-up reminder:', error);
+      logger.error('Failed to dismiss follow-up reminder:', error);
       showError((error as Error).message || 'Failed to dismiss reminder. Please try again.');
       return { success: false, error };
     }

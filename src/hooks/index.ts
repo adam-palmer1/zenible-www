@@ -23,7 +23,6 @@ export { useDeleteConfirmation } from './useDeleteConfirmation';
 export { useEscapeKey } from './useEscapeKey';
 
 // Utility hooks
-export { useSSEStreaming } from './useSSEStreaming';
 export { useWebSocketConnection } from './useWebSocketConnection';
 export { useDebouncedPreference } from './useDebouncedPreference';
 

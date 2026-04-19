@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Repeat, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import invoicesAPI from '../../../services/api/finance/invoices';
+import logger from '../../../utils/logger';
 
 interface RecurringTemplateCardProps {
   invoice: any;
@@ -25,7 +26,7 @@ const RecurringTemplateCard: React.FC<RecurringTemplateCardProps> = ({ invoice }
       const data = await invoicesAPI.getRecurringChildren(invoice.id);
       setChildren(data.items || []);
     } catch (error: any) {
-      console.error('Error loading recurring children:', error);
+      logger.error('Error loading recurring children:', error);
       // Don't show error to user, just log it
     } finally {
       setChildrenLoading(false);

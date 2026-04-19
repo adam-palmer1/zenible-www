@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, CreditCard } from 'lucide-react';
 import { adminSubscriptionsAPI } from '../../../services/adminAPI';
+import logger from '../../../utils/logger';
 
 interface SubscriptionHistoryModalProps {
   userId: string;
@@ -42,7 +43,7 @@ const SubscriptionHistoryModal: React.FC<SubscriptionHistoryModalProps> = ({
       setTotalPages(response.total_pages || 1);
       setTotal(response.total || 0);
     } catch (err) {
-      console.error('Failed to fetch subscription history:', err);
+      logger.error('Failed to fetch subscription history:', err);
     } finally {
       setLoading(false);
     }

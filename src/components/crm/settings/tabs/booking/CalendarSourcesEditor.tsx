@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { CalendarIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import bookingSettingsAPI from '../../../../../services/api/crm/bookingSettings';
 import { useNotification } from '../../../../../contexts/NotificationContext';
+import logger from '../../../../../utils/logger';
 
 interface CalendarConflictSource {
   calendar_id: string;
@@ -38,7 +39,7 @@ const CalendarSourcesEditor = () => {
       setAccounts(loaded);
       setOriginalAccounts(JSON.parse(JSON.stringify(loaded)));
     } catch (error) {
-      console.error('Failed to load Google accounts:', error);
+      logger.error('Failed to load Google accounts:', error);
       showError('Failed to load Google accounts');
     } finally {
       setLoading(false);

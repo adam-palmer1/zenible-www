@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import customizationAPI from '../services/customizationAPI';
 import { usePreferences } from '../contexts/PreferencesContext';
+import logger from '../utils/logger';
 import DatePickerCalendar from './shared/DatePickerCalendar';
 
 interface QuestionsApiResponse {
@@ -102,7 +103,7 @@ const CustomizationQuestions: React.FC<CustomizationQuestionsProps> = ({
       setCompletionStatus(statusData);
     } catch (err) {
       setError('Failed to load questions. Please try again.');
-      console.error('Failed to load questions:', err);
+      logger.error('Failed to load questions:', err);
     } finally {
       setLoading(false);
     }
@@ -134,7 +135,7 @@ const CustomizationQuestions: React.FC<CustomizationQuestionsProps> = ({
               return 'Invalid format';
             }
           } catch {
-            console.error('Invalid regex:', rules.regex);
+            logger.error('Invalid regex:', rules.regex);
           }
         }
         break;
@@ -253,7 +254,7 @@ const CustomizationQuestions: React.FC<CustomizationQuestionsProps> = ({
       }
     } catch (err) {
       setError('Failed to save answers. Please try again.');
-      console.error('Failed to save answers:', err);
+      logger.error('Failed to save answers:', err);
     } finally {
       setSaving(false);
     }

@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { Receipt, Settings2, Loader2 } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';
 import expensesAPI from '../../../services/api/finance/expenses';
+import logger from '../../../utils/logger';
 
 /**
  * Color palette for expense allocations
@@ -91,7 +92,7 @@ const ExpenseAllocationSummaryBar: React.FC<ExpenseAllocationSummaryBarProps> = 
 
         setAllocations(expenseAllocations);
       } catch (err) {
-        console.error('Error fetching expense allocations:', err);
+        logger.error('Error fetching expense allocations:', err);
         setAllocations([]);
       } finally {
         setLoading(false);

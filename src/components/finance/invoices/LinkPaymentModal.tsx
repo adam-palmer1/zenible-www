@@ -3,6 +3,7 @@ import { X, Link2, Loader2, Search, CreditCard, AlertCircle } from 'lucide-react
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { formatCurrency } from '../../../utils/currency';
+import logger from '../../../utils/logger';
 import paymentsAPI from '../../../services/api/finance/payments';
 
 interface PaymentItem {
@@ -112,7 +113,7 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
             };
           } catch (err) {
             // If we can't get unallocated amount, use full amount as fallback
-            console.warn(`Could not fetch unallocated amount for payment ${payment.id}:`, err);
+            logger.warn(`Could not fetch unallocated amount for payment ${payment.id}:`, err);
             return {
               ...payment,
               unallocated_amount: payment.amount,
@@ -128,7 +129,7 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
 
       setPayments(availablePayments);
     } catch (error) {
-      console.error('Error loading payments:', error);
+      logger.error('Error loading payments:', error);
       showError('Failed to load available payments');
     } finally {
       setLoading(false);
@@ -181,7 +182,7 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
 
       onClose();
     } catch (error: any) {
-      console.error('Error linking payment:', error);
+      logger.error('Error linking payment:', error);
       showError(error.message || 'Failed to link payment to invoice');
     } finally {
       setSubmitting(false);
@@ -258,7 +259,7 @@ const LinkPaymentModal: React.FC<LinkPaymentModalProps> = ({ isOpen, onClose, in
   const amountHelper = getAmountHelper();
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Link payment">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
         <div
           className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75"

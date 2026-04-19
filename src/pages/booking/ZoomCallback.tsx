@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import zoomAPI from '../../services/api/crm/zoom';
+import logger from '../../utils/logger';
 
 type CallbackStatus = 'processing' | 'success' | 'error';
 
@@ -32,16 +33,15 @@ const ZoomCallback: React.FC = () => {
         return;
       }
 
-      // Validate state matches (CSRF protection)
+      // Validate state matches (CSRF protection). Consume it up-front so a
+      // bfcache/back-button replay can't re-match the same value.
       const storedState = sessionStorage.getItem('zoom_oauth_state');
+      sessionStorage.removeItem('zoom_oauth_state');
       if (state !== storedState) {
         setStatus('error');
         setError('Invalid state parameter. Please try connecting again.');
         return;
       }
-
-      // Clear stored state
-      sessionStorage.removeItem('zoom_oauth_state');
 
       try {
         // Exchange code for tokens
@@ -53,7 +53,7 @@ const ZoomCallback: React.FC = () => {
           navigate('/settings?tab=integrations', { replace: true });
         }, 2000);
       } catch (err) {
-        console.error('Error handling Zoom callback:', err);
+        logger.error('Error handling Zoom callback:', err);
         setStatus('error');
         setError((err as Error).message || 'Failed to connect Zoom account');
       }

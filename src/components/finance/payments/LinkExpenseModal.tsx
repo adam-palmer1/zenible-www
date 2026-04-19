@@ -4,6 +4,7 @@ import { useNotification } from '../../../contexts/NotificationContext';
 import { usePayments } from '../../../contexts/PaymentsContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { formatCurrency } from '../../../utils/currency';
+import logger from '../../../utils/logger';
 import { formatDate } from '../../../utils/dateUtils';
 import expensesAPI from '../../../services/api/finance/expenses';
 import type { ExpenseListItemResponse, ExpenseUpdate } from '../../../types/finance';
@@ -67,7 +68,7 @@ const LinkExpenseModal: React.FC<LinkExpenseModalProps> = ({ isOpen, onClose, pa
       const items = response.items || [];
       setExpenses(Array.isArray(items) ? items as ExpenseItem[] : []);
     } catch (err) {
-      console.error('Error fetching expenses:', err);
+      logger.error('Error fetching expenses:', err);
       // If the filter doesn't work, try fetching all and filter client-side
       try {
         const response = await expensesAPI.list({ per_page: '100' });

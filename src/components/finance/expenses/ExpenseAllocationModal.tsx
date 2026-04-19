@@ -17,6 +17,7 @@ import Modal from '../../ui/modal/Modal';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useContacts } from '../../../hooks/crm/useContacts';
 import { useProjects } from '../../../hooks/crm/useProjects';
+import logger from '../../../utils/logger';
 import { formatCurrency } from '../../../utils/currency';
 import expensesAPI from '../../../services/api/finance/expenses';
 import invoicesAPI from '../../../services/api/finance/invoices';
@@ -256,7 +257,7 @@ const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, o
       const paymentData = paymentsRes as { items?: Record<string, unknown>[] };
       setPayments(paymentData.items || []);
     } catch (error) {
-      console.error('Failed to load allocation data:', error);
+      logger.error('Failed to load allocation data:', error);
       showError('Failed to load allocation data');
     } finally {
       setLoading(false);
@@ -271,7 +272,7 @@ const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, o
       const result = await invoicesAPI.list(params) as InvoiceListResponse;
       setInvoices(result.items || []);
     } catch (error) {
-      console.error('Failed to search invoices:', error);
+      logger.error('Failed to search invoices:', error);
     } finally {
       setInvoicesLoading(false);
     }
@@ -285,7 +286,7 @@ const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, o
       const result = await paymentsAPI.list(params) as { items?: Record<string, unknown>[] };
       setPayments(result.items || []);
     } catch (error) {
-      console.error('Failed to search payments:', error);
+      logger.error('Failed to search payments:', error);
     } finally {
       setPaymentsLoading(false);
     }
@@ -352,7 +353,7 @@ const ExpenseAllocationModal: React.FC<ExpenseAllocationModalProps> = ({ open, o
       onUpdate?.();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Failed to save allocations:', error);
+      logger.error('Failed to save allocations:', error);
       showError(error.message || 'Failed to save allocations');
     } finally {
       setSaving(false);

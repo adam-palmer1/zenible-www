@@ -4,6 +4,7 @@ import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
 import { usePreferences } from '../../../../../contexts/PreferencesContext';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 import companyUsersAPI from '../../../../../services/api/crm/companyUsers';
+import logger from '../../../../../utils/logger';
 
 /**
  * Modal for inviting a new user to the company
@@ -72,7 +73,7 @@ const InviteUserModal = ({
       });
       onSuccess?.();
     } catch (error) {
-      console.error('Failed to invite user:', error);
+      logger.error('Failed to invite user:', error);
       showError((error as Error).message || 'Failed to invite user. Please try again.');
     } finally {
       setIsSubmitting(false);

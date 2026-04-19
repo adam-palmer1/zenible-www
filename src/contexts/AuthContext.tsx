@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { authAPI, twoFactorAPI, tokenStorage } from '../utils/auth';
 import { useSessionGuard } from '../hooks/useSessionGuard';
 import logger from '../utils/logger';
@@ -62,6 +63,7 @@ export function useAuth(): AuthContextValue {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +71,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Check if user is logged in on mount
   useEffect(() => {
     checkAuth();
+  }, []);
+
+  // Cross-tab sync: when another tab logs out (clears access_token),
+  // drop user state here so route guards redirect immediately instead
+  // of waiting for the next 401.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== 'access_token') return;
+      if (e.newValue === null) {
+        setUser(null);
+      } else if (e.oldValue === null && e.newValue) {
+        // Token appeared in another tab (login elsewhere) — refresh user here.
+        checkAuth();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const checkAuth = async (): Promise<void> => {
@@ -87,6 +106,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logger.error('Auth check failed:', err);
       tokenStorage.clearTokens();
       setUser(null);
+      // Invalid token + no valid session → drop any cached authenticated data.
+      queryClient.clear();
     } finally {
       setLoading(false);
     }
@@ -177,8 +198,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       tokenStorage.clearTokens();
       setUser(null);
+      // Clear all cached queries so the next user (or this user after re-login)
+      // doesn't see stale CRM/finance/usage data sitting in tanstack-query's cache.
+      queryClient.clear();
     }
-  }, []);
+  }, [queryClient]);
 
   // Auto-logout on idle + periodic session validation
   useSessionGuard(!!user, logout);
@@ -280,7 +304,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const value: AuthContextValue = {
+  // Memoize the context value so consumers only re-render when primitives change,
+  // not every render of the provider.
+  const value = useMemo<AuthContextValue>(() => ({
     user,
     loading,
     error,
@@ -298,8 +324,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     handleGoogleCallback,
     checkAuth,
     updateUser,
-    setTokens: setTokensAndFetchUser
-  };
+    setTokens: setTokensAndFetchUser,
+  }), [user, loading, error, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, FileText, Receipt, CreditCard, FileMinus, Loader2, Settings2, ChevronDown, ChevronUp, Trash2, Plus, type LucideProps } from 'lucide-react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import logger from '../../utils/logger';
 import BillableHoursTab from './BillableHoursTab';
 import { PROJECT_STATUS_LABELS, SERVICE_STATUS, SERVICE_STATUS_LABELS, type ProjectStatus, type ServiceStatus } from '../../constants/crm';
 import GenericDropdown from './GenericDropdown';
@@ -180,7 +181,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
       const data = await projectsAPI.get(projectProp.id) as ProjectData;
       setProject(data);
     } catch (err) {
-      console.error('Error fetching project details:', err);
+      logger.error('Error fetching project details:', err);
       setProject(projectProp);
     } finally {
       if (showLoading) setLoadingDetails(false);
@@ -202,7 +203,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
       }));
       setServices(mapped);
     } catch (err) {
-      console.error('Error fetching project services:', err);
+      logger.error('Error fetching project services:', err);
       setServices([]);
     } finally {
       setLoadingServices(false);
@@ -220,7 +221,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
       showSuccess(`Project status updated to ${PROJECT_STATUS_LABELS[newStatus as ProjectStatus]}`);
       _onUpdate?.();
     } catch (err: unknown) {
-      console.error('Error updating project status:', err);
+      logger.error('Error updating project status:', err);
       showError((err instanceof Error ? err.message : null) || 'Failed to update project status');
     } finally {
       setUpdatingProjectStatus(false);
@@ -488,7 +489,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
 
       showSuccess(`Service status updated to ${SERVICE_STATUS_LABELS[newStatus as ServiceStatus]}`);
     } catch (err: unknown) {
-      console.error('Error updating service status:', err);
+      logger.error('Error updating service status:', err);
       showError((err instanceof Error ? err.message : null) || 'Failed to update service status');
     } finally {
       setUpdatingServiceId(null);
@@ -510,7 +511,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
       showSuccess('Service detached from project');
       // Modal closes automatically via ConfirmationModal's onConfirm handler
     } catch (err: unknown) {
-      console.error('Error detaching service:', err);
+      logger.error('Error detaching service:', err);
       showError((err instanceof Error ? err.message : null) || 'Failed to detach service');
     } finally {
       setUpdatingServiceId(null);
@@ -685,7 +686,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
       showSuccess('Allocation removed');
       fetchProjectDetails(false);
     } catch (err: unknown) {
-      console.error('Error deleting allocation:', err);
+      logger.error('Error deleting allocation:', err);
       showError((err instanceof Error ? err.message : null) || 'Failed to remove allocation');
     } finally {
       setDeletingAlloc(false);
@@ -924,9 +925,9 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="project-detail-title">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
 
       {/* Modal */}
       <ModalPortalContext.Provider value={portalContainer}>
@@ -934,7 +935,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ isOpen, onClose
         {/* Header */}
         <div className="flex items-center justify-between p-4 shrink-0">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-[#09090b] dark:text-white leading-[26px]">
+            <h2 id="project-detail-title" className="text-lg font-semibold text-[#09090b] dark:text-white leading-[26px]">
               {project.name}
             </h2>
             <GenericDropdown

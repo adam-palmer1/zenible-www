@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { advisorsCopy } from '../data/copy';
 import { useAICharacters } from '../hooks/useAICharacters';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
+import LazyImage from './LazyImage';
 
 const roleLabels: Record<string, string> = {
   kim: 'Content & Growth',
@@ -136,12 +137,11 @@ export default function AIAdvisorsSection() {
                     {/* Character image */}
                     <div className="relative h-52 bg-gradient-to-b from-purple-50 via-purple-50/30 to-white overflow-hidden flex items-center justify-center">
                       {imgSrc ? (
-                        <img
+                        <LazyImage
                           src={imgSrc}
                           alt={char.name}
                           width={160}
                           height={160}
-                          loading="lazy"
                           className="w-40 h-40 rounded-2xl object-cover shadow-md ring-4 ring-white group-hover:scale-105 transition-transform"
                         />
                       ) : (

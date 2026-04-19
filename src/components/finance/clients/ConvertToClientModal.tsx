@@ -4,6 +4,7 @@ import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts'
 import contactsAPI from '../../../services/api/crm/contacts';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
+import logger from '../../../utils/logger';
 
 interface ConvertToClientModalProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ const ConvertToClientModal: React.FC<ConvertToClientModalProps> = ({ isOpen, onC
       // Reload to refresh clients list
       window.location.reload();
     } catch (error) {
-      console.error('Error converting to client:', error);
+      logger.error('Error converting to client:', error);
       showError('Failed to convert contact to client');
     } finally {
       setConverting(false);

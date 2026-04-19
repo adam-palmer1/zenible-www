@@ -10,6 +10,7 @@ import { formatCurrency } from '../../../utils/currency';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
+import logger from '../../../utils/logger';
 import { AllocationSummaryBar, ProjectAllocationModal } from '../allocations';
 import SendCreditNoteModal from './SendCreditNoteModal';
 import ApplyCreditNoteModal from './ApplyCreditNoteModal';
@@ -43,7 +44,7 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
       const data = await creditNotesAPI.get(creditNoteProp.id);
       setCreditNote(data);
     } catch (err: any) {
-      console.error('Error fetching credit note details:', err);
+      logger.error('Error fetching credit note details:', err);
       setCreditNote(creditNoteProp);
     } finally {
       if (showLoading) setLoadingDetails(false);
@@ -64,8 +65,8 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
   // Show loading state while fetching details
   if (loadingDetails || !creditNote) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Credit note details">
+        <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
         <div className="relative bg-white rounded-xl shadow-xl p-8 dark:bg-gray-800">
           <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
         </div>
@@ -221,9 +222,9 @@ const CreditNoteDetailModal: React.FC<CreditNoteDetailModalProps> = ({ isOpen, o
   const canApply = (creditNote.status === 'issued' || creditNote.status === 'applied') && parseFloat(creditNote.remaining_amount || '0') > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Credit note details">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
 
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-auto dark:bg-gray-800">

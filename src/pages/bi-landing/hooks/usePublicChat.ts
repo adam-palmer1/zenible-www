@@ -233,7 +233,7 @@ export function usePublicChat(): UsePublicChatReturn {
           createdAt: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, aiMsg]);
-        setMessagesRemaining((prev) => Math.max(0, prev - 1));
+        setMessagesRemaining((prev) => prev == null ? null : Math.max(0, prev - 1));
       }
     } catch (err: any) {
       if (err.message?.includes('expired')) {

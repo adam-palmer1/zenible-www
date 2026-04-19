@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import adminAPI from '../../services/adminAPI';
+import logger from '../../utils/logger';
 import { useModalState } from '../../hooks/useModalState';
 import { useDeleteConfirmation } from '../../hooks/useDeleteConfirmation';
 import { LoadingSpinner } from '../shared';
@@ -144,7 +145,7 @@ export default function TipsManagement() {
       setTotalPages((response.total_pages as number) || 1);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
-      console.error('Error fetching tips:', err);
+      logger.error('Error fetching tips:', err);
     } finally {
       setLoading(false);
     }
@@ -155,7 +156,7 @@ export default function TipsManagement() {
       const response = await adminAPI.getAICharacters({ is_active: 'true' }) as Record<string, unknown>;
       setCharacters((response.items as AICharacter[]) || []);
     } catch (err: unknown) {
-      console.error('Error fetching characters:', err);
+      logger.error('Error fetching characters:', err);
     }
   };
 
@@ -169,7 +170,7 @@ export default function TipsManagement() {
       const data = await adminAPI.getTipsAnalytics(params) as TipAnalytics;
       setAnalytics(data);
     } catch (err: unknown) {
-      console.error('Error fetching analytics:', err);
+      logger.error('Error fetching analytics:', err);
     } finally {
       setAnalyticsLoading(false);
     }
@@ -182,7 +183,7 @@ export default function TipsManagement() {
       const data = await adminAPI.getTipsEngagement(params) as TipEngagement;
       setEngagement(data);
     } catch (err: unknown) {
-      console.error('Error fetching engagement:', err);
+      logger.error('Error fetching engagement:', err);
     } finally {
       setEngagementLoading(false);
     }

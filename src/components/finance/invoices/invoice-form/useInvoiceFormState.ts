@@ -13,6 +13,7 @@ import contactsAPI from '../../../../services/api/crm/contacts';
 import { ApiError } from '../../../../services/api/ApiError';
 import invoicesAPI from '../../../../services/api/finance/invoices';
 import billableHoursAPI from '../../../../services/api/crm/billableHours';
+import logger from '../../../../utils/logger';
 import type { InvoiceItemResponse, NumberFormatResponse, CompanyResponse } from '../../../../types';
 import type { CompanyCurrency } from '../../../../hooks/crm/useCompanyCurrencies';
 import type { InvoiceStatus } from '../../../../constants/finance';
@@ -164,7 +165,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
           const data = await invoicesAPI.get(id) as InvoiceFormData;
           setInvoice(data);
         } catch (error) {
-          console.error('Failed to load invoice:', error);
+          logger.error('Failed to load invoice:', error);
           showError('Failed to load invoice');
           navigate('/finance/invoices');
         } finally {
@@ -344,7 +345,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
             setInvoiceNumber(data.next_number);
           }
         } catch (error) {
-          console.error('Failed to load next invoice number:', error);
+          logger.error('Failed to load next invoice number:', error);
         }
       }
     };
@@ -374,7 +375,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
           setReceivePaymentNotifications(data.default_receive_payment_notifications ?? true);
         }
       } catch (error) {
-        console.error('Failed to load company defaults:', error);
+        logger.error('Failed to load company defaults:', error);
       }
     };
     loadCompanyDefaults();
@@ -505,7 +506,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
           setNotes(fullContact.invoice_notes);
         }
       } catch (error) {
-        console.error('Failed to fetch contact details:', error);
+        logger.error('Failed to fetch contact details:', error);
       }
 
       // Check for unbilled hours only on first selection
@@ -525,7 +526,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
           }
         } catch (error) {
           // Silently fail if API doesn't exist or errors - not critical
-          console.error('Failed to check unbilled hours:', error);
+          logger.error('Failed to check unbilled hours:', error);
         } finally {
           setCheckingUnbilledHours(false);
         }
@@ -636,7 +637,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
 
       showSuccess('Hours marked as billed');
     } catch (error) {
-      console.error('Failed to mark hours as billed:', error);
+      logger.error('Failed to mark hours as billed:', error);
       showError('Failed to mark hours as billed, but invoice was saved');
     } finally {
       setMarkingAsBilled(false);
@@ -786,7 +787,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
           });
         } catch (e) {
           // Non-critical - don't fail the invoice save
-          console.error('Failed to save invoice settings defaults:', e);
+          logger.error('Failed to save invoice settings defaults:', e);
         }
         // Switch to edit mode so subsequent saves update instead of create
         setInvoice(result);
@@ -803,7 +804,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
         try {
           await invoicesAPI.updateAllocations(result.id, pendingProjectAllocations);
         } catch (allocError) {
-          console.error('Failed to link invoice to project:', allocError);
+          logger.error('Failed to link invoice to project:', allocError);
           // Don't fail the whole operation for allocation errors
         }
       }
@@ -835,7 +836,7 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
         }
       }
     } catch (error: unknown) {
-      console.error('Error saving invoice:', error);
+      logger.error('Error saving invoice:', error);
       if (error instanceof ApiError && error.isInsufficientPermissions) {
         showError('Insufficient permission to perform the requested action.');
       } else {

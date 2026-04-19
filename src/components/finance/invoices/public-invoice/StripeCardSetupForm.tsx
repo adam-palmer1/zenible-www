@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CreditCard, Loader2, ArrowLeft } from 'lucide-react';
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import invoicesAPI from '../../../../services/api/finance/invoices';
+import logger from '../../../../utils/logger';
 import { StripeLogo } from './PaymentLogos';
 import { CARD_ELEMENT_OPTIONS } from './cardElementOptions';
 
@@ -61,7 +62,7 @@ const StripeCardSetupForm: React.FC<StripeCardSetupFormProps> = ({ clientSecret,
         try {
           await invoicesAPITyped.confirmCardSetup(shareCode, setupIntentId);
         } catch (confirmErr) {
-          console.warn('[StripeCardSetupForm] Backend confirmation failed:', confirmErr);
+          logger.warn('[StripeCardSetupForm] Backend confirmation failed:', confirmErr);
           // Continue anyway - card was saved successfully with Stripe
         }
         onSuccess();
@@ -69,7 +70,7 @@ const StripeCardSetupForm: React.FC<StripeCardSetupFormProps> = ({ clientSecret,
         throw new Error('Card setup did not complete. Please try again.');
       }
     } catch (err: any) {
-      console.error('[StripeCardSetupForm] Setup error:', err);
+      logger.error('[StripeCardSetupForm] Setup error:', err);
       setError(err.message || 'Failed to save card. Please try again.');
       onError?.(err);
     } finally {

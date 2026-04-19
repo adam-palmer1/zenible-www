@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { CloudArrowUpIcon, DocumentIcon, PhotoIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import logger from '../../../utils/logger';
 
 /**
  * Allowed file types for receipt uploads
@@ -104,7 +105,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
         file_data: base64Data,
       });
     } catch (err: any) {
-      console.error('Receipt upload error:', err);
+      logger.error('Receipt upload error:', err);
       setError(err.message || 'Failed to upload receipt');
     } finally {
       setUploading(false);
@@ -160,7 +161,7 @@ const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
     try {
       await onDelete();
     } catch (err: any) {
-      console.error('Receipt delete error:', err);
+      logger.error('Receipt delete error:', err);
       setError(err.message || 'Failed to delete receipt');
     } finally {
       setDeleting(false);

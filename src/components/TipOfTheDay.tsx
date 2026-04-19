@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import tipAPI from '../services/tipAPI';
+import logger from '../utils/logger';
 import type { RandomTipResponse as BaseRandomTipResponse } from '../types';
 
 interface TipCharacter {
@@ -48,7 +49,7 @@ export default function TipOfTheDay({ characterId = null, className = "" }: TipO
         setCharacter(response.character);
       }
     } catch (err) {
-      console.error('Failed to load tip:', err);
+      logger.error('Failed to load tip:', err);
       setError((err as Error).message);
 
       // Fallback to static tip if API fails

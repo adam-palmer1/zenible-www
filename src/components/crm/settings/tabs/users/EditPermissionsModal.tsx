@@ -4,6 +4,7 @@ import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
 import { usePreferences } from '../../../../../contexts/PreferencesContext';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 import companyUsersAPI from '../../../../../services/api/crm/companyUsers';
+import logger from '../../../../../utils/logger';
 
 /**
  * Modal for editing a user's permissions
@@ -75,7 +76,7 @@ const EditPermissionsModal = ({
       await companyUsersAPI.updateUserPermissions(user.id, selectedPermissions);
       onSuccess?.();
     } catch (error) {
-      console.error('Failed to update permissions:', error);
+      logger.error('Failed to update permissions:', error);
       showError((error as Error).message || 'Failed to update permissions. Please try again.');
     } finally {
       setIsSubmitting(false);

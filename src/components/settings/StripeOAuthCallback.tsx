@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import paymentIntegrationsAPI from '../../services/api/finance/paymentIntegrations';
+import logger from '../../utils/logger';
 
 /**
  * Stripe OAuth Callback Handler
@@ -50,7 +51,7 @@ const StripeOAuthCallback = () => {
           navigate('/settings?tab=integrations&stripe_connected=true');
         }, 1500);
       } catch (err: unknown) {
-        console.error('[StripeOAuthCallback] Error:', err);
+        logger.error('[StripeOAuthCallback] Error:', err);
         setStatus('error');
         setError((err as Error).message || 'Failed to complete Stripe connection');
 

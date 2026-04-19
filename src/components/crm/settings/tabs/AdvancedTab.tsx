@@ -3,6 +3,7 @@ import { useCRMReferenceData } from '../../../../contexts/CRMReferenceDataContex
 import { useCompanyAttributes } from '../../../../hooks/crm/useCompanyAttributes';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import { usePreferences } from '../../../../contexts/PreferencesContext';
+import logger from '../../../../utils/logger';
 import { ExclamationTriangleIcon, XMarkIcon, ChevronDownIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 interface AdvancedTabProps {
@@ -126,7 +127,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
       showSuccess('Advanced settings saved successfully');
     } catch (error) {
       showError('Failed to save advanced settings');
-      console.error('Save failed:', error);
+      logger.error('Save failed:', error);
     } finally {
       setSaving(false);
     }
@@ -141,7 +142,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
       showSuccess('Setup wizard reset. It will appear on your next dashboard visit.');
     } catch (error) {
       showError('Failed to reset setup wizard');
-      console.error('Reset failed:', error);
+      logger.error('Reset failed:', error);
     } finally {
       setResettingSetup(false);
     }

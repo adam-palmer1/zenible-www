@@ -1,4 +1,5 @@
 import React from 'react';
+import { safeHref, isSafeImgSrc } from '../../../utils/urls';
 import type { MessageAttachment } from './types';
 
 interface MessageAttachmentsProps {
@@ -22,7 +23,7 @@ export default function MessageAttachments({ attachments, darkMode }: MessageAtt
       {attachments.map(att => (
         <a
           key={att.document_id}
-          href={att.url}
+          href={safeHref(att.url)}
           target="_blank"
           rel="noopener noreferrer"
           className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs max-w-[200px] transition-colors ${
@@ -31,7 +32,7 @@ export default function MessageAttachments({ attachments, darkMode }: MessageAtt
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
           }`}
         >
-          {att.thumbnail_url && att.file_type.startsWith('image/') ? (
+          {att.thumbnail_url && att.file_type.startsWith('image/') && isSafeImgSrc(att.thumbnail_url) ? (
             <img src={att.thumbnail_url} alt="" className="w-5 h-5 rounded object-cover flex-shrink-0" />
           ) : (
             <span className="flex-shrink-0">{getFileIcon(att.file_type)}</span>

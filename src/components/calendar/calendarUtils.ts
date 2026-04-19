@@ -30,6 +30,12 @@ export const getEffectiveEndDate = (endDatetime: string, parseISO: (s: string) =
   return end;
 };
 
+// All-day events store inclusive end dates, so getEffectiveEndDate would
+// wrongly subtract a day. This wrapper picks the right rule per event.
+export const getInclusiveEndDate = (apt: any, parseISO: (s: string) => Date): Date => {
+  return apt.all_day ? parseISO(apt.end_datetime) : getEffectiveEndDate(apt.end_datetime, parseISO);
+};
+
 // Helper: Check if a day is a weekend
 export const isWeekend = (day: Date) => {
   const dayOfWeek = day.getDay();
@@ -116,9 +122,7 @@ export const computeSpanningEventsLayout = (
 
   const allDayAppts = appointments.filter((apt: any) => {
     const aptStart = startOfDay(parseISO(apt.start_datetime));
-    // All-day events store inclusive end dates; skip getEffectiveEndDate to avoid subtracting a day
-    const effectiveEnd = apt.all_day ? parseISO(apt.end_datetime) : getEffectiveEndDate(apt.end_datetime, parseISO);
-    const aptEnd = startOfDay(effectiveEnd);
+    const aptEnd = startOfDay(getInclusiveEndDate(apt, parseISO));
     const isMultiDay = aptEnd.getTime() > aptStart.getTime();
     // Include all-day events OR timed events spanning multiple days
     if (!apt.all_day && !isMultiDay) return false;
@@ -131,8 +135,7 @@ export const computeSpanningEventsLayout = (
 
   const events = allDayAppts.map((apt: any) => {
     const aptStart = startOfDay(parseISO(apt.start_datetime));
-    const effectiveEnd = apt.all_day ? parseISO(apt.end_datetime) : getEffectiveEndDate(apt.end_datetime, parseISO);
-    const aptEnd = startOfDay(effectiveEnd);
+    const aptEnd = startOfDay(getInclusiveEndDate(apt, parseISO));
 
     let startCol = 0;
     let endCol = numDays - 1;

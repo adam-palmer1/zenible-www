@@ -14,6 +14,7 @@ import {
 import { useNotification } from '../../../contexts/NotificationContext';
 import { formatCurrency } from '../../../utils/currency';
 import invoicesAPI from '../../../services/api/finance/invoices';
+import logger from '../../../utils/logger';
 import AppLayout from '../../layout/AppLayout';
 import KPICard from '../shared/KPICard';
 import ActionMenu from '../../shared/ActionMenu';
@@ -81,7 +82,7 @@ const RecurringInvoices: React.FC = () => {
       const response = await invoicesAPI.list(params);
       setTemplates(response.items || []);
     } catch (error: any) {
-      console.error('Failed to fetch recurring templates:', error);
+      logger.error('Failed to fetch recurring templates:', error);
       showError('Failed to load recurring invoices');
     } finally {
       setLoading(false);

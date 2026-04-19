@@ -17,11 +17,19 @@ export default function AdminLayout() {
   return (
     <AdminRoute>
       <div className={`min-h-screen-safe font-inter ${darkMode ? 'bg-zenible-dark-bg' : 'bg-gray-50'}`}>
+        {/* Skip link — hidden until focused so keyboard users can bypass the sidebar. */}
+        <a
+          href="#admin-main"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[1000] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-zenible-primary focus:text-white focus:shadow-lg"
+        >
+          Skip to main content
+        </a>
+
         {/* Desktop sidebar */}
         {!isMobile && (
-          <div className="fixed left-0 top-0 h-full z-30">
+          <nav className="fixed left-0 top-0 h-full z-30" aria-label="Admin navigation">
             <AdminSidebar />
-          </div>
+          </nav>
         )}
 
         {/* Mobile drawer */}
@@ -32,9 +40,9 @@ export default function AdminLayout() {
               onClick={() => setMobileOpen(false)}
               aria-hidden="true"
             />
-            <div className="fixed left-0 top-0 h-full z-50 animate-slide-in-left">
+            <nav className="fixed left-0 top-0 h-full z-50 animate-slide-in-left" aria-label="Admin navigation">
               <AdminSidebar />
-            </div>
+            </nav>
           </>
         )}
 
@@ -51,7 +59,7 @@ export default function AdminLayout() {
                 className="flex items-center justify-center w-11 h-11 rounded-md hover:bg-gray-100 transition-colors"
                 aria-label="Open menu"
               >
-                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
@@ -60,7 +68,9 @@ export default function AdminLayout() {
             </header>
           )}
 
-          <Outlet context={{ darkMode }} />
+          <main id="admin-main">
+            <Outlet context={{ darkMode }} />
+          </main>
         </div>
       </div>
     </AdminRoute>

@@ -22,6 +22,7 @@ import {
 import { CREDIT_NOTE_STATUS, CREDIT_NOTE_STATUS_COLORS, CREDIT_NOTE_STATUS_LABELS } from '../../../constants/finance';
 import { getCurrencySymbol } from '../../../utils/currency';
 import creditNotesAPI from '../../../services/api/finance/creditNotes';
+import logger from '../../../utils/logger';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useSearchableContacts } from '../../../hooks/crm/useSearchableContacts';
 import { useCRMReferenceData } from '../../../contexts/CRMReferenceDataContext';
@@ -283,7 +284,7 @@ const CreditNotesDashboard: React.FC = () => {
         setStats(response.stats);
       }
     } catch (error) {
-      console.error('Error loading credit notes:', error);
+      logger.error('Error loading credit notes:', error);
       showError('Failed to load credit notes');
     } finally {
       setLoading(false);

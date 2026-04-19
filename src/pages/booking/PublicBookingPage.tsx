@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, GlobeAltIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import publicBookingAPI from '../../services/api/public/booking';
+import { safeHref } from '../../utils/urls';
+import logger from '../../utils/logger';
 import BookingCalendar from '../../components/booking/BookingCalendar';
 import TimeSlotPicker from '../../components/booking/TimeSlotPicker';
 import BookingForm from '../../components/booking/BookingForm';
@@ -194,7 +196,7 @@ const PublicBookingPage: React.FC = () => {
         setPageData(data);
       } catch (err: unknown) {
         const apiError = err as { status?: number; message?: string };
-        console.error('Error fetching call type page:', err);
+        logger.error('Error fetching call type page:', err);
         if (apiError.status === 404) {
           setError('Booking page not found');
         } else if (apiError.status === 403) {
@@ -241,7 +243,7 @@ const PublicBookingPage: React.FC = () => {
         hasAutoSelectedRef.current = true;
       }
     } catch (err) {
-      console.error('Error fetching calendar availability:', err);
+      logger.error('Error fetching calendar availability:', err);
       setAvailabilityData({});
     } finally {
       setAvailabilityLoading(false);
@@ -395,7 +397,7 @@ const PublicBookingPage: React.FC = () => {
       setStep('confirmed');
     } catch (err: unknown) {
       const apiError = err as { status?: number; message?: string };
-      console.error('Error creating booking:', err);
+      logger.error('Error creating booking:', err);
       if (apiError.status === 409) {
         setSubmitError('This time slot is no longer available. Please select another time.');
         setStep('calendar');
@@ -409,7 +411,7 @@ const PublicBookingPage: React.FC = () => {
           setAvailabilityData((prev) => ({ ...prev, [selectedDate as string]: slots }));
           setAvailableSlots(slots);
         } catch (refetchErr) {
-          console.error('Error refetching slots:', refetchErr);
+          logger.error('Error refetching slots:', refetchErr);
         } finally {
           setSlotsLoading(false);
         }
@@ -540,7 +542,7 @@ const PublicBookingPage: React.FC = () => {
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                 <strong>Meeting Link:</strong>{' '}
                 <a
-                  href={bookingResult.meeting_link}
+                  href={safeHref(bookingResult.meeting_link)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-zenible-primary hover:underline"

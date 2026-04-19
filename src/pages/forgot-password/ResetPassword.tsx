@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../config/api';
+import logger from '../../utils/logger';
 
 // Back arrow icon
 const BackArrowIcon: React.FC = () => (
@@ -161,7 +162,7 @@ export default function ResetPassword() {
           setTokenError(data.detail || 'This link is invalid or has expired.');
         }
       } catch (err) {
-        console.error('Token validation error:', err);
+        logger.error('Token validation error:', err);
         setTokenError('Unable to validate the link. Please try again.');
       } finally {
         setIsValidating(false);
@@ -225,7 +226,7 @@ export default function ResetPassword() {
         setError(errorMsg);
       }
     } catch (err) {
-      console.error('Set password error:', err);
+      logger.error('Set password error:', err);
       setError('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);

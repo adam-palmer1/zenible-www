@@ -3,6 +3,7 @@ import { EllipsisVerticalIcon, EyeSlashIcon, Cog6ToothIcon } from '@heroicons/re
 import Dropdown from '../../ui/dropdown/Dropdown';
 import { WIDGET_REGISTRY, getDefaultWidgetSettings } from './WidgetRegistry';
 import { usePreferences } from '../../../contexts/PreferencesContext';
+import logger from '../../../utils/logger';
 
 // Lazy load widget components for code splitting
 const widgetComponents: Record<string, React.LazyExoticComponent<React.ComponentType<any>>> = {
@@ -67,7 +68,7 @@ const WidgetWrapper = ({
   const WidgetComponent = config?.component ? widgetComponents[config.component] : undefined;
 
   if (!config || !WidgetComponent) {
-    console.warn(`Widget not found: ${widgetId}`);
+    logger.warn(`Widget not found: ${widgetId}`);
     return null;
   }
 

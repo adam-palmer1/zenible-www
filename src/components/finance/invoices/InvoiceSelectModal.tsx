@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Search, Check, FileText, X } from 'lucide-react';
 import invoicesAPI from '../../../services/api/finance/invoices';
+import logger from '../../../utils/logger';
 
 interface InvoiceSelectModalProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ const InvoiceSelectModal: React.FC<InvoiceSelectModalProps> = ({
       const items = data?.items || [];
       setInvoices(items);
     } catch (error) {
-      console.error('Failed to search invoices:', error);
+      logger.error('Failed to search invoices:', error);
       setInvoices([]);
     } finally {
       setLoading(false);

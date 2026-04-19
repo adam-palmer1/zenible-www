@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import logger from '../../../../utils/logger';
 import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -60,7 +61,7 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
       setStatus(data);
       return data;
     } catch (_err: any) {
-      console.error('[StripeConnect] Error loading status:', _err);
+      logger.error('[StripeConnect] Error loading status:', _err);
       // Not connected is a valid state
       if (_err.status !== 404) {
         setError(_err.message);
@@ -123,7 +124,7 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
       // Redirect to Stripe OAuth
       window.location.href = oauth_url;
     } catch (_err: any) {
-      console.error('[StripeConnect] Error connecting:', _err);
+      logger.error('[StripeConnect] Error connecting:', _err);
       setError(_err.message || 'Failed to start Stripe connection');
       setConnecting(false);
     }
@@ -466,7 +467,7 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
       setStatus(data);
       return data;
     } catch (_err: any) {
-      console.error('[PayPalConnect] Error loading status:', _err);
+      logger.error('[PayPalConnect] Error loading status:', _err);
       if (_err.status !== 404) {
         setError(_err.message);
       }
@@ -529,7 +530,7 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
       // Redirect to PayPal
       window.location.href = action_url;
     } catch (_err: any) {
-      console.error('[PayPalConnect] Error connecting:', _err);
+      logger.error('[PayPalConnect] Error connecting:', _err);
       setError(_err.message || 'Failed to start PayPal connection');
       setConnecting(false);
     }

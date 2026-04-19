@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { usePaymentIntegrations } from '../../../contexts/PaymentIntegrationsContext';
 import invoicesAPI from '../../../services/api/finance/invoices';
+import logger from '../../../utils/logger';
 
 interface PayPalPaymentFormProps {
   amount: number;
@@ -52,7 +53,7 @@ const PayPalPaymentForm: React.FC<PayPalPaymentFormProps> = ({
 
       return order_id;
     } catch (err: any) {
-      console.error('[PayPalPaymentForm] Create order error:', err);
+      logger.error('[PayPalPaymentForm] Create order error:', err);
       setError(err.message || 'Failed to create PayPal order');
       throw err;
     }
@@ -76,7 +77,7 @@ const PayPalPaymentForm: React.FC<PayPalPaymentFormProps> = ({
       onSuccess(result);
       return result;
     } catch (err: any) {
-      console.error('[PayPalPaymentForm] Payment confirmation error:', err);
+      logger.error('[PayPalPaymentForm] Payment confirmation error:', err);
       setError(err.message || 'Payment confirmation failed');
       onError(err);
       throw err;
@@ -87,7 +88,7 @@ const PayPalPaymentForm: React.FC<PayPalPaymentFormProps> = ({
    * Handle errors
    */
   const onErrorHandler = (err: any) => {
-    console.error('[PayPalPaymentForm] PayPal error:', err);
+    logger.error('[PayPalPaymentForm] PayPal error:', err);
     setError('PayPal payment failed. Please try again.');
     onError(err);
   };

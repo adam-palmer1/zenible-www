@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useInvoices } from '../../contexts/InvoiceContext';
+import logger from '../../utils/logger';
 
 interface CurrencyBreakdown {
   currency_code: string;
@@ -81,7 +82,15 @@ export function useInvoiceStats(): InvoiceStats {
 
     const typedStats = backendStats as BackendInvoiceStats | null | undefined;
 
-    if (!typedStats || !typedStats.by_currency) {
+    if (!typedStats) {
+      // Stats not yet loaded from invoice list response — show zeros.
+      return defaultStats;
+    }
+
+    if (!Array.isArray(typedStats.by_currency)) {
+      // Stats object present but missing/invalid by_currency: backend contract violation.
+      // Don't silently show zero revenue in a finance dashboard — surface it.
+      logger.error('[useInvoiceStats] Stats object is missing `by_currency` array. Got:', typedStats);
       return defaultStats;
     }
 

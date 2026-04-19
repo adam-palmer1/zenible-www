@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import adminAPI from '../../services/adminAPI';
 import platformAPI from '../../services/platformAPI';
+import logger from '../../utils/logger';
 import Combobox from '../ui/combobox/Combobox';
 
 interface IconProps {
@@ -126,7 +127,7 @@ export default function CharacterPlatformConfig({ characterId, characterName, is
       const platformsResponse = await platformAPI.getActivePlatforms() as AvailablePlatform[];
       setAvailablePlatforms(platformsResponse);
     } catch (err) {
-      console.error('Failed to fetch data:', err);
+      logger.error('Failed to fetch data:', err);
       setError('Failed to load platform configurations');
     } finally {
       setLoading(false);
@@ -164,7 +165,7 @@ export default function CharacterPlatformConfig({ characterId, characterName, is
       // Refresh configurations
       fetchData();
     } catch (err) {
-      console.error('Failed to add platform:', err);
+      logger.error('Failed to add platform:', err);
       alert('Failed to add platform configuration');
     } finally {
       setSaving(false);
@@ -177,7 +178,7 @@ export default function CharacterPlatformConfig({ characterId, characterName, is
       await adminAPI.updateCharacterPlatform(characterId, platformId, data);
       fetchData();
     } catch (err) {
-      console.error('Failed to update configuration:', err);
+      logger.error('Failed to update configuration:', err);
       alert('Failed to update configuration');
     } finally {
       setSaving(false);
@@ -194,7 +195,7 @@ export default function CharacterPlatformConfig({ characterId, characterName, is
       await adminAPI.deleteCharacterPlatform(characterId, platformId);
       fetchData();
     } catch (err) {
-      console.error('Failed to delete configuration:', err);
+      logger.error('Failed to delete configuration:', err);
       alert('Failed to delete configuration');
     } finally {
       setSaving(false);
@@ -224,7 +225,7 @@ export default function CharacterPlatformConfig({ characterId, characterName, is
       ]);
       fetchData();
     } catch (err) {
-      console.error('Failed to update priority:', err);
+      logger.error('Failed to update priority:', err);
     } finally {
       setSaving(false);
     }

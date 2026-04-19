@@ -17,7 +17,7 @@ interface CalendarSettingsModalProps {
   syncAccount: (accountId: any) => Promise<any>;
   listAccountCalendars: (accountId: string) => Promise<any[]>;
   updateSelectedCalendars: (accountId: string, calendarIds: string[]) => Promise<any>;
-  updateSubcalendarColor: (accountId: string, calendarId: string, color: string) => Promise<any>;
+  updateSubcalendarColor: (accountId: string, calendarId: string, color: string | null) => Promise<any>;
 }
 
 export default function CalendarSettingsModal({

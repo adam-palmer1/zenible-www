@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PlusIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import Modal from '../ui/modal/Modal';
 import { useCRM } from '../../contexts/CRMContext';
+import logger from '../../utils/logger';
 import { useProjects, useCompanyCurrencies } from '../../hooks/crm';
 import { useNotification } from '../../contexts/NotificationContext';
 import DatePickerCalendar from '../shared/DatePickerCalendar';
@@ -72,7 +73,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
           const fullProjectData = await projectsAPI.get(project.id);
           setFullProject(fullProjectData);
         } catch (error) {
-          console.error('Failed to load project details:', error);
+          logger.error('Failed to load project details:', error);
           showError('Failed to load project details');
         } finally {
           setLoadingProject(false);
@@ -163,7 +164,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
       const contact = await contactsAPI.get(contactId);
       setClientServices(contact.services || []);
     } catch (error) {
-      console.error('Failed to load client services:', error);
+      logger.error('Failed to load client services:', error);
       showError('Failed to load client services');
     } finally {
       setLoadingServices(false);
@@ -249,7 +250,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
               contact_service_id: serviceId,
             });
           } catch (error) {
-            console.error(`Failed to assign service ${serviceId}:`, error);
+            logger.error(`Failed to assign service ${serviceId}:`, error);
           }
         }
       }
@@ -261,7 +262,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, proj
       refresh();
       onClose();
     } catch (error: any) {
-      console.error('Failed to save project:', error);
+      logger.error('Failed to save project:', error);
       setErrors({ general: error.message });
       showError('Failed to save project');
     } finally {

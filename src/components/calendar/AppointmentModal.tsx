@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import logger from '../../utils/logger';
 import ContactSelectorModal from './ContactSelectorModal';
 import DatePickerCalendar from '../shared/DatePickerCalendar';
 import TimePickerInput from '../shared/TimePickerInput';
@@ -8,6 +9,7 @@ import Combobox from '../ui/combobox/Combobox';
 import contactsAPI from '../../services/api/crm/contacts';
 import appointmentsAPI from '../../services/api/crm/appointments';
 import { useCRMReferenceData } from '../../contexts/CRMReferenceDataContext';
+import { safeHref } from '../../utils/urls';
 import type { AppointmentResponse, ContactResponse } from '../../types';
 import type { EnumItem } from '../../contexts/CRMReferenceDataContext';
 
@@ -115,7 +117,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
         try {
           fullAppointment = await appointmentsAPI.get<AppointmentWithRecurrence>(appointment.id);
         } catch (error) {
-          console.error('Failed to fetch full appointment details:', error);
+          logger.error('Failed to fetch full appointment details:', error);
           // Fall back to the passed appointment data
         }
 
@@ -179,7 +181,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
             const contact = await contactsAPI.get(fullAppointment.contact_id);
             setSelectedContact(contact);
           } catch (error) {
-            console.error('Failed to fetch contact:', error);
+            logger.error('Failed to fetch contact:', error);
             setSelectedContact(null);
           }
         } else {
@@ -407,7 +409,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
       await onSave(submitData);
       onClose();
     } catch (error: unknown) {
-      console.error('Failed to save appointment:', error);
+      logger.error('Failed to save appointment:', error);
       setErrors({ general: (error as Error).message });
     } finally {
       setLoading(false);
@@ -513,7 +515,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
         {formData.meeting_link && (
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1">Meeting Link</label>
-            <a href={formData.meeting_link} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-800 underline break-all">
+            <a href={safeHref(formData.meeting_link)} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-800 underline break-all">
               {formData.meeting_link}
             </a>
           </div>
@@ -537,7 +539,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({ isOpen, onClose, on
 
   return (
     <>
-      <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Appointment">
         <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
           {/* Backdrop */}
           <div
