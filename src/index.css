@@ -90,6 +90,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  overflow-x: clip;
 }
 
 /* Scrollbar hiding utility */
@@ -135,36 +136,33 @@ body {
 
 /* Scrollbar visible only on hover */
 .scrollbar-hover {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
 }
 
 .scrollbar-hover::-webkit-scrollbar {
-  display: none;
+  width: 6px;
+}
+
+.scrollbar-hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-hover::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
 }
 
 .scrollbar-hover:hover {
-  -ms-overflow-style: auto;
-  scrollbar-width: thin;
-}
-
-.scrollbar-hover:hover::-webkit-scrollbar {
-  display: block;
-  width: 8px;
-}
-
-.scrollbar-hover:hover::-webkit-scrollbar-track {
-  background: #f3f4f6;
-  border-radius: 4px;
+  scrollbar-color: var(--text-secondary) transparent;
 }
 
 .scrollbar-hover:hover::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 4px;
+  background: var(--text-secondary);
 }
 
 .scrollbar-hover:hover::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: var(--text-primary);
 }
 
 /* Widget scrollbar - no scroll by default, scrollable on widget-card hover */

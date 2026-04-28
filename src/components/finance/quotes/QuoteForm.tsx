@@ -797,18 +797,18 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
   return (
     <FinanceLayout
       header={
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="px-4 py-4 lg:px-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-4 min-w-0">
               <button
                 onClick={() => navigate('/finance/quotes')}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors shrink-0"
                 title="Back to quotes"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">
                   {isEditing ? 'Edit Quote' : 'New Quote'}
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -817,18 +817,18 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
               </div>
             </div>
             {/* Action Buttons */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setShowSettingsModal(true)}
-                className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center gap-2"
+                className="px-4 sm:px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center gap-2"
               >
                 <Settings className="h-4 w-4" />
-                Quote Settings
+                <span className="hidden sm:inline">Quote </span>Settings
               </button>
               <button
                 onClick={() => handleSave(quote?.status && quote.status !== 'draft' ? quote.status : QUOTE_STATUS.DRAFT)}
                 disabled={saving}
-                className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                className="px-4 sm:px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
                 {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
                 {getSaveButtonText()}
@@ -836,10 +836,10 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote: quoteProp = null, onSucces
               <button
                 onClick={() => handleSave(QUOTE_STATUS.SENT, true)}
                 disabled={saving}
-                className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                className="px-4 sm:px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
               >
                 {saving ? <Loader2 className="h-4 w-4 inline mr-2 animate-spin" /> : null}
-                Save & Send
+                Save &amp; Send
               </button>
             </div>
           </div>

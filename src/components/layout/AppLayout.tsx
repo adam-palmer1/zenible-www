@@ -28,7 +28,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   rawContent = false,
 }) => {
   return (
-    <div className="min-h-screen-safe bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen-safe bg-gray-50 dark:bg-gray-900 overflow-x-clip">
       {/* Skip link — visible only when focused. Lets keyboard users bypass the sidebar. */}
       <a
         href="#main-content"
@@ -42,7 +42,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
       {/* Main content area */}
       <div
-        className={`min-h-screen-safe h-screen-safe flex flex-col transition-all duration-300 ${className}`}
+        className={`min-h-screen-safe h-screen-safe min-w-0 overflow-x-clip flex flex-col transition-all duration-300 ${className}`}
         style={{ marginLeft: 'var(--sidebar-width, 0px)' }}
       >
         {/* Mobile header (hidden on lg+) */}

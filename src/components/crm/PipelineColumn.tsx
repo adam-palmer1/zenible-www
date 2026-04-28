@@ -206,7 +206,7 @@ const PipelineColumn: React.FC<PipelineColumnProps> = ({
         setDroppableRef(node);
       }}
       style={columnStyle}
-      className={`flex-1 min-w-[140px] sm:min-w-[160px] h-full min-h-[400px] rounded-xl transition-all duration-200 ${
+      className={`flex-shrink-0 w-[260px] sm:flex-1 sm:w-auto sm:min-w-[160px] h-full min-h-[400px] rounded-xl transition-all duration-200 ${
         isColumnDragging ? 'opacity-50 z-50' : ''
       } ${
         isOver && isDraggingContact

@@ -241,6 +241,7 @@ export const test = base.extend<{
       return result;
     };
 
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- Playwright fixture API, not the React `use` hook
     await use(audit);
   },
 });

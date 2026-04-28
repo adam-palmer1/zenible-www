@@ -14,7 +14,9 @@ test.describe('Onboarding modal (FirstSignInModal)', () => {
         localStorage.removeItem('first-signin-completed');
         localStorage.removeItem('onboarding-completed');
         sessionStorage.clear();
-      } catch {}
+      } catch {
+        // storage access can fail in privacy modes; safe to ignore for this audit step
+      }
     });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {});
