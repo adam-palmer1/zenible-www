@@ -86,3 +86,11 @@ vite.config.ts.timestamp-*
 # pnpm-lock.yaml
 /.claude/*
 /.claude
+
+# playwright
+playwright/.auth/
+playwright-report/
+test-results/
+tests/mobile-audit/results/
+tests/mobile-audit/screenshots/
+tests/mobile-audit/report/REPORT.md

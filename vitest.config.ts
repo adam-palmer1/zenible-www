@@ -39,7 +39,7 @@ export default defineConfig({
     include: ['**/*.{test,spec}.{js,jsx,ts,tsx}'],
 
     // Exclude patterns
-    exclude: ['node_modules', 'dist', '.idea', '.git', '.cache'],
+    exclude: ['node_modules', 'dist', '.idea', '.git', '.cache', 'tests/mobile-audit/**'],
   },
 
   resolve: {
