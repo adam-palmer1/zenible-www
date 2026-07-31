@@ -40,7 +40,7 @@ export default function UserManagement() {
   const [orderDir, setOrderDir] = useState<string>('desc');
 
   // Actions dropdown position
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const [dropdownPosition, setDropdownPosition] = useState<{ triggerTop: number; triggerBottom: number; right: number }>({ triggerTop: 0, triggerBottom: 0, right: 0 });
   const [dropdownUser, setDropdownUser] = useState<AdminUser | null>(null);
 
   // User actions modal state
@@ -85,7 +85,8 @@ export default function UserManagement() {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setDropdownPosition({
-      top: rect.bottom + window.scrollY,
+      triggerTop: rect.top,
+      triggerBottom: rect.bottom,
       right: window.innerWidth - rect.right,
     });
     setDropdownUser(user);

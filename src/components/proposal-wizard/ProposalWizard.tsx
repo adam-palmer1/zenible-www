@@ -558,7 +558,7 @@ export default function ProposalWizard() {
 
     try {
       setExportStatus(null);
-      const blob = await userAPI.exportUserConversation(conversationId, 'markdown') as Blob;
+      const blob = await userAPI.exportUserConversation(conversationId, 'markdown');
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -593,13 +593,15 @@ export default function ProposalWizard() {
 
           <div className="flex items-center gap-2">
             {/* Usage Limit Badge */}
-            <UsageLimitBadge
-              characterId={selectedCharacterId ?? undefined}
-              aiUsage={true}
-              variant="compact"
-              showUpgradeLink={true}
-              darkMode={darkMode}
-            />
+            {selectedCharacterId && (
+              <UsageLimitBadge
+                characterId={selectedCharacterId}
+                aiUsage={true}
+                variant="compact"
+                showUpgradeLink={true}
+                darkMode={darkMode}
+              />
+            )}
 
             {conversationId && (
               <div className="flex items-center gap-2">

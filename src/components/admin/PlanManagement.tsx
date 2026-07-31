@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import adminAPI from '../../services/adminAPI';
 import { LoadingSpinner } from '../shared';
 
@@ -15,6 +18,8 @@ interface PlanResponse {
   is_active: boolean;
   is_hidden?: boolean;
   features?: string[];
+  display_features_json?: { text: string; is_included: boolean }[];
+  display_features?: { text: string; is_included: boolean }[];
   stripe_product_id?: string | null;
   created_at: string;
   updated_at?: string | null;
@@ -37,6 +42,7 @@ interface PlanFormData {
   is_free?: boolean;
   is_active: boolean;
   is_hidden?: boolean;
+  display_features_json?: { text: string; is_included: boolean }[];
   trial_enabled?: boolean;
   trial_duration_days?: string;
   trial_requires_card?: boolean;
@@ -46,6 +52,169 @@ interface PlanFormData {
 interface ValidationError {
   loc?: string[];
   msg: string;
+}
+
+interface DisplayFeature {
+  text: string;
+  is_included: boolean;
+}
+
+function SortableFeatureRow({
+  id,
+  feature,
+  onToggle,
+  onChange,
+  onRemove,
+  darkMode,
+}: {
+  id: string;
+  feature: DisplayFeature;
+  onToggle: () => void;
+  onChange: (text: string) => void;
+  onRemove: () => void;
+  darkMode: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-2">
+      {/* Drag handle */}
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-grab active:cursor-grabbing ${
+          darkMode ? 'text-zenible-dark-text-secondary hover:bg-zenible-dark-bg' : 'text-gray-400 hover:bg-gray-100'
+        }`}
+        title="Drag to reorder"
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M7 2a2 2 0 10.001 4.001A2 2 0 007 2zm0 6a2 2 0 10.001 4.001A2 2 0 007 8zm0 6a2 2 0 10.001 4.001A2 2 0 007 14zm6-8a2 2 0 10-.001-4.001A2 2 0 0013 6zm0 2a2 2 0 10.001 4.001A2 2 0 0013 8zm0 6a2 2 0 10.001 4.001A2 2 0 0013 14z" />
+        </svg>
+      </button>
+      {/* Include/exclude toggle */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`flex-shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
+          feature.is_included
+            ? 'bg-green-100 border-green-300 text-green-600'
+            : 'bg-red-50 border-red-200 text-red-400'
+        }`}
+        title={feature.is_included ? 'Included (click to exclude)' : 'Excluded (click to include)'}
+      >
+        {feature.is_included ? (
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        )}
+      </button>
+      {/* Text input */}
+      <input
+        type="text"
+        value={feature.text}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Feature description..."
+        className={`flex-1 px-3 py-2 text-sm rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border text-zenible-dark-text' : 'bg-white border-neutral-200'}`}
+      />
+      {/* Delete */}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="flex-shrink-0 w-8 h-8 rounded-lg border border-red-200 text-red-400 hover:bg-red-50 flex items-center justify-center"
+        title="Remove feature"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function DisplayFeaturesEditor({
+  features,
+  onChange,
+  darkMode,
+}: {
+  features: DisplayFeature[];
+  onChange: (features: DisplayFeature[]) => void;
+  darkMode: boolean;
+}) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const ids = features.map((_, i) => `feature-${i}`);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = ids.indexOf(active.id as string);
+      const newIndex = ids.indexOf(over.id as string);
+      onChange(arrayMove(features, oldIndex, newIndex));
+    },
+    [features, ids, onChange]
+  );
+
+  return (
+    <div className="mt-4">
+      <div className="flex items-center justify-between mb-2">
+        <label className={`block text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-gray-700'}`}>
+          Display Features (shown on pricing page)
+        </label>
+        <button
+          type="button"
+          onClick={() => onChange([...features, { text: '', is_included: true }])}
+          className="text-xs px-2 py-1 bg-zenible-primary text-white rounded hover:bg-opacity-90"
+        >
+          + Add Feature
+        </button>
+      </div>
+      {features.length > 0 ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {features.map((feature, index) => (
+                <SortableFeatureRow
+                  key={ids[index]}
+                  id={ids[index]}
+                  feature={feature}
+                  darkMode={darkMode}
+                  onToggle={() => {
+                    const next = [...features];
+                    next[index] = { ...next[index], is_included: !next[index].is_included };
+                    onChange(next);
+                  }}
+                  onChange={(text) => {
+                    const next = [...features];
+                    next[index] = { ...next[index], text };
+                    onChange(next);
+                  }}
+                  onRemove={() => {
+                    const next = [...features];
+                    next.splice(index, 1);
+                    onChange(next);
+                  }}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <p className={`text-sm italic ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-400'}`}>
+          No features added yet. Click "+ Add Feature" to add pricing page features.
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function PlanManagement() {
@@ -69,6 +238,7 @@ export default function PlanManagement() {
     features: [],
     is_free: false,
     is_active: true,
+    display_features_json: [],
   });
 
   useEffect(() => {
@@ -125,6 +295,7 @@ export default function PlanManagement() {
         old_monthly_price: formData.old_monthly_price || null,
         old_annual_price: formData.old_annual_price || null,
         is_recommended: formData.is_recommended || false,
+        display_features_json: formData.display_features_json || [],
         ...buildTrialData(),
       };
       await adminAPI.createPlan(data);
@@ -165,6 +336,7 @@ export default function PlanManagement() {
         old_monthly_price: formData.old_monthly_price || null,
         old_annual_price: formData.old_annual_price || null,
         is_recommended: formData.is_recommended || false,
+        display_features_json: formData.display_features_json || [],
         ...buildTrialData(),
       };
       await adminAPI.updatePlan(selectedPlan.id, data);
@@ -255,13 +427,22 @@ export default function PlanManagement() {
       trial_duration_days: '',
       trial_requires_card: false,
       trial_reminder_schedule: '',
+      display_features_json: [],
     });
     setSelectedPlan(null);
     setModalError(null);
   };
 
-  const openEditModal = (plan: PlanResponse) => {
+  const openEditModal = async (plan: PlanResponse) => {
     setSelectedPlan(plan);
+    // Fetch full plan detail to get display_features
+    let displayFeatures: { text: string; is_included: boolean }[] = plan.display_features_json || plan.display_features || [];
+    try {
+      const detail = await adminAPI.getPlan(plan.id) as PlanResponse;
+      displayFeatures = detail.display_features || detail.display_features_json || [];
+    } catch {
+      // Fall back to what we have from the list
+    }
     setFormData({
       name: plan.name,
       description: plan.description || '',
@@ -271,6 +452,7 @@ export default function PlanManagement() {
       old_annual_price: plan.old_annual_price || '',
       is_recommended: plan.is_recommended || false,
       features: plan.features || [],
+      display_features_json: displayFeatures,
       is_active: plan.is_active,
       is_hidden: plan.is_hidden || false,
       trial_enabled: plan.trial_enabled || false,
@@ -497,14 +679,14 @@ export default function PlanManagement() {
 
       {/* Create/Edit Modal */}
       {(showCreateModal || showEditModal) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`w-full max-w-lg mx-4 rounded-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
-            <div className={`px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-lg rounded-xl flex flex-col max-h-[90vh] ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
+            <div className={`flex-shrink-0 px-6 py-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
               <h3 className={`text-lg font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
                 {showCreateModal ? 'Create New Plan' : 'Edit Plan'}
               </h3>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <input
                 type="text"
                 placeholder="Plan Name"
@@ -652,6 +834,13 @@ export default function PlanManagement() {
                   </div>
                 )}
               </div>
+              {/* Display Features (for pricing page) — drag to reorder */}
+              <DisplayFeaturesEditor
+                features={formData.display_features_json || []}
+                onChange={(features) => setFormData({ ...formData, display_features_json: features })}
+                darkMode={darkMode}
+              />
+
               {modalError && (
                 <div className={`p-3 rounded-lg ${
                   darkMode
@@ -667,7 +856,7 @@ export default function PlanManagement() {
                 </div>
               )}
             </div>
-            <div className={`px-6 py-4 border-t flex gap-2 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+            <div className={`flex-shrink-0 px-6 py-4 border-t flex gap-2 ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
               <button
                 onClick={showCreateModal ? handleCreatePlan : handleUpdatePlan}
                 className="px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90"

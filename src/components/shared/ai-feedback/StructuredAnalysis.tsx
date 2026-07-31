@@ -8,6 +8,18 @@ interface StructuredAnalysisProps {
   structuredData?: unknown;
 }
 
+export function hasRenderableStructuredFields(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false;
+  const s = data as StructuredAnalysisData;
+  return (
+    !!s.proposal_text?.trim() ||
+    (s.score !== undefined && s.score !== null) ||
+    !!(s.strengths && s.strengths.length > 0) ||
+    !!(s.weaknesses && s.weaknesses.length > 0) ||
+    !!(s.improvements && s.improvements.length > 0)
+  );
+}
+
 export default function StructuredAnalysis({
   darkMode,
   structuredData = null,
@@ -16,6 +28,8 @@ export default function StructuredAnalysis({
 
   if (!structuredData) return null;
   const structured = structuredData as StructuredAnalysisData;
+
+  if (!hasRenderableStructuredFields(structured)) return null;
 
   const handleCopyProposal = async () => {
     if (!structured.proposal_text) return;

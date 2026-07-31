@@ -15,6 +15,7 @@ interface ChangePlanPreview {
   next_payment_date?: string | null;
   current_period_end?: string | null;
   currency: string;
+  requires_payment_method?: boolean;
 }
 
 interface PlanChangeConfirmModalProps {

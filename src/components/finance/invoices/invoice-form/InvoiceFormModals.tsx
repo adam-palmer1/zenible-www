@@ -64,6 +64,9 @@ interface InvoiceFormModalsProps {
   receivePaymentNotifications: boolean;
   invoiceStatus: string;
   isEditing: boolean;
+  isGeneratedInstance: boolean;
+  recurrenceSequenceNumber: number | null;
+  onEditTemplate?: () => void;
   overrideReminderSettings: boolean;
   invoiceRemindersEnabled: boolean | null;
   invoiceReminderFrequencyDays: number | null;
@@ -150,6 +153,9 @@ const InvoiceFormModals: React.FC<InvoiceFormModalsProps> = ({
   receivePaymentNotifications,
   invoiceStatus,
   isEditing,
+  isGeneratedInstance,
+  recurrenceSequenceNumber,
+  onEditTemplate,
   overrideReminderSettings,
   invoiceRemindersEnabled,
   invoiceReminderFrequencyDays,
@@ -248,6 +254,9 @@ const InvoiceFormModals: React.FC<InvoiceFormModalsProps> = ({
         receivePaymentNotifications={receivePaymentNotifications}
         invoiceStatus={invoiceStatus}
         isEditing={isEditing}
+        isGeneratedInstance={isGeneratedInstance}
+        recurrenceSequenceNumber={recurrenceSequenceNumber}
+        onEditTemplate={onEditTemplate}
         // Reminder settings
         overrideReminderSettings={overrideReminderSettings}
         invoiceRemindersEnabled={invoiceRemindersEnabled}

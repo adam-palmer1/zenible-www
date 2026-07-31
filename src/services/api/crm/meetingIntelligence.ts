@@ -11,7 +11,7 @@ const meetingIntelligenceAPI = {
   getSettings: () => request('/crm/meeting-intelligence/settings', { method: 'GET' }),
 
   /** Update ZMI settings */
-  updateSettings: (data: { enabled?: boolean; caption_language?: string; recording_enabled?: boolean; meeting_display_name?: string }) => request('/crm/meeting-intelligence/settings', {
+  updateSettings: (data: { enabled?: boolean; caption_language?: string; recording_enabled?: boolean; meeting_display_name?: string; auto_send_summary?: string }) => request('/crm/meeting-intelligence/settings', {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
@@ -39,6 +39,15 @@ const meetingIntelligenceAPI = {
 
   /** Get bot session status */
   getBotStatus: (sessionId: string) => request(`/crm/meeting-intelligence/bot/${sessionId}/status`, { method: 'GET' }),
+
+  /** Enable real-time insights for a session (checks feature + credits) */
+  enableInsights: (sessionId: string) => request(`/crm/meeting-intelligence/bot/${sessionId}/insights/enable`, { method: 'POST' }) as Promise<{ enabled: boolean; credits_remaining: number | null }>,
+
+  /** Disable real-time insights for a session */
+  disableInsights: (sessionId: string) => request(`/crm/meeting-intelligence/bot/${sessionId}/insights/disable`, { method: 'POST' }) as Promise<{ enabled: boolean }>,
+
+  /** Get available call objectives for real-time insights */
+  getInsightObjectives: () => request('/crm/meeting-intelligence/insights/objectives', { method: 'GET' }) as Promise<Array<{ id: string; label: string }>>,
 
   /** Tell bot to leave */
   leaveBot: (sessionId: string) => request(`/crm/meeting-intelligence/bot/${sessionId}/leave`, { method: 'POST' }),
@@ -73,9 +82,24 @@ const meetingIntelligenceAPI = {
     body: JSON.stringify({ meeting_ids: meetingIds }),
   }),
 
+  /** Get persisted real-time insights for a meeting */
+  getMeetingInsights: (meetingId: string) => request(`/crm/meeting-intelligence/meetings/${meetingId}/insights`, { method: 'GET' }),
+
   /** Trigger or re-trigger AI analysis for a meeting */
-  analyzeMeeting: (meetingId: string) => request(`/crm/meeting-intelligence/meetings/${meetingId}/analyze`, {
+  analyzeMeeting: (meetingId: string, options?: { detailed?: boolean }) => request(`/crm/meeting-intelligence/meetings/${meetingId}/analyze`, {
     method: 'POST',
+    body: options ? JSON.stringify(options) : undefined,
+  }),
+
+  /** Preview summary email recipients */
+  getSummaryRecipients: (meetingId: string) => request(`/crm/meeting-intelligence/meetings/${meetingId}/summary-recipients`, {
+    method: 'GET',
+  }),
+
+  /** Send meeting summary email */
+  sendSummary: (meetingId: string, recipients: 'me' | 'all') => request(`/crm/meeting-intelligence/meetings/${meetingId}/send-summary`, {
+    method: 'POST',
+    body: JSON.stringify({ recipients }),
   }),
 
   /** Rename a meeting */

@@ -51,6 +51,14 @@ class WidgetAPI {
     return this.request(`/book/${username}/${shortcode}/slots?${params}`);
   }
 
+  // Get the earliest date with availability (null if none within the booking horizon)
+  async getNextAvailableDate(username: string, shortcode: string, fromDate?: string): Promise<any> {
+    const params = new URLSearchParams();
+    if (fromDate) params.set('from_date', fromDate);
+    const query = params.toString();
+    return this.request(`/book/${username}/${shortcode}/next-available${query ? `?${query}` : ''}`);
+  }
+
   // Create a booking
   async createBooking(username: string, shortcode: string, data: any): Promise<any> {
     return this.request(`/book/${username}/${shortcode}`, {

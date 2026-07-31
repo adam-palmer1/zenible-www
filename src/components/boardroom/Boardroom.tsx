@@ -12,6 +12,7 @@ import { WebSocketContext, WebSocketContextValue } from '../../contexts/WebSocke
 import { useBoardroomChat } from '../../hooks/useBoardroomChat';
 import { useModalState } from '../../hooks/useModalState';
 import aiCharacterAPI from '../../services/aiCharacterAPI';
+import { messageAPI } from '../../services/messageAPI';
 import meetingIntelligenceAPI from '../../services/api/crm/meetingIntelligence';
 import userAPI from '../../services/userAPI';
 import type { FollowUpMessage } from '../shared/ai-feedback/types';
@@ -52,6 +53,12 @@ export default function Boardroom() {
   const [selectedCharacterStarters, setSelectedCharacterStarters] = useState<string[]>([]);
 
   const historyModal = useModalState();
+
+  // Share link state
+  const [showShareConfirm, setShowShareConfirm] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [sharingInProgress, setSharingInProgress] = useState(false);
 
   // Character switch prompt state (history load)
   const [switchPrompt, setSwitchPrompt] = useState<{
@@ -328,25 +335,54 @@ export default function Boardroom() {
           </h1>
 
           <div className="flex items-center gap-2">
-            <UsageLimitBadge
-              characterId={selectedCharacterId ?? undefined}
-              aiUsage={true}
-              variant="compact"
-              showUpgradeLink={true}
-              darkMode={darkMode}
-            />
+            {selectedCharacterId && (
+              <UsageLimitBadge
+                characterId={selectedCharacterId}
+                aiUsage={true}
+                variant="compact"
+                showUpgradeLink={true}
+                darkMode={darkMode}
+              />
+            )}
 
             {conversationId && (
-              <button
-                onClick={handleNewChat}
-                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                  darkMode
-                    ? 'bg-gray-700 text-white hover:bg-gray-600'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                New Chat
-              </button>
+              <>
+                <button
+                  onClick={async () => {
+                    setShowShareConfirm(true);
+                    setShareUrl(null);
+                    if (!conversationId) return;
+                    setSharingInProgress(true);
+                    try {
+                      const result = await messageAPI.getShareLink(conversationId);
+                      if (result.shared && result.share_url) {
+                        setShareUrl(result.share_url);
+                      }
+                    } catch {
+                      // ignore
+                    } finally {
+                      setSharingInProgress(false);
+                    }
+                  }}
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                    darkMode
+                      ? 'bg-gray-700 text-white hover:bg-gray-600'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Share
+                </button>
+                <button
+                  onClick={handleNewChat}
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                    darkMode
+                      ? 'bg-gray-700 text-white hover:bg-gray-600'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  New Chat
+                </button>
+              </>
             )}
 
             <button
@@ -606,6 +642,109 @@ export default function Boardroom() {
         toolType="boardroom"
         showToggle
       />
+
+      {/* Share Conversation Modal */}
+      {showShareConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 shadow-xl ${darkMode ? 'bg-[#1e1e1e] border border-[#333]' : 'bg-white'}`}>
+            {sharingInProgress ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-zenible-primary" />
+              </div>
+            ) : shareUrl ? (
+              <>
+                <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Share Conversation
+                </h3>
+                <p className={`text-sm mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Anyone with this link can view this conversation history.
+                </p>
+                <div className={`flex items-start gap-2 p-3 rounded-lg mb-4 ${darkMode ? 'bg-[#2a2a2a]' : 'bg-gray-50'}`}>
+                  <p className={`flex-1 text-sm break-all select-all ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {shareUrl}
+                  </p>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(shareUrl); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); }}
+                    className={`p-1 rounded flex-shrink-0 transition-colors ${
+                      shareCopied
+                        ? darkMode ? 'text-green-400' : 'text-green-600'
+                        : darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    title={shareCopied ? 'Copied!' : 'Copy to clipboard'}
+                  >
+                    {shareCopied ? (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                <div className="flex justify-between">
+                  <button
+                    onClick={async () => {
+                      if (!conversationId) return;
+                      try {
+                        await messageAPI.deleteShareLink(conversationId);
+                        setShareUrl(null);
+                      } catch { /* ignore */ }
+                    }}
+                    className="text-xs text-red-500 hover:text-red-600"
+                  >
+                    Disable sharing
+                  </button>
+                  <button
+                    onClick={() => { setShowShareConfirm(false); setShareCopied(false); }}
+                    className={`px-4 py-2 text-sm rounded-lg ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Share Conversation
+                </h3>
+                <p className={`text-sm mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Anyone you share this link with will have access to this conversation history.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowShareConfirm(false)}
+                    className={`px-4 py-2 text-sm rounded-lg border ${
+                      darkMode ? 'border-[#333] text-gray-400 hover:text-white' : 'border-gray-300 text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!conversationId) return;
+                      setSharingInProgress(true);
+                      try {
+                        const result = await messageAPI.createShareLink(conversationId);
+                        setShareUrl(result.share_url);
+                      } catch (err: unknown) {
+                        logger.error('Failed to create share link', err);
+                      } finally {
+                        setSharingInProgress(false);
+                      }
+                    }}
+                    disabled={sharingInProgress}
+                    className={`px-4 py-2 text-sm rounded-lg font-medium bg-zenible-primary text-white hover:opacity-90 ${sharingInProgress ? 'opacity-50 cursor-wait' : ''}`}
+                  >
+                    {sharingInProgress ? 'Creating...' : 'Enable Sharing'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

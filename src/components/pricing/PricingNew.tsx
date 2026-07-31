@@ -11,10 +11,16 @@ import type { ChangePlanPreview } from '../user-settings/PlanChangeConfirmModal'
 import tickSquare from '../../assets/icons/tick-square-purple.svg';
 import crossSquare from '../../assets/icons/cross-square-gray.svg';
 
-export default function PricingNew() {
+interface PricingNewProps {
+  isGateMode?: boolean;
+  preselectedPlanId?: string;
+}
+
+export default function PricingNew({ isGateMode = false, preselectedPlanId }: PricingNewProps) {
   const { user, checkAuth } = useAuth();
   const { darkMode } = usePreferences();
   const navigate = useNavigate();
+  const [autoTriggered, setAutoTriggered] = useState(false);
 
   const [plans, setPlans] = useState<any[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
@@ -29,6 +35,7 @@ export default function PricingNew() {
     planName: string;
     price: string;
     billingCycle: string;
+    trialDays?: number;
   }>({
     isOpen: false,
     planId: null,
@@ -131,6 +138,22 @@ export default function PricingNew() {
     }
   };
 
+  // Auto-trigger checkout when a plan was preselected (e.g. from external landing page)
+  useEffect(() => {
+    if (!preselectedPlanId || plans.length === 0 || autoTriggered || loading) return;
+
+    const matched = plans.find(
+      (p: Record<string, unknown>) =>
+        p.id === preselectedPlanId ||
+        (p.name as string).toLowerCase() === preselectedPlanId.toLowerCase()
+    );
+    if (matched) {
+      setAutoTriggered(true);
+      localStorage.removeItem('zenible_preselected_plan');
+      handleSubscribe(matched.id);
+    }
+  }, [preselectedPlanId, plans, autoTriggered, loading]);
+
   const handleSubscribe = async (planId: string) => {
     if (!user) {
       navigate(`/signin?redirect=/pricing&plan=${planId}&billing=${billingCycle}`);
@@ -145,7 +168,7 @@ export default function PricingNew() {
     if (plan.trial_enabled && plan.trial_duration_days && !plan.trial_requires_card) {
       setProcessingAction(true);
       try {
-        await planAPI.createSubscription(planId, billingCycle);
+        await planAPI.createSubscription(planId, billingCycle, null, null);
         setSuccessModal({
           isOpen: true,
           planName: plan.name,
@@ -170,11 +193,12 @@ export default function PricingNew() {
       planId,
       planName: plan.name,
       price,
-      billingCycle
+      billingCycle,
+      trialDays: plan.trial_enabled && plan.trial_duration_days ? plan.trial_duration_days : undefined
     });
   };
 
-  const handlePaymentSuccess = async (paymentMethodId: string) => {
+  const handlePaymentSuccess = async (paymentMethodId: string, couponCode: string | null) => {
     try {
       if (pendingUpgrade) {
         // Free-to-paid upgrade: use changeSubscription with payment method
@@ -184,7 +208,7 @@ export default function PricingNew() {
         });
       } else {
         // New subscription (no existing subscription record)
-        await planAPI.createSubscription(paymentModal.planId!, paymentModal.billingCycle, paymentMethodId);
+        await planAPI.createSubscription(paymentModal.planId!, paymentModal.billingCycle, paymentMethodId || null, couponCode);
       }
 
       // Close payment modal and show success modal
@@ -194,6 +218,14 @@ export default function PricingNew() {
       setPaymentModal({ isOpen: false, planId: null, planName: '', price: '', billingCycle: 'monthly' });
       setPendingUpgrade(null);
       setSuccessModal({ isOpen: true, planName, price, billingCycle: cycle });
+
+      const numericPrice = parseFloat(price);
+      window.fbq?.('track', 'Purchase', {
+        value: Number.isFinite(numericPrice) ? numericPrice : 0,
+        currency: 'USD',
+        content_name: planName,
+        content_type: 'product',
+      });
 
       // Refresh subscription data and user context
       await Promise.all([
@@ -254,8 +286,18 @@ export default function PricingNew() {
   const handleConfirmPlanChange = async () => {
     if (!planChangeModal.planId) return;
 
-    // Free-to-paid upgrade: need to collect payment first
-    if (!currentSubscription?.stripe_subscription_id && planChangeModal.preview?.direction === 'upgrade') {
+    // Upgrade that needs a card we don't have yet — collect payment first.
+    // Triggers when there's no Stripe subscription at all OR when the user
+    // has a Stripe subscription but no payment method on file (e.g. signed
+    // up via a fully-free coupon).
+    const needsCardForUpgrade =
+      planChangeModal.preview?.direction === 'upgrade' &&
+      (
+        !currentSubscription?.stripe_subscription_id ||
+        planChangeModal.preview?.requires_payment_method === true
+      );
+
+    if (needsCardForUpgrade) {
       const planName = planChangeModal.preview?.new_plan_name || 'New Plan';
       const price = planChangeModal.preview?.new_price
         ? parseFloat(String(planChangeModal.preview.new_price)).toFixed(2).replace(/\.00$/, '')
@@ -293,50 +335,21 @@ export default function PricingNew() {
     return currentSubscription?.plan_id === planId;
   };
 
-  const isFreePlan = (plan: any) => {
-    return parseFloat(plan.monthly_price) === 0;
-  };
-
-  const handleFreeSubscribe = async (planId: string) => {
-    if (!user) {
-      navigate(`/signin?redirect=/pricing&plan=${planId}`);
-      return;
-    }
-
-    setProcessingAction(true);
-    try {
-      await planAPI.createSubscription(planId, 'monthly', null);
-      const plan = plans.find(p => p.id === planId);
-      setSuccessModal({
-        isOpen: true,
-        planName: plan?.name || 'Free',
-        price: '0',
-        billingCycle: 'monthly'
-      });
-      await Promise.all([fetchData(), checkAuth()]);
-    } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to activate free plan');
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
   const getButtonAction = (plan: any) => {
     if (isCurrentPlan(plan.id)) return null;
     if (isCompanyManagedSubscription) return null;
-    if (isFreePlan(plan) && !currentSubscription) return () => handleFreeSubscribe(plan.id);
-    if (!currentSubscription) return () => handleSubscribe(plan.id);
+    if (!currentSubscription || !currentSubscription.stripe_subscription_id) return () => handleSubscribe(plan.id);
     return () => handleChangePlan(plan.id);
   };
 
   const getButtonText = (plan: any) => {
     if (isCurrentPlan(plan.id)) return 'Current Plan';
     if (isCompanyManagedSubscription) return 'Managed by Admin';
-    if (isFreePlan(plan)) return 'Go with Free for Now';
-    if (!currentSubscription && plan.trial_enabled && plan.trial_duration_days) {
+    const hasStripeSubscription = currentSubscription?.stripe_subscription_id;
+    if (!hasStripeSubscription && plan.trial_enabled && plan.trial_duration_days) {
       return `Start ${plan.trial_duration_days}-Day Free Trial`;
     }
-    if (!currentSubscription) return 'Subscribe';
+    if (!hasStripeSubscription) return 'Subscribe';
 
     const currentPrice = billingCycle === 'monthly'
       ? (parseFloat(currentSubscription.plan?.monthly_price) || 0)
@@ -383,76 +396,24 @@ export default function PricingNew() {
   // No longer needed - we'll use is_recommended from the API
   // const getPopularPlan = () => { ... };
 
-  const formatFeatureText = (feature: Record<string, unknown> | string): React.ReactNode => {
-    // If feature is an object with name/description
-    if (typeof feature === 'object') {
-      if (feature.custom_value) return String(feature.custom_value);
-      const nestedFeature = feature.feature as Record<string, unknown> | undefined;
-      if (nestedFeature?.name) return String(nestedFeature.name);
-      if (feature.name) return String(feature.name);
-      return '';
-    }
-    // If feature is a string
-    return feature;
-  };
-
-
-  const getFeaturesList = (plan: Record<string, unknown> & { display_features?: Record<string, unknown>[]; features?: unknown[]; name: string }) => {
-    // If plan has display_features, use those (including excluded ones)
+  const getFeaturesList = (plan: Record<string, unknown> & { display_features?: { text: string; is_included: boolean }[]; name: string }) => {
+    // Display features are now simple {text, is_included} objects stored inline on the plan
     if (plan.display_features && plan.display_features.length > 0) {
-      return plan.display_features.map((f: Record<string, unknown>) => ({
-        text: formatFeatureText(f),
+      return plan.display_features.map((f) => ({
+        text: f.text,
         isIncluded: f.is_included !== false
       }));
     }
 
-    // Fall back to features array if available
-    if (plan.features && Array.isArray(plan.features)) {
-      return plan.features.map((f: unknown) => ({
-        text: typeof f === 'string' ? f : formatFeatureText(f as Record<string, unknown>),
-        isIncluded: true
-      }));
-    }
-
-    // Default features based on plan type
-    const planName = plan.name.toLowerCase();
-    let defaultFeatures: string[] = [];
-
-    if (planName.includes('free') || planName.includes('starter')) {
-      defaultFeatures = [
-        '5 proposal analyses per month',
-        'Basic AI feedback',
-        'Score breakdown',
-        'Email support'
-      ];
-    } else if (planName.includes('pro')) {
-      defaultFeatures = [
-        'Unlimited proposal analyses',
-        'Advanced AI insights',
-        'Win rate tracking',
-        'Premium templates library',
-        'Export & sharing',
-        'Priority email support'
-      ];
-    } else if (planName.includes('enterprise')) {
-      defaultFeatures = [
-        'Everything in Pro',
-        'Team collaboration (up to 10 users)',
-        'Custom branding',
-        'Advanced analytics',
-        'API access',
-        'Dedicated account manager',
-        'Phone & chat support',
-        'Custom integrations'
-      ];
-    }
-
-    return defaultFeatures.map(text => ({ text, isIncluded: true }));
+    // No features configured for this plan
+    return [];
   };
 
   return (
     <div className={`flex-1 flex flex-col ${darkMode ? 'bg-zenible-dark-bg' : 'bg-neutral-50'}`}>
       {/* Top Bar */}
+      {/* Top navigation bar — hidden in gate mode */}
+      {!isGateMode && (
       <div className={`h-[64px] relative border-b ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-card' : 'border-neutral-200 bg-white'}`}>
         <div className="flex items-center justify-between h-full px-4 py-[10px]">
           <div className="flex items-center gap-4">
@@ -483,11 +444,12 @@ export default function PricingNew() {
           </button>
         </div>
       </div>
+      )}
 
       {/* Page Header */}
       <div className={`flex items-center justify-between px-4 md:px-12 lg:px-[156px] py-4 ${darkMode ? 'bg-zenible-dark-bg' : 'bg-white'}`}>
         <h2 className={`text-[18px] font-semibold leading-[26px] ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-          Upgrade to unleash everything
+          {isGateMode ? 'Choose a plan to get started' : 'Upgrade to unleash everything'}
         </h2>
 
         {/* Billing Toggle - only show if there are annual pricing plans */}
@@ -554,7 +516,7 @@ export default function PricingNew() {
             </p>
           </div>
         )}
-        {plans.map((plan) => {
+        {plans.filter((plan) => parseFloat(plan.monthly_price) !== 0 || parseFloat(plan.annual_price) !== 0).map((plan) => {
           // Skip plans that don't have pricing for the selected billing cycle
           if (billingCycle === 'monthly' && plan.monthly_price === null) return null;
           if (billingCycle === 'annual' && plan.annual_price === null) return null;
@@ -582,7 +544,7 @@ export default function PricingNew() {
           return (
             <div
               key={plan.id || plan.name}
-              className={`relative bg-white rounded-xl p-6 w-full sm:w-[366.667px] h-[586px] flex flex-col border-2 ${
+              className={`relative bg-white rounded-xl p-6 w-full sm:w-[366.667px] flex flex-col border-2 ${
                 isPopular
                   ? 'border-zenible-primary'
                   : darkMode
@@ -620,7 +582,7 @@ export default function PricingNew() {
                     </span>
                   </div>
                   {/* Show the alternative billing cycle price when annual pricing is set */}
-                  {!isFreePlan(plan) && plan.annual_price !== null && (() => {
+                  {plan.annual_price !== null && (() => {
                     const altPrice = billingCycle === 'monthly'
                       ? parseFloat(plan.annual_price).toFixed(2).replace(/\.00$/, '')
                       : parseFloat(plan.monthly_price).toFixed(2).replace(/\.00$/, '');
@@ -666,13 +628,6 @@ export default function PricingNew() {
                 {getButtonText(plan)}
               </button>
 
-              {/* Trial subtitle */}
-              {plan.trial_enabled && plan.trial_duration_days && !currentPlan && !isFreePlan(plan) && (
-                <p className="text-sm text-center -mt-4 mb-4 text-zinc-400">
-                  {plan.trial_requires_card ? 'Credit card required' : 'No credit card required'}
-                </p>
-              )}
-
               {/* Features */}
               <div className="flex-1 flex flex-col gap-4">
                 {features.length > 0 ? features.map((feature: { text: React.ReactNode; isIncluded: boolean }, index: number) => (
@@ -707,6 +662,7 @@ export default function PricingNew() {
         planId={paymentModal.planId ?? ''}
         price={paymentModal.price}
         billingCycle={paymentModal.billingCycle}
+        trialDays={paymentModal.trialDays}
         onSuccess={handlePaymentSuccess}
         onError={handlePaymentError}
       />

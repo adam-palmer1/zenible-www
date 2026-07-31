@@ -7,13 +7,18 @@ import PlatformSelector from '../proposal-wizard/PlatformSelector';
 import AIFeedbackSection from '../shared/AIFeedbackSection';
 import type { MetricsData } from '../shared/ai-feedback/types';
 import PersonalizeAIBanner from '../shared/PersonalizeAIBanner';
+import ConversationHistoryModal from '../shared/ConversationHistoryModal';
+import type { RawConversationMessage } from '../shared/ConversationHistoryModal';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { useViralPostAnalysis } from '../../hooks/useViralPostAnalysis';
+import { useModalState } from '../../hooks/useModalState';
 import { WebSocketContext, WebSocketContextValue } from '../../contexts/WebSocketContext';
 import { useAuth } from '../../contexts/AuthContext';
 import aiCharacterAPI from '../../services/aiCharacterAPI';
 import userAPI from '../../services/userAPI';
 import { getCharacterTools } from '../../services/toolDiscoveryAPI';
+import { senderTypeToRole } from '../../utils/messageUtils';
+import { parseSuggestedQuestions } from '../../utils/parseSuggestedQuestions';
 import UsageLimitBadge from '../ui/UsageLimitBadge';
 
 interface AICharacter {
@@ -114,6 +119,9 @@ export default function ViralPostGenerator() {
     onConversationEvent
   } = useContext(WebSocketContext) as WebSocketContextValue;
 
+  // History modal state
+  const historyModal = useModalState();
+
   // Use Viral Post Analysis hook
   const {
     conversationId,
@@ -131,6 +139,8 @@ export default function ViralPostGenerator() {
     reset: resetAnalysis,
     deleteMessage,
     deletingMessageId,
+    setConversationId,
+    setStructuredAnalysis,
   } = useViralPostAnalysis({
     characterId: selectedCharacterId || '',
     panelId: 'viral_post_generator',
@@ -204,10 +214,20 @@ export default function ViralPostGenerator() {
           setIsFollowUpStreaming(false);
           setFollowUpStreamingContent('');
 
-          // Add completed message to follow-up messages
+          const rawContent = data.fullResponse || '';
+          const { cleanContent, questions } = parseSuggestedQuestions(rawContent);
+
+          if (questions.length > 0) {
+            setStructuredAnalysis((prev: unknown) => ({
+              ...(prev as Record<string, unknown> || {}),
+              suggested_questions: questions
+            }));
+          }
+
+          // Add completed message to follow-up messages (with suggested_questions block stripped)
           setFollowUpMessages(prev => [...prev, {
             role: 'assistant',
-            content: data.fullResponse || '',
+            content: cleanContent,
             timestamp: new Date().toISOString(),
             messageId: data.messageId,
             usage: data.usage
@@ -361,6 +381,76 @@ export default function ViralPostGenerator() {
     setFollowUpStreamingContent('');
   };
 
+  // Handle loading conversation from history
+  const handleLoadConversation = (convId: string, rawMessages: RawConversationMessage[]) => {
+    if (rawMessages.length === 0) return;
+
+    setConversationId(convId);
+
+    const firstUserMessage = rawMessages.find(
+      (msg) => msg.sender_type?.toUpperCase() === 'USER',
+    );
+
+    // Restore form inputs + active tab from the original tool invocation
+    if (firstUserMessage?.metadata) {
+      const meta = firstUserMessage.metadata;
+      const toolName = meta.tool_name as string | undefined;
+      const toolArgs = (meta.tool_arguments as Record<string, unknown> | undefined) || {};
+
+      if (toolName === 'linkedin_post_from_draft') {
+        setActiveTab('polish');
+        if (typeof toolArgs.draft_post === 'string') setDraftPost(toolArgs.draft_post);
+      } else if (toolName === 'linkedin_strategy_from_topic_goal_audience') {
+        setActiveTab('strategy');
+        if (typeof toolArgs.topic === 'string') setTopic(toolArgs.topic);
+        if (typeof toolArgs.goal === 'string') setGoal(toolArgs.goal);
+        if (typeof toolArgs.audience === 'string') setAudience(toolArgs.audience);
+      }
+    }
+
+    let foundFirstAIResponse = false;
+    const newAnalysisHistory: AnalysisHistoryEntry[] = [];
+    const newFollowUpMessages: FollowUpMessageEntry[] = [];
+
+    for (const msg of rawMessages) {
+      const role = senderTypeToRole(msg.sender_type);
+      const cleanedContent =
+        msg.content === '[No response generated]' ? '' : msg.content;
+
+      if (!foundFirstAIResponse && role === 'assistant') {
+        foundFirstAIResponse = true;
+        const structured =
+          ((msg.metadata as Record<string, unknown>)?.structured_analysis as unknown) ?? null;
+        newAnalysisHistory.push({
+          role: 'assistant',
+          type: 'analysis',
+          content: cleanedContent,
+          messageId: msg.id,
+          timestamp: msg.created_at,
+          structured,
+        });
+        setFeedback({
+          isProcessing: false,
+          raw: cleanedContent,
+          analysis: { raw: cleanedContent, structured },
+          messageId: msg.id,
+        });
+      } else if (role === 'user' && msg === firstUserMessage) {
+        continue;
+      } else {
+        newFollowUpMessages.push({
+          role,
+          content: cleanedContent,
+          timestamp: msg.created_at,
+          messageId: msg.id,
+        });
+      }
+    }
+
+    setAnalysisHistory(newAnalysisHistory);
+    setFollowUpMessages(newFollowUpMessages);
+  };
+
   // Handle analysis
   const handleAnalyze = async () => {
     if (!selectedCharacterId) {
@@ -438,15 +528,29 @@ export default function ViralPostGenerator() {
         <div className={`border-b flex-shrink-0 ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-neutral-200 bg-white'} px-4 py-3`}>
           <div className="flex items-center justify-between">
             <h1 className={`text-2xl font-semibold ${darkMode ? 'text-gray-100' : 'text-zinc-950'}`}>
-              Viral Post Generator
+              Viral Content Generator
             </h1>
-            <UsageLimitBadge
-              characterId={selectedCharacterId ?? undefined}
-              aiUsage={true}
-              variant="compact"
-              showUpgradeLink={true}
-              darkMode={darkMode}
-            />
+            <div className="flex items-center gap-2">
+              {selectedCharacterId && (
+                <UsageLimitBadge
+                  characterId={selectedCharacterId}
+                  aiUsage={true}
+                  variant="compact"
+                  showUpgradeLink={true}
+                  darkMode={darkMode}
+                />
+              )}
+              <button
+                onClick={() => historyModal.open()}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  darkMode
+                    ? 'bg-gray-700 text-white hover:bg-gray-600'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                History
+              </button>
+            </div>
           </div>
         </div>
 
@@ -578,6 +682,14 @@ export default function ViralPostGenerator() {
           </div>
         </div>
       </div>
+
+      <ConversationHistoryModal
+        darkMode={darkMode}
+        isOpen={historyModal.isOpen}
+        onClose={historyModal.close}
+        onLoadRawConversation={handleLoadConversation}
+        toolType="viral_post_generator"
+      />
     </AppLayout>
   );
 }

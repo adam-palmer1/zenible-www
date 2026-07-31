@@ -57,6 +57,8 @@ const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }: { sett
     daily_booking_limit: settings?.daily_booking_limit || null,
     weekly_booking_limit: settings?.weekly_booking_limit || null,
     booking_page_enabled: settings?.booking_page_enabled ?? true,
+    generate_invoice_for_paid_appointments: settings?.generate_invoice_for_paid_appointments ?? false,
+    email_invoice_to_customer: settings?.email_invoice_to_customer ?? false,
   });
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -115,6 +117,8 @@ const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }: { sett
       daily_booking_limit: settings?.daily_booking_limit || null,
       weekly_booking_limit: settings?.weekly_booking_limit || null,
       booking_page_enabled: settings?.booking_page_enabled ?? true,
+      generate_invoice_for_paid_appointments: settings?.generate_invoice_for_paid_appointments ?? false,
+      email_invoice_to_customer: settings?.email_invoice_to_customer ?? false,
     });
     setHasChanges(false);
   };
@@ -150,6 +154,40 @@ const BookingGeneralSettings = ({ settings, onUpdate, onUnsavedChanges }: { sett
             />
           </button>
         </div>
+      </div>
+
+      {/* Paid Appointment Invoicing */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+          Paid Appointment Invoicing
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Controls invoicing when a guest pays for a chargeable appointment
+        </p>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={formData.generate_invoice_for_paid_appointments}
+            onChange={(e) => handleChange('generate_invoice_for_paid_appointments', e.target.checked)}
+            className="rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+          />
+          <span className="text-sm text-gray-900 dark:text-white">
+            Generate an invoice for paid appointments
+          </span>
+        </label>
+        {formData.generate_invoice_for_paid_appointments && (
+          <label className="flex items-center gap-3 cursor-pointer mt-3 ml-6">
+            <input
+              type="checkbox"
+              checked={formData.email_invoice_to_customer}
+              onChange={(e) => handleChange('email_invoice_to_customer', e.target.checked)}
+              className="rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+            />
+            <span className="text-sm text-gray-900 dark:text-white">
+              Email the paid invoice/receipt to the customer
+            </span>
+          </label>
+        )}
       </div>
 
       {/* Timezone */}

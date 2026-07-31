@@ -6,7 +6,7 @@ const CONTEXT_OPTIONS = [
   { key: 'boardroom', label: 'The Boardroom' },
   { key: 'public', label: 'Public Landing' },
   { key: 'proposal_wizard', label: 'Proposal Wizard' },
-  { key: 'viral_post_generator', label: 'Viral Post Generator' },
+  { key: 'viral_post_generator', label: 'Viral Content Generator' },
   { key: 'headline_analyzer', label: 'Headline Analyzer' },
   { key: 'profile_analyzer', label: 'Profile Analyzer' },
 ];

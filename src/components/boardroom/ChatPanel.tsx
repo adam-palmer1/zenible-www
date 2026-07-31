@@ -222,7 +222,7 @@ export default function ChatPanel({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 p-3 sm:p-4 overflow-y-auto"
+        className="flex-1 p-3 sm:p-4 overflow-y-auto scrollbar-hover"
       >
         {hasMessages ? (
           <>

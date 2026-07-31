@@ -296,7 +296,7 @@ export default function FirstSignInModal({ isOpen, onClose }: FirstSignInModalPr
         await updatePreference('onboarding_reminder_date', null, 'user');
         await reloadPreferences();
         onClose();
-        navigate('/pricing');
+        navigate('/dashboard');
       } catch (_err) {
         setError('Failed to save regional settings. Please try again.');
       } finally {

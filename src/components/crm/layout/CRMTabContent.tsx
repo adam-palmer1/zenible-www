@@ -9,6 +9,7 @@ const VendorsView = React.lazy(() => import('../VendorsView'));
 const ServicesView = React.lazy(() => import('../ServicesView'));
 const ProjectsTable = React.lazy(() => import('../ProjectsTable'));
 const MeetingsPage = React.lazy(() => import('../meetings/MeetingsPage'));
+const TasksTreeView = React.lazy(() => import('../tasks/TasksTreeView'));
 
 function TabLoadingFallback() {
   return (
@@ -148,17 +149,31 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
 
     // List view
     return (
-      <Suspense fallback={<TabLoadingFallback />}>
-        <ContactsListView
-          contacts={filteredContacts}
-          statuses={allStatuses}
-          onContactClick={selectContact}
-          onEdit={openContactModal}
-          onDelete={async (contact: any) => {
-            await deleteContact(contact.id);
-          }}
-        />
-      </Suspense>
+      <ContactActionsProvider
+        globalStatuses={globalStatuses}
+        customStatuses={customStatuses}
+        statusRoles={statusRoles}
+        onEdit={openContactModal}
+        onDelete={async (contact: any) => {
+          await deleteContact(contact.id);
+        }}
+        onUpdateStatus={async (contactId: string, updateData: any) => {
+          return await updateContact(contactId, updateData);
+        }}
+        onRefreshContacts={refreshWithScrollPreservation}
+      >
+        <Suspense fallback={<TabLoadingFallback />}>
+          <ContactsListView
+            contacts={filteredContacts}
+            statuses={allStatuses}
+            onContactClick={selectContact}
+            onEdit={openContactModal}
+            onDelete={async (contact: any) => {
+              await deleteContact(contact.id);
+            }}
+          />
+        </Suspense>
+      </ContactActionsProvider>
     );
   }
 
@@ -225,6 +240,14 @@ const CRMTabContent: React.FC<CRMTabContentProps> = ({
         <div className="bg-white rounded-lg shadow p-4">
           <MeetingsPage />
         </div>
+      </Suspense>
+    );
+  }
+
+  if (activeTab === 'tasks') {
+    return (
+      <Suspense fallback={<TabLoadingFallback />}>
+        <TasksTreeView />
       </Suspense>
     );
   }

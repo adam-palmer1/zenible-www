@@ -1,6 +1,7 @@
 // Auth utility functions for token management and API calls
 import { API_BASE_URL } from '@/config/api';
 import logger from '@/utils/logger';
+import type { Attribution } from '@/utils/attribution';
 
 export function isValidInternalRedirect(path: string | null): boolean {
   if (!path) return false;
@@ -86,7 +87,7 @@ export async function makeAuthenticatedRequest(url: string, options: RequestInit
     } else {
       // Redirect to signin if refresh fails, preserve current path as redirect
       const currentPath = window.location.pathname + window.location.search;
-      const redirectParam = currentPath !== '/signin' && isValidInternalRedirect(currentPath) ? `?redirect=${encodeURIComponent(currentPath)}` : '';
+      const redirectParam = window.location.pathname !== '/signin' && isValidInternalRedirect(currentPath) ? `?redirect=${encodeURIComponent(currentPath)}` : '';
       window.location.href = `/signin${redirectParam}`;
       throw new Error('Authentication failed');
     }
@@ -112,9 +113,25 @@ function extractErrorMessage(error: { detail?: unknown; message?: unknown }, fal
 
 // Auth API calls
 export const authAPI = {
-  async signup(email: string, password: string, firstName: string, lastName: string | null = null) {
+  async signup(
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string | null = null,
+    tracking?: Attribution,
+  ) {
     const body: Record<string, string> = { email, password, first_name: firstName };
     if (lastName) body.last_name = lastName;
+    if (tracking) {
+      const keys: (keyof Attribution)[] = [
+        'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+        'referrer', 'fbclid', 'gclid', 'landing_page', 'timezone', 'language',
+      ];
+      for (const key of keys) {
+        const value = tracking[key];
+        if (value) body[key] = value;
+      }
+    }
 
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',

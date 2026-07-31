@@ -16,12 +16,143 @@ import logger from '../../../utils/logger';
 import type { AppointmentResponse } from '../../../types';
 import type { UpcomingMeeting, MeetingListItem } from '../../../types/meetingIntelligence';
 
-type SubTab = 'upcoming' | 'past' | 'settings';
+type SubTab = 'live' | 'upcoming' | 'past' | 'settings';
+
+interface LiveTabProps {
+  darkMode: boolean;
+  botStatuses: Record<string, { status: string; session_id: string; [k: string]: unknown }>;
+  dispatchedAt: Record<string, number>;
+  activeBotSession: string | null;
+  activeBotCount: number;
+  selectedObjective: string;
+  customObjectiveText: string;
+  insightsEnabled: boolean;
+  insightsLoading: boolean;
+  isRecording: boolean;
+  recordingLoading: boolean;
+  onObjectiveChange: (id: string) => void;
+  onCustomObjectiveTextChange: (text: string) => void;
+  onToggleTranscription: (sid: string) => void;
+  onToggleInsights: () => void;
+  onToggleRecording: () => void;
+  onLeaveBot: (sid: string) => void;
+  onQuickDispatch: (link: string) => Promise<{ ok: boolean; message: string }>;
+  onCloseTranscription: () => void;
+}
+
+function LiveTab(props: LiveTabProps) {
+  const {
+    darkMode, botStatuses, dispatchedAt, activeBotSession, activeBotCount,
+    selectedObjective, customObjectiveText, insightsEnabled, insightsLoading,
+    isRecording, recordingLoading, onObjectiveChange, onCustomObjectiveTextChange,
+    onToggleTranscription, onToggleInsights, onToggleRecording, onLeaveBot,
+    onQuickDispatch, onCloseTranscription,
+  } = props;
+
+  const [quickLink, setQuickLink] = useState('');
+  const [quickDispatching, setQuickDispatching] = useState(false);
+  const [quickError, setQuickError] = useState<string | null>(null);
+  const [quickSuccess, setQuickSuccess] = useState<string | null>(null);
+
+  const handleQuickDispatch = async () => {
+    const link = quickLink.trim();
+    if (!link) return;
+    setQuickDispatching(true);
+    setQuickError(null);
+    setQuickSuccess(null);
+    const result = await onQuickDispatch(link);
+    if (result.ok) {
+      setQuickLink('');
+      setQuickSuccess(result.message);
+      setTimeout(() => setQuickSuccess(null), 3000);
+    } else {
+      setQuickError(result.message);
+    }
+    setQuickDispatching(false);
+  };
+
+  const hasActive = Object.values(botStatuses).some(bs => !['ended', 'error'].includes(bs.status));
+
+  return (
+    <div className="flex flex-col gap-3 overflow-hidden" style={{ height: 'calc(100vh - 13rem)' }}>
+      {/* Quick dispatch */}
+      <div className={`p-4 rounded-lg border flex-shrink-0 ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+        <label className={`text-xs font-medium mb-2 block ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+          Send bot to a meeting now
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={quickLink}
+            onChange={(e) => { setQuickLink(e.target.value); setQuickError(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleQuickDispatch(); }}
+            placeholder="Paste a meeting link (Teams, Zoom, Google Meet...)"
+            className={`flex-1 px-3 py-2 text-sm rounded-lg border ${
+              darkMode
+                ? 'bg-zenible-dark-bg border-zenible-dark-border text-white placeholder-gray-500'
+                : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400'
+            }`}
+          />
+          <button
+            onClick={handleQuickDispatch}
+            disabled={quickDispatching || !quickLink.trim() || activeBotCount >= MAX_ACTIVE_BOTS}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              quickDispatching || !quickLink.trim()
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-zenible-primary text-white hover:opacity-90'
+            }`}
+          >
+            {quickDispatching ? 'Sending...' : 'Send Bot'}
+          </button>
+        </div>
+        {quickError && <p className="text-xs text-red-500 mt-1">{quickError}</p>}
+        {quickSuccess && <p className="text-xs text-green-500 mt-1">{quickSuccess}</p>}
+      </div>
+
+      {/* Active sessions */}
+      <ActiveBotSessionsBar
+        botStatuses={botStatuses as never}
+        dispatchedAt={dispatchedAt}
+        activeBotSession={activeBotSession}
+        selectedObjective={selectedObjective}
+        customObjectiveText={customObjectiveText}
+        insightsEnabled={insightsEnabled}
+        insightsLoading={insightsLoading}
+        isRecording={isRecording}
+        recordingLoading={recordingLoading}
+        onObjectiveChange={onObjectiveChange}
+        onCustomObjectiveTextChange={onCustomObjectiveTextChange}
+        onToggleTranscription={onToggleTranscription}
+        onToggleInsights={onToggleInsights}
+        onToggleRecording={onToggleRecording}
+        onLeaveBot={onLeaveBot}
+      />
+
+      {activeBotSession && (
+        <div className="flex-1 min-h-0 flex flex-col">
+          <LiveTranscription
+            sessionId={activeBotSession}
+            objectiveId={selectedObjective}
+            objectiveText={customObjectiveText}
+            insightsEnabled={insightsEnabled}
+            onClose={onCloseTranscription}
+          />
+        </div>
+      )}
+
+      {!hasActive && !activeBotSession && (
+        <div className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+          <p>No active meetings. Paste a link above or start a bot from the Upcoming tab.</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const MeetingsPage: React.FC = () => {
   const { darkMode } = usePreferences();
   const initialMeetingId = new URLSearchParams(window.location.search).get('meetingId');
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>(initialMeetingId ? 'past' : 'upcoming');
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>(initialMeetingId ? 'past' : 'live');
   const [upcomingMeetings, setUpcomingMeetings] = useState<UpcomingMeeting[]>([]);
   const [pastMeetings, setPastMeetings] = useState<MeetingListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +215,10 @@ const MeetingsPage: React.FC = () => {
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [boardroomMeeting, setBoardroomMeeting] = useState<{ id: string; title: string } | null>(null);
+  const [summaryMeeting, setSummaryMeeting] = useState<{ id: string; title: string } | null>(null);
+  const [sendingSummary, setSendingSummary] = useState(false);
+  const [summaryRecipients, setSummaryRecipients] = useState<{ me: string; participants: string[] } | null>(null);
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
 
   // Infinite scroll state for past meetings
   const BATCH_DAYS = 30;
@@ -91,6 +226,16 @@ const MeetingsPage: React.FC = () => {
   const [pastLoadingMore, setPastLoadingMore] = useState(false);
   const [pastBatchEnd, setPastBatchEnd] = useState<string | null>(null); // oldest date_from loaded so far
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Call objective state (shared between status bar and transcription)
+  const [selectedObjective, setSelectedObjective] = useState('unspecified');
+  const [customObjectiveText, setCustomObjectiveText] = useState('');
+
+  // Recording and insights state (shared between status bar and transcription)
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingLoading, setRecordingLoading] = useState(false);
+  const [insightsEnabled, setInsightsEnabled] = useState(false);
+  const [insightsLoading, setInsightsLoading] = useState(false);
 
   const fetchUpcoming = useCallback(async () => {
     try {
@@ -212,11 +357,58 @@ const MeetingsPage: React.FC = () => {
       setError(null);
       const result = await meetingIntelligenceAPI.dispatchBot(appointmentId, instanceStartDatetime) as { session_id: string; status: string };
       setActiveBotSession(result.session_id);
+      setActiveSubTab('live');
       addSession(result.session_id, result.status as never, appointmentId);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to dispatch bot');
     } finally {
       setDispatching(null);
+    }
+  };
+
+  const handleToggleRecording = async () => {
+    const sid = Object.values(botStatuses).find(
+      (bs) => bs.status === 'in_meeting' || bs.status === 'listening',
+    )?.session_id;
+    if (!sid) return;
+    setRecordingLoading(true);
+    try {
+      if (isRecording) {
+        await meetingIntelligenceAPI.stopRecording(sid);
+        setIsRecording(false);
+      } else {
+        await meetingIntelligenceAPI.startRecording(sid);
+        setIsRecording(true);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Recording failed');
+    } finally {
+      setRecordingLoading(false);
+    }
+  };
+
+  const handleToggleInsights = async () => {
+    const sid = Object.values(botStatuses).find(
+      (bs) => bs.status === 'in_meeting' || bs.status === 'listening',
+    )?.session_id;
+    if (!sid || insightsLoading) return;
+    setInsightsLoading(true);
+    try {
+      if (insightsEnabled) {
+        setInsightsEnabled(false);
+      } else {
+        await meetingIntelligenceAPI.enableInsights(sid);
+        setInsightsEnabled(true);
+        // Ensure transcription panel is open so the WS connection exists
+        // (the WS sends the enable_insights Socket.IO event)
+        if (!activeBotSession) {
+          setActiveBotSession(sid);
+        }
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to toggle insights');
+    } finally {
+      setInsightsLoading(false);
     }
   };
 
@@ -359,8 +551,25 @@ const MeetingsPage: React.FC = () => {
     }
   };
 
+  const handleSendSummary = async (recipients: 'me' | 'all') => {
+    if (!summaryMeeting) return;
+    setSendingSummary(true);
+    try {
+      await meetingIntelligenceAPI.sendSummary(summaryMeeting.id, recipients);
+      setSummaryMeeting(null);
+      setSummaryRecipients(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to send summary');
+      setSummaryMeeting(null);
+      setSummaryRecipients(null);
+    } finally {
+      setSendingSummary(false);
+    }
+  };
+
   const subTabs: { id: SubTab; label: string }[] = [
-    { id: 'upcoming', label: 'Your Meetings' },
+    { id: 'live', label: 'Live' },
+    { id: 'upcoming', label: 'Upcoming' },
     { id: 'past', label: 'History' },
     { id: 'settings', label: 'Settings' },
   ];
@@ -393,24 +602,31 @@ const MeetingsPage: React.FC = () => {
         </div>
       )}
 
-      <ActiveBotSessionsBar
-        botStatuses={botStatuses}
-        dispatchedAt={dispatchedAt}
-        activeBotSession={activeBotSession}
-        onToggleTranscription={(sid) => setActiveBotSession(activeBotSession === sid ? null : sid)}
-        onLeaveBot={handleLeaveBot}
-      />
-
-
-      {/* Live transcription panel */}
-      {activeBotSession && (
-        <LiveTranscription
-          sessionId={activeBotSession}
-          onClose={() => setActiveBotSession(null)}
+      {/* Tab content */}
+      {activeSubTab === 'live' && (
+        <LiveTab
+          darkMode={darkMode}
+          botStatuses={botStatuses}
+          dispatchedAt={dispatchedAt}
+          activeBotSession={activeBotSession}
+          activeBotCount={activeBotCount}
+          selectedObjective={selectedObjective}
+          customObjectiveText={customObjectiveText}
+          insightsEnabled={insightsEnabled}
+          insightsLoading={insightsLoading}
+          isRecording={isRecording}
+          recordingLoading={recordingLoading}
+          onObjectiveChange={setSelectedObjective}
+          onCustomObjectiveTextChange={setCustomObjectiveText}
+          onToggleTranscription={(sid) => setActiveBotSession(activeBotSession === sid ? null : sid)}
+          onToggleInsights={handleToggleInsights}
+          onToggleRecording={handleToggleRecording}
+          onLeaveBot={handleLeaveBot}
+          onQuickDispatch={handleQuickDispatch}
+          onCloseTranscription={() => setActiveBotSession(null)}
         />
       )}
 
-      {/* Tab content */}
       {activeSubTab === 'upcoming' && (
         <UpcomingMeetingsTab
           loading={loading}
@@ -422,7 +638,6 @@ const MeetingsPage: React.FC = () => {
           loadingAppointment={loadingAppointment}
           dispatching={dispatching}
           retrying={retrying}
-          onQuickDispatch={handleQuickDispatch}
           onMeetingClick={handleMeetingClick}
           onDispatchBot={handleDispatchBot}
           onRetryBot={handleRetryBot}
@@ -463,6 +678,19 @@ const MeetingsPage: React.FC = () => {
               setBoardroomMeeting({ id: meeting.id, title: meeting.title || 'Untitled Meeting' });
               setActionMenuMeetingId(null);
             }}
+            onSendSummary={async (meeting) => {
+              setActionMenuMeetingId(null);
+              setSummaryMeeting({ id: meeting.id, title: meeting.title || 'Untitled Meeting' });
+              setLoadingRecipients(true);
+              try {
+                const data = await meetingIntelligenceAPI.getSummaryRecipients(meeting.id) as { me: string; participants: string[] };
+                setSummaryRecipients(data);
+              } catch {
+                setSummaryRecipients(null);
+              } finally {
+                setLoadingRecipients(false);
+              }
+            }}
             onDeleteRequest={(meetingId) => { setDeleteConfirmId(meetingId); setActionMenuMeetingId(null); }}
             deleteConfirmId={deleteConfirmId}
             onDeleteConfirm={() => deleteConfirmId && handleDeleteMeeting(deleteConfirmId)}
@@ -488,6 +716,70 @@ const MeetingsPage: React.FC = () => {
           meetingTitle={boardroomMeeting.title}
           onClose={() => setBoardroomMeeting(null)}
         />
+      )}
+
+      {/* Send Summary Modal */}
+      {summaryMeeting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 shadow-xl ${darkMode ? 'bg-zenible-dark-card' : 'bg-white'}`}>
+            <h3 className={`text-lg font-medium mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Send this meeting summary?
+            </h3>
+
+            {loadingRecipients ? (
+              <p className={`text-sm mb-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Loading recipients...</p>
+            ) : summaryRecipients && (
+              <div className={`text-sm mb-4 space-y-2 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                <div>
+                  <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-700'}`}>You:</span>{' '}
+                  {summaryRecipients.me}
+                </div>
+                {summaryRecipients.participants.length > 0 && (
+                  <div>
+                    <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-700'}`}>Participants:</span>
+                    <ul className="mt-1 space-y-0.5 list-disc list-inside">
+                      {summaryRecipients.participants.map((email) => (
+                        <li key={email}>{email}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              {summaryRecipients && summaryRecipients.participants.length > 0 && (
+                <button
+                  onClick={() => handleSendSummary('all')}
+                  disabled={sendingSummary || loadingRecipients}
+                  className={`w-full px-4 py-2 text-sm rounded-lg font-medium ${
+                    sendingSummary ? 'opacity-50 cursor-wait' : ''
+                  } bg-zenible-primary text-white hover:opacity-90`}
+                >
+                  {sendingSummary ? 'Sending...' : 'To all participants'}
+                </button>
+              )}
+              <button
+                onClick={() => handleSendSummary('me')}
+                disabled={sendingSummary || loadingRecipients}
+                className={`w-full px-4 py-2 text-sm rounded-lg font-medium border ${
+                  sendingSummary ? 'opacity-50 cursor-wait' : ''
+                } ${darkMode ? 'border-zenible-dark-border text-white hover:bg-zenible-dark-border' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              >
+                {sendingSummary ? 'Sending...' : 'To me only'}
+              </button>
+              <button
+                onClick={() => { setSummaryMeeting(null); setSummaryRecipients(null); }}
+                disabled={sendingSummary}
+                className={`w-full px-4 py-2 text-sm rounded-lg ${
+                  darkMode ? 'text-zenible-dark-text-secondary hover:text-white' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Edit Appointment Modal */}

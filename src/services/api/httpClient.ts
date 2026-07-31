@@ -100,6 +100,21 @@ const createRequestWithBase = (baseUrl: string, context: string): RequestFn => {
         return null as T;
       }
 
+      // Handle 402 — subscription required: refresh auth to activate the gate
+      if (response.status === 402) {
+        try {
+          const body = await response.json();
+          if (body?.detail?.type === 'subscription_required') {
+            // Dynamically import to avoid circular dependency
+            const { checkAuthGlobal } = await import('../../contexts/AuthContext');
+            if (checkAuthGlobal) {
+              checkAuthGlobal();
+            }
+          }
+        } catch { /* ignore parse errors */ }
+        throw new ApiError('Active subscription required', 402, 'Payment Required', null);
+      }
+
       let data: Record<string, unknown> | null = null;
       let parseError: unknown = null;
       try {

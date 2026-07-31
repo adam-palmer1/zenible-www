@@ -31,7 +31,9 @@
       "Bash(npx tsc:*)",
       "Bash(npx vitest run:*)",
       "Bash(npm run lint:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(rm -rf /home/zenible/zenible-landing/components/*)",
+      "Read(//home/zenible/zenible-landing/components/**)"
     ],
     "deny": [],
     "ask": []

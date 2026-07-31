@@ -15,6 +15,12 @@ import type { InvoiceFormProps, InvoiceSettingsUpdate } from './invoice-form';
 const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice: invoiceProp = null, onSuccess, isInModal = false }) => {
   const state = useInvoiceFormState(invoiceProp, onSuccess);
 
+  // A generated child instance carries parent_invoice_id. Recurrence is owned by
+  // the template, so the child's recurrence UI is read-only with a link back.
+  const parentInvoiceId = state.invoice?.parent_invoice_id ?? null;
+  const isGeneratedInstance = Boolean(parentInvoiceId);
+  const recurrenceSequenceNumber = state.invoice?.recurrence_sequence_number ?? null;
+
   // Show loading state when fetching invoice data
   if (state.loading) {
     return (
@@ -206,6 +212,9 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice: invoiceProp = null, 
         receivePaymentNotifications={state.receivePaymentNotifications}
         invoiceStatus={state.invoice?.status || 'draft'}
         isEditing={state.isEditing && state.isRecurring}
+        isGeneratedInstance={isGeneratedInstance}
+        recurrenceSequenceNumber={recurrenceSequenceNumber}
+        onEditTemplate={parentInvoiceId ? () => state.navigate(`/finance/invoices/${parentInvoiceId}`) : undefined}
         overrideReminderSettings={state.overrideReminderSettings}
         invoiceRemindersEnabled={state.invoiceRemindersEnabled}
         invoiceReminderFrequencyDays={state.invoiceReminderFrequencyDays}

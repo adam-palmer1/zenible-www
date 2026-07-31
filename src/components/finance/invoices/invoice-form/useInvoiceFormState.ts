@@ -738,16 +738,20 @@ export function useInvoiceFormState(invoiceProp: InvoiceFormData | null = null, 
         deposit_value: depositType === 'fixed' && depositValue > 0 ? depositValue : null,
         notes: notes || null,
         payment_instructions: paymentInstructions || companyDefaultPaymentInstructions || null,
-        // Recurring settings
-        is_recurring: isRecurring,
-        pricing_type: pricingType,
-        recurring_type: isRecurring ? recurringType : undefined,
-        recurring_status: pricingType === 'recurring' ? recurringStatus : undefined,
-        recurring_number: pricingType === 'recurring' ? recurringNumber : undefined,
-        recurring_end_date: isRecurring && recurringEndDate ? recurringEndDate : undefined,
-        recurring_occurrences: isRecurring && recurringOccurrences ? recurringOccurrences : undefined,
-        custom_every: pricingType === 'recurring' && recurringType === RECURRING_TYPE.CUSTOM ? customEvery : undefined,
-        custom_period: pricingType === 'recurring' && recurringType === RECURRING_TYPE.CUSTOM ? customPeriod : undefined,
+        // Recurring settings. Recurrence is owned by the template; generated
+        // child instances (parent_invoice_id set) must never mutate it, so we
+        // omit every recurrence field for them. The backend also enforces this.
+        ...(invoice?.parent_invoice_id ? {} : {
+          is_recurring: isRecurring,
+          pricing_type: pricingType,
+          recurring_type: isRecurring ? recurringType : undefined,
+          recurring_status: pricingType === 'recurring' ? recurringStatus : undefined,
+          recurring_number: pricingType === 'recurring' ? recurringNumber : undefined,
+          recurring_end_date: isRecurring && recurringEndDate ? recurringEndDate : undefined,
+          recurring_occurrences: isRecurring && recurringOccurrences ? recurringOccurrences : undefined,
+          custom_every: pricingType === 'recurring' && recurringType === RECURRING_TYPE.CUSTOM ? customEvery : undefined,
+          custom_period: pricingType === 'recurring' && recurringType === RECURRING_TYPE.CUSTOM ? customPeriod : undefined,
+        }),
         // Boolean fields - always send true/false instead of null
         allow_stripe_payments: Boolean(allowStripePayments),
         allow_paypal_payments: Boolean(allowPaypalPayments),

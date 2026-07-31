@@ -18,6 +18,8 @@ import CharacterCardSelector from '../ui/CharacterCardSelector';
 import { useModalState } from '../../hooks/useModalState';
 import ConversationHistoryModal from '../shared/ConversationHistoryModal';
 import type { RawConversationMessage } from '../shared/ConversationHistoryModal';
+import { senderTypeToRole } from '../../utils/messageUtils';
+import { parseSuggestedQuestions } from '../../utils/parseSuggestedQuestions';
 
 interface AICharacter {
   id: string;
@@ -112,6 +114,8 @@ export default function HeadlineAnalyzer() {
     clearConversation,
     deleteMessage,
     deletingMessageId,
+    setConversationId,
+    setStructuredAnalysis,
   } = useHeadlineAnalysis({
     characterId: selectedCharacterId || '',
     panelId: 'headline_analyzer',
@@ -189,10 +193,20 @@ export default function HeadlineAnalyzer() {
           setIsFollowUpStreaming(false);
           setFollowUpStreamingContent('');
 
-          // Add completed message to follow-up messages
+          const rawContent = data.fullResponse || '';
+          const { cleanContent, questions } = parseSuggestedQuestions(rawContent);
+
+          if (questions.length > 0) {
+            setStructuredAnalysis((prev: unknown) => ({
+              ...(prev as Record<string, unknown> || {}),
+              suggested_questions: questions
+            }));
+          }
+
+          // Add completed message to follow-up messages (with suggested_questions block stripped)
           setFollowUpMessages(prev => [...prev, {
             role: 'assistant',
-            content: data.fullResponse || '',
+            content: cleanContent,
             timestamp: new Date().toISOString(),
             messageId: data.messageId,
             usage: data.usage
@@ -405,26 +419,65 @@ export default function HeadlineAnalyzer() {
   const handleLoadConversation = (convId: string, rawMessages: RawConversationMessage[]) => {
     if (rawMessages.length === 0) return;
 
-    // Find the initial headline data from the messages
-    const firstUserMessage = rawMessages.find((msg: RawConversationMessage) => msg.sender_type === 'USER');
-    const metadata = firstUserMessage?.metadata as Record<string, string> | undefined;
-    if (metadata?.headline) {
-      setHeadline(metadata.headline);
-    }
-    if (metadata?.platform) {
-      setSelectedPlatform(metadata.platform);
+    setConversationId(convId);
+
+    const firstUserMessage = rawMessages.find(
+      (msg) => msg.sender_type?.toUpperCase() === 'USER',
+    );
+
+    // Restore form inputs from the original tool invocation
+    if (firstUserMessage?.metadata) {
+      const meta = firstUserMessage.metadata;
+      const toolArgs = (meta.tool_arguments as Record<string, unknown> | undefined) || {};
+      if (typeof toolArgs.headline === 'string') setHeadline(toolArgs.headline);
+      if (typeof toolArgs.platform === 'string') setSelectedPlatform(toolArgs.platform);
     }
 
-    // Load the conversation messages as follow-ups
-    const formattedMessages = rawMessages.map((msg: RawConversationMessage) => ({
-      role: msg.sender_type === 'USER' ? 'user' : 'assistant',
-      content: msg.content,
-      timestamp: msg.created_at,
-      messageId: msg.id
-    }));
-    setFollowUpMessages(formattedMessages);
+    let foundFirstAIResponse = false;
+    const newAnalysisHistory: AnalysisHistoryEntry[] = [];
+    const newFollowUpMessages: FollowUpMessage[] = [];
 
-    // Close modal
+    for (const msg of rawMessages) {
+      const role = senderTypeToRole(msg.sender_type);
+      // Suppress the backend's "[No response generated]" placeholder when the AI
+      // returned only structured tool output with no streamed text.
+      const cleanedContent =
+        msg.content === '[No response generated]' ? '' : msg.content;
+
+      if (!foundFirstAIResponse && role === 'assistant') {
+        foundFirstAIResponse = true;
+        const structured =
+          ((msg.metadata as Record<string, unknown>)?.structured_analysis as unknown) ?? null;
+        newAnalysisHistory.push({
+          role: 'assistant',
+          type: 'analysis',
+          content: cleanedContent,
+          messageId: msg.id,
+          timestamp: msg.created_at,
+          structured,
+        });
+        setFeedback({
+          isProcessing: false,
+          raw: cleanedContent,
+          analysis: { raw: cleanedContent, structured } as unknown as AnalysisFeedback['analysis'],
+          structured,
+          messageId: msg.id,
+        });
+      } else if (role === 'user' && msg === firstUserMessage) {
+        continue;
+      } else {
+        newFollowUpMessages.push({
+          role,
+          content: cleanedContent,
+          timestamp: msg.created_at,
+          messageId: msg.id,
+        });
+      }
+    }
+
+    setAnalysisHistory(newAnalysisHistory);
+    setFollowUpMessages(newFollowUpMessages);
+
     historyModal.close();
   };
 
@@ -433,7 +486,7 @@ export default function HeadlineAnalyzer() {
     if (!conversationId) return;
 
     try {
-      const blob = await userAPI.exportUserConversation(conversationId, 'markdown') as Blob;
+      const blob = await userAPI.exportUserConversation(conversationId, 'markdown');
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -464,13 +517,15 @@ export default function HeadlineAnalyzer() {
 
           <div className="flex items-center gap-2">
             {/* Usage Limit Badge */}
-            <UsageLimitBadge
-              characterId={selectedCharacterId ?? undefined}
-              aiUsage={true}
-              variant="compact"
-              showUpgradeLink={true}
-              darkMode={darkMode}
-            />
+            {selectedCharacterId && (
+              <UsageLimitBadge
+                characterId={selectedCharacterId}
+                aiUsage={true}
+                variant="compact"
+                showUpgradeLink={true}
+                darkMode={darkMode}
+              />
+            )}
 
             {conversationId && (
               <button
@@ -506,7 +561,7 @@ export default function HeadlineAnalyzer() {
         <div className="flex-1 min-h-0 overflow-hidden">
           <div className="h-full flex flex-col lg:flex-row gap-4 p-4 sm:p-6">
             {/* Left Column - Input */}
-            <div className="w-full lg:w-1/2 flex flex-col gap-4 min-h-0 overflow-y-auto">
+            <div className="w-full lg:w-1/2 flex flex-col gap-4 min-h-0 overflow-y-auto scrollbar-hover">
               <PlatformSelector
                 darkMode={darkMode}
                 selectedPlatform={selectedPlatform}

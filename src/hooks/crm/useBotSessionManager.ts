@@ -59,15 +59,18 @@ export function useBotSessionManager({
           const next = { ...prev };
           for (const s of sessions) {
             if (!next[s.session_id]) {
-              next[s.session_id] = { session_id: s.session_id, status: s.status } as BotStatus;
+              next[s.session_id] = {
+                session_id: s.session_id,
+                status: s.status,
+                meeting_title: (s as any).meeting_title || null,
+                appointment_id: (s as any).appointment_id || null,
+                start_datetime: (s as any).start_datetime || null,
+                meeting_link: (s as any).meeting_link || null,
+              } as BotStatus;
             }
           }
           return next;
         });
-        const inMeeting = sessions.find((s) => s.status === 'in_meeting' || s.status === 'listening');
-        if (inMeeting) {
-          setActiveBotSession(inMeeting.session_id);
-        }
       })
       .catch((err: unknown) => {
         logger.warn('[useBotSessionManager] Active sessions endpoint unavailable:', err);
@@ -167,9 +170,20 @@ export function useBotSessionManager({
       setBotStatuses((prev) => {
         if (prev[sid]) return prev;
         const seedStatus = (meeting.bot_status || 'joining') as BotStatus['status'];
-        return { ...prev, [sid]: { session_id: sid, status: seedStatus } as BotStatus };
+        return {
+          ...prev,
+          [sid]: {
+            session_id: sid,
+            status: seedStatus,
+            meeting_title: meeting.title,
+            start_datetime: meeting.start_datetime,
+            meeting_link: meeting.meeting_link,
+          } as BotStatus,
+        };
       });
       setDispatchedAt((prev) => (prev[sid] ? prev : { ...prev, [sid]: Date.now() }));
+      // Populate appointment → session mapping
+      setAppointmentSessions((prev) => (prev[meeting.id] ? prev : { ...prev, [meeting.id]: sid }));
     }
   }, []);
 

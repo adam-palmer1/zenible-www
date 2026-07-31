@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, PencilIcon, TrashIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilIcon, TrashIcon, ClockIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
 import callTypesAPI from '../../../../../services/api/crm/callTypes';
+import { useAuth } from '../../../../../contexts/AuthContext';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 import logger from '../../../../../utils/logger';
 import { useDeleteConfirmation } from '../../../../../hooks/useDeleteConfirmation';
@@ -15,6 +16,12 @@ interface CallType {
   color?: string;
   is_active: boolean;
   conferencing_type?: string;
+  is_chargeable?: boolean;
+  price_amount?: number | string | null;
+  currency_id?: string | null;
+  currency_code?: string | null;
+  accept_stripe?: boolean;
+  accept_paypal?: boolean;
   [key: string]: unknown;
 }
 
@@ -24,8 +31,10 @@ const CallTypesList = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCallType, setEditingCallType] = useState<CallType | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const deleteConfirm = useDeleteConfirmation<string>();
 
+  const { user } = useAuth();
   const { showSuccess, showError } = useNotification();
 
   // Load call types
@@ -53,6 +62,18 @@ const CallTypesList = () => {
   const handleEdit = (callType: CallType) => {
     setEditingCallType(callType);
     setModalOpen(true);
+  };
+
+  const handleCopyUrl = async (callType: CallType) => {
+    const url = `${window.location.origin}/book/${user?.username}/${callType.shortcode}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(callType.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      showError('Failed to copy to clipboard');
+      logger.error('Failed to copy:', err);
+    }
   };
 
   const handleDelete = (callTypeId: string) => {
@@ -214,6 +235,20 @@ const CallTypesList = () => {
 
               {/* Actions */}
               <div className="flex items-center gap-2">
+                {/* Copy URL button */}
+                <button
+                  type="button"
+                  onClick={() => handleCopyUrl(callType)}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  title="Copy URL"
+                >
+                  {copiedId === callType.id ? (
+                    <CheckIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  ) : (
+                    <ClipboardDocumentIcon className="h-5 w-5" />
+                  )}
+                </button>
+
                 {/* Active toggle */}
                 <button
                   type="button"

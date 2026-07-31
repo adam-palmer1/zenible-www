@@ -9,7 +9,7 @@ import type { MeetingDetail, LinkedContactInfo } from '../../../types/meetingInt
 /** Groups above this size are virtualized; below, we render flat for simplicity. */
 const VIRTUALIZE_THRESHOLD = 80;
 
-type DetailTab = 'summary' | 'transcript' | 'recording' | 'intelligence';
+type DetailTab = 'summary' | 'transcript' | 'recording';
 
 const SPEAKER_COLORS = [
   'text-blue-500', 'text-emerald-500', 'text-purple-500', 'text-orange-500',
@@ -27,6 +27,7 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>('summary');
+  const [realtimeInsights, setRealtimeInsights] = useState<Record<string, any> | null>(null);
 
   // Contact linking state
   const [linkedContacts, setLinkedContacts] = useState<LinkedContactInfo[]>([]);
@@ -45,16 +46,21 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
   // AI analysis state
   const [analyzing, setAnalyzing] = useState(false);
   const [showDeleteRecordingConfirm, setShowDeleteRecordingConfirm] = useState(false);
+  const [showDetailedConfirm, setShowDetailedConfirm] = useState(false);
 
   useEffect(() => {
     const fetchDetail = async () => {
       try {
         setLoading(true);
-        const [meetingData, contactsData] = await Promise.all([
+        const [meetingData, contactsData, insightsData] = await Promise.all([
           meetingIntelligenceAPI.getMeeting(meetingId) as Promise<MeetingDetail>,
           meetingIntelligenceAPI.getMeetingContacts(meetingId) as Promise<LinkedContactInfo[]>,
+          meetingIntelligenceAPI.getMeetingInsights(meetingId).catch(() => null),
         ]);
         setDetail(meetingData);
+        if (insightsData && Object.keys(insightsData as object).length > 0) {
+          setRealtimeInsights(insightsData as Record<string, any>);
+        }
         setLinkedContacts(contactsData);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to load meeting');
@@ -171,6 +177,43 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
     return darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600';
   };
 
+  // Group consecutive same-speaker transcripts.
+  // Must live above early returns to satisfy Rules of Hooks.
+  const groupedTranscripts = useMemo(() => {
+    if (!detail) return [];
+    const groups: Array<{
+      speaker: string;
+      speakerName: string;
+      content: string;
+      timestamp_ms: number;
+    }> = [];
+    for (const t of detail.transcripts) {
+      const last = groups[groups.length - 1];
+      if (last && last.speaker === t.speaker) {
+        last.content = `${last.content} ${t.content}`;
+      } else {
+        groups.push({
+          speaker: t.speaker,
+          speakerName: getSpeakerName(t),
+          content: t.content,
+          timestamp_ms: t.timestamp_ms,
+        });
+      }
+    }
+    return groups;
+  }, [detail?.transcripts]);
+
+  // Estimate row height for virtualization: base (header + padding) + lines of wrapped text.
+  const rowHeights = useMemo(() => {
+    const CHARS_PER_LINE = 75;
+    const BASE = 56;
+    const LINE_HEIGHT = 20;
+    return groupedTranscripts.map((g) => {
+      const lines = Math.max(1, Math.ceil(g.content.length / CHARS_PER_LINE));
+      return BASE + lines * LINE_HEIGHT;
+    });
+  }, [groupedTranscripts]);
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -228,11 +271,11 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
     }
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (options?: { detailed?: boolean }) => {
     if (!detail) return;
     setAnalyzing(true);
     try {
-      const result = await meetingIntelligenceAPI.analyzeMeeting(meetingId) as {
+      const result = await meetingIntelligenceAPI.analyzeMeeting(meetingId, options) as {
         overview?: string;
         keyPoints?: string[];
         actionItems?: string[];
@@ -257,45 +300,9 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
     { id: 'summary', label: 'Summary' },
     { id: 'transcript', label: 'Transcript' },
     ...(detail?.has_video_recording ? [{ id: 'recording' as DetailTab, label: 'Recording' }] : []),
-    { id: 'intelligence', label: 'Meeting Intelligence' },
   ];
 
-  // Group consecutive same-speaker transcripts.
-  // Memoized because downstream virtualization depends on stable references.
-  const groupedTranscripts = useMemo(() => {
-    const groups: Array<{
-      speaker: string;
-      speakerName: string;
-      content: string;
-      timestamp_ms: number;
-    }> = [];
-    for (const t of detail.transcripts) {
-      const last = groups[groups.length - 1];
-      if (last && last.speaker === t.speaker) {
-        last.content = `${last.content} ${t.content}`;
-      } else {
-        groups.push({
-          speaker: t.speaker,
-          speakerName: getSpeakerName(t),
-          content: t.content,
-          timestamp_ms: t.timestamp_ms,
-        });
-      }
-    }
-    return groups;
-  }, [detail.transcripts]);
 
-  // Estimate row height for virtualization: base (header + padding) + lines of wrapped text.
-  // Slightly over-estimating keeps scrolling smooth; mild layout slack is acceptable.
-  const rowHeights = useMemo(() => {
-    const CHARS_PER_LINE = 75;
-    const BASE = 56;
-    const LINE_HEIGHT = 20;
-    return groupedTranscripts.map((g) => {
-      const lines = Math.max(1, Math.ceil(g.content.length / CHARS_PER_LINE));
-      return BASE + lines * LINE_HEIGHT;
-    });
-  }, [groupedTranscripts]);
 
   return (
     <div className="space-y-4">
@@ -430,46 +437,284 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
         ))}
       </div>
 
-      {/* Summary tab */}
+      {/* Summary tab (shows meeting intelligence content) */}
       {activeTab === 'summary' && (
         <div className="space-y-4">
-          {detail.summary_json?.overview && (
-            <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
-              <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Overview</h3>
-              <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                {detail.summary_json.overview}
+          {/* Analyzing spinner */}
+          {detail.summary_json?._analyzing && (
+            <div className={`text-center py-12 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+              <div className="flex justify-center mb-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary" />
+              </div>
+              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Analyzing Meeting...</h3>
+              <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                AI is processing the transcript. This may take a minute.
               </p>
             </div>
           )}
 
-          {detail.summary_json?.keyPoints && detail.summary_json.keyPoints.length > 0 && (
-            <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
-              <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Key Points</h3>
-              <ul className={`list-disc list-inside space-y-1 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                {detail.summary_json.keyPoints.map((point, i) => (
-                  <li key={i}>{point}</li>
-                ))}
-              </ul>
+          {/* Analysis failed */}
+          {detail.summary_json?._analysis_failed && (
+            <div className={`p-6 rounded-lg border ${darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
+              <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-amber-200' : 'text-amber-900'}`}>
+                AI analysis failed
+              </h3>
+              <p className={`text-sm mb-3 ${darkMode ? 'text-amber-100/80' : 'text-amber-800'}`}>
+                {detail.summary_json.message || 'The analysis could not be completed.'}
+              </p>
+              <button
+                onClick={() => handleAnalyze()}
+                disabled={analyzing}
+                className="px-4 py-2 rounded-lg bg-zenible-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {analyzing ? (
+                  <>
+                    <span className="inline-flex h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Re-analyzing...
+                  </>
+                ) : 'Try again'}
+              </button>
             </div>
           )}
 
-          {detail.summary_json?.actionItems && detail.summary_json.actionItems.length > 0 && (
-            <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
-              <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Action Items</h3>
-              <ul className="space-y-1">
-                {detail.summary_json.actionItems.map((item, i) => (
-                  <li key={i} className={`flex items-start gap-2 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                    <input type="checkbox" className="mt-0.5 rounded" disabled />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+          {/* Plan does not grant access */}
+          {detail.summary_json?._plan_access_denied && (
+            <div className={`p-6 rounded-lg border ${darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
+              <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-amber-200' : 'text-amber-900'}`}>
+                AI meeting analysis not included on your plan
+              </h3>
+              <p className={`text-sm mb-3 ${darkMode ? 'text-amber-100/80' : 'text-amber-800'}`}>
+                {detail.summary_json.message || 'The AI analyst for meeting insights is not available on your current plan. The transcript is saved.'}
+              </p>
+              <a
+                href="/settings/billing"
+                className="inline-flex items-center text-sm font-medium text-zenible-primary hover:underline"
+              >
+                Upgrade your plan →
+              </a>
             </div>
           )}
 
-          {!detail.summary_json?.overview && !detail.summary_json?.keyPoints?.length && !detail.summary_json?.actionItems?.length && (
-            <div className={`text-center py-8 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-              <p>No summary available for this meeting</p>
+          {/* AI message quota exhausted */}
+          {detail.summary_json?._quota_exceeded && (() => {
+            const ut = detail.summary_json.usage_type;
+            const isDaily = ut === 'ai_character_messages_daily';
+            const isCharMonthly = ut === 'ai_character_messages';
+            const title = isDaily
+              ? 'Daily AI message limit reached'
+              : isCharMonthly
+                ? 'Monthly character-message limit reached'
+                : 'No AI message credits remaining';
+            const resetHint = isDaily
+              ? 'Your daily limit resets at 00:00 UTC.'
+              : 'Your limit will reset at the start of the next billing period, or you can upgrade your plan.';
+            return (
+              <div className={`p-6 rounded-lg border ${darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
+                <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-amber-200' : 'text-amber-900'}`}>
+                  {title}
+                </h3>
+                <p className={`text-sm mb-3 ${darkMode ? 'text-amber-100/80' : 'text-amber-800'}`}>
+                  You've used all of this quota
+                  {typeof detail.summary_json.current === 'number' && typeof detail.summary_json.limit === 'number'
+                    ? ` (${detail.summary_json.current}/${detail.summary_json.limit})`
+                    : ''}.
+                  The transcript is saved, but AI insights for this meeting weren't generated.
+                  {' '}{resetHint}
+                </p>
+                <a
+                  href="/settings/billing"
+                  className="inline-flex items-center text-sm font-medium text-zenible-primary hover:underline"
+                >
+                  Upgrade your plan →
+                </a>
+              </div>
+            );
+          })()}
+
+          {/* No analysis yet */}
+          {!detail.summary_json && (
+            <div className={`text-center py-12 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+              <p className={`text-sm mb-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                No AI analysis available for this meeting yet.
+              </p>
+              <button
+                onClick={() => handleAnalyze()}
+                disabled={analyzing}
+                className="px-4 py-2 rounded-lg bg-zenible-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {analyzing ? (
+                  <>
+                    <span className="inline-flex h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Analyzing...
+                  </>
+                ) : 'Analyze Meeting'}
+              </button>
+            </div>
+          )}
+
+          {/* Analysis content */}
+          {detail.summary_json && !detail.summary_json._analyzing && !detail.summary_json._quota_exceeded && !detail.summary_json._analysis_failed && !detail.summary_json._plan_access_denied && (
+            <>
+              {/* Detailed insights button */}
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowDetailedConfirm(true)}
+                  disabled={analyzing}
+                  className={`text-xs px-3 py-1.5 rounded-md font-medium ${
+                    darkMode
+                      ? 'bg-zenible-primary/20 text-zenible-primary hover:bg-zenible-primary/30'
+                      : 'bg-purple-50 text-zenible-primary hover:bg-purple-100'
+                  } disabled:opacity-50 inline-flex items-center gap-1`}
+                >
+                  {analyzing ? (
+                    <>
+                      <span className="inline-flex h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      Generating...
+                    </>
+                  ) : 'Generate detailed insights'}
+                </button>
+              </div>
+
+              {/* Sentiment & Topics */}
+              {(detail.summary_json.sentiment || (detail.summary_json.topics && detail.summary_json.topics.length > 0)) && (
+                <div className={`flex flex-wrap items-center gap-2`}>
+                  {detail.summary_json.sentiment && (
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      detail.summary_json.sentiment === 'positive'
+                        ? (darkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-700')
+                        : detail.summary_json.sentiment === 'negative'
+                          ? (darkMode ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700')
+                          : (darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600')
+                    }`}>
+                      {detail.summary_json.sentiment.charAt(0).toUpperCase() + detail.summary_json.sentiment.slice(1)}
+                    </span>
+                  )}
+                  {detail.summary_json.topics?.map((topic, i) => (
+                    <span key={i} className={`text-xs px-2 py-1 rounded-full ${
+                      darkMode ? 'bg-zenible-dark-border text-zenible-dark-text-secondary' : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Overview */}
+              {detail.summary_json.overview && (
+                <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+                  <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Overview</h3>
+                  <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                    {detail.summary_json.overview}
+                  </p>
+                </div>
+              )}
+
+              {/* Key Points */}
+              {detail.summary_json.keyPoints && detail.summary_json.keyPoints.length > 0 && (
+                <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+                  <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Key Points</h3>
+                  <ul className={`list-disc list-inside space-y-1 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                    {detail.summary_json.keyPoints.map((point, i) => (
+                      <li key={i}>{point}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Action Items */}
+              {detail.summary_json.actionItems && detail.summary_json.actionItems.length > 0 && (
+                <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+                  <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Action Items</h3>
+                  <ul className="space-y-2">
+                    {detail.summary_json.actionItems.map((item, i) => (
+                      <li key={i} className={`flex items-start gap-2 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                        <input type="checkbox" className="mt-0.5 rounded" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Persisted real-time insights */}
+          {realtimeInsights && (
+            <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+              <h3 className={`text-sm font-medium mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Live Call Insights
+              </h3>
+
+              {/* Talk time */}
+              {realtimeInsights.talk_time && Object.keys(realtimeInsights.talk_time).length > 0 && (
+                <div className="mb-3">
+                  <h4 className={`text-xs font-medium mb-1.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Talk Time</h4>
+                  <div className="flex rounded-full overflow-hidden h-2.5 mb-1">
+                    {Object.entries(realtimeInsights.talk_time as Record<string, { seconds: number; percent: number }>).map(([speaker, info], i) => (
+                      <div
+                        key={speaker}
+                        className={['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-orange-500'][i % 4]}
+                        style={{ width: `${info.percent}%` }}
+                        title={`${speaker}: ${info.percent}%`}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                    {Object.entries(realtimeInsights.talk_time as Record<string, { seconds: number; percent: number }>).map(([speaker, info], i) => (
+                      <span key={speaker} className="flex items-center gap-1">
+                        <span className={`inline-block w-2 h-2 rounded-full ${['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-orange-500'][i % 4]}`} />
+                        <span className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                          {speaker} {info.percent}%
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Coaching notes */}
+              {realtimeInsights.coaching_notes && (realtimeInsights.coaching_notes as Array<{ type: string; message: string }>).length > 0 && (
+                <div className="mb-3">
+                  <h4 className={`text-xs font-medium mb-1.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Coaching Notes</h4>
+                  <div className="space-y-1">
+                    {(realtimeInsights.coaching_notes as Array<{ type: string; message: string }>).map((note, i) => (
+                      <div key={i} className={`text-xs px-2 py-1.5 rounded ${
+                        note.type === 'buying_signal' || note.type === 'positive'
+                          ? (darkMode ? 'bg-green-900/20 text-green-400' : 'bg-green-50 text-green-700')
+                          : note.type === 'objection'
+                            ? (darkMode ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-700')
+                            : (darkMode ? 'bg-blue-900/20 text-blue-400' : 'bg-blue-50 text-blue-700')
+                      }`}>
+                        {note.message}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Decisions from insights */}
+              {realtimeInsights.decisions && (realtimeInsights.decisions as string[]).length > 0 && (
+                <div className="mb-3">
+                  <h4 className={`text-xs font-medium mb-1.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                    Decisions ({(realtimeInsights.decisions as string[]).length})
+                  </h4>
+                  <ul className={`list-disc list-inside text-xs space-y-0.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                    {(realtimeInsights.decisions as string[]).map((d, i) => <li key={i}>{d}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Open questions from insights */}
+              {realtimeInsights.open_questions && (realtimeInsights.open_questions as string[]).length > 0 && (
+                <div>
+                  <h4 className={`text-xs font-medium mb-1.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                    Open Questions ({(realtimeInsights.open_questions as string[]).length})
+                  </h4>
+                  <ul className={`list-disc list-inside text-xs space-y-0.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+                    {(realtimeInsights.open_questions as string[]).map((q, i) => <li key={i}>{q}</li>)}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -626,208 +871,6 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
         </div>
       )}
 
-      {/* Meeting Intelligence tab */}
-      {activeTab === 'intelligence' && (
-        <div className="space-y-4">
-          {/* Analyzing spinner */}
-          {detail.summary_json?._analyzing && (
-            <div className={`text-center py-12 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
-              <div className="flex justify-center mb-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary" />
-              </div>
-              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Analyzing Meeting...</h3>
-              <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                AI is processing the transcript. This may take a minute.
-              </p>
-            </div>
-          )}
-
-          {/* Analysis failed (LLM error, empty output, parse failure, etc.) */}
-          {detail.summary_json?._analysis_failed && (
-            <div className={`p-6 rounded-lg border ${darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
-              <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-amber-200' : 'text-amber-900'}`}>
-                AI analysis failed
-              </h3>
-              <p className={`text-sm mb-3 ${darkMode ? 'text-amber-100/80' : 'text-amber-800'}`}>
-                {detail.summary_json.message || 'The analysis could not be completed.'}
-              </p>
-              <button
-                onClick={handleAnalyze}
-                disabled={analyzing}
-                className="px-4 py-2 rounded-lg bg-zenible-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2"
-              >
-                {analyzing ? (
-                  <>
-                    <span className="inline-flex h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Re-analyzing...
-                  </>
-                ) : 'Try again'}
-              </button>
-            </div>
-          )}
-
-          {/* Plan does not grant access to the meeting analyst character */}
-          {detail.summary_json?._plan_access_denied && (
-            <div className={`p-6 rounded-lg border ${darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
-              <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-amber-200' : 'text-amber-900'}`}>
-                AI meeting analysis not included on your plan
-              </h3>
-              <p className={`text-sm mb-3 ${darkMode ? 'text-amber-100/80' : 'text-amber-800'}`}>
-                {detail.summary_json.message || 'The AI analyst for meeting insights is not available on your current plan. The transcript is saved.'}
-              </p>
-              <a
-                href="/settings/billing"
-                className="inline-flex items-center text-sm font-medium text-zenible-primary hover:underline"
-              >
-                Upgrade your plan →
-              </a>
-            </div>
-          )}
-
-          {/* AI message quota exhausted */}
-          {detail.summary_json?._quota_exceeded && (() => {
-            const ut = detail.summary_json.usage_type;
-            const isDaily = ut === 'ai_character_messages_daily';
-            const isCharMonthly = ut === 'ai_character_messages';
-            const title = isDaily
-              ? 'Daily AI message limit reached'
-              : isCharMonthly
-                ? 'Monthly character-message limit reached'
-                : 'No AI message credits remaining';
-            const resetHint = isDaily
-              ? 'Your daily limit resets at 00:00 UTC.'
-              : 'Your limit will reset at the start of the next billing period, or you can upgrade your plan.';
-            return (
-              <div className={`p-6 rounded-lg border ${darkMode ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
-                <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-amber-200' : 'text-amber-900'}`}>
-                  {title}
-                </h3>
-                <p className={`text-sm mb-3 ${darkMode ? 'text-amber-100/80' : 'text-amber-800'}`}>
-                  You've used all of this quota
-                  {typeof detail.summary_json.current === 'number' && typeof detail.summary_json.limit === 'number'
-                    ? ` (${detail.summary_json.current}/${detail.summary_json.limit})`
-                    : ''}.
-                  The transcript is saved, but AI insights for this meeting weren't generated.
-                  {' '}{resetHint}
-                </p>
-                <a
-                  href="/settings/billing"
-                  className="inline-flex items-center text-sm font-medium text-zenible-primary hover:underline"
-                >
-                  Upgrade your plan →
-                </a>
-              </div>
-            );
-          })()}
-
-          {/* No analysis yet */}
-          {!detail.summary_json && (
-            <div className={`text-center py-12 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
-              <p className={`text-sm mb-4 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-                No AI analysis available for this meeting yet.
-              </p>
-              <button
-                onClick={handleAnalyze}
-                disabled={analyzing}
-                className="px-4 py-2 rounded-lg bg-zenible-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2"
-              >
-                {analyzing ? (
-                  <>
-                    <span className="inline-flex h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Analyzing...
-                  </>
-                ) : 'Analyze Meeting'}
-              </button>
-            </div>
-          )}
-
-          {/* Analysis content */}
-          {detail.summary_json && !detail.summary_json._analyzing && !detail.summary_json._quota_exceeded && !detail.summary_json._analysis_failed && !detail.summary_json._plan_access_denied && (
-            <>
-              {/* Re-analyze button */}
-              <div className="flex justify-end">
-                <button
-                  onClick={handleAnalyze}
-                  disabled={analyzing}
-                  className={`text-xs px-3 py-1.5 rounded-md font-medium ${
-                    darkMode
-                      ? 'bg-zenible-dark-border text-zenible-dark-text-secondary hover:text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  } disabled:opacity-50 inline-flex items-center gap-1`}
-                >
-                  {analyzing ? (
-                    <>
-                      <span className="inline-flex h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      Re-analyzing...
-                    </>
-                  ) : 'Re-analyze'}
-                </button>
-              </div>
-
-              {/* Sentiment & Topics */}
-              {(detail.summary_json.sentiment || (detail.summary_json.topics && detail.summary_json.topics.length > 0)) && (
-                <div className={`flex flex-wrap items-center gap-2`}>
-                  {detail.summary_json.sentiment && (
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      detail.summary_json.sentiment === 'positive'
-                        ? (darkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-700')
-                        : detail.summary_json.sentiment === 'negative'
-                          ? (darkMode ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700')
-                          : (darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600')
-                    }`}>
-                      {detail.summary_json.sentiment.charAt(0).toUpperCase() + detail.summary_json.sentiment.slice(1)}
-                    </span>
-                  )}
-                  {detail.summary_json.topics?.map((topic, i) => (
-                    <span key={i} className={`text-xs px-2 py-1 rounded-full ${
-                      darkMode ? 'bg-zenible-dark-border text-zenible-dark-text-secondary' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {topic}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Overview */}
-              {detail.summary_json.overview && (
-                <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
-                  <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Overview</h3>
-                  <p className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                    {detail.summary_json.overview}
-                  </p>
-                </div>
-              )}
-
-              {/* Key Points */}
-              {detail.summary_json.keyPoints && detail.summary_json.keyPoints.length > 0 && (
-                <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
-                  <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Key Points</h3>
-                  <ul className={`list-disc list-inside space-y-1 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                    {detail.summary_json.keyPoints.map((point, i) => (
-                      <li key={i}>{point}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Action Items */}
-              {detail.summary_json.actionItems && detail.summary_json.actionItems.length > 0 && (
-                <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
-                  <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Action Items</h3>
-                  <ul className="space-y-2">
-                    {detail.summary_json.actionItems.map((item, i) => (
-                      <li key={i} className={`flex items-start gap-2 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-                        <input type="checkbox" className="mt-0.5 rounded" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
       <ConfirmationModal
         isOpen={showDeleteRecordingConfirm}
         onClose={() => setShowDeleteRecordingConfirm(false)}
@@ -837,6 +880,17 @@ const MeetingDetailView: React.FC<Props> = ({ meetingId, onBack }) => {
         confirmText="Delete"
         cancelText="Cancel"
         confirmColor="red"
+      />
+
+      <ConfirmationModal
+        isOpen={showDetailedConfirm}
+        onClose={() => setShowDetailedConfirm(false)}
+        onConfirm={() => { setShowDetailedConfirm(false); handleAnalyze({ detailed: true }); }}
+        title="Generate Detailed Insights"
+        message="This will replace the current insights with more detailed meeting insights. Do you wish to continue?"
+        confirmText="Continue"
+        cancelText="Cancel"
+        confirmColor="purple"
       />
     </div>
   );

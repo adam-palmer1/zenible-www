@@ -78,6 +78,11 @@ const navItems: NavItem[] = [
         label: 'Features',
         path: '/admin/features',
       },
+      {
+        id: 'coupons',
+        label: 'Coupons',
+        path: '/admin/coupons',
+      },
     ],
   },
   {
@@ -125,6 +130,11 @@ const navItems: NavItem[] = [
         id: 'meeting-intelligence-config',
         label: 'Meeting Intelligence',
         path: '/admin/meeting-intelligence-config',
+      },
+      {
+        id: 'realtime-insights-config',
+        label: 'Real-time Insights',
+        path: '/admin/realtime-insights-config',
       },
     ],
   },

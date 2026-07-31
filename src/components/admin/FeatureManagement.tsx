@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import DisplayFeaturesManager from './DisplayFeaturesManager';
 import SystemFeaturesManager from './SystemFeaturesManager';
 import PlanFeatureAssignment from './PlanFeatureAssignment';
 
@@ -11,10 +10,9 @@ interface Tab {
 
 export default function FeatureManagement() {
   const { darkMode } = useOutletContext<{ darkMode: boolean }>();
-  const [activeTab, setActiveTab] = useState<string>('display');
+  const [activeTab, setActiveTab] = useState<string>('system');
 
   const tabs: Tab[] = [
-    { id: 'display', label: 'Display Features' },
     { id: 'system', label: 'System Features' },
     { id: 'assignment', label: 'Plan Assignment' },
   ];
@@ -58,20 +56,6 @@ export default function FeatureManagement() {
       <div className="flex-1 overflow-y-auto">
         {/* Tab Content */}
         <div className="p-4 sm:p-6">
-        {activeTab === 'display' && (
-          <div>
-            <div className="mb-6">
-              <h2 className={`text-xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-                Display Features
-              </h2>
-              <p className={`mt-1 text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-600'}`}>
-                Manage marketing and UI features shown on pricing pages. These features help users understand what's included in each plan.
-              </p>
-            </div>
-            <DisplayFeaturesManager darkMode={darkMode} />
-          </div>
-        )}
-
         {activeTab === 'system' && (
           <div>
             <div className="mb-6">

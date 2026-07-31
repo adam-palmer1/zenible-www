@@ -76,6 +76,12 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
         return { text: 'Add Service', action: () => openServiceModal(), visible: hasCRMAccess };
       case 'projects':
         return { text: 'Add Project', action: () => openProjectModal(), visible: hasCRMAccess };
+      case 'tasks':
+        return {
+          text: 'Add Task',
+          action: () => window.dispatchEvent(new CustomEvent('zenible:tasks:new')),
+          visible: true,
+        };
       default: // 'crm'
         return { text: 'Add Contact', action: () => openContactModal(null, null, null), visible: true };
     }
@@ -88,7 +94,7 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         {/* Left: Title */}
         <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-          {activeTab === 'services' ? 'Services' : activeTab === 'projects' ? 'Projects' : activeTab === 'meetings' ? 'Meeting Intelligence' : 'Contacts'}
+          {activeTab === 'services' ? 'Services' : activeTab === 'projects' ? 'Projects' : activeTab === 'meetings' ? 'Meeting Intelligence' : activeTab === 'tasks' ? 'Tasks' : 'Contacts'}
         </h1>
 
         {/* Right: View Toggle + Actions */}
@@ -128,6 +134,18 @@ const CRMTopBar: React.FC<CRMTopBarProps> = ({
                 <ListBulletIcon className="h-5 w-5" />
               </button>
             </div>
+          )}
+
+          {/* Secondary "New Folder" button — Tasks tab only */}
+          {activeTab === 'tasks' && (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('zenible:tasks:new-folder'))}
+              className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+              title="New folder"
+            >
+              <PlusIcon className="h-5 w-5" />
+              <span className="hidden sm:inline">New Folder</span>
+            </button>
           )}
 
           {/* Add Button (changes based on active tab) */}

@@ -311,7 +311,7 @@ export default function ConversationManagement() {
                           </div>
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
-                          {conversation.character_name || 'Unknown'}
+                          {(conversation.characters as Array<{ name: string }> | undefined)?.map(c => c.name).join(', ') || 'Unknown'}
                         </td>
                         <td className={`px-6 py-4 text-sm ${darkMode ? 'text-zenible-dark-text' : 'text-gray-900'}`}>
                           <div className="max-w-xs truncate">

@@ -31,7 +31,7 @@ export default function SettingsSidebar({ activeTab, setActiveTab }: SettingsSid
   const { darkMode } = usePreferences();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [planName, setPlanName] = useState('Free Plan');
+  const [planName, setPlanName] = useState('No Plan');
   const [isCompanyAdmin, setIsCompanyAdmin] = useState(false);
 
   useEffect(() => {

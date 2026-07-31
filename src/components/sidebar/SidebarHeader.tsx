@@ -15,7 +15,7 @@ interface SidebarHeaderProps {
 export default function SidebarHeader({ isCollapsed, onToggle, isMobile = false }: SidebarHeaderProps) {
   const { user: rawUser } = useAuth();
   const user = rawUser;
-  const [planName, setPlanName] = useState('Free Plan');
+  const [planName, setPlanName] = useState('No Plan');
 
   useEffect(() => {
     const fetchPlanName = async () => {

@@ -105,6 +105,19 @@ class PaymentIntegrationsAPI {
   }
 
   /**
+   * Forward PayPal's post-onboarding redirect query params to the backend
+   * `/paypal/callback` endpoint so the merchant row is marked complete using
+   * PayPal's authoritative redirect-time flags. PayPal sends these as GET
+   * query string params; we proxy them through unchanged.
+   */
+  async completePayPalCallback(params: Record<string, string>): Promise<unknown> {
+    const qs = new URLSearchParams(params).toString();
+    return request(`${this.paypalEndpoint}/callback?${qs}`, {
+      method: 'GET',
+    });
+  }
+
+  /**
    * Disconnect PayPal account
    */
   async disconnectPayPal(params: unknown = { confirm: true }): Promise<unknown> {
@@ -112,6 +125,29 @@ class PaymentIntegrationsAPI {
       method: 'POST',
       body: JSON.stringify(params),
     });
+  }
+
+  /**
+   * Refund a PayPal transaction (full or partial).
+   * `amount` omitted means a full refund.
+   */
+  async refundPayPalTransaction(
+    transactionId: string,
+    params: { amount?: number | string; reason?: string; note_to_payer?: string } = {},
+  ): Promise<unknown> {
+    return request(`${this.paypalEndpoint}/transactions/${transactionId}/refund`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
+   * List PayPal transactions for the current company.
+   */
+  async listPayPalTransactions(params: Record<string, string> = {}): Promise<unknown> {
+    const qs = new URLSearchParams(params).toString();
+    const url = qs ? `${this.paypalEndpoint}/transactions?${qs}` : `${this.paypalEndpoint}/transactions`;
+    return request(url, { method: 'GET' });
   }
 
   // ==========================================

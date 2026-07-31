@@ -202,6 +202,11 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
   // Track if we've done the initial auto-select
   const hasAutoSelectedRef = useRef(false);
 
+  // Month the calendar should display (set when the initial month is empty and
+  // availability starts in a later month)
+  const [focusMonth, setFocusMonth] = useState<string | null>(null);
+  const hasCheckedNextAvailableRef = useRef(false);
+
   // Fetch call type page data
   useEffect(() => {
     const fetchPageData = async () => {
@@ -229,8 +234,27 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
     }
   }, [api, config.username, config.callType]);
 
+  // When the first month shown has nothing bookable, jump to the first month
+  // that does (rather than leaving the visitor on an empty calendar)
+  const jumpToFirstAvailableMonth = useCallback(async (fromDate: string) => {
+    if (!config.username || !config.callType) return;
+
+    try {
+      const data = await api.getNextAvailableDate(config.username, config.callType, fromDate);
+      if (data?.first_available_date) {
+        setFocusMonth(data.first_available_date);
+      }
+    } catch (err) {
+      logger.error('[ZenibleBooking] Error fetching next available date:', err);
+    }
+  }, [api, config.username, config.callType]);
+
   // Fetch availability for the visible calendar range
-  const fetchCalendarAvailability = useCallback(async (startDate: string, endDate: string) => {
+  const fetchCalendarAvailability = useCallback(async (
+    startDate: string,
+    endDate: string,
+    monthKey?: string
+  ) => {
     if (!config.username || !config.callType) return;
 
     try {
@@ -254,15 +278,30 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
       if (!hasAutoSelectedRef.current && Object.keys(newAvailability).length > 0) {
         hasAutoSelectedRef.current = true;
       }
+
+      // Only on the first load: if the month on screen has nothing bookable,
+      // look ahead. The fetched range spills into the neighbouring months, so
+      // this has to be scoped to the displayed month — otherwise a stray slot
+      // in the trailing week (e.g. 1 Aug while viewing July) counts as
+      // availability and the visitor is left on an empty-looking calendar.
+      if (!hasCheckedNextAvailableRef.current) {
+        hasCheckedNextAvailableRef.current = true;
+        const datesInMonth = monthKey
+          ? Object.keys(newAvailability).filter((d) => d.startsWith(monthKey))
+          : Object.keys(newAvailability);
+        if (datesInMonth.length === 0) {
+          jumpToFirstAvailableMonth(startDate);
+        }
+      }
     } catch (err) {
       logger.error('[ZenibleBooking] Error fetching availability:', err);
       setAvailabilityData({});
     }
-  }, [api, config.username, config.callType]);
+  }, [api, config.username, config.callType, jumpToFirstAvailableMonth]);
 
   // Handle calendar month change
-  const handleMonthChange = useCallback((startDate: string, endDate: string) => {
-    fetchCalendarAvailability(startDate, endDate);
+  const handleMonthChange = useCallback((startDate: string, endDate: string, monthKey: string) => {
+    fetchCalendarAvailability(startDate, endDate, monthKey);
   }, [fetchCalendarAvailability]);
 
   // Handle date selection - use visitor-timezone-aware data
@@ -711,6 +750,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
             onMonthChange={handleMonthChange}
             minDate={minDate}
             maxDate={maxDate}
+            focusMonth={focusMonth}
           />
         </div>
 

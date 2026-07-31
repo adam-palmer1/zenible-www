@@ -106,6 +106,37 @@ input[type="number"] {
   display: none;  /* Safari and Chrome */
 }
 
+/* AI chat scrollbar — invisible until hover, then thin thumb appears */
+.scrollbar-hover {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.scrollbar-hover::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-hover::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.scrollbar-hover:hover {
+  scrollbar-color: var(--text-secondary) transparent;
+}
+
+.scrollbar-hover:hover::-webkit-scrollbar-thumb {
+  background: var(--text-secondary);
+}
+
+.scrollbar-hover:hover::-webkit-scrollbar-thumb:hover {
+  background: var(--text-primary);
+}
+
 /* Boardroom sidebar scrollbar — thin (half width), track always reserved so
    layout does not shift on hover. Thumb is transparent until hover. */
 .boardroom-sidebar-scroll {

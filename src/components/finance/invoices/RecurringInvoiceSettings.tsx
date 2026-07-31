@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, XCircle, ChevronDown, Check, Calendar, Mail, Paperclip } from 'lucide-react';
+import { Play, Pause, XCircle, ChevronDown, Check, Calendar, Mail, Paperclip, Repeat } from 'lucide-react';
 import { RECURRING_TYPE, RECURRING_TYPE_LABELS } from '../../../constants/finance';
 import DatePickerCalendar from '../../shared/DatePickerCalendar';
 import { getRecurringFrequencyLabel, calculateNextBillingDate } from '../../../utils/recurringBilling';
@@ -39,6 +39,12 @@ interface RecurringInvoiceSettingsProps {
   onChange: (changes: Record<string, any>) => void;
   readOnly?: boolean;
   isEditing?: boolean;
+  // True when this invoice is an auto-generated child of a recurring template.
+  // Recurrence is owned by the template, so it is shown read-only here with a
+  // link back to the template (editing it on the child has no effect).
+  isGeneratedInstance?: boolean;
+  recurrenceSequenceNumber?: number | null;
+  onEditTemplate?: () => void;
 }
 
 const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
@@ -55,7 +61,12 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
   onChange,
   readOnly = false,
   isEditing = false, // true when editing existing invoice
+  isGeneratedInstance = false,
+  recurrenceSequenceNumber = null,
+  onEditTemplate,
 }) => {
+  // Generated child instances never edit recurrence — force read-only.
+  const effectiveReadOnly = readOnly || isGeneratedInstance;
   const [showFrequencyDropdown, setShowFrequencyDropdown] = useState(false);
   const frequencyButtonRef = useRef<HTMLButtonElement>(null);
   const frequencyDropdownRef = useRef<HTMLDivElement>(null);
@@ -130,7 +141,7 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
     <div className="space-y-4 design-bg-secondary rounded-lg p-6">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold design-text-primary">Recurring Invoice</h3>
-        {!readOnly && (
+        {!effectiveReadOnly && (
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
@@ -143,6 +154,29 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
         )}
       </div>
 
+      {/* Auto-generated child: recurrence is controlled by the template, not here */}
+      {isGeneratedInstance && (
+        <div className="flex items-start justify-between gap-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4">
+          <div className="flex items-start gap-2">
+            <Repeat className="h-4 w-4 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-purple-700 dark:text-purple-300">
+              This is an auto-generated invoice
+              {recurrenceSequenceNumber ? ` (#${recurrenceSequenceNumber})` : ''}.
+              To change or stop recurrence, edit the recurring template.
+            </p>
+          </div>
+          {onEditTemplate && (
+            <button
+              type="button"
+              onClick={onEditTemplate}
+              className="text-sm text-purple-600 dark:text-purple-400 hover:underline font-medium whitespace-nowrap"
+            >
+              Edit Template
+            </button>
+          )}
+        </div>
+      )}
+
       {isRecurring && (
         <div className="space-y-4 pt-4 border-t design-border">
           {/* Frequency */}
@@ -150,7 +184,7 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
             <label className="block text-sm font-medium design-text-primary mb-2">
               Frequency
             </label>
-            {readOnly ? (
+            {effectiveReadOnly ? (
               <div className="design-text-secondary">
                 {getRecurringFrequencyLabel(recurringType, customEvery, customPeriod)}
               </div>
@@ -221,7 +255,7 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
           </div>
 
           {/* Custom Frequency */}
-          {recurringType === RECURRING_TYPE.CUSTOM && !readOnly && (
+          {recurringType === RECURRING_TYPE.CUSTOM && !effectiveReadOnly && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium design-text-primary mb-2">
@@ -299,7 +333,7 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
             <label className="block text-sm font-medium design-text-primary mb-2">
               End Condition
             </label>
-            {readOnly ? (
+            {effectiveReadOnly ? (
               <div className="design-text-secondary">
                 {recurringEndDate
                   ? `Ends on ${new Date(recurringEndDate).toLocaleDateString()}`
@@ -395,13 +429,13 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
             )}
           </div>
 
-          {/* Recurring Status - only show when editing existing recurring invoice */}
-          {isEditing && (
+          {/* Recurring Status - only on the template (children have no status) */}
+          {isEditing && !isGeneratedInstance && (
             <div>
               <label className="block text-sm font-medium design-text-primary mb-2">
                 Template Status
               </label>
-              {readOnly ? (
+              {effectiveReadOnly ? (
                 <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
                   recurringStatus === RECURRING_STATUS.ACTIVE
                     ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
@@ -467,7 +501,7 @@ const RecurringInvoiceSettings: React.FC<RecurringInvoiceSettingsProps> = ({
             <label className="block text-sm font-medium design-text-primary">
               Email Settings
             </label>
-            {readOnly ? (
+            {effectiveReadOnly ? (
               <div className="space-y-2 text-sm design-text-secondary">
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />

@@ -20,4 +20,4 @@ Allow: /book/
 Allow: /signin
 Allow: /register
 
-Sitemap: https://www.zenible.com/sitemap.xml
+Sitemap: https://app.zenible.com/sitemap.xml

@@ -37,6 +37,7 @@ interface InvoiceListTableProps {
   canSendReminder: (invoice: any) => boolean;
   onDownloadPDF: (invoice: any) => void;
   onClone: (invoice: any) => void;
+  onShowChildren: (invoice: any) => void;
   onDeleteClick: (invoice: any) => void;
   openActionMenuId: any;
   onSetOpenActionMenuId: (id: any) => void;
@@ -63,6 +64,7 @@ const InvoiceListTable: React.FC<InvoiceListTableProps> = ({
   canSendReminder,
   onDownloadPDF,
   onClone,
+  onShowChildren,
   onDeleteClick,
   openActionMenuId,
   onSetOpenActionMenuId,
@@ -225,6 +227,14 @@ const InvoiceListTable: React.FC<InvoiceListTableProps> = ({
                               { label: 'Send', onClick: () => onSend(invoice) },
                               { label: 'Send Reminder', onClick: () => onSendReminder(invoice), condition: canSendReminder(invoice) },
                               { label: 'Download PDF', onClick: () => onDownloadPDF(invoice) },
+                              {
+                                label: 'Show child invoices',
+                                onClick: () => onShowChildren(invoice),
+                                // Only on recurring templates (no parent) that have generated children
+                                condition: (invoice.pricing_type === 'recurring' || invoice.is_recurring)
+                                  && !invoice.parent_invoice_id
+                                  && (invoice.children_count ?? 0) > 0,
+                              },
                               { label: 'Clone', onClick: () => onClone(invoice) },
                               { label: 'Delete', onClick: () => onDeleteClick(invoice), variant: 'danger' },
                             ]}

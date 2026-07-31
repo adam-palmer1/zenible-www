@@ -10,6 +10,7 @@ import {
 import paymentIntegrationsAPI from '../../../../services/api/finance/paymentIntegrations';
 import type { OAuthUrlResponse } from '../../../../types/auth';
 import type { DashboardLinkResponse, PayPalConnectResponse } from '../../../../types/finance';
+import ConfirmationModal from '../../../common/ConfirmationModal';
 
 // Stripe logo SVG component
 const StripeLogo = ({ className = 'h-6 w-6' }) => (
@@ -51,6 +52,7 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
 
   // Load Stripe status
   const loadStatus = useCallback(async () => {
@@ -141,11 +143,11 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
   };
 
   // Disconnect Stripe
-  const handleDisconnect = async () => {
-    if (!confirm('Are you sure you want to disconnect Stripe? You will no longer be able to accept card payments.')) {
-      return;
-    }
+  const handleDisconnect = () => {
+    setShowDisconnectConfirm(true);
+  };
 
+  const performDisconnect = async () => {
     try {
       setDisconnecting(true);
       setError(null);
@@ -390,6 +392,18 @@ const StripeConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
             </div>
           </div>
         </div>
+        <ConfirmationModal
+          isOpen={showDisconnectConfirm}
+          onClose={() => setShowDisconnectConfirm(false)}
+          onConfirm={performDisconnect}
+          title="Disconnect Stripe"
+          message="Are you sure you want to disconnect Stripe? You will no longer be able to accept card payments."
+          confirmText="Disconnect"
+          cancelText="Cancel"
+          confirmColor="red"
+          icon={ExclamationTriangleIcon}
+          iconColor="text-red-600 dark:text-red-400"
+        />
       </div>
     );
   }
@@ -446,6 +460,8 @@ interface PayPalStatus {
   primary_email_confirmed?: boolean;
   paypal_email?: string;
   merchant_id?: string;
+  capabilities?: string[];
+  oauth_scopes?: string[];
 }
 
 const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
@@ -457,6 +473,7 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
 
   // Load PayPal status
   const loadStatus = useCallback(async () => {
@@ -487,12 +504,67 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
       if (paypalConnected === 'true') {
         try {
           setRefreshing(true);
-          await paymentIntegrationsAPI.refreshPayPalStatus();
+
+          // PayPal sends authoritative onboarding-completion flags in the
+          // redirect query string (merchantIdInPayPal, isEmailConfirmed,
+          // permissionsGranted, riskStatus, etc). Forward them so the backend
+          // can mark the merchant complete even when PayPal's status API is
+          // unavailable for the partner sandbox account.
+          const merchantIdInPayPal = searchParams.get('merchantIdInPayPal');
+          const merchantId = searchParams.get('merchantId');
+          if (merchantIdInPayPal && merchantId) {
+            const callbackParams: Record<string, string> = {
+              merchantIdInPayPal,
+              merchantId,
+            };
+            for (const k of [
+              'permissionsGranted',
+              'accountStatus',
+              'consentStatus',
+              'isEmailConfirmed',
+              'riskStatus',
+              'productIntentId',
+            ]) {
+              const v = searchParams.get(k);
+              if (v !== null) callbackParams[k] = v;
+            }
+            try {
+              await paymentIntegrationsAPI.completePayPalCallback(callbackParams);
+            } catch (cbErr: any) {
+              // Surface the backend's friendly error directly. Common case:
+              // 409 when this PayPal account is already linked to another
+              // Zenible company.
+              logger.warn('[PayPalConnect] Callback completion failed', cbErr);
+              const msg = cbErr?.message || cbErr?.detail;
+              if (msg) setError(typeof msg === 'string' ? msg : 'Failed to complete PayPal connection.');
+            }
+          }
+
+          // Always refresh + reload — refresh is best-effort and never
+          // blocks loadStatus from returning the latest row.
+          try {
+            await paymentIntegrationsAPI.refreshPayPalStatus();
+          } catch (refreshErr) {
+            logger.warn('[PayPalConnect] Refresh status failed', refreshErr);
+          }
           const data = await loadStatus();
           onStatusChange?.('paypal', data);
-          // Clear query params
+
+          // Clear all PayPal redirect params from the URL.
           const newParams = new URLSearchParams(searchParams);
-          newParams.delete('paypal_connected');
+          for (const k of [
+            'paypal_connected',
+            'merchantId',
+            'merchantIdInPayPal',
+            'permissionsGranted',
+            'accountStatus',
+            'consentStatus',
+            'isEmailConfirmed',
+            'riskStatus',
+            'productIntentId',
+          ]) {
+            newParams.delete(k);
+          }
           setSearchParams(newParams, { replace: true });
         } catch (_err) {
           setError('Failed to verify PayPal connection. Please try again.');
@@ -505,15 +577,18 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
     handlePayPalReturn();
   }, []); // Run once on mount
 
-  // Initial load
+  // Initial load. Skip when we're returning from PayPal — the
+  // handlePayPalReturn effect above already does its own callback +
+  // refresh + loadStatus and we don't want a brief flash of the stale
+  // pre-callback row before its result lands.
   useEffect(() => {
-    if (!initialized) {
-      setInitialized(true);
-      loadStatus().then((data) => {
-        onStatusChange?.('paypal', data);
-      });
-    }
-  }, [initialized, loadStatus, onStatusChange]);
+    if (initialized) return;
+    setInitialized(true);
+    if (searchParams.get('paypal_connected') === 'true') return;
+    loadStatus().then((data) => {
+      onStatusChange?.('paypal', data);
+    });
+  }, [initialized, loadStatus, onStatusChange, searchParams]);
 
   // Start PayPal Connect flow
   const handleConnect = async () => {
@@ -521,7 +596,9 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
       setConnecting(true);
       setError(null);
 
-      const returnUrl = `${window.location.origin}${window.location.pathname}?paypal_connected=true`;
+      // Preserve the integrations tab so the user lands back on this card
+      // and IntegrationsTab's `paypal_connected=true` handler can fire.
+      const returnUrl = `${window.location.origin}${window.location.pathname}?tab=integrations&paypal_connected=true`;
 
       const { action_url } = await paymentIntegrationsAPI.initiatePayPalConnect({
         return_url: returnUrl,
@@ -551,11 +628,11 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
   };
 
   // Disconnect PayPal
-  const handleDisconnect = async () => {
-    if (!confirm('Are you sure you want to disconnect PayPal? You will no longer be able to accept PayPal payments.')) {
-      return;
-    }
+  const handleDisconnect = () => {
+    setShowDisconnectConfirm(true);
+  };
 
+  const performDisconnect = async () => {
     try {
       setDisconnecting(true);
       setError(null);
@@ -632,53 +709,131 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
   }
 
   // Pending/in-progress state
-  if (status.onboarding_status === 'in_progress' || !status.is_ready_for_payments) {
+  if (status.onboarding_status === 'pending' || status.onboarding_status === 'in_progress' || !status.is_ready_for_payments) {
+    // If PayPal hasn't issued a merchant_id yet, the seller never finished
+    // the onboarding flow at PayPal (or it hasn't propagated). The email /
+    // payments-receivable warnings only make sense for a merchant PayPal
+    // actually knows about — show a "restart" path instead.
+    const onboardingNotStarted = !status.merchant_id;
+
     return (
       <div className="p-6 border border-yellow-200 dark:border-yellow-800 rounded-lg bg-yellow-50 dark:bg-yellow-900/10">
         <div className="flex items-start gap-4">
-          <div className="p-3 bg-[#003087]/10 rounded-lg">
+          <div className="p-3 bg-[#003087]/10 rounded-lg flex-shrink-0">
             <PayPalLogo className="h-6 w-6 text-[#003087]" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-medium text-gray-900 dark:text-white">PayPal</h4>
               <span className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded">
                 <ExclamationTriangleIcon className="h-3 w-3" />
-                Setup Incomplete
+                {onboardingNotStarted ? 'Connection Incomplete' : 'Setup Incomplete'}
               </span>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Your PayPal account setup is not complete.
-            </p>
-            {!status.payments_receivable && (
-              <p className="text-sm text-yellow-700 dark:text-yellow-400">
-                Payment receiving is not yet enabled.
+
+            {onboardingNotStarted ? (
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 break-words">
+                Your PayPal connection wasn't completed. PayPal hasn't yet
+                registered an account for this connection — please restart and
+                finish the onboarding steps at PayPal.
               </p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 break-words">
+                  Your PayPal account setup is not complete.
+                </p>
+                {!status.primary_email_confirmed && (
+                  <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-2 break-words">
+                    Attention: Please confirm your email address on{' '}
+                    <a
+                      href="https://www.paypal.com/businessprofile/settings"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-yellow-800 dark:hover:text-yellow-300 break-all"
+                    >
+                      https://www.paypal.com/businessprofile/settings
+                    </a>{' '}
+                    in order to receive payments! You currently cannot receive payments.
+                  </p>
+                )}
+                {!status.payments_receivable && (
+                  <p className="text-sm text-yellow-700 dark:text-yellow-400 break-words">
+                    Attention: You currently cannot receive payments due to restriction on your PayPal
+                    account. Please reach out to PayPal Customer Support or connect to{' '}
+                    <a
+                      href="https://www.paypal.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-yellow-800 dark:hover:text-yellow-300 break-all"
+                    >
+                      https://www.paypal.com
+                    </a>{' '}
+                    for more information.
+                  </p>
+                )}
+              </>
             )}
-            {!status.primary_email_confirmed && (
-              <p className="text-sm text-yellow-700 dark:text-yellow-400">
-                Please confirm your PayPal email address.
-              </p>
-            )}
-            <button
-              onClick={handleRefreshStatus}
-              disabled={refreshing}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-            >
-              {refreshing ? (
-                <>
-                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                  Checking...
-                </>
+
+            <div className="flex flex-wrap items-center gap-3 mt-4">
+              {onboardingNotStarted ? (
+                <button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#0070ba] hover:bg-[#005ea6] text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {connecting ? (
+                    <>
+                      <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                      Restarting...
+                    </>
+                  ) : (
+                    <>
+                      <PayPalLogo className="h-4 w-4" />
+                      Restart PayPal Connection
+                    </>
+                  )}
+                </button>
               ) : (
-                <>
-                  <ArrowPathIcon className="h-4 w-4" />
-                  Refresh Status
-                </>
+                <button
+                  onClick={handleRefreshStatus}
+                  disabled={refreshing}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {refreshing ? (
+                    <>
+                      <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                      Checking...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowPathIcon className="h-4 w-4" />
+                      Refresh Status
+                    </>
+                  )}
+                </button>
               )}
-            </button>
+              <button
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                className="inline-flex items-center gap-2 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+              >
+                {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+              </button>
+            </div>
           </div>
         </div>
+        <ConfirmationModal
+          isOpen={showDisconnectConfirm}
+          onClose={() => setShowDisconnectConfirm(false)}
+          onConfirm={performDisconnect}
+          title="Disconnect PayPal"
+          message="Disconnecting your PayPal account will prevent you from offering PayPal services and products on your website. Do you wish to continue?"
+          confirmText="Disconnect"
+          cancelText="Cancel"
+          confirmColor="red"
+          icon={ExclamationTriangleIcon}
+          iconColor="text-red-600 dark:text-red-400"
+        />
       </div>
     );
   }
@@ -704,9 +859,47 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
             </p>
           )}
           {status.merchant_id && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Merchant ID: {status.merchant_id}
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Merchant ID: <span className="font-mono">{status.merchant_id}</span>
             </p>
+          )}
+          {(status.capabilities?.length ?? 0) > 0 && (
+            <div className="mt-2">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
+                Capabilities
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {status.capabilities!.map((cap) => (
+                  <span
+                    key={cap}
+                    className="inline-flex items-center px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs font-mono"
+                  >
+                    {cap}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {(status.oauth_scopes?.length ?? 0) > 0 && (
+            <div className="mt-2 mb-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
+                Granted scopes
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {status.oauth_scopes!.map((scope) => (
+                  <span
+                    key={scope}
+                    className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-mono"
+                    title={scope}
+                  >
+                    {scope.split('/').pop() || scope}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {!status.capabilities?.length && !status.oauth_scopes?.length && (
+            <div className="mb-4" />
           )}
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -736,6 +929,18 @@ const PayPalConnectCard: React.FC<ConnectCardProps> = ({ onStatusChange }) => {
           </div>
         </div>
       </div>
+      <ConfirmationModal
+        isOpen={showDisconnectConfirm}
+        onClose={() => setShowDisconnectConfirm(false)}
+        onConfirm={performDisconnect}
+        title="Disconnect PayPal"
+        message="Disconnecting your PayPal account will prevent you from offering PayPal services and products on your website. Do you wish to continue?"
+        confirmText="Disconnect"
+        cancelText="Cancel"
+        confirmColor="red"
+        icon={ExclamationTriangleIcon}
+        iconColor="text-red-600 dark:text-red-400"
+      />
     </div>
   );
 };
@@ -758,8 +963,16 @@ const IntegrationsTab = () => {
     setGatewayStatus((prev) => ({ ...prev, [gateway]: status }));
   };
 
-  const hasAnyPaymentGateway =
-    gatewayStatus.stripe?.is_connected || gatewayStatus.paypal?.is_connected;
+  // Only show the success banner when at least one gateway is fully
+  // ready to accept payments — not when it's still in setup/restricted.
+  const stripeReady =
+    !!gatewayStatus.stripe?.is_connected
+    && gatewayStatus.stripe?.status === 'enabled'
+    && gatewayStatus.stripe?.charges_enabled === true;
+  const paypalReady =
+    !!gatewayStatus.paypal?.is_connected
+    && gatewayStatus.paypal?.is_ready_for_payments === true;
+  const hasAnyPaymentGateway = stripeReady || paypalReady;
 
   return (
     <div className="space-y-6">

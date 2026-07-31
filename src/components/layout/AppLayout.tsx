@@ -1,6 +1,7 @@
 import React from 'react';
 import Sidebar from '../sidebar/Sidebar';
 import MobileHeader from './MobileHeader';
+import EmailVerificationBanner from '../EmailVerificationBanner';
 
 interface AppLayoutProps {
   /** Optional header element rendered between mobile header and content */
@@ -47,6 +48,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({
       >
         {/* Mobile header (hidden on lg+) */}
         <MobileHeader title={pageTitle} />
+
+        {/* Email verification banner (shown when unverified) */}
+        <EmailVerificationBanner />
 
         {/* Optional page header */}
         {header && (

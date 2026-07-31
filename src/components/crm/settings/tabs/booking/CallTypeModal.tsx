@@ -2,8 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
 import callTypesAPI from '../../../../../services/api/crm/callTypes';
+import currenciesAPI from '../../../../../services/api/crm/currencies';
+import paymentIntegrationsAPI from '../../../../../services/api/finance/paymentIntegrations';
 import { useNotification } from '../../../../../contexts/NotificationContext';
 import logger from '../../../../../utils/logger';
+
+interface CurrencyOption {
+  id: string;
+  code: string;
+  symbol?: string;
+}
 
 const DURATION_OPTIONS = [
   { value: 15, label: '15 minutes' },
@@ -57,12 +65,23 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
     max_display_slots_per_day: null,
     min_cancellation_notice_hours: 24,
     is_active: true,
+    is_chargeable: false,
+    price: '',
+    currency_id: '',
+    payment_methods: [] as string[],
   });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<any>({});
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [showCancellationPicker, setShowCancellationPicker] = useState(false);
   const [showConferencingPicker, setShowConferencingPicker] = useState(false);
+
+  // Payment integration availability (controls greying of the payment controls)
+  const [stripeEnabled, setStripeEnabled] = useState(false);
+  const [paypalEnabled, setPaypalEnabled] = useState(false);
+  const [integrationsLoading, setIntegrationsLoading] = useState(true);
+  const [currencies, setCurrencies] = useState<CurrencyOption[]>([]);
+  const anyIntegrationEnabled = stripeEnabled || paypalEnabled;
 
   const { showSuccess, showError } = useNotification();
 
@@ -100,6 +119,13 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
           max_display_slots_per_day: callType.max_display_slots_per_day || null,
           min_cancellation_notice_hours: callType.min_cancellation_notice_hours ?? 24,
           is_active: callType.is_active ?? true,
+          is_chargeable: callType.is_chargeable ?? false,
+          price: callType.price_amount != null ? String(callType.price_amount) : '',
+          currency_id: callType.currency_id || '',
+          payment_methods: [
+            ...(callType.accept_stripe ? ['stripe'] : []),
+            ...(callType.accept_paypal ? ['paypal'] : []),
+          ],
         });
       } else {
         setFormData({
@@ -114,17 +140,81 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
           max_display_slots_per_day: null,
           min_cancellation_notice_hours: 24,
           is_active: true,
+          is_chargeable: false,
+          price: '',
+          currency_id: '',
+          payment_methods: [],
         });
       }
       setErrors({});
+      loadPaymentContext();
     }
   }, [isOpen, callType]);
+
+  // Fetch integration status + currencies whenever the modal opens, and prune
+  // any previously-selected method whose integration is no longer enabled.
+  const loadPaymentContext = async () => {
+    setIntegrationsLoading(true);
+    try {
+      const [stripeRes, paypalRes, currencyRes] = await Promise.allSettled([
+        paymentIntegrationsAPI.getStripeConnectStatus(),
+        paymentIntegrationsAPI.getPayPalStatus(),
+        currenciesAPI.list(),
+      ]);
+
+      let stripeOn = false;
+      if (stripeRes.status === 'fulfilled') {
+        const s: any = stripeRes.value;
+        stripeOn = s?.status === 'enabled' && s?.charges_enabled === true;
+      }
+      let paypalOn = false;
+      if (paypalRes.status === 'fulfilled') {
+        const p: any = paypalRes.value;
+        paypalOn = !!p?.is_connected && (p?.is_ready_for_payments === true || p?.payments_receivable === true);
+      }
+      setStripeEnabled(stripeOn);
+      setPaypalEnabled(paypalOn);
+
+      if (currencyRes.status === 'fulfilled') {
+        const raw: any = currencyRes.value;
+        const list: CurrencyOption[] = Array.isArray(raw) ? raw : (raw?.items || []);
+        setCurrencies(list);
+      }
+
+      // Drop selected methods whose integration is now disabled.
+      setFormData((prev: any) => ({
+        ...prev,
+        payment_methods: (prev.payment_methods || []).filter((m: string) =>
+          (m === 'stripe' && stripeOn) || (m === 'paypal' && paypalOn)
+        ),
+      }));
+    } catch (e) {
+      logger.error('Failed to load payment context', e);
+    } finally {
+      setIntegrationsLoading(false);
+    }
+  };
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
     // Clear field error when user types
     if (errors[field]) {
       setErrors((prev: any) => ({ ...prev, [field]: null }));
+    }
+  };
+
+  const togglePaymentMethod = (method: string) => {
+    setFormData((prev: any) => {
+      const has = (prev.payment_methods || []).includes(method);
+      return {
+        ...prev,
+        payment_methods: has
+          ? prev.payment_methods.filter((m: string) => m !== method)
+          : [...(prev.payment_methods || []), method],
+      };
+    });
+    if (errors.payment_methods) {
+      setErrors((prev: any) => ({ ...prev, payment_methods: null }));
     }
   };
 
@@ -160,6 +250,25 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
       newErrors.custom_meeting_link = 'Meeting link is required for custom conferencing';
     }
 
+    if (formData.is_chargeable) {
+      const price = parseFloat(formData.price);
+      if (!formData.price || isNaN(price) || price <= 0) {
+        newErrors.price = 'Enter a price greater than 0';
+      }
+      if (!formData.currency_id) {
+        newErrors.currency_id = 'Select a currency';
+      }
+      if (!formData.payment_methods || formData.payment_methods.length === 0) {
+        newErrors.payment_methods = 'Select at least one payment method';
+      } else if (
+        formData.payment_methods.some(
+          (m: string) => (m === 'stripe' && !stripeEnabled) || (m === 'paypal' && !paypalEnabled),
+        )
+      ) {
+        newErrors.payment_methods = 'A selected payment method is no longer available';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -173,14 +282,29 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
 
     setSaving(true);
     try {
+      // Normalize the chargeable fields into the API shape.
+      const { price, payment_methods, ...rest } = formData;
+      const payload: any = { ...rest, is_chargeable: !!formData.is_chargeable };
+      if (formData.is_chargeable) {
+        payload.price_amount = parseFloat(formData.price);
+        payload.currency_id = formData.currency_id;
+        payload.accept_stripe = payment_methods.includes('stripe');
+        payload.accept_paypal = payment_methods.includes('paypal');
+      } else {
+        payload.price_amount = null;
+        payload.currency_id = null;
+        payload.accept_stripe = false;
+        payload.accept_paypal = false;
+      }
+
       let saved;
       if (callType) {
         // Update existing
-        saved = await callTypesAPI.update(callType.id, formData);
+        saved = await callTypesAPI.update(callType.id, payload);
         showSuccess('Call type updated');
       } else {
         // Create new
-        saved = await callTypesAPI.create(formData);
+        saved = await callTypesAPI.create(payload);
         showSuccess('Call type created');
       }
       onSave(saved);
@@ -405,6 +529,132 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
                 placeholder="e.g., Conference Room A, Phone call"
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               />
+            </div>
+
+            {/* Payment */}
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Require payment
+                  </label>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Guests pay before the appointment is booked
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={formData.is_chargeable}
+                  disabled={!anyIntegrationEnabled || integrationsLoading}
+                  title={
+                    !anyIntegrationEnabled
+                      ? 'Connect Stripe or PayPal in Settings → Integrations to charge for this appointment'
+                      : undefined
+                  }
+                  onClick={() => handleChange('is_chargeable', !formData.is_chargeable)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    formData.is_chargeable ? 'bg-zenible-primary' : 'bg-gray-300 dark:bg-gray-600'
+                  } ${!anyIntegrationEnabled || integrationsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      formData.is_chargeable ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              {integrationsLoading && (
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Checking integrations…</p>
+              )}
+              {!integrationsLoading && !anyIntegrationEnabled && (
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Connect Stripe or PayPal in Settings → Integrations to charge for this appointment.
+                </p>
+              )}
+
+              {formData.is_chargeable && (
+                <div className="mt-4 space-y-4">
+                  {/* Price + Currency */}
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Price *
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.price}
+                        onChange={(e) => handleChange('price', e.target.value)}
+                        placeholder="0.00"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white ${
+                          errors.price ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      />
+                      {errors.price && <p className="mt-1 text-sm text-red-500">{errors.price}</p>}
+                    </div>
+                    <div className="w-32">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Currency *
+                      </label>
+                      <select
+                        value={formData.currency_id}
+                        onChange={(e) => handleChange('currency_id', e.target.value)}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white ${
+                          errors.currency_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      >
+                        <option value="">Select…</option>
+                        {currencies.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.code}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.currency_id && (
+                        <p className="mt-1 text-sm text-red-500">{errors.currency_id}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Payment methods */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Accepted payment methods *
+                    </label>
+                    <div className="space-y-2">
+                      {[
+                        { key: 'stripe', label: 'Stripe (card)', enabled: stripeEnabled },
+                        { key: 'paypal', label: 'PayPal', enabled: paypalEnabled },
+                      ].map((m) => (
+                        <label
+                          key={m.key}
+                          className={`flex items-center gap-2 ${
+                            m.enabled ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                          }`}
+                          title={m.enabled ? undefined : `${m.label} is not connected`}
+                        >
+                          <input
+                            type="checkbox"
+                            disabled={!m.enabled}
+                            checked={formData.payment_methods.includes(m.key)}
+                            onChange={() => togglePaymentMethod(m.key)}
+                            className="rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+                          />
+                          <span className="text-sm text-gray-900 dark:text-white">{m.label}</span>
+                          {!m.enabled && (
+                            <span className="text-xs text-gray-400">(not connected)</span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                    {errors.payment_methods && (
+                      <p className="mt-1 text-sm text-red-500">{errors.payment_methods}</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Footer */}

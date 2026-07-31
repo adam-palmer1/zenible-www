@@ -70,6 +70,11 @@ export default function Sidebar() {
           path: '/crm/projects',
           isActive: location.pathname.startsWith('/crm/projects')
         },
+        {
+          label: 'Tasks',
+          path: '/crm/tasks',
+          isActive: location.pathname.startsWith('/crm/tasks')
+        },
       ]
     },
     {

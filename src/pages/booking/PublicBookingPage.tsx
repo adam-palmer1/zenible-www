@@ -7,12 +7,21 @@ import logger from '../../utils/logger';
 import BookingCalendar from '../../components/booking/BookingCalendar';
 import TimeSlotPicker from '../../components/booking/TimeSlotPicker';
 import BookingForm from '../../components/booking/BookingForm';
+import BookingPaymentStep, { type BookingPaymentProof } from '../../components/booking/BookingPaymentStep';
 
 import type {
   AvailableSlotsResponse,
   DayAvailability,
   BookingConfirmationResponse,
 } from '../../types';
+
+/** Response of GET /book/{username}/{shortcode}/next-available */
+interface NextAvailableDateResponse {
+  call_type_id: string;
+  timezone: string;
+  max_booking_days_ahead: number;
+  first_available_date: string | null;
+}
 
 /** Shape of the page data returned by the public booking page endpoint. */
 interface BookingPageData {
@@ -28,8 +37,14 @@ interface BookingPageData {
     description: string | null;
     duration_minutes: number;
     color: string | null;
+    is_chargeable?: boolean;
+    price?: number | null;
+    currency?: string | null;
+    available_payment_methods?: string[];
   };
   timezone: string;
+  stripe_publishable_key?: string | null;
+  paypal_client_id?: string | null;
   settings?: {
     min_notice_hours?: number;
     max_days_ahead?: number;
@@ -162,7 +177,9 @@ const PublicBookingPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Booking flow state
-  const [step, setStep] = useState<'calendar' | 'form' | 'confirmed'>('calendar');
+  const [step, setStep] = useState<'calendar' | 'form' | 'payment' | 'confirmed'>('calendar');
+  const [pendingBooking, setPendingBooking] = useState<Record<string, unknown> | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedTimeDisplay, setSelectedTimeDisplay] = useState<string | null>(null);
@@ -185,6 +202,11 @@ const PublicBookingPage: React.FC = () => {
 
   // Track if we've done the initial auto-select
   const hasAutoSelectedRef = useRef<boolean>(false);
+
+  // Month the calendar should display (set when the initial month is empty and
+  // availability starts in a later month)
+  const [focusMonth, setFocusMonth] = useState<string | null>(null);
+  const hasCheckedNextAvailableRef = useRef<boolean>(false);
 
   // Fetch call type page data
   useEffect(() => {
@@ -214,8 +236,31 @@ const PublicBookingPage: React.FC = () => {
     }
   }, [username, shortcode]);
 
+  // When the first month shown has nothing bookable, jump to the first month
+  // that does (rather than leaving the visitor on an empty calendar)
+  const jumpToFirstAvailableMonth = useCallback(async (fromDate: string) => {
+    if (!username || !shortcode) return;
+
+    try {
+      const data = await publicBookingAPI.getNextAvailableDate<NextAvailableDateResponse>(
+        username,
+        shortcode,
+        fromDate
+      );
+      if (data?.first_available_date) {
+        setFocusMonth(data.first_available_date);
+      }
+    } catch (err) {
+      logger.error('Error fetching next available date:', err);
+    }
+  }, [username, shortcode]);
+
   // Fetch availability for the visible calendar range
-  const fetchCalendarAvailability = useCallback(async (startDate: string, endDate: string) => {
+  const fetchCalendarAvailability = useCallback(async (
+    startDate: string,
+    endDate: string,
+    monthKey?: string
+  ) => {
     if (!username || !shortcode) return;
 
     try {
@@ -242,17 +287,32 @@ const PublicBookingPage: React.FC = () => {
       if (!hasAutoSelectedRef.current && Object.keys(newAvailability).length > 0) {
         hasAutoSelectedRef.current = true;
       }
+
+      // Only on the first load: if the month on screen has nothing bookable,
+      // look ahead. The fetched range spills into the neighbouring months, so
+      // this has to be scoped to the displayed month — otherwise a stray slot
+      // in the trailing week (e.g. 1 Aug while viewing July) counts as
+      // availability and the visitor is left on an empty-looking calendar.
+      if (!hasCheckedNextAvailableRef.current) {
+        hasCheckedNextAvailableRef.current = true;
+        const datesInMonth = monthKey
+          ? Object.keys(newAvailability).filter((d) => d.startsWith(monthKey))
+          : Object.keys(newAvailability);
+        if (datesInMonth.length === 0) {
+          jumpToFirstAvailableMonth(startDate);
+        }
+      }
     } catch (err) {
       logger.error('Error fetching calendar availability:', err);
       setAvailabilityData({});
     } finally {
       setAvailabilityLoading(false);
     }
-  }, [username, shortcode]);
+  }, [username, shortcode, jumpToFirstAvailableMonth]);
 
   // Handle calendar month change
-  const handleMonthChange = useCallback((startDate: string, endDate: string) => {
-    fetchCalendarAvailability(startDate, endDate);
+  const handleMonthChange = useCallback((startDate: string, endDate: string, monthKey: string) => {
+    fetchCalendarAvailability(startDate, endDate, monthKey);
   }, [fetchCalendarAvailability]);
 
   // Handle date selection - use visitor-timezone-aware data
@@ -392,6 +452,17 @@ const PublicBookingPage: React.FC = () => {
         notes: formData.notes || null,
       };
 
+      // Chargeable call types must be paid before the booking is created.
+      const ct = pageData?.call_type;
+      const methods = ct?.available_payment_methods || [];
+      const needsPayment = !!ct?.is_chargeable && (ct?.price ?? 0) > 0 && methods.length > 0;
+      if (needsPayment) {
+        setPendingBooking(bookingData);
+        setPaymentError(null);
+        setStep('payment');
+        return;
+      }
+
       const result = await publicBookingAPI.createBooking<BookingConfirmationResponse>(username!, shortcode!, bookingData);
       setBookingResult(result);
       setStep('confirmed');
@@ -423,8 +494,40 @@ const PublicBookingPage: React.FC = () => {
     }
   };
 
+  // Finalize a paid booking once the guest has paid. This is the only place
+  // createBooking runs for chargeable call types — payment proof is attached.
+  const finalizeBooking = async (proof: BookingPaymentProof) => {
+    if (!pendingBooking) return;
+    setSubmitting(true);
+    setPaymentError(null);
+    try {
+      const result = await publicBookingAPI.createBooking<BookingConfirmationResponse>(
+        username!,
+        shortcode!,
+        { ...pendingBooking, payment: proof },
+      );
+      setBookingResult(result);
+      setPendingBooking(null);
+      setStep('confirmed');
+    } catch (err: unknown) {
+      const apiError = err as { status?: number; message?: string };
+      logger.error('Error finalizing paid booking:', err);
+      // Payment already captured; keep the user on the payment step so the
+      // booking can be retried with the same proof (the server is idempotent).
+      setPaymentError(
+        apiError.message || 'We could not confirm your booking. Please try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Handle back navigation
   const handleBack = () => {
+    if (step === 'payment') {
+      setStep('form');
+      return;
+    }
     if (step === 'form') {
       setStep('calendar');
       setSelectedTime(null);
@@ -697,6 +800,7 @@ const PublicBookingPage: React.FC = () => {
                   onMonthChange={handleMonthChange}
                   minDate={minDate}
                   maxDate={maxDate}
+                  focusMonth={focusMonth}
                 />
               </div>
 
@@ -737,6 +841,25 @@ const PublicBookingPage: React.FC = () => {
                 onSubmit={handleSubmit}
                 onBack={handleBack}
                 loading={submitting}
+              />
+            </div>
+          )}
+
+          {step === 'payment' && pendingBooking && (
+            <div className="p-6">
+              <BookingPaymentStep
+                username={username!}
+                shortcode={shortcode!}
+                price={Number(call_type.price ?? 0)}
+                currency={call_type.currency ?? 'USD'}
+                availableMethods={call_type.available_payment_methods ?? []}
+                startDatetime={String(pendingBooking.start_datetime)}
+                timezone={selectedTimezone}
+                guestEmail={pendingBooking.email as string | undefined}
+                onPaid={finalizeBooking}
+                onBack={handleBack}
+                submitting={submitting}
+                finalizeError={paymentError}
               />
             </div>
           )}

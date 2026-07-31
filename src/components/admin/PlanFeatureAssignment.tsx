@@ -79,7 +79,7 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('display');
+  const [activeTab, setActiveTab] = useState<string>('system');
   const [successModal, setSuccessModal] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
 
   // Local state for editing
@@ -103,16 +103,14 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
     setLoading(true);
     setError(null);
     try {
-      const [plansResponse, displayResponse, systemResponse, charactersResponse] = await Promise.all([
+      const [plansResponse, systemResponse, charactersResponse] = await Promise.all([
         adminAPI.getPlans({ per_page: '100' }) as Promise<Record<string, unknown>>,
-        adminAPI.getDisplayFeatures() as Promise<Record<string, unknown>>,
         adminAPI.getSystemFeatures() as Promise<Record<string, unknown>>,
         planAPI.getPublicCharacters({ per_page: '100' }) as Promise<Record<string, unknown>>,
       ]);
 
       const plansList = (plansResponse.plans as Plan[]) || [];
       setPlans(plansList);
-      setAllDisplayFeatures((displayResponse.features as DisplayFeature[]) || []);
       setAllSystemFeatures((systemResponse.features as SystemFeature[]) || []);
       setAllCharacters((charactersResponse.items as Character[]) || []);
 
@@ -373,18 +371,6 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
           {/* Tab Navigation */}
           <div className="flex gap-2 mb-6">
             <button
-              onClick={() => setActiveTab('display')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === 'display'
-                  ? 'bg-zenible-primary text-white'
-                  : darkMode
-                  ? 'bg-zenible-dark-tab-bg text-zenible-dark-text hover:bg-zenible-dark-border'
-                  : 'bg-gray-100 text-zinc-700 hover:bg-gray-200'
-              }`}
-            >
-              Display Features
-            </button>
-            <button
               onClick={() => setActiveTab('system')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 activeTab === 'system'
@@ -427,124 +413,6 @@ export default function PlanFeatureAssignment({ darkMode }: PlanFeatureAssignmen
             <LoadingSpinner />
           ) : (
             <>
-              {/* Display Features Tab */}
-              {activeTab === 'display' && (
-                <div className={`rounded-xl p-6 border ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-card' : 'border-neutral-200 bg-white'}`}>
-                  <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-                    Display Features
-                  </h3>
-                  <div className={`mb-4 p-3 rounded-lg ${darkMode ? 'bg-purple-500/10 border border-purple-500/30' : 'bg-purple-50 border border-purple-200'}`}>
-                    <p className={`text-sm ${darkMode ? 'text-purple-200' : 'text-purple-900'}`}>
-                      <strong>Feature States:</strong>
-                      <span className="ml-2">&#10003; Included</span> |
-                      <span className="ml-2">&#10007; Excluded (shown as not available)</span> |
-                      <span className="ml-2">&#8212; Not Shown (hidden from plan)</span>
-                    </p>
-                  </div>
-                  <div className="space-y-3">
-                    {displayFeatureAssignments.map((assignment: DisplayFeatureAssignment) => (
-                      <div
-                        key={assignment.feature_id}
-                        className={`flex items-center gap-4 p-3 rounded-lg ${
-                          darkMode ? 'bg-zenible-dark-sidebar' : 'bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => updateFeatureState(assignment.feature_id, 'included')}
-                            className={`p-2 rounded transition-colors ${
-                              assignment.feature_state === 'included'
-                                ? 'bg-green-500 text-white'
-                                : darkMode
-                                ? 'bg-zenible-dark-bg text-zenible-dark-text-secondary hover:bg-zenible-dark-card'
-                                : 'bg-white text-gray-600 hover:bg-gray-100'
-                            }`}
-                            title="Include feature"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => updateFeatureState(assignment.feature_id, 'excluded')}
-                            className={`p-2 rounded transition-colors ${
-                              assignment.feature_state === 'excluded'
-                                ? 'bg-red-500 text-white'
-                                : darkMode
-                                ? 'bg-zenible-dark-bg text-zenible-dark-text-secondary hover:bg-zenible-dark-card'
-                                : 'bg-white text-gray-600 hover:bg-gray-100'
-                            }`}
-                            title="Exclude feature (show as not available)"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => updateFeatureState(assignment.feature_id, 'not_shown')}
-                            className={`p-2 rounded transition-colors ${
-                              assignment.feature_state === 'not_shown'
-                                ? darkMode
-                                  ? 'bg-gray-600 text-white'
-                                  : 'bg-gray-400 text-white'
-                                : darkMode
-                                ? 'bg-zenible-dark-bg text-zenible-dark-text-secondary hover:bg-zenible-dark-card'
-                                : 'bg-white text-gray-600 hover:bg-gray-100'
-                            }`}
-                            title="Don't show feature"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                            </svg>
-                          </button>
-                        </div>
-                        <div className="flex-1">
-                          <label className={`font-medium ${
-                            assignment.feature_state === 'not_shown'
-                              ? darkMode ? 'text-zenible-dark-text-secondary line-through' : 'text-gray-400 line-through'
-                              : darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'
-                          }`}>
-                            {assignment.feature_name}
-                          </label>
-                          <div className={`text-xs mt-1 ${
-                            assignment.feature_state === 'included' ? 'text-green-600 dark:text-green-400' :
-                            assignment.feature_state === 'excluded' ? 'text-red-600 dark:text-red-400' :
-                            'text-gray-500 dark:text-gray-400'
-                          }`}>
-                            {assignment.feature_state === 'included' ? 'Included in plan' :
-                             assignment.feature_state === 'excluded' ? 'Shown as not available' :
-                             'Hidden from plan'}
-                          </div>
-                        </div>
-                        <input
-                          type="text"
-                          value={assignment.custom_value}
-                          onChange={(e) => updateDisplayFeature(assignment.feature_id, 'custom_value', e.target.value)}
-                          placeholder="Custom value (e.g., 'Unlimited')"
-                          disabled={assignment.feature_state === 'not_shown'}
-                          className={`w-64 px-3 py-1 rounded border ${
-                            assignment.feature_state === 'not_shown'
-                              ? darkMode
-                                ? 'bg-zenible-dark-bg/50 border-zenible-dark-border/50 text-zenible-dark-text-secondary/50 cursor-not-allowed'
-                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-                              : darkMode
-                              ? 'bg-zenible-dark-bg border-zenible-dark-border text-zenible-dark-text'
-                              : 'bg-white border-neutral-300 text-zinc-950'
-                          } focus:outline-none focus:ring-1 focus:ring-zenible-primary`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    onClick={handleSaveDisplayFeatures}
-                    disabled={saving}
-                    className="mt-6 px-6 py-2 bg-zenible-primary text-white rounded-lg hover:bg-zenible-primary-dark transition-colors disabled:opacity-50"
-                  >
-                    {saving ? 'Saving...' : 'Save Display Features'}
-                  </button>
-                </div>
-              )}
-
               {/* System Features Tab */}
               {activeTab === 'system' && (
                 <div className={`rounded-xl p-6 border ${darkMode ? 'border-zenible-dark-border bg-zenible-dark-card' : 'border-neutral-200 bg-white'}`}>

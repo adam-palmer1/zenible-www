@@ -18,6 +18,7 @@ import CharacterCardSelector from '../ui/CharacterCardSelector';
 import { useModalState } from '../../hooks/useModalState';
 import ConversationHistoryModal from '../shared/ConversationHistoryModal';
 import type { RawConversationMessage } from '../shared/ConversationHistoryModal';
+import { parseSuggestedQuestions } from '../../utils/parseSuggestedQuestions';
 
 interface AICharacter {
   id: string;
@@ -114,6 +115,7 @@ export default function ProfileAnalyzer() {
     clearConversation,
     deleteMessage,
     deletingMessageId,
+    setStructuredAnalysis,
   } = useProfileAnalysis({
     characterId: selectedCharacterId || '',
     panelId: 'profile_analyzer',
@@ -191,10 +193,20 @@ export default function ProfileAnalyzer() {
           setIsFollowUpStreaming(false);
           setFollowUpStreamingContent('');
 
-          // Add completed message to follow-up messages
+          const rawContent = data.fullResponse || '';
+          const { cleanContent, questions } = parseSuggestedQuestions(rawContent);
+
+          if (questions.length > 0) {
+            setStructuredAnalysis((prev: unknown) => ({
+              ...(prev as Record<string, unknown> || {}),
+              suggested_questions: questions
+            }));
+          }
+
+          // Add completed message to follow-up messages (with suggested_questions block stripped)
           setFollowUpMessages(prev => [...prev, {
             role: 'assistant',
-            content: data.fullResponse || '',
+            content: cleanContent,
             timestamp: new Date().toISOString(),
             messageId: data.messageId,
             usage: data.usage
@@ -389,12 +401,9 @@ export default function ProfileAnalyzer() {
 
   // Handle follow-up message sending
   const handleSendFollowUpMessage = async (message: string) => {
-    if (!conversationId || !selectedCharacterId) {
-      throw new Error('Cannot send message - missing required data');
-    }
-
-    if (!isConnected) {
-      throw new Error('Not connected to server');
+    if (!selectedCharacterId) {
+      logger.warn('[ProfileAnalyzer] No character selected');
+      return;
     }
 
     // Send message using the hook
@@ -437,7 +446,7 @@ export default function ProfileAnalyzer() {
     if (!conversationId) return;
 
     try {
-      const blob = await userAPI.exportUserConversation(conversationId, 'markdown') as Blob;
+      const blob = await userAPI.exportUserConversation(conversationId, 'markdown');
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -468,13 +477,15 @@ export default function ProfileAnalyzer() {
 
           <div className="flex items-center gap-2">
             {/* Usage Limit Badge */}
-            <UsageLimitBadge
-              characterId={selectedCharacterId ?? undefined}
-              aiUsage={true}
-              variant="compact"
-              showUpgradeLink={true}
-              darkMode={darkMode}
-            />
+            {selectedCharacterId && (
+              <UsageLimitBadge
+                characterId={selectedCharacterId}
+                aiUsage={true}
+                variant="compact"
+                showUpgradeLink={true}
+                darkMode={darkMode}
+              />
+            )}
 
             {conversationId && (
               <button
@@ -510,7 +521,7 @@ export default function ProfileAnalyzer() {
         <div className="flex-1 min-h-0 overflow-hidden">
           <div className="h-full flex flex-col lg:flex-row gap-4 p-4 sm:p-6">
             {/* Left Column - Input */}
-            <div className="w-full lg:w-1/2 flex flex-col gap-4 min-h-0 overflow-y-auto">
+            <div className="w-full lg:w-1/2 flex flex-col gap-4 min-h-0 overflow-y-auto scrollbar-hover">
               <PlatformSelector
                 darkMode={darkMode}
                 selectedPlatform={selectedPlatform}

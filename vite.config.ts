@@ -5,12 +5,35 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Some host-mounted root files (Dockerfile, .dockerignore) occasionally leak
+// into Vite's module graph and crash vite:import-analysis because they aren't
+// JS. Claim those ids and return an empty ESM stub so the parser never sees
+// the raw contents.
+const stubNonJsRootFiles = () => ({
+  name: 'stub-non-js-root-files',
+  enforce: 'pre' as const,
+  resolveId(source: string) {
+    const base = source.split('?')[0].split('/').pop() ?? ''
+    if (base === 'Dockerfile' || base === '.dockerignore') {
+      return source
+    }
+    return undefined
+  },
+  load(id: string) {
+    const base = id.split('?')[0].split('/').pop() ?? ''
+    if (base === 'Dockerfile' || base === '.dockerignore') {
+      return 'export default null'
+    }
+    return undefined
+  },
+})
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    plugins: [react()],
+    plugins: [react(), stubNonJsRootFiles()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
@@ -22,7 +45,18 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       allowedHosts: ['app.zenible.com', 'demo.zenible.com', 'www.zenible.com', 'zenible.com'],
       watch: {
-        ignored: ['**/Dockerfile', '**/.dockerignore'],
+        ignored: [
+          '**/Dockerfile',
+          '**/.dockerignore',
+          '**/dist/**',
+          '**/playwright-report/**',
+          '**/test-results/**',
+          '**/playwright/**',
+          '**/tests/**',
+          '**/.claude/**',
+          '**/docs/**',
+          '**/*.md',
+        ],
       },
     },
     build: {

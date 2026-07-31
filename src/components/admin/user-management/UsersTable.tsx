@@ -54,6 +54,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                     <th className={`hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Active</th>
                     <th className={`hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Verified</th>
                     <th className={`hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Created</th>
+                    <th className={`hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Last Login</th>
                     <th className={`px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>Actions</th>
                   </tr>
                 </thead>
@@ -116,6 +117,11 @@ const UsersTable: React.FC<UsersTableProps> = ({
                       </td>
                       <td className="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>{formatDate(user.created_at ?? '')}</span>
+                      </td>
+                      <td className="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-4 whitespace-nowrap">
+                        <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                          {user.last_login_at ? formatDate(user.last_login_at) : <span className="text-gray-400">-</span>}
+                        </span>
                       </td>
                       <td className="px-2 sm:px-4 lg:px-6 py-4 whitespace-nowrap text-sm">
                         <button

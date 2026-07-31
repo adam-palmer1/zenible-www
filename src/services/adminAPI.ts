@@ -21,6 +21,7 @@ import adminAIToolsAPI from './api/admin/aiTools';
 import adminPreferencesAPI from './api/admin/preferences';
 import adminTipsAPI from './api/admin/tips';
 import adminBotCalendarAPI from './api/admin/botCalendar';
+import adminCouponsAPI from './api/admin/coupons';
 
 const adminAPI = {
   ...adminDashboardAPI,
@@ -37,6 +38,7 @@ const adminAPI = {
   ...adminPreferencesAPI,
   ...adminTipsAPI,
   ...adminBotCalendarAPI,
+  ...adminCouponsAPI,
 };
 
 export { adminAPI };
@@ -58,4 +60,5 @@ export {
   adminPreferencesAPI,
   adminTipsAPI,
   adminBotCalendarAPI,
+  adminCouponsAPI,
 };

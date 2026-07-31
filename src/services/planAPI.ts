@@ -42,7 +42,15 @@ class PlanAPI {
     }
   }
 
-  async createSubscription(planId: string, billingCycle: string = 'monthly', paymentMethodId: string | null = null): Promise<unknown> {
+  async validateCoupon(code: string, planId: string): Promise<unknown> {
+    requireAuth();
+    return request('/coupons/validate', {
+      method: 'POST',
+      body: JSON.stringify({ code, plan_id: planId }),
+    });
+  }
+
+  async createSubscription(planId: string, billingCycle: string = 'monthly', paymentMethodId: string | null = null, couponCode: string | null = null): Promise<unknown> {
     requireAuth();
     const body: Record<string, string> = {
       plan_id: planId,
@@ -50,6 +58,9 @@ class PlanAPI {
     };
     if (paymentMethodId) {
       body.payment_method_id = paymentMethodId;
+    }
+    if (couponCode) {
+      body.coupon_code = couponCode;
     }
     return request('/subscriptions/', { method: 'POST', body: JSON.stringify(body) });
   }

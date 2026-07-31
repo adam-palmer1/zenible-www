@@ -106,7 +106,15 @@ const InvoiceList: React.FC = () => {
     prevParentIdRef.current = parentInvoiceId;
 
     if (parentInvoiceId) {
-      updateFilters({ parent_invoice_id: parentInvoiceId });
+      // Showing a template's children: clear filters that would otherwise hide
+      // them — is_parent_only excludes children entirely, and the default date
+      // window hides children generated outside the last 30 days.
+      updateFilters({
+        parent_invoice_id: parentInvoiceId,
+        is_parent_only: null,
+        issue_date_from: null,
+        issue_date_to: null,
+      });
       // Load parent template info for display
       invoicesAPI.get(parentInvoiceId).then(setParentTemplateInfo).catch((err: unknown) => { logger.error('Failed to load parent template:', err); });
     } else if (prevParentId && !parentInvoiceId) {
@@ -486,6 +494,12 @@ const InvoiceList: React.FC = () => {
     setOpenActionMenuId(null);
   }, [navigate]);
 
+  const handleShowChildren = useCallback((invoice: any) => {
+    // Filter the list to this template's generated children (see parent_id effect)
+    navigate(`/finance/invoices?parent_id=${invoice.id}`);
+    setOpenActionMenuId(null);
+  }, [navigate]);
+
   const handleDeleteClick = useCallback((invoice: any) => {
     setDeleteTarget(invoice);
     setShowDeleteConfirm(true);
@@ -690,6 +704,7 @@ const InvoiceList: React.FC = () => {
           canSendReminder={canSendReminder}
           onDownloadPDF={handleDownloadPDF}
           onClone={handleClone}
+          onShowChildren={handleShowChildren}
           onDeleteClick={handleDeleteClick}
           openActionMenuId={openActionMenuId}
           onSetOpenActionMenuId={setOpenActionMenuId}

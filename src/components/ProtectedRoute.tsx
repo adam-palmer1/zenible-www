@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import SubscriptionGate from './SubscriptionGate';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -28,5 +29,5 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
     return <Navigate to="/" replace />;
   }
 
-  return <>{children}</>;
+  return <SubscriptionGate>{children}</SubscriptionGate>;
 }

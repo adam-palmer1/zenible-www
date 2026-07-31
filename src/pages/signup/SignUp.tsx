@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import logger from '../../utils/logger';
+import { isValidInternalRedirect } from '../../utils/auth';
+import { getAttribution } from '../../utils/attribution';
+import { getHomeUrl } from '../../utils/homeUrl';
 
 // Import assets from signin (reuse)
 import { zenibleDark } from '../../assets/logos';
@@ -100,9 +103,14 @@ export default function SignUp() {
   // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      navigate('/dashboard');
+      const redirectPath = new URLSearchParams(window.location.search).get('redirect');
+      navigate(isValidInternalRedirect(redirectPath) ? redirectPath! : '/dashboard');
     }
   }, [isAuthenticated, navigate, authLoading]);
+
+  // First-touch attribution (utm/referrer/fbclid/gclid/timezone/language) is
+  // captured once on app entry by captureFirstTouch() in RootLayout and read
+  // back here via getAttribution() at signup.
 
   // Dark mode detection
   useEffect(() => {
@@ -163,11 +171,21 @@ export default function SignUp() {
     setIsLoading(true);
 
     try {
-      const result = await signup(email, password, firstName, lastName);
+      const tracking = getAttribution();
+      const result = await signup(email, password, firstName, lastName, tracking);
 
       if (result.success) {
-        // Navigate to email verification page
-        navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+        window.fbq?.('track', 'CompleteRegistration');
+        const params = new URLSearchParams(window.location.search);
+        // Store preselected plan if coming from external site (e.g. www.zenible.com)
+        const planParam = params.get('plan');
+        if (planParam) {
+          localStorage.setItem('zenible_preselected_plan', planParam);
+        }
+        // Go straight to dashboard — SubscriptionGate will handle plan selection
+        // Email verification is deferred (banner shown on dashboard)
+        const redirectPath = params.get('redirect');
+        navigate(isValidInternalRedirect(redirectPath) ? redirectPath! : '/dashboard');
       } else {
         setApiError(result.error || 'Sign up failed. Please try again.');
       }
@@ -224,7 +242,9 @@ export default function SignUp() {
           <div className="flex flex-col gap-[40px] items-center">
             {/* Logo */}
             <div className="flex items-center justify-center">
-              <img alt="Zenible" className="h-[48px] w-auto" src={zenibleDark} />
+              <a href={getHomeUrl()}>
+                <img alt="Zenible" className="h-[48px] w-auto" src={zenibleDark} />
+              </a>
             </div>
 
             {/* Header */}

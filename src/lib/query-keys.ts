@@ -167,7 +167,14 @@ export const queryKeys = {
   // Dashboard
   dashboard: {
     all: ['dashboard'] as const,
-    widgets: (visibleIds: string[]) => [...queryKeys.dashboard.all, 'widgets', { visibleIds: [...visibleIds].sort() }] as const,
+    // Include flattened settings in the key so widget setting changes (e.g. tasks_limit)
+    // bust the cache and trigger a refetch instead of being served stale data.
+    widgets: (visibleIds: string[], settings?: Record<string, unknown>) => [
+      ...queryKeys.dashboard.all,
+      'widgets',
+      { visibleIds: [...visibleIds].sort() },
+      ...(settings ? [{ settings }] : []),
+    ] as const,
   },
 
   // Reference data (countries, industries, etc.)

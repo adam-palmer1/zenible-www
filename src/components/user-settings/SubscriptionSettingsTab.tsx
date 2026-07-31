@@ -65,6 +65,7 @@ export default function SubscriptionSettingsTab({
   };
 
   const getFeatureText = (feature: any): string => {
+    if (feature.text) return String(feature.text);
     if (feature.custom_value) return String(feature.custom_value);
     if (feature.name) return String(feature.name);
     return '';

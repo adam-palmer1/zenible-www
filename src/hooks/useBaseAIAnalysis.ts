@@ -387,24 +387,26 @@ export function useBaseAIAnalysis({
 
   // Send follow-up message
   const sendFollowUpMessage = useCallback(async (message: string): Promise<string | null | undefined> => {
-    if (!conversationId) {
-      setError('No active conversation');
-      return;
-    }
-
     if (!isConnected) {
       setError('Not connected to server');
       return;
     }
 
     try {
-      await sendMessage(conversationId, characterId, message);
-      return conversationId;
+      let convId = conversationId;
+      if (!convId) {
+        convId = await createConversation(characterId, panelId, {});
+        setConversationId(convId);
+        registerEventHandlers(convId);
+      }
+
+      await sendMessage(convId, characterId, message);
+      return convId;
     } catch (err: unknown) {
       setError((err as Error).message || 'Failed to send message');
       return null;
     }
-  }, [conversationId, isConnected, characterId, sendMessage]);
+  }, [conversationId, isConnected, characterId, panelId, sendMessage, createConversation, registerEventHandlers]);
 
   // Reset function with cancellation
   const reset = useCallback((): void => {

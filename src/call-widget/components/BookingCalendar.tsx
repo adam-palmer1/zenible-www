@@ -23,9 +23,16 @@ interface BookingCalendarProps {
   availableDates?: string[];
   selectedDate?: string | null;
   onSelect: (date: string) => void;
-  onMonthChange?: (startDate: string, endDate: string) => void;
+  /**
+   * Called with the visible grid range plus the month being displayed (YYYY-MM).
+   * The grid range spills into the adjacent months, so `monthKey` is what tells
+   * the parent which month the visitor is actually looking at.
+   */
+  onMonthChange?: (startDate: string, endDate: string, monthKey: string) => void;
   minDate?: Date;
   maxDate?: Date;
+  /** ISO date (YYYY-MM-DD); when set, the calendar jumps to that date's month. */
+  focusMonth?: string | null;
 }
 
 const BookingCalendar: React.FC<BookingCalendarProps> = ({
@@ -35,11 +42,24 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
   onMonthChange,
   minDate,
   maxDate,
+  focusMonth,
 }) => {
   const [currentMonth, setCurrentMonth] = useState<Date>(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+
+  // Jump to the month the parent asks for (e.g. the first month with availability)
+  useEffect(() => {
+    if (!focusMonth) return;
+    const [year, month] = focusMonth.split('-').map(Number);
+    if (!year || !month) return;
+    setCurrentMonth((prev) =>
+      prev.getFullYear() === year && prev.getMonth() === month - 1
+        ? prev
+        : new Date(year, month - 1, 1)
+    );
+  }, [focusMonth]);
 
   // Convert available dates to Set for fast lookup
   const availableDateSet = useMemo(() => {
@@ -67,7 +87,8 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
         const day = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
       };
-      onMonthChange(formatDate(startDate), formatDate(endDate));
+      const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+      onMonthChange(formatDate(startDate), formatDate(endDate), monthKey);
     }
   }, [currentMonth, onMonthChange]);
 

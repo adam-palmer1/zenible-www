@@ -29,11 +29,17 @@ const PayPalPaymentForm: React.FC<PayPalPaymentFormProps> = ({
   const { paypalIntegration } = usePaymentIntegrations();
   const [error, setError] = useState<string | null>(null);
 
-  // PayPal SDK options
+  // PayPal SDK options.
+  // commit=true and data-page-type are PPCP IWT requirements.
+  // data-partner-attribution-id (BN code) is mandatory on every PayPal SDK
+  // load — failure to include it is flagged as a configuration error.
   const initialOptions: any = {
     'client-id': paypalIntegration?.client_id || '',
     currency: currency,
     intent: 'capture',
+    commit: true,
+    'data-partner-attribution-id': 'ZENIBLE_SP_PPCP',
+    'data-page-type': 'checkout',
   };
 
   /**
@@ -121,6 +127,7 @@ const PayPalPaymentForm: React.FC<PayPalPaymentFormProps> = ({
             shape: 'rect',
             label: 'paypal',
           }}
+          appSwitchWhenAvailable={true}
           createOrder={createOrder}
           onApprove={onApprove}
           onError={onErrorHandler}

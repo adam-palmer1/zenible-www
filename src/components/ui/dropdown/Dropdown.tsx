@@ -10,6 +10,10 @@ interface DropdownProps {
   sideOffset?: number;
   alignOffset?: number;
   className?: string;
+  /** Controlled open state. When provided, the dropdown becomes controlled. */
+  open?: boolean;
+  /** Called whenever the open state changes (both in controlled and uncontrolled mode). */
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface DropdownItemProps {
@@ -67,9 +71,11 @@ const Dropdown: React.FC<DropdownProps> & {
   sideOffset = 8,
   alignOffset = 0,
   className = '',
+  open,
+  onOpenChange,
 }) => {
   return (
-    <DropdownMenu.Root>
+    <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
         {trigger}
       </DropdownMenu.Trigger>

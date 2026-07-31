@@ -89,10 +89,16 @@ export default function AIFeedbackSection({
     }
   }, [effectiveQuestions]);
 
-  // Clear stale state when conversation changes
+  // Clear stale state when switching between conversations
+  // (not when a new conversation is first created from empty state)
+  const prevConversationIdRef = useRef(conversationId);
   useEffect(() => {
-    setMessageRatings({});
-    setConversationHistory([]);
+    const prev = prevConversationIdRef.current;
+    prevConversationIdRef.current = conversationId;
+    if (prev && prev !== conversationId) {
+      setMessageRatings({});
+      setConversationHistory([]);
+    }
   }, [conversationId]);
 
   // Check if user is scrolled to bottom (within threshold)

@@ -14,7 +14,7 @@ const TOOLBAR_OPTIONS = [
   ['bold', 'italic', 'underline'],
   [{ list: 'ordered' }, { list: 'bullet' }],
   [{ align: [] }],
-  ['link'],
+  ['link', 'image'],
   ['clean'],
 ];
 

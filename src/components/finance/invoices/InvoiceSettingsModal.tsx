@@ -37,6 +37,9 @@ interface InvoiceSettingsModalProps {
   contact?: any;
   onChange: (changes: any) => void;
   isEditing?: boolean;
+  isGeneratedInstance?: boolean;
+  recurrenceSequenceNumber?: number | null;
+  onEditTemplate?: () => void;
 }
 
 const InvoiceSettingsModal: React.FC<InvoiceSettingsModalProps> = ({
@@ -71,6 +74,9 @@ const InvoiceSettingsModal: React.FC<InvoiceSettingsModalProps> = ({
   contact = null,
   onChange,
   isEditing = false,
+  isGeneratedInstance = false,
+  recurrenceSequenceNumber = null,
+  onEditTemplate,
 }) => {
   // Get company settings for inheritance display
   const { attributes: companyAttributes } = useCompanyAttributes();
@@ -159,6 +165,9 @@ const InvoiceSettingsModal: React.FC<InvoiceSettingsModalProps> = ({
                 startDate={startDate ?? ''}
                 onChange={onChange}
                 isEditing={isEditing}
+                isGeneratedInstance={isGeneratedInstance}
+                recurrenceSequenceNumber={recurrenceSequenceNumber}
+                onEditTemplate={onEditTemplate}
               />
 
               {/* Payment Options */}

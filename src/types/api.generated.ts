@@ -20446,6 +20446,15 @@ export interface components {
          * @description Schema for invoice response
          */
         InvoiceResponse: {
+            /** @description Set on auto-generated children; None on the recurring template */
+            parent_invoice_id?: string | null;
+            /** @description Sequence number of this child within the recurring series */
+            recurrence_sequence_number?: number | null;
+            /**
+             * @description True if this invoice was auto-generated from a recurring template
+             * @default false
+             */
+            generated_from_template?: boolean;
             /**
              * Issue Date
              * Format: date

@@ -17,6 +17,7 @@ const widgetComponents: Record<string, React.LazyExoticComponent<React.Component
   CurrencyExchangeWidget: lazy(() => import('./CurrencyExchangeWidget')),
   UpcomingAppointmentsWidget: lazy(() => import('./UpcomingAppointmentsWidget')),
   UpcomingFollowupsWidget: lazy(() => import('./UpcomingFollowupsWidget')),
+  UpcomingTasksWidget: lazy(() => import('./UpcomingTasksWidget')),
   MonthlyIncomeGoalWidget: lazy(() => import('./MonthlyIncomeGoalWidget')),
   ProfitAndLossWidget: lazy(() => import('./ProfitAndLossWidget')),
 };
@@ -35,6 +36,9 @@ interface WidgetWrapperProps {
   onHide?: (widgetId: string) => void;
   onOpenSettings?: (widgetId: string) => void;
   isDragging?: boolean;
+  /** Controlled open state for the 3-dot action menu (hoisted so only one widget's menu can be open at a time). */
+  menuOpen?: boolean;
+  onMenuOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -52,6 +56,8 @@ const WidgetWrapper = ({
   onHide,
   onOpenSettings,
   isDragging = false,
+  menuOpen,
+  onMenuOpenChange,
 }: WidgetWrapperProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [dynamicTitle, setDynamicTitle] = useState<string | null>(null);
@@ -76,6 +82,7 @@ const WidgetWrapper = ({
     <div className="h-full w-full">
       {/* Card container */}
       <div
+        data-widget-card
         className={`group bg-white border border-neutral-200 rounded-xl overflow-hidden h-full flex flex-col shadow-sm hover:shadow-md transition-all ${
           isDragging ? 'shadow-lg ring-2 ring-[#8e51ff] ring-opacity-50' : ''
         }`}
@@ -96,6 +103,8 @@ const WidgetWrapper = ({
             onPointerDown={(e) => e.stopPropagation()}
           >
             <Dropdown
+              open={menuOpen}
+              onOpenChange={onMenuOpenChange}
               trigger={
                 <button
                   className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"

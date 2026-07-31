@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { isValidInternalRedirect } from '../../utils/auth';
+import { getHomeUrl } from '../../utils/homeUrl';
 
 // Import local SVG assets
 import { brandIcon, brandIconDark, zenibleDark } from '../../assets/logos';
@@ -265,7 +266,9 @@ export default function SignIn() {
           <div className="flex flex-col gap-[32px] p-5 sm:p-[34px]">
             {/* Logo */}
             <div className="flex items-center justify-center">
-              <img alt="Zenible" className="h-[48px] w-auto" src={zenibleDark} />
+              <a href={getHomeUrl()}>
+                <img alt="Zenible" className="h-[48px] w-auto" src={zenibleDark} />
+              </a>
             </div>
 
             {/* Header */}
@@ -381,7 +384,9 @@ export default function SignIn() {
         <div className="flex flex-col gap-[32px] p-5 sm:p-[34px]">
           {/* Logo */}
           <div className="flex items-center justify-center">
-            <img alt="Zenible" className="h-[48px] w-auto" src={zenibleDark} />
+            <a href={getHomeUrl()}>
+              <img alt="Zenible" className="h-[48px] w-auto" src={zenibleDark} />
+            </a>
           </div>
 
           {/* Header */}
@@ -520,7 +525,7 @@ export default function SignIn() {
                 Don't have an account?
               </span>
               <Link
-                to="/register"
+                to={`/register${window.location.search}`}
                 className="font-inter font-semibold text-[14px] leading-[22px] text-[#8e51ff] dark:text-[#a684ff] hover:underline"
               >
                 Sign up

@@ -22,6 +22,7 @@ const WIDGET_ID_MAP: Record<string, string> = {
   recentClients: 'recent_clients',
   upcomingAppointments: 'appointments',
   upcomingFollowups: 'followups',
+  upcomingTasks: 'tasks',
 };
 
 /**
@@ -37,6 +38,7 @@ const WIDGET_DATA_KEY_MAP: Record<string, string> = {
   recentClients: 'recent_clients',
   upcomingAppointments: 'upcoming_appointments',
   upcomingFollowups: 'upcoming_followups',
+  upcomingTasks: 'upcoming_tasks',
 };
 
 /**
@@ -80,6 +82,10 @@ function flattenSettings(
       case 'recentInvoices':
         if (settings.limit !== undefined) params.invoices_limit = settings.limit;
         break;
+      case 'upcomingTasks':
+        if (settings.limit !== undefined) params.tasks_limit = settings.limit;
+        if (settings.includeCompleted !== undefined) params.tasks_include_completed = settings.includeCompleted;
+        break;
     }
   }
 
@@ -96,7 +102,7 @@ export function useDashboardData(
   const settings = flattenSettings(supportedIds, widgetSettings);
 
   return useQuery({
-    queryKey: queryKeys.dashboard.widgets(supportedIds),
+    queryKey: queryKeys.dashboard.widgets(supportedIds, settings as Record<string, unknown>),
     queryFn: () =>
       dashboardAPI.getWidgets({
         widgets: backendWidgetIds,

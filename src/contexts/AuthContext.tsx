@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { authAPI, twoFactorAPI, tokenStorage } from '../utils/auth';
+import type { Attribution } from '../utils/attribution';
 import { useSessionGuard } from '../hooks/useSessionGuard';
 import logger from '../utils/logger';
 
@@ -37,7 +38,13 @@ interface AuthContextValue {
   error: string | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  signup: (email: string, password: string, firstName: string, lastName?: string | null) => Promise<AuthResult>;
+  signup: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName?: string | null,
+    tracking?: Attribution,
+  ) => Promise<AuthResult>;
   login: (email: string, password: string) => Promise<AuthResult>;
   verify2FA: (challengeToken: string, code: string, trustDevice?: boolean) => Promise<AuthResult>;
   logout: () => Promise<void>;
@@ -53,6 +60,9 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+// Module-level ref for checkAuth, accessible from httpClient without circular imports
+export let checkAuthGlobal: (() => void) | null = null;
 
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
@@ -113,13 +123,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signup = async (email: string, password: string, firstName: string, lastName: string | null = null): Promise<AuthResult> => {
+  // Expose checkAuth globally so httpClient can trigger a refresh on 402
+  checkAuthGlobal = checkAuth;
+
+  const signup = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string | null = null,
+    tracking?: Attribution,
+  ): Promise<AuthResult> => {
     setError(null);
     try {
-      const response = await authAPI.signup(email, password, firstName, lastName);
+      const response = await authAPI.signup(email, password, firstName, lastName, tracking);
       tokenStorage.setTokens(response.access_token, response.refresh_token);
-      setUser(response.user as User);
-      return { success: true, user: response.user as User };
+      await checkAuth();
+      return { success: true, user: user ?? undefined };
     } catch (err) {
       setError((err as Error).message);
       return { success: false, error: (err as Error).message };

@@ -10,13 +10,16 @@ import {
 } from '@stripe/react-stripe-js';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAuth } from '../contexts/AuthContext';
+import planAPI from '../services/planAPI';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 
 interface CheckoutFormProps {
   planName: string;
+  planId: string;
   price: string;
   billingCycle: string;
-  onSuccess: (paymentMethodId: string) => void;
+  trialDays?: number;
+  onSuccess: (paymentMethodId: string, couponCode: string | null) => void;
   onError: (error: any) => void;
   onCancel: () => void;
   loading: boolean;
@@ -29,7 +32,8 @@ interface StripePaymentModalProps {
   planId: string;
   price: string;
   billingCycle: string;
-  onSuccess: (paymentMethodId: string) => Promise<void>;
+  trialDays?: number;
+  onSuccess: (paymentMethodId: string, couponCode: string | null) => Promise<void>;
   onError: (error: any) => void;
 }
 
@@ -48,7 +52,7 @@ import discoverLogo from '../assets/payment-modal/discover.svg';
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 // Card form component with Figma design
-function CheckoutForm({ planName, price, billingCycle, onSuccess, onError: _onError, onCancel: _onCancel, loading }: CheckoutFormProps) {
+function CheckoutForm({ planName, planId, price, billingCycle, trialDays, onSuccess, onError: _onError, onCancel: _onCancel, loading }: CheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const { darkMode } = usePreferences();
@@ -56,15 +60,61 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError: _onEr
   const [isProcessing, setIsProcessing] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [couponStatus, setCouponStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
+  const [couponDetails, setCouponDetails] = useState<any>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim() || !planId) return;
+    setCouponStatus('validating');
+    setCouponError(null);
+    setCouponDetails(null);
+    try {
+      const result = await planAPI.validateCoupon(couponCode.trim(), planId) as any;
+      if (result.valid) {
+        setCouponStatus('valid');
+        setCouponDetails(result);
+      } else {
+        setCouponStatus('invalid');
+        setCouponError('This coupon code is not valid');
+      }
+    } catch (_err) {
+      setCouponStatus('invalid');
+      setCouponError('Unable to validate coupon. Please try again.');
+    }
+  };
+
+  const clearCoupon = () => {
+    setCouponCode('');
+    setCouponStatus('idle');
+    setCouponDetails(null);
+    setCouponError(null);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
+    setIsProcessing(true);
+    setCardError(null);
+    const appliedCoupon = couponStatus === 'valid' ? couponCode.trim() : null;
+
+    // No card required (fully free coupons, or trial coupons with requires_card=false)
+    if (!needsCard) {
+      try {
+        onSuccess('', appliedCoupon);
+      } catch (_err) {
+        setCardError('An unexpected error occurred');
+        setIsProcessing(false);
+      }
       return;
     }
 
-    setIsProcessing(true);
-    setCardError(null);
+    if (!stripe || !elements) {
+      setIsProcessing(false);
+      return;
+    }
 
     const cardNumber = elements.getElement(CardNumberElement);
 
@@ -91,13 +141,48 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError: _onEr
         return;
       }
 
-      // Call the success callback with the payment method
-      onSuccess(paymentMethod!.id);
+      onSuccess(paymentMethod!.id, appliedCoupon);
     } catch (_err) {
       setCardError('An unexpected error occurred');
       setIsProcessing(false);
     }
   };
+
+  // Compute effective price and benefits when coupon is applied
+  // A coupon can now provide multiple benefits (e.g. trial + discount + no card)
+  const hasCoupon = couponStatus === 'valid' && couponDetails;
+
+  const isCouponFree = hasCoupon && (
+    couponDetails?.coupon_type === 'LIFETIME_FREE' ||
+    couponDetails?.coupon_type === 'FREE_ACCESS' ||
+    (couponDetails?.discount_percent && couponDetails.discount_percent >= 100)
+  );
+
+  // Trial days from coupon (any type can have trial_extension_days)
+  const isTrialCoupon = hasCoupon && couponDetails?.trial_extension_days && couponDetails.trial_extension_days > 0;
+
+  // Discount from coupon (any type can have discount fields)
+  const hasDiscount = hasCoupon && !isCouponFree && (
+    (couponDetails?.discount_percent && couponDetails.discount_percent > 0) ||
+    (couponDetails?.discount_amount && parseFloat(couponDetails.discount_amount) > 0)
+  );
+
+  const effectivePrice = (() => {
+    if (!hasCoupon) return price;
+    const p = parseFloat(price);
+    if (isCouponFree) return '0';
+    if (couponDetails.discount_percent) return (p * (1 - couponDetails.discount_percent / 100)).toFixed(2).replace(/\.00$/, '');
+    if (couponDetails.discount_amount) return Math.max(0, p - parseFloat(couponDetails.discount_amount)).toFixed(2).replace(/\.00$/, '');
+    return price;
+  })();
+
+  const needsCard = (() => {
+    if (!hasCoupon) return true;
+    if (isCouponFree) return false;
+    // Coupon's requires_card flag applies to trial scenarios
+    if (isTrialCoupon && couponDetails.requires_card === false) return false;
+    return true;
+  })();
 
   const stripeElementStyles: any = {
     base: {
@@ -127,23 +212,109 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError: _onEr
                   {planName}
                 </h4>
                 <p className={`text-xs mt-0.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
-                  {billingCycle === 'monthly' ? 'Monthly' : 'Annual'} billing • Cancel anytime
+                  {isCouponFree && couponDetails?.coupon_type === 'LIFETIME_FREE'
+                    ? 'Free forever'
+                    : isCouponFree && couponDetails?.coupon_type === 'FREE_ACCESS'
+                      ? `Free for ${couponDetails.duration_in_months} month${couponDetails.duration_in_months !== 1 ? 's' : ''}`
+                      : isCouponFree
+                        ? 'No charge today'
+                        : isTrialCoupon && hasDiscount
+                          ? `${couponDetails.trial_extension_days}-day trial • then $${effectivePrice}/${billingCycle === 'monthly' ? 'mo' : 'yr'}`
+                          : isTrialCoupon
+                            ? `${couponDetails?.trial_extension_days}-day free trial • then ${billingCycle === 'monthly' ? 'monthly' : 'annual'} billing`
+                            : trialDays
+                              ? `${trialDays}-day free trial • then ${billingCycle === 'monthly' ? 'monthly' : 'annual'} billing`
+                              : `${billingCycle === 'monthly' ? 'Monthly' : 'Annual'} billing • Cancel anytime`
+                  }
                 </p>
               </div>
               <div className="text-right">
-                <div className={`text-xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
-                  ${price}
-                </div>
-                <div className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
-                  /{billingCycle === 'monthly' ? 'month' : 'year'}
-                </div>
+                {effectivePrice !== price ? (
+                  <>
+                    <div className="flex items-center gap-2 justify-end">
+                      <span className={`text-sm line-through ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-400'}`}>
+                        ${price}
+                      </span>
+                      <span className={`text-xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                        ${effectivePrice}
+                      </span>
+                    </div>
+                    <div className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
+                      /{billingCycle === 'monthly' ? 'month' : 'year'}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={`text-xl font-semibold ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
+                      ${price}
+                    </div>
+                    <div className={`text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-zinc-500'}`}>
+                      /{billingCycle === 'monthly' ? 'month' : 'year'}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
 
+        {/* Promo Code Section */}
+        <div className={`p-4 border-b ${darkMode ? 'border-zenible-dark-border' : 'border-neutral-200'}`}>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={couponCode}
+              onChange={(e) => {
+                setCouponCode(e.target.value.toUpperCase());
+                if (couponStatus !== 'idle') {
+                  setCouponStatus('idle');
+                  setCouponError(null);
+                  setCouponDetails(null);
+                }
+              }}
+              placeholder="Have a promo code?"
+              className={`flex-1 px-3 py-2 rounded-lg border text-sm ${
+                darkMode
+                  ? 'border-zenible-dark-border bg-zenible-dark-bg text-zenible-dark-text placeholder-zenible-dark-text-secondary'
+                  : 'border-neutral-200 bg-white text-zinc-950 placeholder-zinc-400'
+              }`}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleApplyCoupon())}
+            />
+            {couponStatus === 'valid' ? (
+              <button
+                type="button"
+                onClick={clearCoupon}
+                className="px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+              >
+                Remove
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleApplyCoupon}
+                disabled={!couponCode.trim() || couponStatus === 'validating'}
+                className="px-4 py-2 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:bg-opacity-90 disabled:opacity-50"
+              >
+                {couponStatus === 'validating' ? 'Checking...' : 'Apply'}
+              </button>
+            )}
+          </div>
+          {couponStatus === 'valid' && couponDetails && (
+            <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span>{couponDetails.description}</span>
+            </div>
+          )}
+          {couponStatus === 'invalid' && couponError && (
+            <p className="mt-2 text-sm text-red-500">{couponError}</p>
+          )}
+        </div>
+
         {/* Payment Information Section */}
         <div className="p-4 space-y-4">
+          {needsCard && (
           <div>
             <div className="flex items-center justify-between mb-2 px-1">
               <label className={`text-sm font-medium ${darkMode ? 'text-zenible-dark-text' : 'text-zinc-950'}`}>
@@ -193,6 +364,7 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError: _onEr
               <p className="mt-2 text-sm text-red-500">{cardError}</p>
             )}
           </div>
+          )}
 
           {/* Security Box */}
           <div className={`p-3 rounded-xl border ${
@@ -251,7 +423,7 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError: _onEr
         <div className="p-4">
           <button
             type="submit"
-            disabled={!stripe || isProcessing || loading}
+            disabled={(needsCard && !stripe) || isProcessing || loading}
             className="w-full px-4 py-3 bg-zenible-primary text-white rounded-xl font-medium hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isProcessing || loading ? (
@@ -262,7 +434,16 @@ function CheckoutForm({ planName, price, billingCycle, onSuccess, onError: _onEr
             ) : (
               <>
                 <img src={lockIcon} alt="Lock" className="w-5 h-5" />
-                Subscribe for ${price}/{billingCycle === 'monthly' ? 'month' : 'year'}
+                {isCouponFree
+                  ? `Subscribe — Free${couponDetails?.coupon_type === 'FREE_ACCESS' ? ` for ${couponDetails?.duration_in_months} month${couponDetails?.duration_in_months !== 1 ? 's' : ''}` : ''}`
+                  : isTrialCoupon && hasDiscount
+                    ? `Start ${couponDetails?.trial_extension_days}-Day Trial — then $${effectivePrice}/${billingCycle === 'monthly' ? 'mo' : 'yr'}`
+                    : isTrialCoupon
+                      ? `Start ${couponDetails?.trial_extension_days}-Day Free Trial`
+                      : trialDays
+                        ? `Start ${trialDays}-Day Free Trial`
+                        : `Subscribe for $${effectivePrice}/${billingCycle === 'monthly' ? 'month' : 'year'}`
+                }
               </>
             )}
           </button>
@@ -283,9 +464,10 @@ export default function StripePaymentModal({
   isOpen,
   onClose,
   planName,
-  planId: _planId,
+  planId,
   price,
   billingCycle,
+  trialDays,
   onSuccess,
   onError
 }: StripePaymentModalProps) {
@@ -293,10 +475,10 @@ export default function StripePaymentModal({
   useEscapeKey(onClose, isOpen);
   const [loading, setLoading] = useState(false);
 
-  const handleSuccess = async (paymentMethodId: string) => {
+  const handleSuccess = async (paymentMethodId: string, couponCode: string | null) => {
     setLoading(true);
     try {
-      await onSuccess(paymentMethodId);
+      await onSuccess(paymentMethodId, couponCode);
       onClose();
     } catch (error) {
       onError(error);
@@ -357,8 +539,10 @@ export default function StripePaymentModal({
         <Elements stripe={stripePromise}>
           <CheckoutForm
             planName={planName}
+            planId={planId}
             price={price}
             billingCycle={billingCycle}
+            trialDays={trialDays}
             onSuccess={handleSuccess}
             onError={handleError}
             onCancel={onClose}

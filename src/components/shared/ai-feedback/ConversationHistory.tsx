@@ -5,7 +5,7 @@ import { brandIcon } from '../../../assets/logos';
 import { TypingDots } from '../../ai/AICharacterTypingIndicator';
 import CopyButton from './CopyButton';
 import MessageRating from './MessageRating';
-import StructuredAnalysis from './StructuredAnalysis';
+import StructuredAnalysis, { hasRenderableStructuredFields } from './StructuredAnalysis';
 import MeetingMiniCard from './MeetingMiniCard';
 import MessageAttachments from './MessageAttachments';
 import { getMarkdownComponents } from './markdownComponents';
@@ -194,7 +194,7 @@ export default function ConversationHistory({
                         </div>
                       </div>
                     )}
-                    {msg.structured != null && (
+                    {hasRenderableStructuredFields(msg.structured) && (
                       <div className={`rounded-lg px-3 py-2 text-sm mt-2 ${
                         darkMode ? 'bg-[#2d2d2d] text-gray-200' : 'bg-gray-100 text-gray-800'
                       }`}>

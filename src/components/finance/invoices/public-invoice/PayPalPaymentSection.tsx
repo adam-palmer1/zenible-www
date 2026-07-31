@@ -26,20 +26,16 @@ const PayPalPaymentSection: React.FC<PayPalPaymentSectionProps> = ({ shareCode, 
     setError(null);
 
     try {
-      const returnUrl = `${window.location.origin}${window.location.pathname}?paypal=approved`;
-      const cancelUrl = `${window.location.origin}${window.location.pathname}?paypal=cancelled`;
+      // PayPal puts the order_id back in the return URL as ?token=<orderId>,
+      // so no client-side state needs to survive the redirect.
+      const baseUrl = `${window.location.origin}${window.location.pathname}`;
 
       const orderData = await invoicesAPITyped.createPayPalOrder(shareCode, {
         amount,
-        return_url: returnUrl,
-        cancel_url: cancelUrl,
+        return_url: baseUrl,
+        cancel_url: baseUrl,
       });
 
-      // Store order_id for capture on return
-      sessionStorage.setItem('paypal_order_id', orderData.order_id);
-      sessionStorage.setItem('paypal_share_code', shareCode);
-
-      // Redirect to PayPal
       window.location.href = orderData.approve_url;
     } catch (err: any) {
       logger.error('[PayPalPayment] Error:', err);

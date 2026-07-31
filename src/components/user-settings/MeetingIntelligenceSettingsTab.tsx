@@ -4,7 +4,7 @@ import meetingIntelligenceAPI from '../../services/api/crm/meetingIntelligence';
 import Combobox from '../ui/combobox/Combobox';
 import type { ZMISettings } from '../../types/meetingIntelligence';
 
-const TEAMS_CAPTION_LANGUAGES = [
+const CAPTION_LANGUAGES = [
   { label: 'Default (English US)', value: '' },
   { label: 'Albanian (Albania)', value: 'Albanian (Albania)' },
   { label: 'Arabic (Saudi Arabia)', value: 'Arabic (Saudi Arabia)' },
@@ -65,14 +65,22 @@ const TEAMS_CAPTION_LANGUAGES = [
   { label: 'Welsh (United Kingdom)', value: 'Welsh (United Kingdom)' },
 ];
 
+type DraftSettings = {
+  enabled?: boolean;
+  caption_language?: string;
+  recording_enabled?: boolean;
+  meeting_display_name?: string;
+  auto_send_summary?: string;
+};
+
 const MeetingIntelligenceSettingsTab: React.FC = () => {
   const { darkMode } = usePreferences();
   const [settings, setSettings] = useState<ZMISettings | null>(null);
+  const [draft, setDraft] = useState<DraftSettings>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState('');
-  const [displayNameDirty, setDisplayNameDirty] = useState(false);
+  const [confirmAllParticipants, setConfirmAllParticipants] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -83,7 +91,7 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
       setLoading(true);
       const data = await meetingIntelligenceAPI.getSettings() as ZMISettings;
       setSettings(data);
-      setDisplayName(data.meeting_display_name || '');
+      setDraft({});
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load settings';
       // Feature might not be available on this plan
@@ -98,6 +106,7 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
           caption_language: null,
           recording_enabled: false,
           meeting_display_name: null,
+          auto_send_summary: 'me',
         });
       } else {
         setError(msg);
@@ -107,65 +116,31 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
     }
   };
 
-  const handleToggle = async () => {
-    if (!settings) return;
-    try {
-      setSaving(true);
-      setError(null);
-      const data = await meetingIntelligenceAPI.updateSettings({ enabled: !settings.enabled }) as ZMISettings;
-      setSettings(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update settings');
-    } finally {
-      setSaving(false);
-    }
+  // Current (possibly unsaved) values shown in the UI.
+  const current = {
+    enabled: draft.enabled ?? settings?.enabled ?? false,
+    caption_language: draft.caption_language ?? settings?.caption_language ?? '',
+    recording_enabled: draft.recording_enabled ?? settings?.recording_enabled ?? false,
+    meeting_display_name: draft.meeting_display_name ?? settings?.meeting_display_name ?? '',
+    auto_send_summary: draft.auto_send_summary ?? settings?.auto_send_summary ?? 'no',
   };
 
-  const handleRecordingToggle = async () => {
-    if (!settings) return;
-    try {
-      setSaving(true);
-      setError(null);
-      const data = await meetingIntelligenceAPI.updateSettings({
-        recording_enabled: !settings.recording_enabled,
-      }) as ZMISettings;
-      setSettings(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update settings');
-    } finally {
-      setSaving(false);
-    }
+  const isDirty = Object.keys(draft).length > 0;
+
+  const updateDraft = (patch: DraftSettings) => {
+    setDraft((prev) => ({ ...prev, ...patch }));
   };
 
-  const handleCaptionLanguageChange = async (value: string) => {
-    if (!settings) return;
+  const handleSave = async () => {
+    if (!isDirty || !settings) return;
     try {
       setSaving(true);
       setError(null);
-      const data = await meetingIntelligenceAPI.updateSettings({
-        caption_language: value,
-      }) as ZMISettings;
+      const data = await meetingIntelligenceAPI.updateSettings(draft) as ZMISettings;
       setSettings(data);
+      setDraft({});
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update settings');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDisplayNameSave = async () => {
-    if (!settings || !displayNameDirty) return;
-    try {
-      setSaving(true);
-      setError(null);
-      const data = await meetingIntelligenceAPI.updateSettings({
-        meeting_display_name: displayName,
-      }) as ZMISettings;
-      setSettings(data);
-      setDisplayName(data.meeting_display_name || '');
-      setDisplayNameDirty(false);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update display name');
+      setError(err instanceof Error ? err.message : 'Failed to save settings');
     } finally {
       setSaving(false);
     }
@@ -224,10 +199,10 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={handleToggle}
+            onClick={() => updateDraft({ enabled: !current.enabled })}
             disabled={saving || !settings?.feature_available}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-zenible-primary focus:ring-offset-2 ${
-              settings?.enabled
+              current.enabled
                 ? 'bg-zenible-primary'
                 : darkMode
                   ? 'bg-zenible-dark-border'
@@ -236,7 +211,7 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                settings?.enabled ? 'translate-x-6' : 'translate-x-1'
+                current.enabled ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>
@@ -252,56 +227,40 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
           <p className={`text-sm mb-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
             How you appear in meeting transcripts and speaker attribution.
           </p>
-          <div className="flex gap-2 max-w-sm">
+          <div className="max-w-sm">
             <input
               type="text"
-              value={displayName}
-              onChange={(e) => {
-                setDisplayName(e.target.value);
-                setDisplayNameDirty(true);
-              }}
-              onBlur={handleDisplayNameSave}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleDisplayNameSave();
-              }}
+              value={current.meeting_display_name}
+              onChange={(e) => updateDraft({ meeting_display_name: e.target.value })}
               placeholder="Your display name"
               disabled={saving}
-              className={`flex-1 px-3 py-2 text-sm rounded-lg border ${
+              className={`w-full px-3 py-2 text-sm rounded-lg border ${
                 darkMode
                   ? 'bg-zenible-dark-bg border-zenible-dark-border text-white placeholder-gray-500'
                   : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
               } ${saving ? 'opacity-50' : ''}`}
             />
-            {displayNameDirty && (
-              <button
-                onClick={handleDisplayNameSave}
-                disabled={saving}
-                className="px-3 py-2 text-sm rounded-lg bg-zenible-primary text-white hover:opacity-90 disabled:opacity-50"
-              >
-                Save
-              </button>
-            )}
           </div>
         </div>
       )}
 
-      {/* Teams Caption Language */}
+      {/* Caption Language */}
       {settings?.feature_available && (
         <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
           <h3 className={`text-sm font-medium mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            Teams Spoken Language
+            Caption Language
           </h3>
           <p className={`text-sm mb-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-            Set the spoken language for Microsoft Teams captions. Only applies to Teams meetings.
+            Set the spoken language for meeting captions. Applies to Teams and Zoom meetings.
           </p>
           <div className="max-w-sm">
             <Combobox
-              options={TEAMS_CAPTION_LANGUAGES.map((lang) => ({
+              options={CAPTION_LANGUAGES.map((lang) => ({
                 id: lang.value,
                 label: lang.label,
               }))}
-              value={settings.caption_language || ''}
-              onChange={(value: string) => handleCaptionLanguageChange(value)}
+              value={current.caption_language}
+              onChange={(value: string) => updateDraft({ caption_language: value })}
               placeholder="Select language..."
               searchable
               allowClear={false}
@@ -324,10 +283,10 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={handleRecordingToggle}
+              onClick={() => updateDraft({ recording_enabled: !current.recording_enabled })}
               disabled={saving}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-zenible-primary focus:ring-offset-2 ${
-                settings?.recording_enabled
+                current.recording_enabled
                   ? 'bg-zenible-primary'
                   : darkMode
                     ? 'bg-zenible-dark-border'
@@ -336,10 +295,49 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  settings?.recording_enabled ? 'translate-x-6' : 'translate-x-1'
+                  current.recording_enabled ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Auto-send summary */}
+      {settings?.feature_available && (
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Automatically send meeting summary
+              </h3>
+              <p className={`text-sm mt-0.5 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                Email the meeting summary when analysis completes
+              </p>
+            </div>
+            <select
+              value={current.auto_send_summary}
+              disabled={saving}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next === 'all' && current.auto_send_summary !== 'all') {
+                  setConfirmAllParticipants(true);
+                } else {
+                  updateDraft({ auto_send_summary: next });
+                }
+              }}
+              className={`text-sm rounded-lg border px-3 py-1.5 ${
+                saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+              } ${
+                darkMode
+                  ? 'bg-zenible-dark-card border-zenible-dark-border text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+              }`}
+            >
+              <option value="no">No</option>
+              <option value="me">Me Only</option>
+              <option value="all">All Participants</option>
+            </select>
           </div>
         </div>
       )}
@@ -380,6 +378,59 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
               Unlimited minutes on your plan. {settings.minutes_used} minutes used this period.
             </p>
           )}
+        </div>
+      )}
+
+      {/* Save bar */}
+      <div className={`flex items-center justify-end gap-3 pt-2 border-t ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`}>
+        {isDirty && (
+          <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+            Unsaved changes
+          </span>
+        )}
+        <button
+          onClick={handleSave}
+          disabled={!isDirty || saving}
+          className={`px-4 py-2 text-sm rounded-lg bg-zenible-primary text-white hover:opacity-90 ${
+            (!isDirty || saving) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+          }`}
+        >
+          {saving ? 'Saving...' : 'Save Settings'}
+        </button>
+      </div>
+
+      {/* Confirm "All Participants" */}
+      {confirmAllParticipants && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className={`max-w-md w-full rounded-lg p-6 shadow-xl ${darkMode ? 'bg-zenible-dark-card border border-zenible-dark-border' : 'bg-white'}`}>
+            <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Send summaries to all participants?
+            </h3>
+            <p className={`text-sm mb-6 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
+              This will automatically send your meeting summaries to all participants. Are you sure?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmAllParticipants(false)}
+                className={`px-4 py-2 text-sm rounded-lg border ${
+                  darkMode
+                    ? 'border-zenible-dark-border text-white hover:bg-zenible-dark-bg'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  updateDraft({ auto_send_summary: 'all' });
+                  setConfirmAllParticipants(false);
+                }}
+                className="px-4 py-2 text-sm rounded-lg bg-zenible-primary text-white hover:opacity-90"
+              >
+                Yes, send to all
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

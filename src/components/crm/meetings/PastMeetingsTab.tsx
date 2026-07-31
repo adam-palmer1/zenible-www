@@ -28,6 +28,7 @@ interface PastMeetingsTabProps {
 
   onSelectMeeting: (meetingId: string) => void;
   onSendToBoardroom: (meeting: MeetingListItem) => void;
+  onSendSummary: (meeting: MeetingListItem) => void;
   onDeleteRequest: (meetingId: string) => void;
 
   deleteConfirmId: string | null;
@@ -69,7 +70,7 @@ const PastMeetingsTab: React.FC<PastMeetingsTabProps> = ({
   renamingMeetingId, renameValue, onRenameValueChange,
   onRenameStart, onRenameSubmit, onRenameCancel,
   actionMenuMeetingId, onActionMenuToggle,
-  onSelectMeeting, onSendToBoardroom, onDeleteRequest,
+  onSelectMeeting, onSendToBoardroom, onSendSummary, onDeleteRequest,
   deleteConfirmId, onDeleteConfirm, onDeleteCancel,
   bulkDeleteConfirm, bulkDeleting, onBulkDeleteOpen, onBulkDeleteConfirm, onBulkDeleteCancel,
   pastHasMore, pastLoadingMore, sentinelRef,
@@ -310,6 +311,17 @@ const PastMeetingsTab: React.FC<PastMeetingsTabProps> = ({
                                 }`}
                               >
                                 Send to Boardroom
+                              </button>
+                            )}
+                            {meeting.is_processed && (
+                              <button
+                                role="menuitem"
+                                onClick={() => onSendSummary(meeting)}
+                                className={`w-full text-left px-3 py-2 text-sm ${
+                                  darkMode ? 'text-white hover:bg-zenible-dark-border' : 'text-gray-700 hover:bg-gray-100'
+                                }`}
+                              >
+                                Send summary
                               </button>
                             )}
                             <button

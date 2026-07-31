@@ -1,6 +1,6 @@
 import { io, type Socket } from 'socket.io-client';
 import logger from '../utils/logger';
-import type { TranscriptEntry } from '../types/meetingIntelligence';
+import type { TranscriptEntry, InsightsUpdate } from '../types/meetingIntelligence';
 
 interface ZMIWebSocketConfig {
   baseUrl: string;
@@ -10,6 +10,9 @@ interface ZMIWebSocketConfig {
   onBotStatus?: (data: { session_id: string; status: string }) => void;
   onError?: (error: { session_id?: string; message: string; error?: string }) => void;
   onTranscriptionReady?: (data: { session_id: string }) => void;
+  onInsightsUpdate?: (data: InsightsUpdate) => void;
+  onInsightsEnabled?: (data: { session_id: string }) => void;
+  onInsightsDisabled?: (data: { session_id: string; final_state?: Record<string, unknown> }) => void;
 }
 
 class ZMIWebSocketService {
@@ -73,6 +76,18 @@ class ZMIWebSocketService {
       this.socket.on('transcription_ready', (data: { session_id: string }) => {
         this.config.onTranscriptionReady?.(data);
       });
+
+      this.socket.on('insights_update', (data: InsightsUpdate) => {
+        this.config.onInsightsUpdate?.(data);
+      });
+
+      this.socket.on('insights_enabled', (data: { session_id: string }) => {
+        this.config.onInsightsEnabled?.(data);
+      });
+
+      this.socket.on('insights_disabled', (data: { session_id: string; final_state?: Record<string, unknown> }) => {
+        this.config.onInsightsDisabled?.(data);
+      });
     });
   }
 
@@ -82,6 +97,21 @@ class ZMIWebSocketService {
 
   unsubscribeSession(sessionId: string): void {
     this.socket?.emit('unsubscribe_session', { session_id: sessionId });
+  }
+
+  enableInsights(sessionId: string, userId: string, companyId: string, objectiveId?: string, objectiveText?: string): void {
+    this.socket?.emit('enable_insights', {
+      session_id: sessionId, user_id: userId, company_id: companyId,
+      objective_id: objectiveId || 'unspecified', objective_text: objectiveText || '',
+    });
+  }
+
+  disableInsights(sessionId: string): void {
+    this.socket?.emit('disable_insights', { session_id: sessionId });
+  }
+
+  changeObjective(sessionId: string, objectiveId: string, objectiveText: string = ''): void {
+    this.socket?.emit('change_objective', { session_id: sessionId, objective_id: objectiveId, objective_text: objectiveText });
   }
 
   disconnect(): void {

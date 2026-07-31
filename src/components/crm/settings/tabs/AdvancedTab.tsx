@@ -4,7 +4,9 @@ import { useCompanyAttributes } from '../../../../hooks/crm/useCompanyAttributes
 import { useNotification } from '../../../../contexts/NotificationContext';
 import { usePreferences } from '../../../../contexts/PreferencesContext';
 import logger from '../../../../utils/logger';
-import { ExclamationTriangleIcon, XMarkIcon, ChevronDownIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { makeAuthenticatedRequest } from '../../../../utils/auth';
+import { API_BASE_URL } from '../../../../config/api';
+import { ExclamationTriangleIcon, XMarkIcon, ChevronDownIcon, ArrowPathIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
 interface AdvancedTabProps {
   onUnsavedChanges?: (hasChanges: boolean) => void;
@@ -29,6 +31,11 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
   const [showNumberFormatModal, setShowNumberFormatModal] = useState(false);
   const [showDateFormatModal, setShowDateFormatModal] = useState(false);
   const [resettingSetup, setResettingSetup] = useState(false);
+  const [exportingPersonalData, setExportingPersonalData] = useState(false);
+  const [exportingContacts, setExportingContacts] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deletingAllData, setDeletingAllData] = useState(false);
 
   useEffect(() => {
     if (!attributesLoading) {
@@ -148,6 +155,88 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
     }
   };
 
+  const handleExportPersonalData = async () => {
+    setExportingPersonalData(true);
+    try {
+      const response = await makeAuthenticatedRequest(`${API_BASE_URL}/users/profile/export`);
+      if (!response.ok) throw new Error(`Export failed (${response.status})`);
+      const blob = await response.blob();
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      const filename = match?.[1] || 'zenible-data-export.json';
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showSuccess('Your personal data export has been downloaded');
+    } catch (error) {
+      showError('Failed to export your data. Please try again.');
+      logger.error('Personal data export failed:', error);
+    } finally {
+      setExportingPersonalData(false);
+    }
+  };
+
+  const downloadResponse = async (response: Response, fallbackName: string) => {
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    const filename = match?.[1] || fallbackName;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportContacts = async () => {
+    setExportingContacts(true);
+    try {
+      const response = await makeAuthenticatedRequest(`${API_BASE_URL}/crm/contacts/export`);
+      if (!response.ok) throw new Error(`Export failed (${response.status})`);
+      await downloadResponse(response, 'zenible-contacts.csv');
+      showSuccess('Contacts exported successfully');
+    } catch (error) {
+      showError('Failed to export contacts. Please try again.');
+      logger.error('Contacts export failed:', error);
+    } finally {
+      setExportingContacts(false);
+    }
+  };
+
+  const handleDeleteAllData = async () => {
+    if (deleteConfirmText !== 'DELETE ALL DATA' || deletingAllData) return;
+    setDeletingAllData(true);
+    try {
+      const response = await makeAuthenticatedRequest(`${API_BASE_URL}/crm/companies/current/delete-all-data`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation: 'DELETE ALL DATA' }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.detail || `Delete failed (${response.status})`);
+      }
+      setShowDeleteAllModal(false);
+      setDeleteConfirmText('');
+      showSuccess('All company data has been permanently deleted');
+      // Reload so every view drops the now-deleted data
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Failed to delete company data');
+      logger.error('Delete all company data failed:', error);
+    } finally {
+      setDeletingAllData(false);
+    }
+  };
+
   const onboardingStatus = getPreference('onboarding_status');
 
   if (formatsLoading || attributesLoading) {
@@ -191,10 +280,16 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
 
       <div>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Data Export</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Export your company data for backup or migration purposes</p>
-        <div className="flex gap-3">
-          <button disabled className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed">Export Contacts (Coming Soon)</button>
-          <button disabled className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed">Export Services (Coming Soon)</button>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Download a copy of the personal data Zenible holds about you (profile, subscriptions, payments, AI conversations, and meeting transcripts), or export your company data for backup or migration purposes</p>
+        <div className="flex flex-wrap gap-3">
+          <button onClick={handleExportPersonalData} disabled={exportingPersonalData} className="flex items-center gap-2 px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <ArrowDownTrayIcon className="h-4 w-4" />
+            {exportingPersonalData ? 'Preparing Export...' : 'Download My Personal Data'}
+          </button>
+          <button onClick={handleExportContacts} disabled={exportingContacts} className="flex items-center gap-2 px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <ArrowDownTrayIcon className="h-4 w-4" />
+            {exportingContacts ? 'Exporting...' : 'Export Contacts (CSV)'}
+          </button>
         </div>
       </div>
 
@@ -220,7 +315,7 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
             <div className="flex-1">
               <h4 className="font-semibold text-red-900 dark:text-red-200 mb-2">Danger Zone</h4>
               <p className="text-sm text-red-800 dark:text-red-300 mb-4">Permanent actions that cannot be undone. Proceed with caution.</p>
-              <button disabled className="px-4 py-2 bg-red-600 text-white rounded-lg opacity-50 cursor-not-allowed">Delete All Company Data (Coming Soon)</button>
+              <button onClick={() => setShowDeleteAllModal(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors">Delete All Company Data</button>
             </div>
           </div>
         </div>
@@ -230,6 +325,43 @@ const AdvancedTab: React.FC<AdvancedTabProps> = ({ onUnsavedChanges }) => {
         <button onClick={() => { setSelectedFormat(getNumberFormat()); setSelectedTimezone(getTimezone() || 'Europe/London'); setSelectedDateFormat(getDateFormat() || 'DD/MM/YYYY'); setHasChanges(false); onUnsavedChanges?.(false); }} disabled={!hasChanges} className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
         <button onClick={handleSave} disabled={!hasChanges || saving} className="px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors">{saving ? 'Saving...' : 'Save Changes'}</button>
       </div>
+
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => { if (!deletingAllData) { setShowDeleteAllModal(false); setDeleteConfirmText(''); } }} />
+            <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">Delete All Company Data</h3>
+                <button onClick={() => { setShowDeleteAllModal(false); setDeleteConfirmText(''); }} disabled={deletingAllData} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors disabled:opacity-50"><XMarkIcon className="h-6 w-6" /></button>
+              </div>
+              <div className="p-4">
+                <div className="flex items-start gap-3 mb-4">
+                  <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    This will <strong>permanently delete</strong> all contacts, invoices, quotes, credit notes, payments, expenses and receipts, projects, appointments, meeting recordings and transcripts, billable hours, and reports for your company. Your account, users, settings, and subscription are kept. <strong>This cannot be undone.</strong>
+                  </p>
+                </div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type <span className="font-mono font-semibold">DELETE ALL DATA</span> to confirm</label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  disabled={deletingAllData}
+                  autoFocus
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 dark:text-white mb-4"
+                />
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => { setShowDeleteAllModal(false); setDeleteConfirmText(''); }} disabled={deletingAllData} className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50">Cancel</button>
+                  <button onClick={handleDeleteAllData} disabled={deleteConfirmText !== 'DELETE ALL DATA' || deletingAllData} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                    {deletingAllData ? 'Deleting...' : 'Permanently Delete Everything'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showTimezoneModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">

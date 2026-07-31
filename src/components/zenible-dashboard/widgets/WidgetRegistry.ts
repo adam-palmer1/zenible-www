@@ -228,6 +228,22 @@ export const WIDGET_REGISTRY: Record<string, WidgetConfig> = {
     defaultSize: { w: 1, h: 2 },
   },
 
+  upcomingTasks: {
+    id: 'upcomingTasks',
+    name: 'My Tasks',
+    description: 'Your pending tasks from the CRM Tasks tree',
+    component: 'UpcomingTasksWidget',
+    defaultVisible: true,
+    defaultOrder: 12,
+    hasSettings: true,
+    settingsSchema: {
+      limit: { type: 'number', default: 10, min: 3, max: 20, label: 'Max tasks' },
+      includeCompleted: { type: 'boolean', default: false, label: 'Show completed' },
+    },
+    category: 'crm',
+    defaultSize: { w: 1, h: 2 },
+  },
+
 };
 
 /**

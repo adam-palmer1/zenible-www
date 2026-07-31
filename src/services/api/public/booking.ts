@@ -51,9 +51,45 @@ class PublicBookingAPI {
     return this.request<T>(`/book/${username}/${shortcode}/slots?${params}`, { method: 'GET' });
   }
 
-  // Create a booking
+  // Get the earliest date with availability (null if none within the booking horizon)
+  async getNextAvailableDate<T = unknown>(username: string, shortcode: string, fromDate?: string): Promise<T> {
+    const params = new URLSearchParams();
+    if (fromDate) params.set('from_date', fromDate);
+    const query = params.toString();
+    return this.request<T>(
+      `/book/${username}/${shortcode}/next-available${query ? `?${query}` : ''}`,
+      { method: 'GET' },
+    );
+  }
+
+  // Create a booking. For chargeable call types, `data` must include a
+  // `payment` object ({ method, payment_intent_id | paypal_order_id }).
   async createBooking<T = unknown>(username: string, shortcode: string, data: unknown): Promise<T> {
     return this.request<T>(`/book/${username}/${shortcode}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Initialize a Stripe PaymentIntent for a chargeable booking slot
+  async createStripeIntent<T = unknown>(
+    username: string,
+    shortcode: string,
+    data: { start_datetime: string; timezone: string; email?: string },
+  ): Promise<T> {
+    return this.request<T>(`/book/${username}/${shortcode}/payment/stripe-intent`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Initialize a PayPal order for a chargeable booking slot
+  async createPayPalOrder<T = unknown>(
+    username: string,
+    shortcode: string,
+    data: { start_datetime: string; timezone: string; email?: string },
+  ): Promise<T> {
+    return this.request<T>(`/book/${username}/${shortcode}/payment/paypal-order`, {
       method: 'POST',
       body: JSON.stringify(data),
     });

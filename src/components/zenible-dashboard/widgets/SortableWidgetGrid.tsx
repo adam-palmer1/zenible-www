@@ -30,12 +30,14 @@ interface DraggableWidgetProps {
   onHide: (widgetId: string) => void;
   onOpenSettings: (widgetId: string) => void;
   getWidgetSize: (widgetId: string) => { width: number; height: number };
+  openMenuWidgetId: string | null;
+  onMenuOpenChange: (widgetId: string, open: boolean) => void;
 }
 
 /**
  * DraggableWidget - Individual widget that can be dragged
  */
-const DraggableWidget = ({ widget, index, moveWidget, onHide, onOpenSettings, getWidgetSize }: DraggableWidgetProps) => {
+const DraggableWidget = ({ widget, index, moveWidget, onHide, onOpenSettings, getWidgetSize, openMenuWidgetId, onMenuOpenChange }: DraggableWidgetProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const { width, height } = getWidgetSize(widget.id);
 
@@ -122,9 +124,21 @@ const DraggableWidget = ({ widget, index, moveWidget, onHide, onOpenSettings, ge
     return 'min-h-[140px]';
   };
 
+  // Safari's HTML5 drag-image generator sometimes bleeds neighbouring widgets
+  // into the preview even when the source element is properly contained.
+  // Force the drag image to be the inner card and only the inner card — the
+  // browser then has no choice but to use exactly the element we hand it.
+  const handleDragStart = (e: React.DragEvent) => {
+    const card = ref.current?.querySelector('[data-widget-card]') as HTMLElement | null;
+    if (!card) return;
+    const r = card.getBoundingClientRect();
+    e.dataTransfer.setDragImage(card, e.clientX - r.left, e.clientY - r.top);
+  };
+
   return (
     <div
       ref={ref}
+      onDragStart={handleDragStart}
       className={`${getGridClass()} ${getRowSpan()} ${getHeightClass()} transition-all duration-200 ${
         isDragging ? 'opacity-50 scale-95' : 'opacity-100'
       } ${isOver && canDrop ? 'ring-2 ring-[#8e51ff] ring-offset-2 rounded-xl' : ''}`}
@@ -134,6 +148,8 @@ const DraggableWidget = ({ widget, index, moveWidget, onHide, onOpenSettings, ge
         onHide={onHide}
         onOpenSettings={onOpenSettings}
         isDragging={isDragging}
+        menuOpen={openMenuWidgetId === widget.id}
+        onMenuOpenChange={(open) => onMenuOpenChange(widget.id, open)}
       />
     </div>
   );
@@ -151,6 +167,16 @@ const WidgetGrid = ({ onOpenCustomizer }: WidgetGridProps) => {
 
   // State for settings modal
   const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
+  // Track which widget's 3-dot action menu is open — only one at a time.
+  const [openMenuWidgetId, setOpenMenuWidgetId] = useState<string | null>(null);
+  const handleMenuOpenChange = useCallback((widgetId: string, open: boolean) => {
+    setOpenMenuWidgetId((prev) => {
+      if (open) return widgetId;
+      // Only clear if we're closing the currently-tracked menu (avoids races
+      // with a different menu's open event clobbering the state).
+      return prev === widgetId ? null : prev;
+    });
+  }, []);
 
   // Get widget layout from preferences (v1 format without grid positions)
   const widgetLayout = getPreference('dashboard_widgets', {
@@ -282,6 +308,8 @@ const WidgetGrid = ({ onOpenCustomizer }: WidgetGridProps) => {
               onHide={handleHideWidget}
               onOpenSettings={handleOpenSettings}
               getWidgetSize={getWidgetSize}
+              openMenuWidgetId={openMenuWidgetId}
+              onMenuOpenChange={handleMenuOpenChange}
             />
           ))}
         </div>

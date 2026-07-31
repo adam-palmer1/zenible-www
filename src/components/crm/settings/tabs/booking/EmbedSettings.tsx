@@ -24,11 +24,16 @@ interface CallTypeItem {
   description?: string;
 }
 
+// Widget's built-in default brand color (see call-widget/widget.css --zenible-primary)
+const DEFAULT_PRIMARY_COLOR = '#8e51ff';
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
 const EmbedSettings = ({ username }: { username: string }) => {
   const [callTypes, setCallTypes] = useState<CallTypeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCallType, setSelectedCallType] = useState('');
   const [theme, setTheme] = useState('light');
+  const [primaryColor, setPrimaryColor] = useState(DEFAULT_PRIMARY_COLOR);
   const [copied, setCopied] = useState(false);
   const callTypeModal = useModalState();
   const [callTypeSearch, setCallTypeSearch] = useState('');
@@ -61,12 +66,16 @@ const EmbedSettings = ({ username }: { username: string }) => {
 
   const widgetUrl = `${window.location.origin}/call-widget/zenible-booking.iife.js`;
 
+  const normalizedColor = primaryColor.trim().toLowerCase();
+  const isValidColor = HEX_COLOR_RE.test(normalizedColor);
+  const hasCustomColor = isValidColor && normalizedColor !== DEFAULT_PRIMARY_COLOR;
+
   const embedCode = selectedCallType
     ? `<!-- Zenible Booking Widget -->
 <div
   data-zenible-booking
   data-username="${username}"
-  data-call-type="${selectedCallType}"${theme !== 'light' ? `\n  data-theme="${theme}"` : ''}
+  data-call-type="${selectedCallType}"${theme !== 'light' ? `\n  data-theme="${theme}"` : ''}${hasCustomColor ? `\n  data-primary-color="${normalizedColor}"` : ''}
 ></div>
 <script src="${widgetUrl}" async></script>`
     : '';
@@ -182,6 +191,53 @@ const EmbedSettings = ({ username }: { username: string }) => {
             ))}
           </div>
         </div>
+
+        {/* Brand Color Selector */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Brand Color
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              aria-label="Pick brand color"
+              value={isValidColor ? normalizedColor : DEFAULT_PRIMARY_COLOR}
+              onChange={(e) => setPrimaryColor(e.target.value)}
+              className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 p-1"
+            />
+            <input
+              type="text"
+              aria-label="Brand color hex code"
+              value={primaryColor}
+              onChange={(e) => setPrimaryColor(e.target.value)}
+              placeholder={DEFAULT_PRIMARY_COLOR}
+              spellCheck={false}
+              className={`w-36 px-3 py-2 font-mono text-sm border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-zenible-primary focus:border-transparent ${
+                primaryColor.trim() && !isValidColor
+                  ? 'border-red-400 dark:border-red-500'
+                  : 'border-gray-300 dark:border-gray-600'
+              }`}
+            />
+            {hasCustomColor && (
+              <button
+                type="button"
+                onClick={() => setPrimaryColor(DEFAULT_PRIMARY_COLOR)}
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-zenible-primary transition-colors"
+              >
+                Reset to default
+              </button>
+            )}
+          </div>
+          {primaryColor.trim() && !isValidColor ? (
+            <p className="mt-1 text-xs text-red-500">
+              Enter a 6-digit hex code, e.g. {DEFAULT_PRIMARY_COLOR}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Replaces the default widget color. Leave as {DEFAULT_PRIMARY_COLOR} to keep the Zenible purple.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Embed Code */}
@@ -295,7 +351,7 @@ const EmbedSettings = ({ username }: { username: string }) => {
 const widget = new ZenibleBookingWidget('#container', {
   username: '${username}',
   callType: '${selectedCallType}',
-  theme: '${theme}',
+  theme: '${theme}',${hasCustomColor ? `\n  primaryColor: '${normalizedColor}',` : ''}
   onBookingComplete: (booking) => {
     logger.debug('Booking created:', booking);
   },

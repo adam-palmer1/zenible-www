@@ -8,6 +8,7 @@ export interface ZMISettings {
   caption_language: string | null;
   recording_enabled: boolean;
   meeting_display_name: string | null;
+  auto_send_summary: string;
 }
 
 export interface UpcomingMeeting {
@@ -36,6 +37,11 @@ export interface BotStatus {
   joined_at: string | null;
   left_at: string | null;
   is_recording: boolean;
+  // Enriched from /bot/active — meeting details
+  meeting_title?: string | null;
+  appointment_id?: string | null;
+  start_datetime?: string | null;
+  meeting_link?: string | null;
 }
 
 export interface MeetingListItem {
@@ -95,6 +101,28 @@ export interface TranscriptEntry {
   text?: string;
   timestamp?: string;
   is_final?: boolean;
+  // Stable per-utterance id (Zoom msgId or a synthesized per-turn id). When
+  // present, the entry is upserted in place (partial→final) keyed by this id.
+  caption_id?: string;
+}
+
+export interface InsightsState {
+  running_summary: string;
+  decisions: string[];
+  action_items: string[];
+  open_questions: string[];
+  talk_time: Record<string, { seconds: number; percent: number }>;
+  sentiment_trajectory: Array<{ timestamp: number; label: string; score: number; anchor?: boolean }>;
+  coaching_notes: Array<{ timestamp: number; type: string; message: string; urgency?: string }>;
+  topics: string[];
+  duration_s: number;
+}
+
+export interface InsightsUpdate {
+  type: 'insights_update';
+  session_id: string;
+  credits_exhausted?: boolean;
+  state: InsightsState;
 }
 
 export interface UsageInfo {

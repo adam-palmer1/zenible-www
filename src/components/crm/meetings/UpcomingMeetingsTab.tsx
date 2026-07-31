@@ -19,8 +19,6 @@ interface UpcomingMeetingsTabProps {
   loadingAppointment: string | null;
   dispatching: string | null;
   retrying: string | null;
-  /** Called with the trimmed link; returns message to show (success/error) or null. */
-  onQuickDispatch: (link: string) => Promise<{ ok: boolean; message: string }>;
   onMeetingClick: (meeting: UpcomingMeeting) => void;
   onDispatchBot: (appointmentId: string, instanceStartDatetime?: string) => void;
   onRetryBot: (appointmentId: string) => void;
@@ -36,100 +34,39 @@ const UpcomingMeetingsTab: React.FC<UpcomingMeetingsTabProps> = ({
   loadingAppointment,
   dispatching,
   retrying,
-  onQuickDispatch,
   onMeetingClick,
   onDispatchBot,
   onRetryBot,
 }) => {
   const { darkMode } = usePreferences();
-  const [quickLink, setQuickLink] = useState('');
-  const [quickDispatching, setQuickDispatching] = useState(false);
-  const [quickError, setQuickError] = useState<string | null>(null);
-  const [quickSuccess, setQuickSuccess] = useState<string | null>(null);
-  const [showOnlyWithLinks, setShowOnlyWithLinks] = useState(false);
 
-  const handleQuickDispatch = async () => {
-    const link = quickLink.trim();
-    if (!link) return;
-    if (activeBotCount >= maxActiveBots) {
-      setQuickError(`Maximum ${maxActiveBots} active bots allowed. Stop an existing bot first.`);
-      return;
-    }
-    setQuickDispatching(true);
-    setQuickError(null);
-    setQuickSuccess(null);
-    const result = await onQuickDispatch(link);
-    if (result.ok) {
-      setQuickLink('');
-      setQuickSuccess(result.message);
-      setTimeout(() => setQuickSuccess(null), 3000);
-    } else {
-      setQuickError(result.message);
-    }
-    setQuickDispatching(false);
-  };
-
-  const filtered = showOnlyWithLinks ? upcomingMeetings.filter((m) => m.meeting_link) : upcomingMeetings;
+  const filtered = upcomingMeetings.filter((m) => m.meeting_link);
 
   return (
     <div className="space-y-3">
-      {/* Quick dispatch box */}
-      <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
-        <label className={`text-xs font-medium mb-2 block ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-          Send bot to a meeting now
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={quickLink}
-            onChange={(e) => { setQuickLink(e.target.value); setQuickError(null); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleQuickDispatch(); }}
-            placeholder="Paste a meeting link (Teams, Zoom, Google Meet...)"
-            aria-label="Meeting link to dispatch bot"
-            className={`flex-1 px-3 py-2 text-sm rounded-lg border ${
-              darkMode
-                ? 'bg-zenible-dark-bg border-zenible-dark-border text-white placeholder-gray-500'
-                : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400'
-            }`}
-          />
-          <button
-            onClick={handleQuickDispatch}
-            disabled={quickDispatching || !quickLink.trim() || activeBotCount >= maxActiveBots}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              quickDispatching || !quickLink.trim()
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-zenible-primary text-white hover:opacity-90'
-            }`}
-          >
-            {quickDispatching ? 'Sending...' : 'Send Bot'}
-          </button>
-        </div>
-        {quickError && <p className="text-xs text-red-500 mt-1" role="alert">{quickError}</p>}
-        {quickSuccess && <p className="text-xs text-green-500 mt-1" role="status">{quickSuccess}</p>}
-      </div>
-
-      {/* Filter toggle */}
-      <label className={`flex items-center gap-2 text-sm cursor-pointer ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-600'}`}>
-        <input
-          type="checkbox"
-          checked={showOnlyWithLinks}
-          onChange={(e) => setShowOnlyWithLinks(e.target.checked)}
-          className="rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
-        />
-        Only show meetings with links
-      </label>
+      {/* Section title */}
+      <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+        Upcoming Meetings
+      </h2>
 
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zenible-primary" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : (() => {
+        // Hide meetings where the bot is actively in the meeting (shown in the status bar instead)
+        const visibleMeetings = filtered.filter((meeting) => {
+          const sid = appointmentSessions[meeting.id] || meeting.bot_session_id;
+          const bs = sid ? botStatuses[sid] : undefined;
+          return !(bs && (bs.status === 'in_meeting' || bs.status === 'listening'));
+        });
+        return visibleMeetings.length === 0 ? (
         <div className={`text-center py-12 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-          <p className="text-lg">{showOnlyWithLinks ? 'No meetings with links' : 'No upcoming meetings'}</p>
-          <p className="text-sm mt-1">{showOnlyWithLinks ? 'Try disabling the filter above' : 'Create an appointment to get started'}</p>
+          <p className="text-lg">No upcoming meetings with links</p>
+          <p className="text-sm mt-1">Create an appointment with a meeting link to get started</p>
         </div>
       ) : (
-        filtered.map((meeting) => {
+        visibleMeetings.map((meeting) => {
           const meetingSessionId = appointmentSessions[meeting.id] || meeting.bot_session_id;
           const sessionEntry = meetingSessionId ? botStatuses[meetingSessionId] : undefined;
           const activeSession = sessionEntry && sessionEntry.status !== 'ended' && sessionEntry.status !== 'error' ? sessionEntry : undefined;
@@ -233,7 +170,8 @@ const UpcomingMeetingsTab: React.FC<UpcomingMeetingsTabProps> = ({
             </div>
           );
         })
-      )}
+      );
+      })()}
     </div>
   );
 };

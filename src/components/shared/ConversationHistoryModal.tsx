@@ -14,7 +14,8 @@ const FEATURE_LABELS: Record<string, string> = {
   proposal_wizard: 'Proposal Wizard',
   profile_analyzer: 'Profile Analyzer',
   headline_analyzer: 'Headline Analyzer',
-  viral_post_generator: 'Viral Post Generator',
+  viral_post_generator: 'Viral Content Generator',
+  hook_generator: 'Hook Generator',
 };
 
 interface ConversationParticipant {
@@ -111,7 +112,7 @@ export default function ConversationHistoryModal({
       const params: Record<string, string> = {
         page: String(page),
         per_page: '20',
-        order_by: 'updated_at',
+        order_by: 'last_message_at',
         order_dir: 'desc',
       };
       if (!showAll) {
@@ -421,7 +422,7 @@ export default function ConversationHistoryModal({
             <div
               ref={listRef}
               onScroll={handleListScroll}
-              className="flex-1 overflow-y-auto overscroll-contain"
+              className="flex-1 overflow-y-auto overscroll-contain scrollbar-hover"
             >
               {conversationError ? (
                 <div className="p-4 text-center">
@@ -554,7 +555,7 @@ export default function ConversationHistoryModal({
                 )}
 
                 {/* Messages */}
-                <div ref={messagesScrollRef} className="flex-1 overflow-y-auto overscroll-contain p-4">
+                <div ref={messagesScrollRef} className="flex-1 overflow-y-auto overscroll-contain scrollbar-hover p-4">
                   {loadingMessages ? (
                     <div className="text-center">Loading messages...</div>
                   ) : conversationMessages.length === 0 ? (

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import meetingIntelligenceAPI from '../services/api/crm/meetingIntelligence';
 import type { PublicRecording } from '../types/meetingIntelligence';
+import ReportContentButton from '../components/shared/ReportContentButton';
 
 const PublicRecordingPage: React.FC = () => {
   const { shareCode } = useParams<{ shareCode: string }>();
@@ -95,6 +96,9 @@ const PublicRecordingPage: React.FC = () => {
           >
             Your browser does not support the video element.
           </video>
+        </div>
+        <div className="mt-4 flex justify-end">
+          <ReportContentButton />
         </div>
       </div>
     </div>

@@ -162,49 +162,46 @@ const PublicInvoiceView: React.FC = () => {
     setDeleteCardError(null);
   };
 
-  // Handle PayPal return - run once on mount
+  // Handle PayPal return - run once on mount.
+  // PayPal redirects buyers back with ?token=<orderId>&PayerID=<payerId>
+  // after a successful approval, or just ?token=<orderId> after a cancel.
+  // The presence of PayerID is the success signal; token is the order ID.
   useEffect(() => {
     const handlePayPalReturn = async () => {
       const params = new URLSearchParams(window.location.search);
-      const paypalStatus = params.get('paypal');
+      const orderId = params.get('token');
+      const payerId = params.get('PayerID');
 
-      if (paypalStatus === 'approved') {
-        const orderId = sessionStorage.getItem('paypal_order_id');
-        const storedShareCode = sessionStorage.getItem('paypal_share_code');
+      if (!orderId || !invoiceCode) return;
 
-        if (orderId && storedShareCode) {
-          setCapturingPayPal(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('token');
+      newParams.delete('PayerID');
 
-          try {
-            const result = await invoicesAPITyped.capturePayPalOrder(storedShareCode, {
-              order_id: orderId,
-            }) as PaymentStatusResponse & { status?: string };
-
-            sessionStorage.removeItem('paypal_order_id');
-            sessionStorage.removeItem('paypal_share_code');
-
-            if (result.status === 'captured') {
-              setPaymentSuccess(true);
-            }
-          } catch (err: any) {
-            logger.error('[PublicInvoiceView] PayPal capture error:', err);
-            setError('Failed to complete PayPal payment. Please try again.');
-          } finally {
-            setCapturingPayPal(false);
-          }
-        }
-
-        // Clear query params
-        const newParams = new URLSearchParams(searchParams);
-        newParams.delete('paypal');
+      if (!payerId) {
+        // Buyer cancelled at PayPal — just clean the URL.
         setSearchParams(newParams, { replace: true });
+        return;
       }
 
-      if (paypalStatus === 'cancelled') {
-        sessionStorage.removeItem('paypal_order_id');
-        sessionStorage.removeItem('paypal_share_code');
-        const newParams = new URLSearchParams(searchParams);
-        newParams.delete('paypal');
+      setCapturingPayPal(true);
+      try {
+        const result = await invoicesAPITyped.capturePayPalOrder(invoiceCode, {
+          order_id: orderId,
+        }) as PaymentStatusResponse & { status?: string };
+
+        if (result.status === 'captured') {
+          setPaymentSuccess(true);
+          await loadInvoice();
+        }
+      } catch (err: any) {
+        logger.error('[PublicInvoiceView] PayPal capture error:', err);
+        // Surface PayPal's actual message (extracted from `detail` by httpClient).
+        // The invoice data already in state is still valid — no need to refetch
+        // (and refetching would clear `error` since loadInvoice() resets it).
+        setError(err?.message || 'Payment could not be completed. Please try again.');
+      } finally {
+        setCapturingPayPal(false);
         setSearchParams(newParams, { replace: true });
       }
     };
@@ -274,12 +271,24 @@ const PublicInvoiceView: React.FC = () => {
 
   // Error state
   if (error) {
+    // If we still have the invoice loaded (e.g. payment-capture failed
+    // mid-flow), let the buyer dismiss the error and try a different
+    // payment method. Only the fatal "no invoice" case should be a dead end.
+    const canRetry = !!invoice;
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
         <div className="text-center max-w-md px-4">
           <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-[#09090b] mb-2">Error</h1>
-          <p className="text-[#71717a]">{error}</p>
+          <h1 className="text-2xl font-bold text-[#09090b] mb-2">Payment failed</h1>
+          <p className="text-[#71717a] mb-6 break-words">{error}</p>
+          {canRetry && (
+            <button
+              onClick={() => setError(null)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#8e51ff] hover:bg-[#7a44db] text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              Return to invoice
+            </button>
+          )}
         </div>
       </div>
     );

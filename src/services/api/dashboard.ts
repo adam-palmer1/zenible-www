@@ -18,6 +18,7 @@ export interface DashboardWidgetData {
   recent_clients: any[] | null;
   upcoming_appointments: any[] | null;
   upcoming_followups: any[] | null;
+  upcoming_tasks: any[] | null;
 }
 
 export interface DashboardResponse {
@@ -36,6 +37,8 @@ export interface DashboardWidgetParams {
   appointments_limit?: number;
   invoices_limit?: number;
   followups_limit?: number;
+  tasks_limit?: number;
+  tasks_include_completed?: boolean;
 }
 
 /**
@@ -53,6 +56,13 @@ async function getWidgets(params: DashboardWidgetParams): Promise<DashboardRespo
     appointments_limit: params.appointments_limit,
     invoices_limit: params.invoices_limit,
     followups_limit: params.followups_limit,
+    tasks_limit: params.tasks_limit,
+    tasks_include_completed:
+      params.tasks_include_completed === undefined
+        ? undefined
+        : params.tasks_include_completed
+        ? 'true'
+        : 'false',
   };
 
   const qs = buildQueryString(queryParams as Record<string, any>);

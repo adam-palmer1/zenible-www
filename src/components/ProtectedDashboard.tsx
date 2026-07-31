@@ -4,6 +4,8 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useNavigate } from 'react-router-dom';
 import NewZenibleDashboard from './zenible-dashboard/NewZenibleDashboard';
 import FirstSignInModal from './FirstSignInModal';
+import EmailVerificationBanner from './EmailVerificationBanner';
+import SubscriptionGate from './SubscriptionGate';
 import { InvoiceProvider } from '../contexts/InvoiceContext';
 import { ExpenseProvider } from '../contexts/ExpenseContext';
 import { PaymentsProvider } from '../contexts/PaymentsContext';
@@ -67,16 +69,18 @@ export default function ProtectedDashboard() {
 
   // User is authenticated, show the dashboard
   return (
-    <InvoiceProvider>
-      <ExpenseProvider>
-        <PaymentsProvider>
-          <NewZenibleDashboard />
-          <FirstSignInModal
-            isOpen={showFirstSignIn}
-            onClose={() => setShowFirstSignIn(false)}
-          />
-        </PaymentsProvider>
-      </ExpenseProvider>
-    </InvoiceProvider>
+    <SubscriptionGate>
+      <InvoiceProvider>
+        <ExpenseProvider>
+          <PaymentsProvider>
+            <NewZenibleDashboard />
+            <FirstSignInModal
+              isOpen={showFirstSignIn}
+              onClose={() => setShowFirstSignIn(false)}
+            />
+          </PaymentsProvider>
+        </ExpenseProvider>
+      </InvoiceProvider>
+    </SubscriptionGate>
   );
 }

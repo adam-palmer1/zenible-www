@@ -52,8 +52,11 @@ const Modal: React.FC<ModalProps> = ({
   }, []);
 
   // Prevent Radix FocusScope from stealing focus from portaled dropdowns.
-  // FocusScope listens for 'focusin' on document (bubble phase) and pulls
-  // focus back into Dialog.Content. We intercept in capture phase first.
+  // FocusScope listens for both 'focusin' and 'focusout' on document and pulls
+  // focus back into Dialog.Content. We intercept both in capture phase first.
+  // Without the focusout handler, FocusScope detects focus leaving Dialog.Content
+  // before focusin fires, and immediately pulls it back — preventing the portaled
+  // input from ever receiving focus.
   useEffect(() => {
     if (!portalContainer) return;
     const handleFocusIn = (e: FocusEvent) => {
@@ -61,9 +64,16 @@ const Modal: React.FC<ModalProps> = ({
         e.stopImmediatePropagation();
       }
     };
+    const handleFocusOut = (e: FocusEvent) => {
+      if (e.relatedTarget && portalContainer.contains(e.relatedTarget as Node)) {
+        e.stopImmediatePropagation();
+      }
+    };
     document.addEventListener('focusin', handleFocusIn, true);
+    document.addEventListener('focusout', handleFocusOut, true);
     return () => {
       document.removeEventListener('focusin', handleFocusIn, true);
+      document.removeEventListener('focusout', handleFocusOut, true);
     };
   }, [portalContainer]);
 

@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Eye, Pencil, ShieldCheck, ShieldX, RotateCcw, Ban, Trash2, RefreshCw, Skull, PlayCircle } from 'lucide-react';
 import { AdminUser, ConfirmModalState } from './types';
 
 interface ActionsDropdownMenuProps {
   dropdownUser: AdminUser;
-  dropdownPosition: { top: number; right: number };
+  dropdownPosition: { triggerTop: number; triggerBottom: number; right: number };
   setSelectedUser: (user: AdminUser) => void;
   setShowUserModal: (val: boolean) => void;
   setShowDropdownForUser: (val: string | null) => void;
@@ -39,10 +39,32 @@ const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
   hasStripeSubscription,
   openPermanentDeleteModal,
 }) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [verticalStyle, setVerticalStyle] = useState<{ top?: number; bottom?: number; visibility: 'hidden' | 'visible' }>({
+    top: dropdownPosition.triggerBottom,
+    visibility: 'hidden',
+  });
+
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+    const menuHeight = el.offsetHeight;
+    const margin = 8;
+    const spaceBelow = window.innerHeight - dropdownPosition.triggerBottom;
+    const spaceAbove = dropdownPosition.triggerTop;
+    const flipUp = spaceBelow < menuHeight + margin && spaceAbove > spaceBelow;
+    setVerticalStyle(
+      flipUp
+        ? { bottom: window.innerHeight - dropdownPosition.triggerTop, visibility: 'visible' }
+        : { top: dropdownPosition.triggerBottom, visibility: 'visible' },
+    );
+  }, [dropdownPosition.triggerBottom, dropdownPosition.triggerTop]);
+
   return (
     <div
+      ref={menuRef}
       className="fixed w-52 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 z-[9999]"
-      style={{ top: dropdownPosition.top, right: dropdownPosition.right }}
+      style={{ ...verticalStyle, right: dropdownPosition.right }}
       onClick={(e) => e.stopPropagation()}
     >
       <button
