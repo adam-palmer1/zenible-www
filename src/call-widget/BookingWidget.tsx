@@ -202,19 +202,39 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
   // Track if we've done the initial auto-select
   const hasAutoSelectedRef = useRef(false);
 
-  // Month the calendar should display (set when the initial month is empty and
-  // availability starts in a later month)
+  // Month the calendar should open on. Resolved before first paint so the
+  // calendar never renders an empty month and then jumps.
   const [focusMonth, setFocusMonth] = useState<string | null>(null);
   const hasCheckedNextAvailableRef = useRef(false);
 
-  // Fetch call type page data
+  // Fetch call type page data and the first bookable date together. Both are
+  // needed before the calendar can render on the right month, so they run
+  // concurrently and the widget waits for the slower of the two rather than
+  // chaining page -> slots -> lookahead.
   useEffect(() => {
     const fetchPageData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await api.getCallTypePage(config.username, config.callType);
-        setPageData(data);
+
+        const [pageResult, nextAvailableResult] = await Promise.allSettled([
+          api.getCallTypePage(config.username, config.callType),
+          api.getNextAvailableDate(config.username, config.callType),
+        ]);
+
+        if (pageResult.status === 'rejected') throw pageResult.reason;
+        setPageData(pageResult.value);
+
+        // A failed lookahead is not fatal: fall back to the current month and
+        // let the post-fetch check catch it.
+        if (nextAvailableResult.status === 'fulfilled') {
+          hasCheckedNextAvailableRef.current = true;
+          if (nextAvailableResult.value?.first_available_date) {
+            setFocusMonth(nextAvailableResult.value.first_available_date);
+          }
+        } else {
+          logger.error('[ZenibleBooking] Error fetching next available date:', nextAvailableResult.reason);
+        }
       } catch (err: any) {
         logger.error('[ZenibleBooking] Error fetching page data:', err);
         if (err.status === 404) {

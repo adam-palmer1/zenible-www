@@ -1,6 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
+/** Parse a YYYY-MM or YYYY-MM-DD string into the first of that month. */
+const parseMonth = (value?: string | null): Date | null => {
+  if (!value) return null;
+  const [year, month] = value.split('-').map(Number);
+  if (!year || !month) return null;
+  return new Date(year, month - 1, 1);
+};
+
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -32,20 +40,23 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
   maxDate,
   focusMonth,
 }) => {
+  // Start on focusMonth when the parent already knows it, so the first paint is
+  // the right month rather than today's month followed by a visible jump.
   const [currentMonth, setCurrentMonth] = useState(() => {
+    const initial = parseMonth(focusMonth);
+    if (initial) return initial;
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
   // Jump to the month the parent asks for (e.g. the first month with availability)
   React.useEffect(() => {
-    if (!focusMonth) return;
-    const [year, month] = focusMonth.split('-').map(Number);
-    if (!year || !month) return;
+    const target = parseMonth(focusMonth);
+    if (!target) return;
     setCurrentMonth((prev) =>
-      prev.getFullYear() === year && prev.getMonth() === month - 1
+      prev.getFullYear() === target.getFullYear() && prev.getMonth() === target.getMonth()
         ? prev
-        : new Date(year, month - 1, 1)
+        : target
     );
   }, [focusMonth]);
 
