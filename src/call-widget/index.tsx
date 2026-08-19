@@ -17,6 +17,9 @@ interface WidgetOptions {
   theme?: string;
   primaryColor?: string;
   apiBaseUrl?: string;
+  tracking?: string;
+  metadata?: Record<string, unknown>;
+  captureUrlParams?: boolean;
   onBookingComplete?: (result: any) => void;
   onError?: (err: any) => void;
 }
@@ -27,9 +30,84 @@ interface WidgetConfig {
   theme: string;
   primaryColor?: string;
   apiBaseUrl: string;
+  tracking?: string;
+  metadata?: Record<string, string>;
   onBookingComplete?: (result: any) => void;
   onError?: (err: any) => void;
 }
+
+// Campaign labels are stored in a VARCHAR(255) on the booking, so clamp here
+// rather than letting the API reject an otherwise-valid booking.
+const MAX_TRACKING_LENGTH = 255;
+
+// Mirrors the API's metadata bounds so an oversized map is trimmed here rather
+// than silently truncated server-side.
+const MAX_METADATA_KEYS = 20;
+const MAX_METADATA_KEY_LENGTH = 100;
+const MAX_METADATA_VALUE_LENGTH = 500;
+
+// Ad-platform click identifiers worth capturing alongside standard UTMs.
+const AUTO_CAPTURE_PARAMS = [
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+  'gclid', 'fbclid', 'msclkid', 'ttclid',
+];
+
+const normalizeTracking = (value?: string): string | undefined => {
+  if (!value) return undefined;
+  const trimmed = value.trim().slice(0, MAX_TRACKING_LENGTH);
+  return trimmed || undefined;
+};
+
+/** Clamp a metadata map to the API's limits, coercing values to strings. */
+const normalizeMetadata = (
+  value?: Record<string, unknown>
+): Record<string, string> | undefined => {
+  if (!value) return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(value).slice(0, MAX_METADATA_KEYS)) {
+    if (v === null || v === undefined) continue;
+    const key = String(k).trim().slice(0, MAX_METADATA_KEY_LENGTH);
+    if (!key) continue;
+    out[key] = String(v).trim().slice(0, MAX_METADATA_VALUE_LENGTH);
+  }
+  return Object.keys(out).length ? out : undefined;
+};
+
+/**
+ * Read UTM/click params off the *embedding page's* URL.
+ *
+ * This is what makes attribution work for an ad funnel: the visitor lands on
+ * the host's page with ?utm_source=..., and the booking has to carry that
+ * through without the host wiring anything up.
+ */
+const captureUrlParams = (): Record<string, string> => {
+  const out: Record<string, string> = {};
+  try {
+    const params = new URLSearchParams(window.location.search);
+    for (const name of AUTO_CAPTURE_PARAMS) {
+      const value = params.get(name);
+      if (value) out[name] = value;
+    }
+  } catch {
+    // Non-browser or restricted context — attribution is best-effort.
+  }
+  return out;
+};
+
+/** Parse the JSON in data-metadata, ignoring malformed values. */
+const parseMetadataAttribute = (raw?: string): Record<string, unknown> | undefined => {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    logger.error('[ZenibleBooking] data-metadata must be a JSON object');
+  } catch {
+    logger.error('[ZenibleBooking] data-metadata is not valid JSON; ignoring');
+  }
+  return undefined;
+};
 
 // Widget class for programmatic usage
 class ZenibleBookingWidget {
@@ -56,6 +134,15 @@ class ZenibleBookingWidget {
       theme: options.theme || el.dataset.theme || 'light',
       primaryColor: options.primaryColor || el.dataset.primaryColor,
       apiBaseUrl: options.apiBaseUrl || el.dataset.apiBaseUrl || this.detectApiBaseUrl(),
+      tracking: normalizeTracking(options.tracking || el.dataset.tracking),
+      // Auto-captured URL params first so an explicit metadata key always wins.
+      metadata: normalizeMetadata({
+        ...(options.captureUrlParams === false || el.dataset.captureUrlParams === 'false'
+          ? {}
+          : captureUrlParams()),
+        ...parseMetadataAttribute(el.dataset.metadata),
+        ...(options.metadata || {}),
+      }),
       onBookingComplete: options.onBookingComplete,
       onError: options.onError,
     };
@@ -111,6 +198,9 @@ class ZenibleBookingWidget {
           username: this.options.username,
           callType: this.options.callType,
           apiBaseUrl: this.options.apiBaseUrl,
+          tracking: this.options.tracking,
+          metadata: this.options.metadata,
+          primaryColor: this.options.primaryColor,
           onBookingComplete: this.options.onBookingComplete,
           onError: this.options.onError,
         }}

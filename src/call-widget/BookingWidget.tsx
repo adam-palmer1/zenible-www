@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import WidgetAPI from './api';
 import { safeHref } from '../utils/urls';
 import logger from '../utils/logger';
+import { widgetAccentStyle } from '../utils/bookingAccent';
 import BookingCalendar from './components/BookingCalendar';
 import TimeSlotPicker from './components/TimeSlotPicker';
 import BookingForm from './components/BookingForm';
@@ -154,6 +155,12 @@ interface BookingWidgetConfig {
   username: string;
   callType: string;
   apiBaseUrl?: string;
+  /** Campaign/source label from the embed's data-tracking attribute. */
+  tracking?: string;
+  /** Attribution map: data-metadata merged with auto-captured URL params. */
+  metadata?: Record<string, string>;
+  /** Explicit data-primary-color, if the embed set one. */
+  primaryColor?: string;
   onBookingComplete?: (result: any) => void;
   onError?: (err: any) => void;
 }
@@ -177,6 +184,14 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
   const [pageData, setPageData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Brand colour for this widget instance. An explicit data-primary-color on
+  // the embed wins; otherwise the call type's own colour brands it, falling
+  // back to the Zenible default inside accentStyle.
+  const accentVars = useMemo(
+    () => widgetAccentStyle(config.primaryColor || (pageData as any)?.call_type?.color),
+    [config.primaryColor, pageData]
+  );
 
   // Booking flow state
   const [step, setStep] = useState<'calendar' | 'form' | 'confirmed'>('calendar');
@@ -363,6 +378,8 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
         phone: formData.phone || null,
         country_code: formData.country_code || null,
         notes: formData.notes || null,
+        tracking: config.tracking || null,
+        metadata: config.metadata || null,
       };
 
       const result = await api.createBooking(config.username, config.callType, bookingData);
@@ -550,7 +567,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
   // Loading state
   if (loading) {
     return (
-      <div className="zenible-widget">
+      <div className="zenible-widget" style={accentVars}>
         <div className="zw-loading">
           <div className="zw-spinner" />
         </div>
@@ -561,7 +578,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
   // Error state
   if (error) {
     return (
-      <div className="zenible-widget">
+      <div className="zenible-widget" style={accentVars}>
         <div className="zw-error">
           <h2 className="zw-error-title">
             {error === 'Booking page not found' ? 'Page Not Found' : 'Unavailable'}
@@ -581,7 +598,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
   // Confirmed state
   if (step === 'confirmed' && bookingResult) {
     return (
-      <div className="zenible-widget">
+      <div className="zenible-widget" style={accentVars}>
         <div className="zw-confirmation">
           <div className="zw-success-icon">
             <CheckCircleIcon />
@@ -632,7 +649,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
   // Form step
   if (step === 'form') {
     return (
-      <div className="zenible-widget">
+      <div className="zenible-widget" style={accentVars}>
         {/* Header */}
         <div className="zw-header">
           {host && (
@@ -679,7 +696,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
 
   // Calendar step (default)
   return (
-    <div className="zenible-widget">
+    <div className="zenible-widget" style={accentVars}>
       {/* Header */}
       <div className="zw-header">
         {host && (

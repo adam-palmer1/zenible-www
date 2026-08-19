@@ -28,12 +28,24 @@ interface CallTypeItem {
 const DEFAULT_PRIMARY_COLOR = '#8e51ff';
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
+// Matches the VARCHAR(255) that stores the label on the booking.
+const MAX_TRACKING_LENGTH = 255;
+
+// The label lands inside a double-quoted HTML attribute in the snippet below,
+// so neutralise the characters that would otherwise break out of it.
+const escapeAttr = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Same for the single-quoted JS string in the programmatic example.
+const escapeJsString = (value: string) => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
 const EmbedSettings = ({ username }: { username: string }) => {
   const [callTypes, setCallTypes] = useState<CallTypeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCallType, setSelectedCallType] = useState('');
   const [theme, setTheme] = useState('light');
   const [primaryColor, setPrimaryColor] = useState(DEFAULT_PRIMARY_COLOR);
+  const [tracking, setTracking] = useState('');
   const [copied, setCopied] = useState(false);
   const callTypeModal = useModalState();
   const [callTypeSearch, setCallTypeSearch] = useState('');
@@ -70,12 +82,14 @@ const EmbedSettings = ({ username }: { username: string }) => {
   const isValidColor = HEX_COLOR_RE.test(normalizedColor);
   const hasCustomColor = isValidColor && normalizedColor !== DEFAULT_PRIMARY_COLOR;
 
+  const trimmedTracking = tracking.trim().slice(0, MAX_TRACKING_LENGTH);
+
   const embedCode = selectedCallType
     ? `<!-- Zenible Booking Widget -->
 <div
   data-zenible-booking
   data-username="${username}"
-  data-call-type="${selectedCallType}"${theme !== 'light' ? `\n  data-theme="${theme}"` : ''}${hasCustomColor ? `\n  data-primary-color="${normalizedColor}"` : ''}
+  data-call-type="${selectedCallType}"${theme !== 'light' ? `\n  data-theme="${theme}"` : ''}${hasCustomColor ? `\n  data-primary-color="${normalizedColor}"` : ''}${trimmedTracking ? `\n  data-tracking="${escapeAttr(trimmedTracking)}"` : ''}
 ></div>
 <script src="${widgetUrl}" async></script>`
     : '';
@@ -238,6 +252,31 @@ const EmbedSettings = ({ username }: { username: string }) => {
             </p>
           )}
         </div>
+
+        {/* Tracking Label */}
+        <div>
+          <label
+            htmlFor="embed-tracking"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+          >
+            Tracking Label <span className="font-normal text-gray-400">(optional)</span>
+          </label>
+          <input
+            id="embed-tracking"
+            type="text"
+            value={tracking}
+            onChange={(e) => setTracking(e.target.value.slice(0, MAX_TRACKING_LENGTH))}
+            placeholder="fb-mwa-angle1"
+            maxLength={MAX_TRACKING_LENGTH}
+            spellCheck={false}
+            className="w-full px-3 py-2 font-mono text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-zenible-primary focus:border-transparent"
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Saved against every booking made through this embed, so you can tell which page or ad
+            produced it. Use a different label per landing page or ad angle &mdash; e.g. a UTM value
+            or page name.
+          </p>
+        </div>
       </div>
 
       {/* Embed Code */}
@@ -338,6 +377,36 @@ const EmbedSettings = ({ username }: { username: string }) => {
                   <td className="py-1 pr-4">No</td>
                   <td className="py-1">Custom brand color (hex)</td>
                 </tr>
+                <tr>
+                  <td className="py-1 pr-4 font-mono text-xs">data-tracking</td>
+                  <td className="py-1 pr-4">No</td>
+                  <td className="py-1">
+                    Campaign/source label stored on each booking, e.g.{' '}
+                    <span className="font-mono text-xs">fb-mwa-angle1</span> (max{' '}
+                    {MAX_TRACKING_LENGTH} chars)
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-1 pr-4 font-mono text-xs">data-metadata</td>
+                  <td className="py-1 pr-4">No</td>
+                  <td className="py-1">
+                    JSON object of extra attribution values sent with the booking and to
+                    any webhook, e.g.{' '}
+                    <span className="font-mono text-xs">{'{"visitor_id":"v_123"}'}</span>{' '}
+                    (max 20 keys)
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-1 pr-4 font-mono text-xs">data-capture-url-params</td>
+                  <td className="py-1 pr-4">No</td>
+                  <td className="py-1">
+                    Set to <span className="font-mono text-xs">false</span> to stop the widget
+                    reading <span className="font-mono text-xs">utm_*</span>,{' '}
+                    <span className="font-mono text-xs">gclid</span> and{' '}
+                    <span className="font-mono text-xs">fbclid</span> from the page URL
+                    (captured automatically by default)
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -351,7 +420,7 @@ const EmbedSettings = ({ username }: { username: string }) => {
 const widget = new ZenibleBookingWidget('#container', {
   username: '${username}',
   callType: '${selectedCallType}',
-  theme: '${theme}',${hasCustomColor ? `\n  primaryColor: '${normalizedColor}',` : ''}
+  theme: '${theme}',${hasCustomColor ? `\n  primaryColor: '${normalizedColor}',` : ''}${trimmedTracking ? `\n  tracking: '${escapeJsString(trimmedTracking)}',` : ''}
   onBookingComplete: (booking) => {
     logger.debug('Booking created:', booking);
   },

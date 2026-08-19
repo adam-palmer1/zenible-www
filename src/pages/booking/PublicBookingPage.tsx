@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, GlobeAltIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import publicBookingAPI from '../../services/api/public/booking';
 import { safeHref } from '../../utils/urls';
+import { accentStyle } from '../../utils/bookingAccent';
 import logger from '../../utils/logger';
 import BookingCalendar from '../../components/booking/BookingCalendar';
 import TimeSlotPicker from '../../components/booking/TimeSlotPicker';
@@ -170,6 +171,29 @@ const formatFriendlyDate = (dateStr: string): string => {
 
 const PublicBookingPage: React.FC = () => {
   const { username, shortcode } = useParams<{ username: string; shortcode: string }>();
+  const [searchParams] = useSearchParams();
+
+  // Campaign label for ads pointing straight at the hosted booking page — the
+  // counterpart to the embed widget's data-tracking attribute. Clamped to the
+  // VARCHAR(255) the API stores it in.
+  const tracking = useMemo(() => {
+    const raw = searchParams.get('tracking');
+    return raw ? raw.trim().slice(0, 255) || null : null;
+  }, [searchParams]);
+
+  // Attribution map, mirroring the embed widget: UTM/click params off this
+  // page's own URL so an ad landing straight here is still attributable.
+  const metadata = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const name of [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'gclid', 'fbclid', 'msclkid', 'ttclid',
+    ]) {
+      const value = searchParams.get(name);
+      if (value) out[name] = value.trim().slice(0, 500);
+    }
+    return Object.keys(out).length ? out : null;
+  }, [searchParams]);
 
   // Page data state
   const [pageData, setPageData] = useState<BookingPageData | null>(null);
@@ -470,6 +494,8 @@ const PublicBookingPage: React.FC = () => {
         country_code: formData.country_code || null,
         phone: formData.phone || null,
         notes: formData.notes || null,
+        tracking,
+        metadata,
       };
 
       // Chargeable call types must be paid before the booking is created.
@@ -604,7 +630,7 @@ const PublicBookingPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zenible-primary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--booking-accent)]"></div>
       </div>
     );
   }
@@ -620,7 +646,7 @@ const PublicBookingPage: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
           <Link
             to={`/book/${username}`}
-            className="inline-flex items-center px-4 py-2 bg-zenible-primary text-white rounded-lg hover:bg-opacity-90 transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-[var(--booking-accent)] text-[var(--booking-accent-fg)] rounded-lg hover:bg-[var(--booking-accent-hover)] transition-colors"
           >
             Back to booking page
           </Link>
@@ -637,7 +663,7 @@ const PublicBookingPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center">
           <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircleIcon className="h-10 w-10 text-zenible-primary" />
+            <CheckCircleIcon className="h-10 w-10 text-[var(--booking-accent)]" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             Booking Confirmed!
@@ -668,7 +694,7 @@ const PublicBookingPage: React.FC = () => {
                   href={safeHref(bookingResult.meeting_link)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-zenible-primary hover:underline"
+                  className="text-[var(--booking-accent)] hover:underline"
                 >
                   Join Meeting
                 </a>
@@ -681,7 +707,7 @@ const PublicBookingPage: React.FC = () => {
               Need to cancel?{' '}
               <Link
                 to={`/booking/cancel/${bookingResult.cancel_token}`}
-                className="text-zenible-primary hover:underline"
+                className="text-[var(--booking-accent)] hover:underline"
               >
                 Cancel booking
               </Link>
@@ -693,7 +719,9 @@ const PublicBookingPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    // The call type's colour brands this page in place of the Zenible purple;
+    // accentStyle also supplies a legible foreground and a hover shade.
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900" style={accentStyle(call_type.color)}>
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -713,7 +741,7 @@ const PublicBookingPage: React.FC = () => {
                 className="w-12 h-12 rounded-full object-cover"
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-zenible-primary text-white flex items-center justify-center text-lg font-bold">
+              <div className="w-12 h-12 rounded-full bg-[var(--booking-accent)] text-[var(--booking-accent-fg)] flex items-center justify-center text-lg font-bold">
                 {host.name?.charAt(0)?.toUpperCase() || '?'}
               </div>
             )}
@@ -745,7 +773,7 @@ const PublicBookingPage: React.FC = () => {
           <div className="mt-4 relative inline-block">
             <button
               type="button"
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-zenible-primary hover:text-gray-900 dark:hover:text-white transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-[var(--booking-accent)] hover:text-gray-900 dark:hover:text-white transition-colors"
               onClick={() => {
                 setShowTimezoneSelector(!showTimezoneSelector);
                 setTimezoneSearch('');
@@ -760,7 +788,7 @@ const PublicBookingPage: React.FC = () => {
                 <div className="p-2 border-b border-gray-200 dark:border-gray-700">
                   <input
                     type="text"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-zenible-primary dark:bg-gray-700 dark:text-white"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--booking-accent)] dark:bg-gray-700 dark:text-white"
                     placeholder="Search city..."
                     value={timezoneSearch}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimezoneSearch(e.target.value)}
@@ -774,7 +802,7 @@ const PublicBookingPage: React.FC = () => {
                       type="button"
                       className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
                         selectedTimezone === tz.value
-                          ? 'bg-zenible-primary text-white hover:bg-zenible-primary'
+                          ? 'bg-[var(--booking-accent)] text-[var(--booking-accent-fg)] hover:bg-[var(--booking-accent-hover)]'
                           : 'text-gray-700 dark:text-gray-300'
                       }`}
                       onClick={() => {
@@ -827,7 +855,7 @@ const PublicBookingPage: React.FC = () => {
               {/* Time slots */}
               <div className="md:w-1/2 p-6">
                 {selectedDate && (
-                  <p className="text-sm font-semibold text-zenible-primary mb-2">
+                  <p className="text-sm font-semibold text-[var(--booking-accent)] mb-2">
                     {formatFriendlyDate(selectedDate)}
                   </p>
                 )}
@@ -889,7 +917,7 @@ const PublicBookingPage: React.FC = () => {
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-400 dark:text-gray-500">
             Powered by{' '}
-            <a href={import.meta.env.VITE_HOME_URL || '/'} className="hover:text-zenible-primary transition-colors">
+            <a href={import.meta.env.VITE_HOME_URL || '/'} className="hover:text-[var(--booking-accent)] transition-colors">
               Zenible
             </a>
           </p>

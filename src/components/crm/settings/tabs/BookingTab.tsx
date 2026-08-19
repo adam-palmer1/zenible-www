@@ -10,6 +10,7 @@ import CallTypesList from './booking/CallTypesList';
 import CalendarSourcesEditor from './booking/CalendarSourcesEditor';
 import RemindersEditor from './booking/RemindersEditor';
 import EmbedSettings from './booking/EmbedSettings';
+import WebhookSettings from './booking/WebhookSettings';
 
 interface BookingTabProps {
   onUnsavedChanges?: (hasChanges: boolean) => void;
@@ -73,13 +74,20 @@ const BookingTab: React.FC<BookingTabProps> = ({ onUnsavedChanges }) => {
     { id: 'reminders', label: 'Reminders' },
     { id: 'calendars', label: 'Calendar Sources' },
     { id: 'embed', label: 'Embed Widget' },
+    { id: 'webhooks', label: 'Webhooks' },
   ];
 
   return (
     <div className="space-y-6">
       {/* Section Navigation */}
       <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="-mb-px flex space-x-8">
+        {/* Tabs are whitespace-nowrap and already exceed the settings card's
+            width at this count, so the row scrolls inside its own container
+            rather than spilling outside the card. */}
+        <nav
+          className="-mb-px flex gap-x-6 overflow-x-auto scrollbar-hide"
+          aria-label="Booking settings sections"
+        >
           {sections.map((section) => (
             <button
               key={section.id}
@@ -157,6 +165,9 @@ const BookingTab: React.FC<BookingTabProps> = ({ onUnsavedChanges }) => {
         )}
         {activeSection === 'embed' && (
           <EmbedSettings username={user?.username ?? ''} />
+        )}
+        {activeSection === 'webhooks' && (
+          <WebhookSettings />
         )}
       </div>
     </div>

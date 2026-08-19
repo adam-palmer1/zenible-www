@@ -17,6 +17,7 @@ import DatePickerCalendar from '../shared/DatePickerCalendar';
 import { getAppointmentKey } from '../calendar/calendarUtils';
 import TimePickerInput from '../shared/TimePickerInput';
 import Dropdown from '../ui/dropdown/Dropdown';
+import AttendanceControl from './AttendanceControl';
 
 const DURATION_OPTIONS = [
   { value: 15, label: '15 min' },
@@ -320,6 +321,15 @@ const AppointmentsModal: React.FC<AppointmentsModalProps> = ({ isOpen, onClose, 
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {/* Attendance is only meaningful once the call has
+                              happened; marking it emits the completed/no_show
+                              webhooks. */}
+                          {date.getTime() < Date.now() && (
+                            <AttendanceControl
+                              appointmentId={appointment.id}
+                              value={(appointment as Record<string, unknown>).attendance_status as 'completed' | 'no_show' | null}
+                            />
+                          )}
                           <button
                             onClick={() => handleEdit(appointment)}
                             className="p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"

@@ -10,3 +10,9 @@ dist/
 .claude/
 Dockerfile
 .dockerignore
+# Build/test artifacts — never inputs to the production bundle.
+.env.production
+playwright-report/
+test-results/
+*.tsbuildinfo
+*.log

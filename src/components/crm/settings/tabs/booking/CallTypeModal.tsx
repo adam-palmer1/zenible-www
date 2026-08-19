@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
+import bookingRemindersAPI from '../../../../../services/api/crm/bookingReminders';
+import bookingSettingsAPI from '../../../../../services/api/crm/bookingSettings';
 import callTypesAPI from '../../../../../services/api/crm/callTypes';
 import currenciesAPI from '../../../../../services/api/crm/currencies';
 import paymentIntegrationsAPI from '../../../../../services/api/finance/paymentIntegrations';
@@ -53,6 +55,27 @@ const CONFERENCING_OPTIONS = [
 ];
 
 const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
+  // Per-call-type constraint overrides. null in a field means "inherit the
+  // global setting" — the API stores NULL and the merge in
+  // UserBookingSettings.get_effective_settings falls back accordingly.
+  const [overrides, setOverrides] = useState<Record<string, number | null>>({
+    min_booking_notice_hours: null,
+    max_booking_days_ahead: null,
+    buffer_before_minutes: null,
+    buffer_after_minutes: null,
+    daily_booking_limit: null,
+    weekly_booking_limit: null,
+  });
+  // The user's global booking settings, shown as the placeholder in each
+  // override field so it's obvious what the call type inherits.
+  const [globalSettings, setGlobalSettings] = useState<Record<string, any> | null>(null);
+  // True when the duration isn't one of the presets, so the minutes box shows.
+  const [customDuration, setCustomDuration] = useState(false);
+  // Reminder override: an empty list means this call type inherits the user's
+  // global reminders. Saving rules replaces them for this call type only.
+  const [reminderOverride, setReminderOverride] = useState<boolean>(false);
+  const [reminderRules, setReminderRules] = useState<any[]>([]);
+
   const [formData, setFormData] = useState<any>({
     name: '',
     shortcode: '',
@@ -90,7 +113,8 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
   // Helper functions to get display labels
   const getDurationLabel = (value: number) => {
     const opt = DURATION_OPTIONS.find((o) => o.value === value);
-    return opt ? opt.label : `${value} minutes`;
+    if (opt && !customDuration) return opt.label;
+    return value ? `Custom — ${value} minutes` : 'Custom';
   };
 
   const getCancellationLabel = (value: number) => {
@@ -147,9 +171,101 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
         });
       }
       setErrors({});
+      // A saved duration that isn't a preset means this call type already uses
+      // a custom value — keep the box open so it's editable, not hidden.
+      setCustomDuration(
+        !!callType && !DURATION_OPTIONS.some((o) => o.value === callType.duration_minutes)
+      );
       loadPaymentContext();
+      loadOverridesAndReminders();
+      loadGlobalSettings();
     }
   }, [isOpen, callType]);
+
+  /** Global booking settings, used only to label what each blank field inherits. */
+  const loadGlobalSettings = async () => {
+    try {
+      setGlobalSettings((await bookingSettingsAPI.get()) as Record<string, any>);
+    } catch (e) {
+      // Non-fatal: the fields still work, they just fall back to a generic hint.
+      logger.error('Failed to load global booking settings:', e);
+      setGlobalSettings(null);
+    }
+  };
+
+  /**
+   * Placeholder for an override field: the inherited global value.
+   *
+   * Limits are nullable globally, where "no value" means unlimited rather than
+   * zero — so those read "No limit" instead of an empty box.
+   */
+  const globalHint = (key: string, unlimited = false): string => {
+    if (!globalSettings) return 'Global';
+    const v = globalSettings[key];
+    if (v === null || v === undefined) return unlimited ? 'No limit' : 'Global';
+    return String(v);
+  };
+
+  /**
+   * Load this call type's constraint overrides and reminder override.
+   *
+   * Both are separate resources from the call type itself, and neither exists
+   * for a brand-new call type — so a 404 or empty result simply means
+   * "inherits the global settings".
+   */
+  const loadOverridesAndReminders = async () => {
+    if (!callType) {
+      setOverrides({
+    min_booking_notice_hours: null,
+    max_booking_days_ahead: null,
+    buffer_before_minutes: null,
+    buffer_after_minutes: null,
+    daily_booking_limit: null,
+    weekly_booking_limit: null,
+  });
+      setReminderOverride(false);
+      setReminderRules([]);
+      return;
+    }
+    try {
+      const o: any = await callTypesAPI.getOverrides(callType.id);
+      setOverrides({
+        min_booking_notice_hours: o?.min_booking_notice_hours ?? null,
+        max_booking_days_ahead: o?.max_booking_days_ahead ?? null,
+        buffer_before_minutes: o?.buffer_before_minutes ?? null,
+        buffer_after_minutes: o?.buffer_after_minutes ?? null,
+        daily_booking_limit: o?.daily_booking_limit ?? null,
+        weekly_booking_limit: o?.weekly_booking_limit ?? null,
+      });
+    } catch {
+      setOverrides({
+    min_booking_notice_hours: null,
+    max_booking_days_ahead: null,
+    buffer_before_minutes: null,
+    buffer_after_minutes: null,
+    daily_booking_limit: null,
+    weekly_booking_limit: null,
+  });
+    }
+    try {
+      const r: any = await bookingRemindersAPI.listForCallType(callType.id);
+      const items = r?.items || [];
+      setReminderRules(items);
+      setReminderOverride(items.length > 0);
+    } catch {
+      setReminderRules([]);
+      setReminderOverride(false);
+    }
+  };
+
+  const handleOverrideChange = (field: string, raw: string) => {
+    const trimmed = raw.trim();
+    setOverrides((prev) => ({
+      ...prev,
+      // Blank clears the override back to inheriting the global value.
+      [field]: trimmed === '' ? null : Math.max(0, parseInt(trimmed, 10) || 0),
+    }));
+  };
 
   // Fetch integration status + currencies whenever the modal opens, and prune
   // any previously-selected method whose integration is no longer enabled.
@@ -246,6 +362,14 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
       newErrors.shortcode = 'Shortcode must be lowercase letters, numbers, and hyphens only';
     }
 
+    // The custom-duration box may sit empty mid-edit; catch it before save.
+    const duration = parseInt(String(formData.duration_minutes), 10);
+    if (!duration || duration < 1) {
+      newErrors.duration_minutes = 'Enter a duration of at least 1 minute';
+    } else if (duration > 1440) {
+      newErrors.duration_minutes = 'Duration cannot exceed 24 hours';
+    }
+
     if (formData.conferencing_type === 'custom' && !formData.custom_meeting_link.trim()) {
       newErrors.custom_meeting_link = 'Meeting link is required for custom conferencing';
     }
@@ -284,7 +408,11 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
     try {
       // Normalize the chargeable fields into the API shape.
       const { price, payment_methods, ...rest } = formData;
-      const payload: any = { ...rest, is_chargeable: !!formData.is_chargeable };
+      const payload: any = {
+        ...rest,
+        duration_minutes: parseInt(String(formData.duration_minutes), 10),
+        is_chargeable: !!formData.is_chargeable,
+      };
       if (formData.is_chargeable) {
         payload.price_amount = parseFloat(formData.price);
         payload.currency_id = formData.currency_id;
@@ -307,6 +435,44 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
         saved = await callTypesAPI.create(payload);
         showSuccess('Call type created');
       }
+      // Constraints and reminders are separate resources; persist them against
+      // the saved id so they also work for a call type created just now.
+      const savedId = (saved as any)?.id || callType?.id;
+      if (savedId) {
+        try {
+          const anySet = Object.values(overrides).some((v) => v !== null);
+          if (anySet) {
+            await callTypesAPI.setOverrides(savedId, overrides);
+          } else {
+            // All blank => no override row at all, so the call type cleanly
+            // inherits every global setting.
+            await callTypesAPI.deleteOverrides(savedId).catch(() => {});
+          }
+        } catch (e) {
+          logger.error('Failed to save booking constraints:', e);
+          showError('Call type saved, but booking constraints could not be saved');
+        }
+
+        try {
+          if (reminderOverride && reminderRules.length > 0) {
+            await bookingRemindersAPI.replaceForCallType(
+              savedId,
+              reminderRules.map((r: any, i: number) => ({
+                slot: i + 1,
+                offset_hours: Number(r.offset_hours),
+                send_email: !!r.send_email,
+                send_sms: !!r.send_sms,
+              })),
+            );
+          } else {
+            await bookingRemindersAPI.clearForCallType(savedId).catch(() => {});
+          }
+        } catch (e) {
+          logger.error('Failed to save reminder override:', e);
+          showError('Call type saved, but reminder overrides could not be saved');
+        }
+      }
+
       onSave(saved);
     } catch (error) {
       showError((error as Error).message || 'Failed to save call type');
@@ -418,6 +584,39 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
                 <span className="text-gray-900 dark:text-white">{getDurationLabel(formData.duration_minutes)}</span>
                 <ChevronDownIcon className="h-5 w-5 text-gray-400" />
               </button>
+
+              {customDuration && (
+                <div className="mt-2">
+                  <label htmlFor="ct-custom-duration" className="sr-only">
+                    Duration in minutes
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="ct-custom-duration"
+                      type="number"
+                      min={1}
+                      max={1440}
+                      inputMode="numeric"
+                      autoFocus
+                      value={formData.duration_minutes ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.trim();
+                        // Allow the box to be empty mid-edit rather than
+                        // snapping to 1 on every keystroke.
+                        handleChange('duration_minutes', raw === '' ? '' : Math.min(1440, Math.max(1, parseInt(raw, 10) || 1)));
+                      }}
+                      placeholder="e.g. 75"
+                      className={`w-28 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white ${
+                        errors.duration_minutes ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                    />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">minutes</span>
+                  </div>
+                  {errors.duration_minutes && (
+                    <p className="mt-1 text-sm text-red-500">{errors.duration_minutes}</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Max Display Slots Per Day */}
@@ -657,6 +856,142 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
               )}
             </div>
 
+
+            {/* Booking constraints — per call type, overriding the global
+                Booking Settings. Blank means "use the global value". */}
+            <div className="pt-5 mt-5 border-t border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                Booking constraints
+              </h4>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Each box shows the value inherited from your global Booking Settings. Type a
+                number to override it for this call type only; clear the box to go back to the
+                global value.
+              </p>
+
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  { key: 'min_booking_notice_hours', label: 'Minimum notice', unit: 'hours' },
+                  { key: 'max_booking_days_ahead', label: 'Book no further than', unit: 'days ahead' },
+                  { key: 'buffer_before_minutes', label: 'Buffer before', unit: 'minutes' },
+                  { key: 'buffer_after_minutes', label: 'Buffer after', unit: 'minutes' },
+                  { key: 'daily_booking_limit', label: 'Daily limit', unit: 'bookings/day', unlimited: true },
+                  { key: 'weekly_booking_limit', label: 'Weekly limit', unit: 'bookings/week', unlimited: true },
+                ].map((f) => (
+                  <div key={f.key}>
+                    <label
+                      htmlFor={`ct-${f.key}`}
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
+                      {f.label}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id={`ct-${f.key}`}
+                        type="number"
+                        min={0}
+                        inputMode="numeric"
+                        value={overrides[f.key] ?? ''}
+                        onChange={(e) => handleOverrideChange(f.key, e.target.value)}
+                        placeholder={globalHint(f.key, (f as any).unlimited)}
+                        className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{f.unit}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Reminder override — all or nothing, matching the server: a
+                call type either has its own reminder set or inherits. */}
+            <div className="pt-5 mt-5 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Reminders
+                  </h4>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {reminderOverride
+                      ? 'These reminders replace your global ones for this call type.'
+                      : 'Using your global reminder settings.'}
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={reminderOverride}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setReminderOverride(on);
+                      if (on && reminderRules.length === 0) {
+                        setReminderRules([{ offset_hours: 24, send_email: true, send_sms: false }]);
+                      }
+                    }}
+                    className="rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Use custom</span>
+                </label>
+              </div>
+
+              {reminderOverride && (
+                <div className="mt-3 space-y-2">
+                  {reminderRules.map((r: any, i: number) => (
+                    <div key={i} className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        aria-label={`Reminder ${i + 1} hours before`}
+                        value={r.offset_hours ?? ''}
+                        onChange={(e) => {
+                          const next = [...reminderRules];
+                          next[i] = { ...next[i], offset_hours: Math.max(1, parseInt(e.target.value, 10) || 1) };
+                          setReminderRules(next);
+                        }}
+                        className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">hours before</span>
+                      <label className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!r.send_email}
+                          onChange={(e) => {
+                            const next = [...reminderRules];
+                            next[i] = { ...next[i], send_email: e.target.checked };
+                            setReminderRules(next);
+                          }}
+                          className="rounded border-gray-300 text-zenible-primary focus:ring-zenible-primary"
+                        />
+                        Email
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setReminderRules(reminderRules.filter((_, x) => x !== i))}
+                        className="ml-auto px-2 py-1 text-xs text-gray-500 hover:text-red-600 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  {reminderRules.length < 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setReminderRules([...reminderRules, { offset_hours: 1, send_email: true, send_sms: false }])}
+                      className="text-sm text-zenible-primary hover:underline"
+                    >
+                      + Add reminder
+                    </button>
+                  )}
+                  {reminderRules.length === 0 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      No reminders set — this call type will send none. Untick “Use custom” to go
+                      back to your global reminders.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Footer */}
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
@@ -702,16 +1037,31 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
                     key={opt.value}
                     type="button"
                     onClick={() => {
+                      setCustomDuration(false);
                       handleChange('duration_minutes', opt.value);
                       setShowDurationPicker(false);
                     }}
                     className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-lg ${
-                      formData.duration_minutes === opt.value ? 'bg-zenible-primary/10 text-zenible-primary' : 'text-gray-900 dark:text-white'
+                      !customDuration && formData.duration_minutes === opt.value
+                        ? 'bg-zenible-primary/10 text-zenible-primary'
+                        : 'text-gray-900 dark:text-white'
                     }`}
                   >
                     {opt.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomDuration(true);
+                    setShowDurationPicker(false);
+                  }}
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors rounded-lg ${
+                    customDuration ? 'bg-zenible-primary/10 text-zenible-primary' : 'text-gray-900 dark:text-white'
+                  }`}
+                >
+                  Custom…
+                </button>
               </div>
             </div>
           </div>
