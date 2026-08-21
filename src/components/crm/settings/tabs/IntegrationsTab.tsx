@@ -11,6 +11,7 @@ import paymentIntegrationsAPI from '../../../../services/api/finance/paymentInte
 import type { OAuthUrlResponse } from '../../../../types/auth';
 import type { DashboardLinkResponse, PayPalConnectResponse } from '../../../../types/finance';
 import ConfirmationModal from '../../../common/ConfirmationModal';
+import ZoomConnectCard from './integrations/ZoomConnectCard';
 
 // Stripe logo SVG component
 const StripeLogo = ({ className = 'h-6 w-6' }) => (
@@ -997,6 +998,22 @@ const IntegrationsTab = () => {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Video Conferencing — separate from payments: these power the
+          auto-generated meeting link on Zoom-configured call types. */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          Video Conferencing
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Connect Zoom so call types set to “Zoom” create a meeting on your account
+          automatically for every booking.
+        </p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ZoomConnectCard onStatusChange={handleStatusChange} />
+        </div>
       </div>
     </div>
   );
