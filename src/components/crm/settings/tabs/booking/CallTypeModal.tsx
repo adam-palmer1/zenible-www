@@ -3,6 +3,7 @@ import { XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
 import bookingRemindersAPI from '../../../../../services/api/crm/bookingReminders';
 import bookingSettingsAPI from '../../../../../services/api/crm/bookingSettings';
+import { BOOKING_FIELD_KEYS, BOOKING_FIELD_LABELS, resolveBookingFields } from '../../../../../utils/bookingFields';
 import callTypesAPI from '../../../../../services/api/crm/callTypes';
 import currenciesAPI from '../../../../../services/api/crm/currencies';
 import paymentIntegrationsAPI from '../../../../../services/api/finance/paymentIntegrations';
@@ -87,6 +88,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
     custom_meeting_link: '',
     max_display_slots_per_day: null,
     min_cancellation_notice_hours: 24,
+    booking_fields: resolveBookingFields(null),
     is_active: true,
     is_chargeable: false,
     price: '',
@@ -142,6 +144,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
           custom_meeting_link: callType.custom_meeting_link || '',
           max_display_slots_per_day: callType.max_display_slots_per_day || null,
           min_cancellation_notice_hours: callType.min_cancellation_notice_hours ?? 24,
+          booking_fields: resolveBookingFields(callType.booking_fields),
           is_active: callType.is_active ?? true,
           is_chargeable: callType.is_chargeable ?? false,
           price: callType.price_amount != null ? String(callType.price_amount) : '',
@@ -163,6 +166,7 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
           custom_meeting_link: '',
           max_display_slots_per_day: null,
           min_cancellation_notice_hours: 24,
+          booking_fields: resolveBookingFields(null),
           is_active: true,
           is_chargeable: false,
           price: '',
@@ -856,6 +860,60 @@ const CallTypeModal = ({ isOpen, onClose, onSave, callType }: any) => {
               )}
             </div>
 
+
+            {/* Booking form — which optional fields the public form collects.
+                Name and email are always collected and always required. */}
+            <div className="pt-5 mt-5 border-t border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                Booking form
+              </h4>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Choose what guests are asked for. Name and email are always collected and
+                required — they identify the guest and receive the confirmation.
+              </p>
+
+              <div className="mt-3 space-y-2">
+                {BOOKING_FIELD_KEYS.map((key) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-4 py-1.5"
+                  >
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {BOOKING_FIELD_LABELS[key]}
+                    </span>
+                    <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden shrink-0">
+                      {[
+                        { value: 'hidden', label: "Don't ask" },
+                        { value: 'optional', label: 'Optional' },
+                        { value: 'required', label: 'Required' },
+                      ].map((opt) => {
+                        const active = (formData.booking_fields?.[key] ?? 'optional') === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() =>
+                              handleChange('booking_fields', {
+                                ...formData.booking_fields,
+                                [key]: opt.value,
+                              })
+                            }
+                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                              active
+                                ? 'bg-zenible-primary text-white'
+                                : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {/* Booking constraints — per call type, overriding the global
                 Booking Settings. Blank means "use the global value". */}

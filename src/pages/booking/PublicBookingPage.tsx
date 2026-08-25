@@ -66,6 +66,8 @@ interface BookingFormData {
   email: string;
   country_code: string;
   phone?: string;
+  /** Collected only when the call type's booking_fields enable it. */
+  company?: string;
   notes?: string;
 }
 
@@ -493,6 +495,7 @@ const PublicBookingPage: React.FC = () => {
         email: formData.email,
         country_code: formData.country_code || null,
         phone: formData.phone || null,
+        company: formData.company || null,
         notes: formData.notes || null,
         tracking,
         metadata,
@@ -886,6 +889,7 @@ const PublicBookingPage: React.FC = () => {
                 displayTime={selectedTimeDisplay ?? undefined}
                 duration={call_type.duration_minutes}
                 timezone={timezoneLabel}
+                bookingFields={(call_type as any).booking_fields}
                 onSubmit={handleSubmit}
                 onBack={handleBack}
                 loading={submitting}

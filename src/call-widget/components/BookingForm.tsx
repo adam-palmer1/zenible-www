@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { resolveBookingFields, isShown, isRequired, BOOKING_FIELD_LABELS } from '../../utils/bookingFields';
 
 // Inline SVG icon
 const ArrowLeftIcon: React.FC = () => (
@@ -54,6 +55,7 @@ interface BookingFormData {
   email: string;
   country_code: string;
   phone: string;
+  company: string;
   notes: string;
 }
 
@@ -63,6 +65,8 @@ interface BookingFormProps {
   displayTime?: string | null;
   duration?: number;
   timezone?: string;
+  /** Field config from the call type; omitted falls back to defaults. */
+  bookingFields?: Record<string, string> | null;
   onSubmit: (formData: BookingFormData) => void;
   onBack: () => void;
   loading?: boolean;
@@ -77,14 +81,18 @@ const BookingForm: React.FC<BookingFormProps> = ({
   timezone,
   onSubmit,
   onBack,
+  bookingFields,
   loading = false,
   error,
 }) => {
+  // What this call type collects; the API re-validates on submit.
+  const fields = resolveBookingFields(bookingFields);
   const [formData, setFormData] = useState<BookingFormData>({
     name: '',
     email: '',
     country_code: getDefaultCountryCode(),
     phone: '',
+    company: '',
     notes: '',
   });
   const [errors, setErrors] = useState<Record<string, string | null>>({});
@@ -108,6 +116,12 @@ const BookingForm: React.FC<BookingFormProps> = ({
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
+
+    (['phone', 'company', 'notes'] as const).forEach((key) => {
+      if (isRequired(fields[key]) && !String(formData[key] ?? '').trim()) {
+        newErrors[key] = `${BOOKING_FIELD_LABELS[key]} is required`;
+      }
+    });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -184,8 +198,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
           {errors.email && <span className="zw-error-text">{errors.email}</span>}
         </div>
 
+        {isShown(fields.phone) && (
         <div className="zw-form-group">
-          <label className="zw-label">Phone Number (optional)</label>
+          <label className="zw-label">Phone Number {isRequired(fields.phone) ? '*' : '(optional)'}</label>
           <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '8px' }}>
             <input
               type="tel"
@@ -204,19 +219,38 @@ const BookingForm: React.FC<BookingFormProps> = ({
               disabled={loading}
             />
           </div>
+          {errors.phone && <span className="zw-error-text">{errors.phone}</span>}
         </div>
+        )}
 
+        {isShown(fields.company) && (
         <div className="zw-form-group">
-          <label className="zw-label">Additional Notes (optional)</label>
+          <label className="zw-label">Company {isRequired(fields.company) ? '*' : '(optional)'}</label>
+          <input
+            type="text"
+            value={formData.company}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('company', e.target.value)}
+            placeholder="Your company name"
+            className={`zw-input ${errors.company ? 'error' : ''}`}
+            disabled={loading}
+          />
+          {errors.company && <span className="zw-error-text">{errors.company}</span>}
+        </div>
+        )}
+
+        {isShown(fields.notes) && (
+        <div className="zw-form-group">
+          <label className="zw-label">Additional Notes {isRequired(fields.notes) ? '*' : '(optional)'}</label>
           <textarea
             value={formData.notes}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleChange('notes', e.target.value)}
             placeholder="Any additional information..."
-            className="zw-textarea"
+            className={`zw-textarea ${errors.notes ? 'error' : ''}`}
             disabled={loading}
             rows={3}
           />
         </div>
+        )}
 
         <button
           type="submit"

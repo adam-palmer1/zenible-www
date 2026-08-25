@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeftIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { resolveBookingFields, isShown, isRequired, BOOKING_FIELD_LABELS } from '../../utils/bookingFields';
 
 // Map region code from browser locale to dial code
 const REGION_DIAL_CODES: Record<string, string> = {
@@ -29,6 +30,7 @@ interface BookingFormData {
   email: string;
   country_code: string;
   phone: string;
+  company: string;
   notes: string;
 }
 
@@ -38,6 +40,8 @@ interface BookingFormProps {
   displayTime?: string;
   duration: number;
   timezone?: string;
+  /** Field config from the call type; omitted falls back to defaults. */
+  bookingFields?: Record<string, string> | null;
   onSubmit: (formData: BookingFormData) => void;
   onBack: () => void;
   loading?: boolean;
@@ -49,15 +53,20 @@ const BookingForm: React.FC<BookingFormProps> = ({
   displayTime,
   duration,
   timezone,
+  bookingFields,
   onSubmit,
   onBack,
   loading = false,
 }) => {
+  // What this call type collects. The API re-validates on submit; this only
+  // drives rendering and inline errors.
+  const fields = resolveBookingFields(bookingFields);
   const [formData, setFormData] = useState<BookingFormData>({
     name: '',
     email: '',
     country_code: getDefaultCountryCode(),
     phone: '',
+    company: '',
     notes: '',
   });
   const [errors, setErrors] = useState<Record<string, string | null>>({});
@@ -81,6 +90,12 @@ const BookingForm: React.FC<BookingFormProps> = ({
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email';
     }
+
+    (['phone', 'company', 'notes'] as const).forEach((key) => {
+      if (isRequired(fields[key]) && !String(formData[key] ?? '').trim()) {
+        newErrors[key] = `${BOOKING_FIELD_LABELS[key]} is required`;
+      }
+    });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -189,9 +204,10 @@ const BookingForm: React.FC<BookingFormProps> = ({
           )}
         </div>
 
+        {isShown(fields.phone) && (
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Phone (optional)
+            Phone {isRequired(fields.phone) ? '*' : '(optional)'}
           </label>
           <div className="grid gap-2" style={{ gridTemplateColumns: '90px 1fr' }}>
             <input
@@ -211,11 +227,38 @@ const BookingForm: React.FC<BookingFormProps> = ({
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
+          {errors.phone && (
+            <p className="mt-1 text-sm text-red-500">{errors.phone}</p>
+          )}
         </div>
+        )}
 
+        {isShown(fields.company) && (
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Notes (optional)
+            Company {isRequired(fields.company) ? '*' : '(optional)'}
+          </label>
+          <input
+            type="text"
+            value={formData.company}
+            onChange={(e) => handleChange('company', e.target.value)}
+            maxLength={255}
+            placeholder="Your company name"
+            className={`
+              w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white
+              ${errors.company ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}
+            `}
+          />
+          {errors.company && (
+            <p className="mt-1 text-sm text-red-500">{errors.company}</p>
+          )}
+        </div>
+        )}
+
+        {isShown(fields.notes) && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Notes {isRequired(fields.notes) ? '*' : '(optional)'}
           </label>
           <textarea
             value={formData.notes}
@@ -223,9 +266,16 @@ const BookingForm: React.FC<BookingFormProps> = ({
             maxLength={2000}
             rows={3}
             placeholder="Anything you'd like to share before the call..."
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            className={`
+              w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white
+              ${errors.notes ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}
+            `}
           />
+          {errors.notes && (
+            <p className="mt-1 text-sm text-red-500">{errors.notes}</p>
+          )}
         </div>
+        )}
 
         <button
           type="submit"

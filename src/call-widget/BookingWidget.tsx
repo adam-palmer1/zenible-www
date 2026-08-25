@@ -172,6 +172,7 @@ interface BookingWidgetProps {
 interface BookingFormData {
   name: string;
   email: string;
+  company?: string;
   country_code?: string;
   phone?: string;
   notes?: string;
@@ -377,6 +378,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
         email: formData.email,
         phone: formData.phone || null,
         country_code: formData.country_code || null,
+        company: (formData as any).company || null,
         notes: formData.notes || null,
         tracking: config.tracking || null,
         metadata: config.metadata || null,
@@ -677,6 +679,7 @@ const BookingWidget: React.FC<BookingWidgetProps> = ({ config }) => {
           date={selectedDate!}
           time={selectedTime!}
           displayTime={selectedTimeDisplay}
+          bookingFields={(pageData as any)?.call_type?.booking_fields}
           duration={call_type?.duration_minutes}
           timezone={timezoneLabel}
           onSubmit={handleSubmit}
