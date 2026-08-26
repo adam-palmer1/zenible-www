@@ -12,6 +12,7 @@ import type { OAuthUrlResponse } from '../../../../types/auth';
 import type { DashboardLinkResponse, PayPalConnectResponse } from '../../../../types/finance';
 import ConfirmationModal from '../../../common/ConfirmationModal';
 import ZoomConnectCard from './integrations/ZoomConnectCard';
+import GatewaySyncCard from './integrations/GatewaySyncCard';
 
 // Stripe logo SVG component
 const StripeLogo = ({ className = 'h-6 w-6' }) => (
@@ -998,6 +999,11 @@ const IntegrationsTab = () => {
             </p>
           </div>
         )}
+
+        {/* Sits under the gateways: it only means anything once one is connected. */}
+        <div className="mt-4">
+          <GatewaySyncCard />
+        </div>
       </div>
 
       {/* Video Conferencing — separate from payments: these power the
