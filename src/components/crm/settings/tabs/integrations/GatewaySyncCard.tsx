@@ -259,11 +259,25 @@ const GatewaySyncCard: React.FC = () => {
             </p>
           )}
 
-          {status && status.needs_review > 0 && (
-            <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
-              {status.needs_review} transaction{status.needs_review === 1 ? '' : 's'}{' '}
-              need attention before {status.needs_review === 1 ? 'it counts' : 'they count'}{' '}
-              towards your figures.
+          {/* Two different situations, and saying "needs attention" for both
+              misleads: an attributed-or-not payment already counts, whereas an
+              entry with no payment behind it does not. */}
+          {status && status.needs_attribution > 0 && (
+            <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+              {status.needs_attribution} synced payment
+              {status.needs_attribution === 1 ? ' is' : 's are'} recorded and counted, but
+              we could not tell who paid — assign{' '}
+              {status.needs_attribution === 1 ? 'it' : 'them'} to a contact when you get
+              a chance.
+            </p>
+          )}
+
+          {status && status.unrecorded > 0 && (
+            <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+              {status.unrecorded} transaction{status.unrecorded === 1 ? '' : 's'}{' '}
+              {status.unrecorded === 1 ? 'was' : 'were'} not recorded and{' '}
+              {status.unrecorded === 1 ? 'is' : 'are'} not in your figures — refunds and
+              anything we could not classify need a decision.
             </p>
           )}
 

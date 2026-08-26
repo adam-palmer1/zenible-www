@@ -32,6 +32,10 @@ export interface GatewaySyncStatus {
   needs_review: number;
   pending: number;
   failed: number;
+  /** Payment exists and counts, but the payer is unconfirmed. */
+  needs_attribution: number;
+  /** Nothing was created; this money is not in the figures. */
+  unrecorded: number;
 }
 
 export interface MaterialiseSummary {
