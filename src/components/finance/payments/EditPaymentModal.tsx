@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, CreditCard, Loader2, User, DollarSign, Calendar, FileText, Pencil, Receipt, Plus, Unlink, ChevronDown, Building2, Banknote, Wallet, CircleDollarSign } from 'lucide-react';
 import { usePayments } from '../../../contexts/PaymentsContext';
+import ContactSelectorModal from '../../calendar/ContactSelectorModal';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { formatCurrency } from '../../../utils/currency';
@@ -34,6 +35,9 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
   const { showSuccess, showError } = useNotification();
   useEscapeKey(onClose, isOpen);
   const methodDropdownRef = useRef<HTMLDivElement>(null);
+  const contactButtonRef = useRef<HTMLButtonElement>(null);
+  const [showContactSelector, setShowContactSelector] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [unlinkingExpenseId, setUnlinkingExpenseId] = useState<string | null>(null);
@@ -133,6 +137,7 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
         paymentDate = payment.created_at.split('T')[0];
       }
 
+      setSelectedContactId(payment.contact_id || payment.contact?.id || null);
       setFormData({
         customer_name: customerName,
         customer_email: customerEmail,
@@ -165,6 +170,28 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleContactSelect = (contact: {
+    id: string;
+    first_name?: string;
+    last_name?: string;
+    business_name?: string;
+    email?: string;
+  } | null) => {
+    setShowContactSelector(false);
+    if (!contact) return;
+    const name =
+      [contact.first_name, contact.last_name].filter(Boolean).join(' ')
+      || contact.business_name
+      || contact.email
+      || '';
+    setSelectedContactId(contact.id);
+    setFormData((prev) => ({
+      ...prev,
+      customer_name: name,
+      customer_email: contact.email || '',
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -178,13 +205,19 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
       setSubmitting(true);
 
       // Send null explicitly for empty fields to clear them on the backend
-      const paymentData = {
+      const originalContactId = payment.contact_id || payment.contact?.id || null;
+      const paymentData: Record<string, unknown> = {
         amount: parseFloat(formData.amount as string),
         payment_method: formData.payment_method || null,
         payment_date: formData.payment_date || null,
         reference_number: formData.reference_number || null,
         notes: formData.notes || null,
       };
+      // Reassignment clears invoice allocations on the backend, so only send it
+      // when the user actually picked someone else.
+      if (selectedContactId && selectedContactId !== originalContactId) {
+        paymentData.contact_id = selectedContactId;
+      }
 
       await updatePayment(payment.id, paymentData);
       showSuccess('Payment updated successfully');
@@ -262,20 +295,31 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
 
         {/* Content */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4" autoComplete="off">
-          {/* Customer Name and Email (Read-only) */}
+          {/* Customer — reassignable, e.g. when a synced payment was matched
+              to the wrong contact or auto-created one. */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 <User className="h-4 w-4" />
-                Customer Name
+                Customer
               </label>
-              <input
-                type="text"
-                value={formData.customer_name}
-                disabled
-                autoComplete="off"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400"
-              />
+              <button
+                type="button"
+                ref={contactButtonRef}
+                onClick={() => setShowContactSelector(true)}
+                className="w-full px-3 py-2 text-left border border-gray-300 rounded-md bg-white text-gray-900 hover:border-zenible-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                {formData.customer_name || 'Select a contact'}
+              </button>
+              {showContactSelector && (
+                <ContactSelectorModal
+                  isOpen
+                  onClose={() => setShowContactSelector(false)}
+                  onSelect={handleContactSelect}
+                  selectedContactId={selectedContactId}
+                  anchorRef={contactButtonRef as React.RefObject<HTMLElement>}
+                />
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -291,7 +335,8 @@ const EditPaymentModal: React.FC<EditPaymentModalProps> = ({ isOpen, onClose, pa
             </div>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
-            Customer cannot be changed. Delete and create a new payment if needed.
+            Changing the customer removes any invoice allocations on this payment,
+            since an invoice can only be paid by its own customer.
           </p>
 
           {/* Amount and Currency */}
