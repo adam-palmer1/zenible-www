@@ -263,35 +263,36 @@ const GatewaySyncCard: React.FC = () => {
 
           {/* Two different situations, and saying "needs attention" for both
               misleads: an attributed-or-not payment already counts, whereas an
-              entry with no payment behind it does not. */}
+              entry with no payment behind it does not. Both live in the same
+              screen, so the button sits with them rather than floating above. */}
           {status && status.needs_review > 0 && (
-            <button
-              type="button"
-              onClick={() => setReviewOpen(true)}
-              className="mt-3 text-sm font-medium text-zenible-primary hover:underline"
-            >
-              Review {status.needs_review} transaction
-              {status.needs_review === 1 ? '' : 's'}
-            </button>
-          )}
+            <div className="mt-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              {status.needs_attribution > 0 && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {status.needs_attribution} synced payment
+                  {status.needs_attribution === 1 ? ' is' : 's are'} recorded and counted,
+                  but we could not tell who paid.
+                </p>
+              )}
 
-          {status && status.needs_attribution > 0 && (
-            <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-              {status.needs_attribution} synced payment
-              {status.needs_attribution === 1 ? ' is' : 's are'} recorded and counted, but
-              we could not tell who paid — assign{' '}
-              {status.needs_attribution === 1 ? 'it' : 'them'} to a contact when you get
-              a chance.
-            </p>
-          )}
+              {status.unrecorded > 0 && (
+                <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+                  {status.unrecorded} transaction{status.unrecorded === 1 ? '' : 's'}{' '}
+                  {status.unrecorded === 1 ? 'was' : 'were'} not recorded and{' '}
+                  {status.unrecorded === 1 ? 'is' : 'are'} not in your figures — refunds
+                  and anything we could not classify need a decision.
+                </p>
+              )}
 
-          {status && status.unrecorded > 0 && (
-            <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
-              {status.unrecorded} transaction{status.unrecorded === 1 ? '' : 's'}{' '}
-              {status.unrecorded === 1 ? 'was' : 'were'} not recorded and{' '}
-              {status.unrecorded === 1 ? 'is' : 'are'} not in your figures — refunds and
-              anything we could not classify need a decision.
-            </p>
+              <button
+                type="button"
+                onClick={() => setReviewOpen(true)}
+                className="mt-3 inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-zenible-primary text-white hover:opacity-90"
+              >
+                Review {status.needs_review} transaction
+                {status.needs_review === 1 ? '' : 's'}
+              </button>
+            </div>
           )}
 
           {/* Manual run */}
