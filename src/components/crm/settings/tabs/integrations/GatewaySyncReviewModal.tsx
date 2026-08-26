@@ -6,6 +6,7 @@ import gatewaySyncAPI, {
 import ContactSelectorModal from '../../../../calendar/ContactSelectorModal';
 import logger from '../../../../../utils/logger';
 import { useEscapeKey } from '../../../../../hooks/useEscapeKey';
+import ConfirmationModal from '../../../../common/ConfirmationModal';
 
 interface Props {
   isOpen: boolean;
@@ -40,6 +41,7 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
 
   // Which row's contact picker is open, and the button it hangs off.
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  const [confirmIgnore, setConfirmIgnore] = useState<GatewayLedgerEntry | null>(null);
   const anchorRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEscapeKey(onClose, isOpen && !pickerFor);
@@ -88,6 +90,15 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
     } finally {
       setBusyId(null);
     }
+  };
+
+  const requestIgnore = (entry: GatewayLedgerEntry) => {
+    if (entry.crm_payment_id) {
+      // Nothing is lost: the payment stays and keeps counting.
+      handleIgnore(entry);
+      return;
+    }
+    setConfirmIgnore(entry);
   };
 
   const handleIgnore = async (entry: GatewayLedgerEntry) => {
@@ -221,7 +232,7 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleIgnore(entry)}
+                            onClick={() => requestIgnore(entry)}
                             disabled={busy}
                             className="ml-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
                           >
@@ -275,6 +286,33 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
           )}
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={!!confirmIgnore}
+        onClose={() => setConfirmIgnore(null)}
+        onConfirm={() => {
+          const entry = confirmIgnore;
+          setConfirmIgnore(null);
+          if (entry) handleIgnore(entry);
+        }}
+        title="Ignore this transaction?"
+        message={
+          confirmIgnore ? (
+            <>
+              No payment was recorded for{' '}
+              <strong>
+                {formatMoney(confirmIgnore.gross_amount, confirmIgnore.currency_code)}
+              </strong>{' '}
+              on {formatDate(confirmIgnore.occurred_at)}, so this money is not in your
+              figures. Ignoring it means it never will be, and this cannot be undone from
+              here.
+            </>
+          ) : ''
+        }
+        confirmText="Ignore it"
+        cancelText="Keep for review"
+        confirmColor="red"
+      />
     </div>
   );
 };
