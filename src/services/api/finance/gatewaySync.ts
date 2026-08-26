@@ -36,6 +36,8 @@ export interface GatewaySyncStatus {
   needs_attribution: number;
   /** Nothing was created; this money is not in the figures. */
   unrecorded: number;
+  /** Deliberately set aside, and restorable. */
+  ignored: number;
 }
 
 export interface MaterialiseSummary {
@@ -143,6 +145,13 @@ class GatewaySyncAPI {
     return request<GatewayLedgerEntry>(`${this.base}/entries/${entryId}/attribute`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  }
+
+  /** Undo an ignore. The entry is reprocessed, so it lands wherever it belongs. */
+  async restore(entryId: string): Promise<GatewayLedgerEntry> {
+    return request<GatewayLedgerEntry>(`${this.base}/entries/${entryId}/restore`, {
+      method: 'POST',
     });
   }
 

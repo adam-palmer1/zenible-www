@@ -42,16 +42,20 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
   // Which row's contact picker is open, and the button it hangs off.
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [confirmIgnore, setConfirmIgnore] = useState<GatewayLedgerEntry | null>(null);
+  const [view, setView] = useState<'needs_review' | 'ignored'>('needs_review');
   const anchorRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEscapeKey(onClose, isOpen && !pickerFor);
 
-  const load = useCallback(async (targetPage: number) => {
+  const load = useCallback(async (
+    targetPage: number,
+    status: 'needs_review' | 'ignored' = 'needs_review'
+  ) => {
     try {
       setLoading(true);
       setError(null);
       const data = await gatewaySyncAPI.listEntries({
-        status: 'needs_review',
+        status,
         page: targetPage,
         per_page: PER_PAGE,
       });
@@ -68,8 +72,8 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
   }, []);
 
   useEffect(() => {
-    if (isOpen) load(1);
-  }, [isOpen, load]);
+    if (isOpen) load(1, view);
+  }, [isOpen, load, view]);
 
   const removeRow = (entryId: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== entryId));
@@ -99,6 +103,20 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
       return;
     }
     setConfirmIgnore(entry);
+  };
+
+  const handleRestore = async (entry: GatewayLedgerEntry) => {
+    try {
+      setBusyId(entry.id);
+      setError(null);
+      await gatewaySyncAPI.restore(entry.id);
+      removeRow(entry.id);
+    } catch (err) {
+      logger.error('Failed to restore entry:', err);
+      setError('Could not restore that transaction.');
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const handleIgnore = async (entry: GatewayLedgerEntry) => {
@@ -142,6 +160,31 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
         </div>
 
         <div className="p-6">
+          <div
+            role="tablist"
+            className="flex gap-1 mb-4 border-b border-gray-200 dark:border-gray-700"
+          >
+            {([
+              ['needs_review', 'Needs a decision'],
+              ['ignored', 'Ignored'],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={view === key}
+                onClick={() => setView(key)}
+                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+                  view === key
+                    ? 'border-zenible-primary text-zenible-primary'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           {error && (
             <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>
           )}
@@ -157,7 +200,9 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
             </div>
           ) : entries.length === 0 ? (
             <p className="py-8 text-center text-gray-500 dark:text-gray-400">
-              Nothing left to review.
+              {view === 'ignored'
+                ? 'Nothing has been ignored.'
+                : 'Nothing left to review.'}
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -214,6 +259,17 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
                           )}
                         </td>
                         <td className="py-3 text-right whitespace-nowrap">
+                          {view === 'ignored' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRestore(entry)}
+                              disabled={busy}
+                              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                            >
+                              {busy ? 'Restoring…' : 'Restore'}
+                            </button>
+                          ) : (
+                          <>
                           <button
                             type="button"
                             ref={(el) => {
@@ -250,6 +306,8 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
                               }
                             />
                           )}
+                          </>
+                          )}
                         </td>
                       </tr>
                     );
@@ -267,7 +325,7 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => load(page - 1)}
+                  onClick={() => load(page - 1, view)}
                   disabled={page <= 1 || loading}
                   className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50"
                 >
@@ -275,7 +333,7 @@ const GatewaySyncReviewModal: React.FC<Props> = ({ isOpen, onClose, onChanged })
                 </button>
                 <button
                   type="button"
-                  onClick={() => load(page + 1)}
+                  onClick={() => load(page + 1, view)}
                   disabled={page >= pages || loading}
                   className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50"
                 >
