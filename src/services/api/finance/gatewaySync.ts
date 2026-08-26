@@ -135,6 +135,24 @@ class GatewaySyncAPI {
     });
   }
 
+  /** Assign a reviewed entry to a contact, and optionally an invoice. */
+  async attribute(
+    entryId: string,
+    payload: { contact_id?: string; invoice_id?: string }
+  ): Promise<GatewayLedgerEntry> {
+    return request<GatewayLedgerEntry>(`${this.base}/entries/${entryId}/attribute`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  /** Mark an entry as deliberately not turned into anything. */
+  async ignore(entryId: string): Promise<GatewayLedgerEntry> {
+    return request<GatewayLedgerEntry>(`${this.base}/entries/${entryId}/ignore`, {
+      method: 'POST',
+    });
+  }
+
   async listEntries(
     params: { status?: string; provider?: string; page?: number; per_page?: number } = {}
   ): Promise<GatewayLedgerList> {

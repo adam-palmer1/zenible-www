@@ -6,6 +6,7 @@ import gatewaySyncAPI, {
   type GatewaySyncRunResult,
 } from '../../../../../services/api/finance/gatewaySync';
 import logger from '../../../../../utils/logger';
+import GatewaySyncReviewModal from './GatewaySyncReviewModal';
 
 /** yyyy-mm-dd for <input type="date">. */
 const toDateInput = (d: Date): string => d.toISOString().slice(0, 10);
@@ -88,6 +89,7 @@ const GatewaySyncCard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GatewaySyncRunResult | null>(null);
   const [resultWasDryRun, setResultWasDryRun] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   // Default to the last 30 days; blank means "resume from the last sync".
   const [useRange, setUseRange] = useState(false);
@@ -262,6 +264,17 @@ const GatewaySyncCard: React.FC = () => {
           {/* Two different situations, and saying "needs attention" for both
               misleads: an attributed-or-not payment already counts, whereas an
               entry with no payment behind it does not. */}
+          {status && status.needs_review > 0 && (
+            <button
+              type="button"
+              onClick={() => setReviewOpen(true)}
+              className="mt-3 text-sm font-medium text-zenible-primary hover:underline"
+            >
+              Review {status.needs_review} transaction
+              {status.needs_review === 1 ? '' : 's'}
+            </button>
+          )}
+
           {status && status.needs_attribution > 0 && (
             <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
               {status.needs_attribution} synced payment
@@ -378,6 +391,12 @@ const GatewaySyncCard: React.FC = () => {
       )}
 
       {result && <RunSummary result={result} wasDryRun={resultWasDryRun} />}
+
+      <GatewaySyncReviewModal
+        isOpen={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        onChanged={load}
+      />
     </div>
   );
 };
