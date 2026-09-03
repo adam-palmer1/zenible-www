@@ -71,7 +71,13 @@ type DraftSettings = {
   recording_enabled?: boolean;
   meeting_display_name?: string;
   auto_send_summary?: string;
+  bot_display_name?: string;
+  recording_notice_enabled?: boolean;
+  recording_notice_message?: string;
 };
+
+const MAX_BACKGROUND_BYTES = 5 * 1024 * 1024;
+const ALLOWED_BACKGROUND_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 const MeetingIntelligenceSettingsTab: React.FC = () => {
   const { darkMode } = usePreferences();
@@ -81,6 +87,8 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmAllParticipants, setConfirmAllParticipants] = useState(false);
+  const [backgroundBusy, setBackgroundBusy] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -107,6 +115,10 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
           recording_enabled: false,
           meeting_display_name: null,
           auto_send_summary: 'me',
+          bot_display_name: null,
+          bot_background_url: null,
+          recording_notice_enabled: true,
+          recording_notice_message: null,
         });
       } else {
         setError(msg);
@@ -123,12 +135,57 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
     recording_enabled: draft.recording_enabled ?? settings?.recording_enabled ?? false,
     meeting_display_name: draft.meeting_display_name ?? settings?.meeting_display_name ?? '',
     auto_send_summary: draft.auto_send_summary ?? settings?.auto_send_summary ?? 'no',
+    bot_display_name: draft.bot_display_name ?? settings?.bot_display_name ?? '',
+    recording_notice_enabled:
+      draft.recording_notice_enabled ?? settings?.recording_notice_enabled ?? true,
+    recording_notice_message:
+      draft.recording_notice_message ?? settings?.recording_notice_message ?? '',
   };
 
   const isDirty = Object.keys(draft).length > 0;
 
   const updateDraft = (patch: DraftSettings) => {
     setDraft((prev) => ({ ...prev, ...patch }));
+  };
+
+  const handleBackgroundSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset immediately so re-picking the same file still fires onChange.
+    e.target.value = '';
+    if (!file) return;
+
+    if (!ALLOWED_BACKGROUND_TYPES.includes(file.type)) {
+      setError('Background must be a JPEG, PNG, or WebP image.');
+      return;
+    }
+    if (file.size > MAX_BACKGROUND_BYTES) {
+      setError('Background must be 5MB or smaller.');
+      return;
+    }
+
+    try {
+      setBackgroundBusy(true);
+      setError(null);
+      const { bot_background_url } = await meetingIntelligenceAPI.uploadBotBackground(file);
+      setSettings((prev) => (prev ? { ...prev, bot_background_url } : prev));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to upload background');
+    } finally {
+      setBackgroundBusy(false);
+    }
+  };
+
+  const handleRemoveBackground = async () => {
+    try {
+      setBackgroundBusy(true);
+      setError(null);
+      await meetingIntelligenceAPI.deleteBotBackground();
+      setSettings((prev) => (prev ? { ...prev, bot_background_url: null } : prev));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to remove background');
+    } finally {
+      setBackgroundBusy(false);
+    }
   };
 
   const handleSave = async () => {
@@ -241,6 +298,153 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
               } ${saving ? 'opacity-50' : ''}`}
             />
           </div>
+        </div>
+      )}
+
+      {/* Bot Name */}
+      {settings?.feature_available && (
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+          <h3 className={`text-sm font-medium mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Bot Name
+          </h3>
+          <p className={`text-sm mb-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+            The name the assistant uses in the meeting participant list. Leave blank to use the default.
+          </p>
+          <div className="max-w-sm">
+            <input
+              type="text"
+              maxLength={64}
+              value={current.bot_display_name}
+              onChange={(e) => updateDraft({ bot_display_name: e.target.value })}
+              placeholder="Zenible AI"
+              disabled={saving}
+              className={`w-full px-3 py-2 text-sm rounded-lg border ${
+                darkMode
+                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-white placeholder-gray-500'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+              } ${saving ? 'opacity-50' : ''}`}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Bot Camera Background */}
+      {settings?.feature_available && (
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+          <h3 className={`text-sm font-medium mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Bot Camera Background
+          </h3>
+          <p className={`text-sm mb-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+            Shown on the assistant's camera during meetings. Landscape images work best (displayed at 1280&times;720). JPEG, PNG, or WebP, up to 5MB.
+          </p>
+          <div className="flex items-start gap-4 flex-wrap">
+            <div
+              className={`w-48 aspect-video rounded-lg border overflow-hidden flex items-center justify-center ${
+                darkMode ? 'bg-zenible-dark-bg border-zenible-dark-border' : 'bg-gray-50 border-gray-300'
+              }`}
+            >
+              {settings?.bot_background_url ? (
+                <img
+                  src={settings.bot_background_url}
+                  alt="Bot camera background preview"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className={`text-xs px-2 text-center ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                  Default Zenible background
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleBackgroundSelected}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={backgroundBusy}
+                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                  darkMode
+                    ? 'bg-zenible-dark-bg border-zenible-dark-border text-white hover:bg-zenible-dark-border'
+                    : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-50'
+                } ${backgroundBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {backgroundBusy ? 'Working…' : settings?.bot_background_url ? 'Replace image' : 'Upload image'}
+              </button>
+              {settings?.bot_background_url && (
+                <button
+                  type="button"
+                  onClick={handleRemoveBackground}
+                  disabled={backgroundBusy}
+                  className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                    darkMode ? 'text-red-400 hover:bg-red-900/20' : 'text-red-600 hover:bg-red-50'
+                  } ${backgroundBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+          <p className={`mt-3 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+            Uploads save immediately &mdash; the Save button is not needed for this setting.
+          </p>
+        </div>
+      )}
+
+      {/* Join Notice */}
+      {settings?.feature_available && (
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3 className={`text-sm font-medium mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Join Notice
+              </h3>
+              <p className={`text-sm mb-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                A chat message the assistant posts once when it joins. This is how participants are told the meeting is being recorded and transcribed &mdash; switching it off may not be lawful everywhere, so check your local requirements.
+              </p>
+            </div>
+            <button
+              onClick={() => updateDraft({ recording_notice_enabled: !current.recording_notice_enabled })}
+              disabled={saving}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-zenible-primary focus:ring-offset-2 ${
+                current.recording_notice_enabled
+                  ? 'bg-zenible-primary'
+                  : darkMode
+                    ? 'bg-zenible-dark-border'
+                    : 'bg-gray-200'
+              } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  current.recording_notice_enabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+          {current.recording_notice_enabled && (
+            <div className="mt-3">
+              <textarea
+                rows={3}
+                maxLength={500}
+                value={current.recording_notice_message}
+                onChange={(e) => updateDraft({ recording_notice_message: e.target.value })}
+                placeholder="This meeting is being transcribed with Zenible Meeting Intelligence"
+                disabled={saving}
+                className={`w-full px-3 py-2 text-sm rounded-lg border ${
+                darkMode
+                  ? 'bg-zenible-dark-bg border-zenible-dark-border text-white placeholder-gray-500'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+              } ${saving ? 'opacity-50' : ''}`}
+              />
+              <p className={`mt-1 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                {current.recording_notice_message.length}/500 &middot; Leave blank to use the default message.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
