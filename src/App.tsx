@@ -91,6 +91,8 @@ const PublicBookingPage = React.lazy(() => import('./pages/booking/PublicBooking
 const BookingConfirmation = React.lazy(() => import('./pages/booking/BookingConfirmation'));
 const BookingCancellation = React.lazy(() => import('./pages/booking/BookingCancellation'));
 const ZoomCallback = React.lazy(() => import('./pages/booking/ZoomCallback'));
+const NotFound = React.lazy(() => import('./pages/NotFound'));
+const RouteError = React.lazy(() => import('./pages/RouteError'));
 
 // Admin routes (admin-only, rarely accessed by most users)
 const AdminLayout = React.lazy(() => import('./components/admin/AdminLayout'));
@@ -152,6 +154,9 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
+    // Without this, a thrown route error renders React Router's default
+    // "Unexpected Application Error!" developer screen.
+    errorElement: <Suspense fallback={null}><RouteError /></Suspense>,
     children: [
       {
         path: 'signin',
@@ -576,6 +581,11 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <Navigate to="/dashboard" replace />
+      },
+      {
+        // Must stay last: matches only when no other route does.
+        path: '*',
+        element: <Suspense fallback={null}><NotFound /></Suspense>
       }
     ]
   }
