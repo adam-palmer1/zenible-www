@@ -7,8 +7,15 @@ export interface ZMISettings {
   minutes_remaining: number | null;
   caption_language: string | null;
   recording_enabled: boolean;
+  /** The USER's name for transcript attribution — not the bot's name. */
   meeting_display_name: string | null;
   auto_send_summary: string;
+  /** The bot's name in the meeting participant list. */
+  bot_display_name: string | null;
+  /** Presigned URL of the bot's camera background; null = default brand image. */
+  bot_background_url: string | null;
+  recording_notice_enabled: boolean;
+  recording_notice_message: string | null;
 }
 
 export interface UpcomingMeeting {

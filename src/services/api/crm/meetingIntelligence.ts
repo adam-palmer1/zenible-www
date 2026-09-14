@@ -2,19 +2,67 @@
  * Meeting Intelligence (ZMI) API Service
  */
 
+import { API_BASE_URL } from '@/config/api';
 import { createRequest } from '../httpClient';
 
 const request = createRequest('MeetingIntelligenceAPI');
+
+/** Bot background upload/delete use multipart, so they bypass `request`
+ *  (which forces a JSON Content-Type and would break the form boundary). */
+const botBackgroundUrl = `${API_BASE_URL}/crm/meeting-intelligence/settings/bot-background`;
+
+const authHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('access_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 const meetingIntelligenceAPI = {
   /** Get ZMI settings for current user */
   getSettings: () => request('/crm/meeting-intelligence/settings', { method: 'GET' }),
 
   /** Update ZMI settings */
-  updateSettings: (data: { enabled?: boolean; caption_language?: string; recording_enabled?: boolean; meeting_display_name?: string; auto_send_summary?: string }) => request('/crm/meeting-intelligence/settings', {
+  updateSettings: (data: {
+    enabled?: boolean;
+    caption_language?: string;
+    recording_enabled?: boolean;
+    meeting_display_name?: string;
+    auto_send_summary?: string;
+    bot_display_name?: string;
+    recording_notice_enabled?: boolean;
+    recording_notice_message?: string;
+  }) => request('/crm/meeting-intelligence/settings', {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
+
+  /** Upload the image shown on the bot's camera (JPEG/PNG/WebP, max 5MB) */
+  uploadBotBackground: async (file: File): Promise<{ bot_background_url: string | null }> => {
+    const formData = new FormData();
+    formData.append('background', file);
+    const response = await fetch(botBackgroundUrl, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ detail: 'Upload failed' }));
+      throw new Error(err.detail || 'Failed to upload background');
+    }
+    return response.json();
+  },
+
+  /** Remove the custom background; the bot reverts to the default image */
+  deleteBotBackground: async (): Promise<{ bot_background_url: string | null }> => {
+    const response = await fetch(botBackgroundUrl, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ detail: 'Delete failed' }));
+      throw new Error(err.detail || 'Failed to remove background');
+    }
+    return response.json();
+  },
 
   /** Get upcoming meetings with meeting links */
   getUpcoming: () => request('/crm/meeting-intelligence/upcoming', { method: 'GET' }),
