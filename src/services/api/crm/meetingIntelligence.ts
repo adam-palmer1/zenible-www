@@ -28,6 +28,7 @@ const meetingIntelligenceAPI = {
     meeting_display_name?: string;
     auto_send_summary?: string;
     bot_display_name?: string;
+    bot_camera_enabled?: boolean;
     recording_notice_enabled?: boolean;
     recording_notice_message?: string;
   }) => request('/crm/meeting-intelligence/settings', {

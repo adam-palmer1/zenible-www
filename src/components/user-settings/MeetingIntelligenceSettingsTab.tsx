@@ -72,6 +72,7 @@ type DraftSettings = {
   meeting_display_name?: string;
   auto_send_summary?: string;
   bot_display_name?: string;
+  bot_camera_enabled?: boolean;
   recording_notice_enabled?: boolean;
   recording_notice_message?: string;
 };
@@ -116,6 +117,7 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
           meeting_display_name: null,
           auto_send_summary: 'me',
           bot_display_name: null,
+          bot_camera_enabled: true,
           bot_background_url: null,
           recording_notice_enabled: true,
           recording_notice_message: null,
@@ -136,6 +138,8 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
     meeting_display_name: draft.meeting_display_name ?? settings?.meeting_display_name ?? '',
     auto_send_summary: draft.auto_send_summary ?? settings?.auto_send_summary ?? 'no',
     bot_display_name: draft.bot_display_name ?? settings?.bot_display_name ?? '',
+    bot_camera_enabled:
+      draft.bot_camera_enabled ?? settings?.bot_camera_enabled ?? true,
     recording_notice_enabled:
       draft.recording_notice_enabled ?? settings?.recording_notice_enabled ?? true,
     recording_notice_message:
@@ -328,15 +332,40 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
         </div>
       )}
 
-      {/* Bot Camera Background */}
+      {/* Bot Camera */}
       {settings?.feature_available && (
         <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
-          <h3 className={`text-sm font-medium mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            Bot Camera Background
-          </h3>
-          <p className={`text-sm mb-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-            Shown on the assistant's camera during meetings. Landscape images work best (displayed at 1280&times;720). JPEG, PNG, or WebP, up to 5MB.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3 className={`text-sm font-medium mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Bot Camera
+              </h3>
+              <p className={`text-sm mb-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
+                {current.bot_camera_enabled
+                  ? "The image shown on the assistant's camera during meetings. Landscape images work best (displayed at 1280\u00d7720). JPEG, PNG, or WebP, up to 5MB."
+                  : 'The assistant joins with its camera off and shows no video at all, like any participant with their camera muted.'}
+              </p>
+            </div>
+            <button
+              onClick={() => updateDraft({ bot_camera_enabled: !current.bot_camera_enabled })}
+              disabled={saving}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-zenible-primary focus:ring-offset-2 ${
+                current.bot_camera_enabled
+                  ? 'bg-zenible-primary'
+                  : darkMode
+                    ? 'bg-zenible-dark-border'
+                    : 'bg-gray-200'
+              } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  current.bot_camera_enabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+          {current.bot_camera_enabled && (
+          <>
           <div className="flex items-start gap-4 flex-wrap">
             <div
               className={`w-48 aspect-video rounded-lg border overflow-hidden flex items-center justify-center ${
@@ -392,6 +421,8 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
           <p className={`mt-3 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
             Uploads save immediately &mdash; the Save button is not needed for this setting.
           </p>
+          </>
+          )}
         </div>
       )}
 

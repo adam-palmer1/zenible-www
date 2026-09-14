@@ -12,6 +12,8 @@ export interface ZMISettings {
   auto_send_summary: string;
   /** The bot's name in the meeting participant list. */
   bot_display_name: string | null;
+  /** When false the bot joins with its camera off and shows no video at all. */
+  bot_camera_enabled: boolean;
   /** Presigned URL of the bot's camera background; null = default brand image. */
   bot_background_url: string | null;
   recording_notice_enabled: boolean;
