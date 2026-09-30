@@ -337,8 +337,16 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
         <div className={`p-4 rounded-lg border ${darkMode ? 'bg-zenible-dark-card border-zenible-dark-border' : 'bg-white border-gray-200'}`}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <h3 className={`text-sm font-medium mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-sm font-medium mb-1 flex items-center gap-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 Bot Camera
+                {draft.bot_camera_enabled !== undefined
+                  && draft.bot_camera_enabled !== settings?.bot_camera_enabled && (
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-normal ${
+                    darkMode ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    Unsaved
+                  </span>
+                )}
               </h3>
               <p className={`text-sm mb-3 ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
                 {current.bot_camera_enabled
@@ -419,7 +427,8 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
             </div>
           </div>
           <p className={`mt-3 text-xs ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
-            Uploads save immediately &mdash; the Save button is not needed for this setting.
+            Adding or removing the image saves immediately. The camera switch above
+            does not &mdash; it needs <strong>Save Settings</strong> at the bottom of the page.
           </p>
           </>
           )}
@@ -616,8 +625,12 @@ const MeetingIntelligenceSettingsTab: React.FC = () => {
         </div>
       )}
 
-      {/* Save bar */}
-      <div className={`flex items-center justify-end gap-3 pt-2 border-t ${darkMode ? 'border-zenible-dark-border' : 'border-gray-200'}`}>
+      {/* Save bar — sticky so it stays reachable from any card on the page */}
+      <div className={`sticky bottom-0 z-10 -mx-1 px-1 py-3 flex items-center justify-end gap-3 border-t ${
+        darkMode
+          ? 'border-zenible-dark-border bg-zenible-dark-bg'
+          : 'border-gray-200 bg-white'
+      }`}>
         {isDirty && (
           <span className={`text-sm ${darkMode ? 'text-zenible-dark-text-secondary' : 'text-gray-500'}`}>
             Unsaved changes
