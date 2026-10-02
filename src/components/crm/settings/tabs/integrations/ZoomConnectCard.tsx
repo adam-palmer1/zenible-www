@@ -1,206 +1,260 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
-import zoomAPI from '../../../../../services/api/crm/zoom';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ArrowTopRightOnSquareIcon,
+} from '@heroicons/react/24/outline';
+import zoomAPI, { type ZoomStatus } from '../../../../../services/api/crm/zoom';
 import logger from '../../../../../utils/logger';
 
-interface ZoomConnectUrlResponse {
-  authorization_url: string;
-  state: string;
+/**
+ * Zoom connection card.
+ *
+ * Zoom is connected with Server-to-Server OAuth credentials from an app the
+ * user creates inside their own Zoom account. That app type has no consent
+ * screen, so there is no "authorize" redirect — the user pastes three values
+ * and the server validates them against Zoom before storing.
+ */
+
+interface ZoomConnectCardProps {
+  onStatusChange?: (gateway: string, status: unknown) => void;
 }
 
-// Zoom logo SVG component
-const ZoomLogo = ({ className = 'h-6 w-6' }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M4.5 4.5C4.5 3.11929 5.61929 2 7 2H17C18.3807 2 19.5 3.11929 19.5 4.5V15C19.5 15.8284 18.8284 16.5 18 16.5H16.5L19.5 19.5V15H20.25C21.4926 15 22.5 13.9926 22.5 12.75V6.75C22.5 5.50736 21.4926 4.5 20.25 4.5H19.5V4.5ZM7 3.5C6.44772 3.5 6 3.94772 6 4.5V15C6 15.5523 6.44772 16 7 16H15C15.5523 16 16 15.5523 16 15V4.5C16 3.94772 15.5523 3.5 15 3.5H7ZM7 17.5C5.61929 17.5 4.5 16.3807 4.5 15V6H3.75C2.50736 6 1.5 7.00736 1.5 8.25V17.25C1.5 18.4926 2.50736 19.5 3.75 19.5H4.5V22.5L7.5 19.5H14.25C15.4926 19.5 16.5 18.4926 16.5 17.25V17.5H7Z" />
-  </svg>
-);
+const EMPTY_FORM = { accountId: '', clientId: '', clientSecret: '' };
 
-interface ZoomStatus {
-  is_connected: boolean;
-  account?: {
-    zoom_email?: string;
-  } | null;
-}
-
-const ZoomConnectCard = ({ onStatusChange }: { onStatusChange?: (gateway: string, status: any) => void }) => {
+const ZoomConnectCard: React.FC<ZoomConnectCardProps> = ({ onStatusChange }) => {
   const [status, setStatus] = useState<ZoomStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  // Load Zoom status
   const loadStatus = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const data = await zoomAPI.getStatus() as ZoomStatus;
+      const data = await zoomAPI.getStatus();
       setStatus(data);
-      return data;
-    } catch (err: any) {
-      logger.error('[ZoomConnect] Error loading status:', err);
-      if (err.status !== 404) {
-        setError(err.message);
-      }
-      const fallbackStatus = { is_connected: false, account: null };
-      setStatus(fallbackStatus);
-      return fallbackStatus;
+      onStatusChange?.('zoom', data);
+    } catch (err) {
+      logger.error('Failed to load Zoom status:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onStatusChange]);
 
-  // Initial load
   useEffect(() => {
-    if (!initialized) {
-      setInitialized(true);
-      loadStatus().then((data) => {
-        onStatusChange?.('zoom', data);
-      });
-    }
-  }, [initialized, loadStatus, onStatusChange]);
+    loadStatus();
+  }, [loadStatus]);
 
-  // Start Zoom OAuth flow
-  const handleConnect = async () => {
-    try {
-      setConnecting(true);
-      setError(null);
-
-      const { authorization_url, state } = await zoomAPI.getConnectUrl() as ZoomConnectUrlResponse;
-
-      // Store state for validation
-      sessionStorage.setItem('zoom_oauth_state', state);
-
-      // Redirect to Zoom OAuth
-      window.location.href = authorization_url;
-    } catch (err: any) {
-      logger.error('[ZoomConnect] Error connecting:', err);
-      setError(err.message || 'Failed to start Zoom connection');
-      setConnecting(false);
-    }
-  };
-
-  // Disconnect Zoom
-  const handleDisconnect = async () => {
-    if (!confirm('Are you sure you want to disconnect Zoom? Auto-generated meeting links will no longer work for new bookings.')) {
+  const handleSave = async () => {
+    setError(null);
+    setNotice(null);
+    if (!form.accountId.trim() || !form.clientId.trim() || !form.clientSecret.trim()) {
+      setError('Account ID, Client ID and Client Secret are all required.');
       return;
     }
 
+    setSaving(true);
     try {
-      setDisconnecting(true);
-      setError(null);
+      const result = await zoomAPI.connect(
+        form.accountId.trim(),
+        form.clientId.trim(),
+        form.clientSecret.trim()
+      );
+      setNotice(result.message);
+      setForm(EMPTY_FORM);
+      setShowForm(false);
+      await loadStatus();
+    } catch (err) {
+      // The server passes Zoom's own reason through, which names the real
+      // problem (bad secret, wrong account id, missing scope) far better than
+      // a generic failure would.
+      setError((err as Error).message || 'Could not connect to Zoom.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTest = async () => {
+    setError(null);
+    setNotice(null);
+    setTesting(true);
+    try {
+      const result = await zoomAPI.test();
+      if (result.success) setNotice(result.message);
+      else setError(result.message);
+    } catch (err) {
+      setError((err as Error).message || 'Test failed.');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!window.confirm('Disconnect Zoom? New bookings will stop getting a Zoom link.')) return;
+    setDisconnecting(true);
+    setError(null);
+    setNotice(null);
+    try {
       await zoomAPI.disconnect();
-      const newStatus = { is_connected: false, account: null };
-      setStatus(newStatus);
-      onStatusChange?.('zoom', newStatus);
-    } catch (_err) {
-      setError('Failed to disconnect Zoom');
+      await loadStatus();
+    } catch (err) {
+      setError((err as Error).message || 'Could not disconnect.');
     } finally {
       setDisconnecting(false);
     }
   };
 
-  // Loading state
+  const connected = !!status?.is_connected;
+
   if (loading) {
     return (
-      <div className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-[#2D8CFF]/10 rounded-lg">
-            <ZoomLogo className="h-6 w-6 text-[#2D8CFF]" />
-          </div>
-          <div className="flex-1">
-            <div className="h-5 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-            <div className="h-4 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mt-2" />
-          </div>
-        </div>
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5">
+        <div className="text-sm text-gray-500 dark:text-gray-400">Loading Zoom…</div>
       </div>
     );
   }
 
-  // Error display helper
-  const ErrorDisplay = () =>
-    error ? (
-      <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-      </div>
-    ) : null;
-
-  // Not connected state
-  if (!status?.is_connected) {
-    return (
-      <div className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-[#2D8CFF]/10 rounded-lg">
-            <ZoomLogo className="h-6 w-6 text-[#2D8CFF]" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium text-gray-900 dark:text-white">Zoom</h4>
-              <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
-                Not Connected
-              </span>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Connect Zoom to automatically generate meeting links for your call bookings.
-            </p>
-            <ErrorDisplay />
-            <button
-              onClick={handleConnect}
-              disabled={connecting}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#2D8CFF] hover:bg-[#2681F2] text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {connecting ? (
-                <>
-                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  <ZoomLogo className="h-4 w-4" />
-                  Connect with Zoom
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Connected state
   return (
-    <div className="p-6 border border-green-200 dark:border-green-800 rounded-lg bg-green-50 dark:bg-green-900/10">
-      <div className="flex items-start gap-4">
-        <div className="p-3 bg-[#2D8CFF]/10 rounded-lg">
-          <ZoomLogo className="h-6 w-6 text-[#2D8CFF]" />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-2">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
             <h4 className="font-medium text-gray-900 dark:text-white">Zoom</h4>
-            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded">
-              <CheckCircleIcon className="h-3 w-3" />
-              Connected
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                connected
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                  : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+              }`}
+            >
+              {connected ? 'Connected' : 'Not connected'}
             </span>
           </div>
-          {status.account?.zoom_email && (
-            <p className="text-sm font-medium text-gray-900 dark:text-white">
-              {status.account.zoom_email}
-            </p>
-          )}
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Zoom meeting links will be auto-generated for call bookings.
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {connected
+              ? `Meetings are created on ${status?.account?.zoom_email || status?.account?.zoom_user_id}.`
+              : 'Create a Zoom meeting automatically for every booking on a Zoom call type.'}
           </p>
-          <ErrorDisplay />
-          <button
-            onClick={handleDisconnect}
-            disabled={disconnecting}
-            className="inline-flex items-center gap-2 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-          >
-            {disconnecting ? 'Disconnecting...' : 'Disconnect'}
-          </button>
+        </div>
+
+        <div className="shrink-0 flex items-center gap-2">
+          {connected ? (
+            <>
+              <button
+                type="button"
+                onClick={handleTest}
+                disabled={testing}
+                className="px-2.5 py-1.5 text-xs font-medium text-zenible-primary hover:bg-zenible-primary/10 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {testing ? 'Testing…' : 'Test'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                className="px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-red-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowForm((v) => !v)}
+              className="px-3 py-2 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:opacity-90 transition-opacity"
+            >
+              {showForm ? 'Cancel' : 'Connect Zoom'}
+            </button>
+          )}
         </div>
       </div>
+
+      {notice && (
+        <div className="mt-3 flex items-start gap-2 text-sm text-green-700 dark:text-green-300">
+          <CheckCircleIcon className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{notice}</span>
+        </div>
+      )}
+      {error && (
+        <div className="mt-3 flex items-start gap-2 text-sm text-red-600 dark:text-red-400">
+          <ExclamationTriangleIcon className="h-4 w-4 mt-0.5 shrink-0" />
+          <span className="break-words">{error}</span>
+        </div>
+      )}
+
+      {showForm && !connected && (
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+            <p className="font-medium text-gray-700 dark:text-gray-300">
+              You&apos;ll need a Server-to-Server OAuth app in your own Zoom account:
+            </p>
+            <ol className="list-decimal list-inside space-y-0.5">
+              <li>
+                Open the{' '}
+                <a
+                  href="https://marketplace.zoom.us/develop/create"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-zenible-primary hover:underline inline-flex items-center gap-0.5"
+                >
+                  Zoom Marketplace
+                  <ArrowTopRightOnSquareIcon className="h-3 w-3" />
+                </a>{' '}
+                and build a <strong>Server-to-Server OAuth</strong> app.
+              </li>
+              <li>
+                Add the scopes <span className="font-mono">meeting:write</span> and{' '}
+                <span className="font-mono">user:read</span>, then activate it.
+              </li>
+              <li>Copy its Account ID, Client ID and Client Secret below.</li>
+            </ol>
+            <p className="pt-1">
+              You must be an owner or admin of the Zoom account to create this app.
+            </p>
+          </div>
+
+          {[
+            { key: 'accountId' as const, label: 'Account ID', type: 'text' },
+            { key: 'clientId' as const, label: 'Client ID', type: 'text' },
+            { key: 'clientSecret' as const, label: 'Client Secret', type: 'password' },
+          ].map((f) => (
+            <div key={f.key}>
+              <label
+                htmlFor={`zoom-${f.key}`}
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                {f.label}
+              </label>
+              <input
+                id={`zoom-${f.key}`}
+                type={f.type}
+                autoComplete={f.type === 'password' ? 'new-password' : 'off'}
+                spellCheck={false}
+                value={form[f.key]}
+                onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                className="w-full px-3 py-2 font-mono text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-zenible-primary focus:border-transparent"
+              />
+            </div>
+          ))}
+
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Stored encrypted and never shown again. Zenible checks them with Zoom before saving.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 text-sm font-medium text-white bg-zenible-primary rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {saving ? 'Checking with Zoom…' : 'Save and connect'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

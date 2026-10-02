@@ -90,7 +90,6 @@ const PublicUserPage = React.lazy(() => import('./pages/booking/PublicUserPage')
 const PublicBookingPage = React.lazy(() => import('./pages/booking/PublicBookingPage'));
 const BookingConfirmation = React.lazy(() => import('./pages/booking/BookingConfirmation'));
 const BookingCancellation = React.lazy(() => import('./pages/booking/BookingCancellation'));
-const ZoomCallback = React.lazy(() => import('./pages/booking/ZoomCallback'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 const RouteError = React.lazy(() => import('./pages/RouteError'));
 
@@ -391,15 +390,6 @@ const router = createBrowserRouter([
       {
         path: 'booking/cancel/:token',
         element: <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><BookingCancellation /></Suspense></ErrorBoundary>
-      },
-      // Zoom OAuth callback (authenticated)
-      {
-        path: 'settings/integrations/zoom/callback',
-        element: (
-          <ProtectedRoute>
-            <ErrorBoundary level="section"><Suspense fallback={<PageLoadingFallback />}><ZoomCallback /></Suspense></ErrorBoundary>
-          </ProtectedRoute>
-        )
       },
       {
         path: 'finance/credit-notes',
