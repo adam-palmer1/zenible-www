@@ -86,7 +86,7 @@ const InvoiceFormHeader: React.FC<InvoiceFormHeaderProps> = ({
                   if (fullName && client.business_name) {
                     return `${fullName} (${client.business_name})`;
                   }
-                  return fullName || client.business_name || 'Unnamed Client';
+                  return fullName || client.business_name || client.email || 'Unnamed Client';
                 })()
                 : 'Select a Client'
               }

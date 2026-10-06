@@ -190,7 +190,7 @@ const ReportsDashboard: React.FC = () => {
 
   const getClientDisplayName = useCallback((client: any): string => {
     const fullName = `${client.first_name || ''} ${client.last_name || ''}`.trim();
-    return fullName || client.business_name || 'Unnamed';
+    return fullName || client.business_name || client.email || 'Unnamed';
   }, []);
 
   /* ── Date preset logic ────────────────────────────────────── */

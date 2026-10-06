@@ -193,7 +193,8 @@ const PaymentList: React.FC = () => {
       if (first_name || last_name) {
         return `${first_name || ''} ${last_name || ''}`.trim();
       }
-      return business_name || '-';
+      // Gateway-synced payers are often known only by email.
+      return business_name || payment.contact.email || '-';
     }
     return payment.customer_name || '-';
   };

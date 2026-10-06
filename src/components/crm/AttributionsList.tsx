@@ -63,7 +63,7 @@ const AttributionsList: React.FC<AttributionsListProps> = ({
       return loadingContacts ? 'Loading...' : 'Unknown Contact';
     }
     const name = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
-    return name || contact.business_name || 'Unnamed Contact';
+    return name || contact.business_name || contact.email || 'Unnamed Contact';
   };
 
   const getContactBusiness = (attribution: any) => {

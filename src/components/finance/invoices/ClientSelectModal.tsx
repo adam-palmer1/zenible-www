@@ -51,7 +51,7 @@ const ClientSelectModal: React.FC<ClientSelectModalProps> = ({ isOpen, onClose, 
     if (fullName && client.business_name) {
       return `${fullName} (${client.business_name})`;
     }
-    return fullName || client.business_name || 'Unnamed Client';
+    return fullName || client.business_name || client.email || 'Unnamed Client';
   };
 
   // Close on click outside

@@ -45,7 +45,7 @@ const RecentClientsWidget = ({ settings = {}, isHovered = false }: RecentClients
     if (fullName) {
       return fullName;
     }
-    return company || 'Unnamed Client';
+    return company || client.email || 'Unnamed Client';
   };
 
   const handleViewAll = () => navigate('/crm/clients');
